@@ -1,6 +1,13 @@
 //! PostgreSQL transactions enforce owner boundaries independently of HTTP inputs.
 mod import;
 mod owner;
+mod session;
+mod session_crypto;
+pub use session::{
+    AuthenticatedSession, IdentityProvider, IdentityTokens, ProviderError, RevokeScope,
+    SessionError,
+};
+pub use session_crypto::CredentialKey;
 
 pub use import::ImportResult;
 pub use owner::{Owner, OwnerScope};

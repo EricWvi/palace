@@ -210,3 +210,199 @@ async fn concurrent_imports_reuse_prefix_and_failures_roll_back() {
     let counts:(i64,i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
     assert_eq!(counts, (1, 4, 3));
 }
+
+struct FakeProvider {
+    calls: std::sync::atomic::AtomicUsize,
+    outcome: FakeOutcome,
+}
+enum FakeOutcome {
+    Valid,
+    Unavailable,
+    Rejected,
+    MissingEmail,
+}
+impl palace_db::IdentityProvider for FakeProvider {
+    /// Counts actual refresh exchanges to detect concurrent reuse of a rotating credential.
+    async fn refresh(
+        &self,
+        _credential: &str,
+    ) -> Result<palace_db::IdentityTokens, palace_db::ProviderError> {
+        self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        match self.outcome {
+            FakeOutcome::Valid => Ok(palace_db::IdentityTokens {
+                issuer: "https://idp".into(),
+                subject: "a".into(),
+                email: "new@example.com".into(),
+                refresh: "rotated".into(),
+            }),
+            FakeOutcome::MissingEmail => Ok(palace_db::IdentityTokens {
+                issuer: "https://idp".into(),
+                subject: "a".into(),
+                email: String::new(),
+                refresh: "rotated".into(),
+            }),
+            FakeOutcome::Unavailable => Err(palace_db::ProviderError::Unavailable),
+            FakeOutcome::Rejected => Err(palace_db::ProviderError::Rejected),
+        }
+    }
+    /// Simulates an outage so the test proves local invalidation survives external failure.
+    async fn revoke(&self, _credential: &str) -> Result<(), palace_db::ProviderError> {
+        Err(palace_db::ProviderError::Unavailable)
+    }
+}
+/// Creates provider results without involving live accounts or production credentials.
+fn tokens() -> palace_db::IdentityTokens {
+    palace_db::IdentityTokens {
+        issuer: "https://idp".into(),
+        subject: "a".into(),
+        email: "a@example.com".into(),
+        refresh: "initial".into(),
+    }
+}
+/// Tests persisted restart recovery, serialized refresh, bounded rotation and local-first revocation.
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn persistent_sessions_revalidate_rotate_and_revoke() {
+    use palace_db::{CredentialKey, RevokeScope, SessionError};
+    let (_container, db, pool) = database().await;
+    let key = CredentialKey::new([1; 32]);
+    let valid = FakeProvider {
+        calls: Default::default(),
+        outcome: FakeOutcome::Valid,
+    };
+    let session = db
+        .create_session(tokens(), &key, /*now*/ 100, /*previous*/ None)
+        .await
+        .unwrap();
+    let stored: (Vec<u8>, Vec<u8>) =
+        sqlx::query_as("SELECT secret_hash,refresh_credential FROM owner_session WHERE id=$1")
+            .bind(session.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_ne!(stored.0, session.secret.as_bytes());
+    assert_ne!(stored.1, b"initial");
+    let (a, b) = tokio::join!(
+        db.authenticate(&session.secret, &key, &valid, 86500),
+        db.authenticate(&session.secret, &key, &valid, 86500)
+    );
+    let a = a.unwrap();
+    let b = b.unwrap();
+    assert_eq!(
+        (a.id, a.owner.clone(), a.secret.clone()),
+        (b.id, b.owner, b.secret)
+    );
+    assert_eq!(valid.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(a.id, session.id);
+    assert_eq!(a.owner.id, session.owner.id);
+    assert_ne!(a.secret, session.secret);
+    assert!(matches!(
+        db.authenticate(&session.secret, &key, &valid, 86531).await,
+        Err(SessionError::Unauthorized)
+    ));
+    let transient = FakeProvider {
+        calls: Default::default(),
+        outcome: FakeOutcome::Unavailable,
+    };
+    assert!(matches!(
+        db.authenticate(&a.secret, &key, &transient, 172900).await,
+        Err(SessionError::Unavailable)
+    ));
+    let revoked: Option<i64> =
+        sqlx::query_scalar("SELECT revoked_at FROM owner_session WHERE id=$1")
+            .bind(a.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(revoked, None);
+    let recovered = db
+        .authenticate(&a.secret, &key, &valid, 172900)
+        .await
+        .unwrap();
+    let second = db
+        .create_session(tokens(), &key, /*now*/ 172900, /*previous*/ None)
+        .await
+        .unwrap();
+    db.revoke_sessions(
+        recovered.owner.scope(),
+        recovered.id,
+        RevokeScope::Current,
+        172901,
+    )
+    .await
+    .unwrap();
+    db.retry_revocations(&key, &transient).await.unwrap();
+    assert!(matches!(
+        db.authenticate(&recovered.secret, &key, &valid, 172901)
+            .await,
+        Err(SessionError::Unauthorized)
+    ));
+    assert!(
+        db.authenticate(&second.secret, &key, &valid, 172901)
+            .await
+            .is_ok()
+    );
+    db.revoke_sessions(
+        second.owner.scope(),
+        second.id,
+        RevokeScope::AllDevices,
+        172902,
+    )
+    .await
+    .unwrap();
+    assert!(
+        db.authenticate(&second.secret, &key, &valid, 172902)
+            .await
+            .is_err()
+    );
+    let pending: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM owner_session WHERE revocation_pending AND revoked_at IS NOT NULL",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(pending, 2);
+    for outcome in [FakeOutcome::Rejected, FakeOutcome::MissingEmail] {
+        let s = db
+            .create_session(tokens(), &key, /*now*/ 200000, /*previous*/ None)
+            .await
+            .unwrap();
+        let provider = FakeProvider {
+            calls: Default::default(),
+            outcome,
+        };
+        assert!(
+            db.authenticate(&s.secret, &key, &provider, 286400)
+                .await
+                .is_err()
+        );
+        assert!(
+            db.authenticate(&s.secret, &key, &valid, 286401)
+                .await
+                .is_err()
+        );
+    }
+    let before = db
+        .create_session(tokens(), &key, /*now*/ 300000, /*previous*/ None)
+        .await
+        .unwrap();
+    let after = db
+        .create_session(tokens(), &key, /*now*/ 300001, Some(&before.secret))
+        .await
+        .unwrap();
+    assert!(
+        db.authenticate(&before.secret, &key, &valid, 300002)
+            .await
+            .is_err()
+    );
+    sqlx::query("UPDATE owner_identity SET disabled=true WHERE id=$1")
+        .bind(after.owner.identity_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(
+        db.authenticate(&after.secret, &key, &valid, 300003)
+            .await
+            .is_err()
+    );
+}

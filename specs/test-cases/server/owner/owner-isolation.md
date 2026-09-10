@@ -270,10 +270,10 @@ Owner A、B 在全局 sequence 中拥有交错版本；A 上传一个声称属�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 闲置超过 24 小时不自动撤销服务端 Session | Missing | 尚无实现测试 |
+| 闲置超过 24 小时不自动撤销服务端 Session | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
 | 有效 refresh 在下一次请求完成复核并继续 | Missing | 尚无实现测试 |
 | refresh 过期进入 OIDC，按 Authelia SSO 状态决定是否交互 | Missing | 尚无实现测试 |
-| Authelia 临时不可达拒绝访问但保留 Session 供重试 | Missing | 尚无实现测试 |
+| Authelia 临时不可达拒绝访问但保留 Session 供重试 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
 | cookie 缺失不能恢复原 Session | Missing | 尚无实现测试 |
 
 ### 决策依据
@@ -309,7 +309,7 @@ cookie 暴露 owner_id 或 OIDC token，脚本读取长期凭证，登录后沿�
 | cookie 只携带 opaque secret 且安全属性完整 | Missing | 尚无实现测试 |
 | 登录后旧匿名/预设 Session 不再有效 | Missing | 尚无实现测试 |
 | 状态变更具有独立 Origin/CSRF 防护 | Missing | 尚无实现测试 |
-| secret 轮换在并发下有界且最终淘汰旧值 | Missing | 尚无实现测试 |
+| secret 轮换在并发下有界且最终淘汰旧值 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
 
 ### 决策依据
 
@@ -341,9 +341,9 @@ Palace 先持久化对应范围的 revoked_at，随后所有新请求均拒绝�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 当前设备与全部设备撤销范围正确 | Missing | 尚无实现测试 |
-| 本地撤销提交后旧 cookie 立即失效 | Missing | 尚无实现测试 |
-| Authelia 撤销失败不恢复 Session 且可重试 | Missing | 尚无实现测试 |
+| 当前设备与全部设备撤销范围正确 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
+| 本地撤销提交后旧 cookie 立即失效 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
+| Authelia 撤销失败不恢复 Session 且可重试 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
 | Session 状态缓存不能越过本地撤销 | Missing | 尚无实现测试 |
 
 ### 决策依据

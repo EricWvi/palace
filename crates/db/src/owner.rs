@@ -70,7 +70,7 @@ impl Database {
     }
 }
 /// Validates current email without substituting a historical value; normalization only detects conflicts.
-fn normalize_email(email: &str) -> Result<String, DbError> {
+pub(crate) fn normalize_email(email: &str) -> Result<String, DbError> {
     let value = email.trim();
     let parts: Vec<_> = value.split('@').collect();
     if value.len() > 320
