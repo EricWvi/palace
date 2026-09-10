@@ -91,6 +91,9 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     let db = Database::connect(&format!("postgres://postgres:test@{host}:{port}/postgres"))
         .await
         .unwrap();
+    let pool = sqlx::PgPool::connect(&format!("postgres://postgres:test@{host}:{port}/postgres"))
+        .await
+        .unwrap();
     let key = CredentialKey::new([4; 32]);
     let mut sessions = Vec::new();
     for subject in ["a", "b"] {
@@ -118,7 +121,10 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         credential_key: key,
         origin: "https://palace.test".into(),
         links: SourceLinks::standard().unwrap(),
-        limits: ImportLimits::default(),
+        limits: ImportLimits {
+            bytes: 1024,
+            ..Default::default()
+        },
         now,
     });
     let history = r#"[{"role":"user","content":"<script>alert(1)</script>\r\n","extra":123}]"#;
@@ -211,6 +217,76 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         tree["messages"][0]["content"],
         "<script>alert(1)</script>\r\n"
     );
+    for (history, expected_status) in [
+        (
+            r#"[{"role":"user","content":1}]"#.to_owned(),
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            format!(r#"[{{"role":"user","content":"{}"}}]"#, "x".repeat(1024)),
+            StatusCode::PAYLOAD_TOO_LARGE,
+        ),
+    ] {
+        let mut invalid = input.clone();
+        invalid["history"] = serde_json::json!(history);
+        invalid["session_id"] = serde_json::json!("invalid");
+        invalid["idempotency_key"] = serde_json::json!("invalid");
+        let response = app
+            .clone()
+            .oneshot(request(
+                "POST",
+                "/api/import",
+                &cookie,
+                "https://palace.test",
+                "application/json",
+                invalid.to_string(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), expected_status);
+        let expected: serde_json::Value =
+            serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes())
+                .unwrap();
+        let mut file = String::new();
+        for (name, value) in [
+            ("title", "t"),
+            ("source", "chatgpt"),
+            ("session_id", "invalid"),
+            ("history", history.as_str()),
+            ("idempotency_key", "invalid"),
+        ] {
+            file.push_str(&format!(
+                "--boundary\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n"
+            ));
+        }
+        file.push_str("--boundary--\r\n");
+        let response = app
+            .clone()
+            .oneshot(request(
+                "POST",
+                "/api/import/file",
+                &cookie,
+                "https://palace.test",
+                "multipart/form-data; boundary=boundary",
+                file,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), expected_status);
+        let actual: serde_json::Value =
+            serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes())
+                .unwrap();
+        // Transport-level size rejection may have a different detail, but category/location remain identical.
+        assert_eq!(
+            (&actual["kind"], &actual["path"]),
+            (&expected["kind"], &expected["path"])
+        );
+        if expected_status == StatusCode::BAD_REQUEST {
+            assert_eq!(actual, expected);
+        }
+    }
+    let counts:(i64,i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
+    assert_eq!(counts, (1, 1, 1));
     let mut spoof = input.clone();
     spoof["owner_id"] = serde_json::json!(sessions[1].owner.id);
     let response = app

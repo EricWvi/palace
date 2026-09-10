@@ -88,6 +88,17 @@ async fn identity_and_database_constraints_isolate_owners() {
         Err(DbError::Conflict)
     ));
     assert!(db.resolve_identity("https://idp", "a", "").await.is_err());
+    assert_eq!(
+        db.resolve_identity("https://idp", "a", &changed.email)
+            .await
+            .unwrap(),
+        changed
+    );
+    let identity_count: i64 = sqlx::query_scalar("SELECT count(*) FROM owner_identity")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(identity_count, 1);
     let b = db
         .resolve_identity("https://idp", "b", "b@example.com")
         .await
@@ -195,11 +206,36 @@ async fn concurrent_imports_reuse_prefix_and_failures_roll_back() {
         ),
         (c.head_message_id, 0, 3)
     );
+    let another_root = db
+        .import_path(owner.scope(), &request("root", &["X", "Y"]))
+        .await
+        .unwrap();
+    assert_eq!(
+        (
+            another_root.conversation_id,
+            another_root.created,
+            another_root.reused
+        ),
+        (c.conversation_id, 2, 0)
+    );
+    assert_eq!(
+        db.path(
+            owner.scope(),
+            c.conversation_id,
+            another_root.head_message_id
+        )
+        .await
+        .unwrap()
+        .iter()
+        .map(|m| m.content.as_str())
+        .collect::<Vec<_>>(),
+        vec!["X", "Y"]
+    );
     let tree = db
         .conversation(owner.scope(), c.conversation_id)
         .await
         .unwrap();
-    assert_eq!(tree.1.len(), 4);
+    assert_eq!(tree.1.len(), 6);
     for (head, content) in [
         (c.head_message_id, vec!["A", "B", "C"]),
         (d.head_message_id, vec!["A", "B", "D"]),
@@ -230,7 +266,21 @@ async fn concurrent_imports_reuse_prefix_and_failures_roll_back() {
         tree
     );
     let counts:(i64,i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
-    assert_eq!(counts, (1, 4, 3));
+    assert_eq!(counts, (1, 6, 4));
+    let fresh = ImportRequest::parse(
+        ImportInput {
+            title: "fresh".into(),
+            source: Source::Gemini,
+            session_id: "fresh".into(),
+            idempotency_key: "fresh".into(),
+            history: br#"[{"role":"assistant","content":"first"}]"#.to_vec(),
+        },
+        ImportLimits::default(),
+    )
+    .unwrap();
+    assert!(db.import_path(owner.scope(), &fresh).await.is_err());
+    let after:(i64,i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
+    assert_eq!(after, counts);
 }
 
 struct FakeProvider {
