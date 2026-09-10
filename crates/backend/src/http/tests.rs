@@ -40,7 +40,7 @@ fn origin_and_opaque_cookie_boundaries() {
     );
     assert!(cookie(&headers, SESSION_COOKIE).is_err());
     assert_eq!(
-        set_cookie(SESSION_COOKIE, "opaque", 600).ok(),
+        set_cookie(SESSION_COOKIE, "opaque", /*max_age*/ 600).ok(),
         Some(HeaderValue::from_static(
             "__Host-palace-session=opaque; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=600"
         ))

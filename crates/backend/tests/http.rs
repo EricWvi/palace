@@ -84,7 +84,10 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         .await
         .unwrap();
     let host = container.get_host().await.unwrap();
-    let port = container.get_host_port_ipv4(5432).await.unwrap();
+    let port = container
+        .get_host_port_ipv4(/*internal_port*/ 5432)
+        .await
+        .unwrap();
     let db = Database::connect(&format!("postgres://postgres:test@{host}:{port}/postgres"))
         .await
         .unwrap();
@@ -289,7 +292,10 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         .await
         .unwrap();
     let host = container.get_host().await.unwrap();
-    let port = container.get_host_port_ipv4(5432).await.unwrap();
+    let port = container
+        .get_host_port_ipv4(/*internal_port*/ 5432)
+        .await
+        .unwrap();
     let db = Database::connect(&format!("postgres://postgres:test@{host}:{port}/postgres"))
         .await
         .unwrap();

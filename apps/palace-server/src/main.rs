@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let worker_key = key.clone();
     let worker_provider = provider.clone();
     let worker = tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(/*secs*/ 30));
         loop {
             interval.tick().await;
             if worker_db

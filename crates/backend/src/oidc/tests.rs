@@ -66,9 +66,11 @@ async fn callback_rejects_invalid_signed_claims_and_requests_pkce() {
     assert_eq!(query.get("state").unwrap(), &login.state);
     let proof: LoginProof = serde_json::from_str(&login.proof).unwrap();
     palace_logging::initialize_test_clock();
-    let now =
-        chrono::DateTime::from_timestamp(palace_logging::clock::now_local().unix_timestamp(), 0)
-            .unwrap();
+    let now = chrono::DateTime::from_timestamp(
+        palace_logging::clock::now_local().unix_timestamp(),
+        /*nsecs*/ 0,
+    )
+    .unwrap();
     for invalid in [
         "none",
         "issuer",
@@ -90,9 +92,9 @@ async fn callback_rejects_invalid_signed_claims_and_requests_pkce() {
             "palace"
         };
         let expiry = if invalid == "expiry" {
-            now - chrono::Duration::seconds(300)
+            now - chrono::Duration::seconds(/*seconds*/ 300)
         } else {
-            now + chrono::Duration::seconds(300)
+            now + chrono::Duration::seconds(/*seconds*/ 300)
         };
         let nonce = if invalid == "nonce" {
             "wrong"

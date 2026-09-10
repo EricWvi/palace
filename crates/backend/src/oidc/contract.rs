@@ -60,7 +60,7 @@ async fn authelia_authorization_refresh_and_revocation_contract() {
         .add_root_certificate(cert)
         .resolve("auth.palace.test", ([127, 0, 0, 1], port).into())
         .redirect(reqwest::redirect::Policy::none())
-        .timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(/*secs*/ 15))
         .build()
         .unwrap();
     let provider = OidcProvider::discover_with_http(

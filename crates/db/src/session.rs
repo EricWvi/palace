@@ -75,7 +75,7 @@ impl Database {
             .resolve_identity(&tokens.issuer, &tokens.subject, &tokens.email)
             .await?;
         let id = Uuid::new_v4();
-        let secret = key.secret(id, 0)?;
+        let secret = key.secret(id, /*generation*/ 0)?;
         let encrypted = key.seal(id, &tokens.refresh)?;
         let mut tx = self.pool.begin().await?;
         // Serialize creation against disablement, then verify the binding still exists.
@@ -286,11 +286,11 @@ mod tests {
     fn revalidation_has_a_strict_24_hour_boundary() {
         assert_eq!(
             [
-                needs_revalidation(100, 100),
-                needs_revalidation(100, 86499),
-                needs_revalidation(100, 86500),
-                needs_revalidation(100, i64::MAX),
-                needs_revalidation(100, 99)
+                needs_revalidation(/*last_verified*/ 100, /*now*/ 100),
+                needs_revalidation(/*last_verified*/ 100, /*now*/ 86499),
+                needs_revalidation(/*last_verified*/ 100, /*now*/ 86500),
+                needs_revalidation(/*last_verified*/ 100, i64::MAX),
+                needs_revalidation(/*last_verified*/ 100, /*now*/ 99)
             ],
             [false, false, true, true, true]
         );

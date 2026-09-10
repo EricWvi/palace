@@ -51,7 +51,7 @@ impl OidcProvider {
     ) -> Result<Self, ProviderError> {
         let http = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
-            .timeout(std::time::Duration::from_secs(15))
+            .timeout(std::time::Duration::from_secs(/*secs*/ 15))
             .build()
             .map_err(|_| ProviderError::Unavailable)?;
         Self::discover_with_http(issuer, client_id, client_secret, redirect, http).await

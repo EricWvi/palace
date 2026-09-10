@@ -76,8 +76,14 @@ mod tests {
         let mut tampered = encrypted.clone();
         *tampered.last_mut().unwrap() ^= 1;
         assert!(key.open(id, &tampered).is_err());
-        assert_ne!(key.secret(id, 0).unwrap(), key.secret(id, 1).unwrap());
-        assert_eq!(key.secret(id, 1).unwrap(), key.secret(id, 1).unwrap());
-        assert_eq!(key.secret(id, 1).unwrap().len(), 43);
+        assert_ne!(
+            key.secret(id, /*generation*/ 0).unwrap(),
+            key.secret(id, /*generation*/ 1).unwrap()
+        );
+        assert_eq!(
+            key.secret(id, /*generation*/ 1).unwrap(),
+            key.secret(id, /*generation*/ 1).unwrap()
+        );
+        assert_eq!(key.secret(id, /*generation*/ 1).unwrap().len(), 43);
     }
 }

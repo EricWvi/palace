@@ -66,7 +66,7 @@ impl SyncClient {
                 .map(|snapshot| snapshot.record.clone())
                 .collect();
             match tokio::time::timeout(
-                std::time::Duration::from_secs(15),
+                std::time::Duration::from_secs(/*secs*/ 15),
                 transport.upload(records),
             )
             .await
@@ -88,9 +88,12 @@ impl SyncClient {
             .lock()
             .map_err(|_| SyncError::Poisoned)?
             .cursor()?;
-        let page = tokio::time::timeout(std::time::Duration::from_secs(15), transport.pull(cursor))
-            .await
-            .map_err(|_| SyncError::Transport)??;
+        let page = tokio::time::timeout(
+            std::time::Duration::from_secs(/*secs*/ 15),
+            transport.pull(cursor),
+        )
+        .await
+        .map_err(|_| SyncError::Transport)??;
         self.replica
             .lock()
             .map_err(|_| SyncError::Poisoned)?

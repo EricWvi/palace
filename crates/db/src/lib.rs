@@ -38,7 +38,7 @@ impl Database {
     /// Opens the shared PostgreSQL pool and applies versioned schema migrations.
     pub async fn connect(url: &str) -> Result<Self, DbError> {
         let pool = sqlx::postgres::PgPoolOptions::new()
-            .max_connections(12)
+            .max_connections(/*max*/ 12)
             .connect(url)
             .await?;
         sqlx::migrate!().run(&pool).await?;

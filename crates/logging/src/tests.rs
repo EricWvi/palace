@@ -56,7 +56,7 @@ fn preserves_the_public_configuration_model() {
     let config = LoggingConfig::new(
         LogLevel::Info,
         LogOutput::StdoutAndFile(FileLoggingConfig::new(
-            "./ora.log",
+            "palace.log",
             RotationPolicy::Daily,
             NonZeroUsize::new(3).unwrap(),
         )),
@@ -68,7 +68,7 @@ fn preserves_the_public_configuration_model() {
         LoggingConfig {
             level: LogLevel::Info,
             output: LogOutput::StdoutAndFile(FileLoggingConfig {
-                path: "./ora.log".into(),
+                path: "palace.log".into(),
                 rotation: RotationPolicy::Daily,
                 max_days: NonZeroUsize::new(3).unwrap(),
             }),
@@ -83,7 +83,7 @@ fn preserves_the_public_logging_api_surface() {
     let stdout_only = LoggingConfig::new(LogLevel::Debug, LogOutput::Stdout, chrono_tz::UTC);
     let warn_only = LoggingConfig::new(LogLevel::Warn, LogOutput::Stdout, chrono_tz::UTC);
     let file_only = FileLoggingConfig::new(
-        "./ora.log",
+        "palace.log",
         RotationPolicy::Daily,
         NonZeroUsize::new(5).unwrap(),
     );
@@ -173,7 +173,7 @@ fn formats_json_events_with_context_and_error_objects() {
     let temp_dir = TempDir::new().unwrap();
     let stdout = SharedBuffer::default();
     let file_config = FileLoggingConfig::new(
-        temp_dir.path().join("ora.log"),
+        temp_dir.path().join("palace.log"),
         RotationPolicy::Daily,
         NonZeroUsize::new(3).unwrap(),
     );
@@ -325,7 +325,7 @@ fn selects_stdout_only_sink_behavior() {
 fn selects_file_only_sink_behavior() {
     let temp_dir = TempDir::new().unwrap();
     let file_config = FileLoggingConfig::new(
-        temp_dir.path().join("ora.log"),
+        temp_dir.path().join("palace.log"),
         RotationPolicy::Daily,
         NonZeroUsize::new(3).unwrap(),
     );
@@ -348,7 +348,10 @@ fn selects_file_only_sink_behavior() {
     drop(guard);
 
     assert_eq!(stdout.json_lines(), Vec::<Value>::new());
-    assert_eq!(read_rotated_log_lines(temp_dir.path(), "ora.log").len(), 2);
+    assert_eq!(
+        read_rotated_log_lines(temp_dir.path(), "palace.log").len(),
+        2
+    );
 }
 
 /// Verifies combined logging emits each event to stdout and the rotating file sink with the same envelope.
@@ -356,7 +359,7 @@ fn selects_file_only_sink_behavior() {
 fn selects_stdout_and_file_sink_behavior() {
     let temp_dir = TempDir::new().unwrap();
     let file_config = FileLoggingConfig::new(
-        temp_dir.path().join("ora.log"),
+        temp_dir.path().join("palace.log"),
         RotationPolicy::Daily,
         NonZeroUsize::new(3).unwrap(),
     );
@@ -383,7 +386,7 @@ fn selects_stdout_and_file_sink_behavior() {
     drop(guard);
 
     let stdout_events = stdout.json_lines();
-    let file_events = read_rotated_log_lines(temp_dir.path(), "ora.log");
+    let file_events = read_rotated_log_lines(temp_dir.path(), "palace.log");
 
     // A single formatting pass fans the same bytes to both sinks, so each side receives
     // exactly one event with an identical envelope rather than two serialized copies.
@@ -423,14 +426,14 @@ fn reports_typed_initialization_failures() {
 #[test]
 fn cleans_up_rotated_files_by_retention_window() {
     let temp_dir = TempDir::new().unwrap();
-    create_log_file(temp_dir.path(), "ora.log.2026-05-01");
-    create_log_file(temp_dir.path(), "ora.log.2026-05-02");
-    create_log_file(temp_dir.path(), "ora.log.2026-05-03");
-    create_log_file(temp_dir.path(), "ora.log.2026-05-04");
+    create_log_file(temp_dir.path(), "palace.log.2026-05-01");
+    create_log_file(temp_dir.path(), "palace.log.2026-05-02");
+    create_log_file(temp_dir.path(), "palace.log.2026-05-03");
+    create_log_file(temp_dir.path(), "palace.log.2026-05-04");
     create_log_file(temp_dir.path(), "unrelated.log.2026-05-01");
 
     cleanup_old_logs(
-        &ActiveLogPath::from_path(&temp_dir.path().join("ora.log")).unwrap(),
+        &ActiveLogPath::from_path(&temp_dir.path().join("palace.log")).unwrap(),
         3,
     )
     .unwrap();
@@ -438,9 +441,9 @@ fn cleans_up_rotated_files_by_retention_window() {
     assert_eq!(
         read_file_names(temp_dir.path()),
         vec![
-            "ora.log.2026-05-02".to_string(),
-            "ora.log.2026-05-03".to_string(),
-            "ora.log.2026-05-04".to_string(),
+            "palace.log.2026-05-02".to_string(),
+            "palace.log.2026-05-03".to_string(),
+            "palace.log.2026-05-04".to_string(),
             "unrelated.log.2026-05-01".to_string(),
         ]
     );
@@ -456,7 +459,7 @@ fn rejects_a_second_global_initialization_attempt() {
     let config = LoggingConfig::new(
         LogLevel::Info,
         LogOutput::File(FileLoggingConfig::new(
-            temp_dir.path().join("ora.log"),
+            temp_dir.path().join("palace.log"),
             RotationPolicy::Daily,
             NonZeroUsize::new(3).unwrap(),
         )),

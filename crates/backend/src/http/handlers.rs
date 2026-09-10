@@ -63,9 +63,10 @@ pub(super) async fn login<P: LoginProvider>(
         )
         .await?;
     let mut response = Redirect::to(login.url.as_str()).into_response();
-    response
-        .headers_mut()
-        .append(header::SET_COOKIE, set_cookie(LOGIN_COOKIE, &browser, 600)?);
+    response.headers_mut().append(
+        header::SET_COOKIE,
+        set_cookie(LOGIN_COOKIE, &browser, /*max_age*/ 600)?,
+    );
     Ok(response)
 }
 #[derive(Deserialize)]
@@ -101,9 +102,10 @@ pub(super) async fn callback<P: LoginProvider>(
         )
         .await?;
     let mut response = authenticated_response(&session, Redirect::to("/"))?;
-    response
-        .headers_mut()
-        .append(header::SET_COOKIE, set_cookie(LOGIN_COOKIE, "", 0)?);
+    response.headers_mut().append(
+        header::SET_COOKIE,
+        set_cookie(LOGIN_COOKIE, "", /*max_age*/ 0)?,
+    );
     Ok(response)
 }
 /// Returns the server-resolved current owner, renewing only an authenticated opaque cookie.
@@ -145,9 +147,10 @@ async fn revoke<P: LoginProvider>(
         .retry_revocations(&server.credential_key, &server.provider)
         .await;
     let mut response = Json(serde_json::json!({"logged_out":true})).into_response();
-    response
-        .headers_mut()
-        .append(header::SET_COOKIE, set_cookie(SESSION_COOKIE, "", 0)?);
+    response.headers_mut().append(
+        header::SET_COOKIE,
+        set_cookie(SESSION_COOKIE, "", /*max_age*/ 0)?,
+    );
     Ok(response)
 }
 #[derive(Deserialize)]
