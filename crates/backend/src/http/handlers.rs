@@ -15,7 +15,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 /// Reads the persisted session before a handler can establish its owner scope.
-async fn authenticate<P: LoginProvider>(
+pub(super) async fn authenticate<P: LoginProvider>(
     server: &Server<P>,
     headers: &HeaderMap,
 ) -> Result<AuthenticatedSession, ApiError> {
@@ -31,7 +31,7 @@ async fn authenticate<P: LoginProvider>(
         .await?)
 }
 /// Adds rolling persistence and prevents intermediaries from caching authenticated data.
-fn authenticated_response(
+pub(super) fn authenticated_response(
     session: &AuthenticatedSession,
     body: impl IntoResponse,
 ) -> Result<Response, ApiError> {

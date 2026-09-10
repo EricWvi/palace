@@ -6,3 +6,5 @@ pub use conversation::{Conversation, Message, Role, SessionId, Source, SourceLin
 pub use import::{
     ImportInput, ImportLimits, ImportRequest, InputError, InputErrorKind, MessageInput,
 };
+mod sync;
+pub use sync::{PublishedRecord, Record, ServerVersion, SyncPage, UploadResult, accepts_record};

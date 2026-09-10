@@ -442,3 +442,148 @@ async fn login_state_is_bound_expiring_and_single_use() {
             .is_err()
     );
 }
+
+/// Uses the database lock graph to order concurrent commits without sleeping or assuming scheduler timing.
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
+    use palace_domain::{Record, ServerVersion, UploadResult};
+    let (_container, db, pool) = database().await;
+    let a = db
+        .resolve_identity("https://idp", "a", "a@example.com")
+        .await
+        .unwrap();
+    let b = db
+        .resolve_identity("https://idp", "b", "b@example.com")
+        .await
+        .unwrap();
+    let record = Record {
+        id: Uuid::new_v4(),
+        updated_at: 1000,
+        is_deleted: false,
+        body: serde_json::json!({"title":"first","text":"body"}),
+    };
+    let first = db
+        .upload_records(a.scope(), std::slice::from_ref(&record))
+        .await
+        .unwrap();
+    let UploadResult::Accepted(first) = &first[0] else {
+        panic!("new record must be accepted")
+    };
+    for timestamp in [999, 1000] {
+        let stale = Record {
+            updated_at: timestamp,
+            body: serde_json::json!({"title":"other"}),
+            ..record.clone()
+        };
+        assert_eq!(
+            db.upload_records(a.scope(), &[stale]).await.unwrap(),
+            vec![UploadResult::Retained(first.clone())]
+        );
+    }
+    let sequence: i64 = sqlx::query_scalar("SELECT last_value FROM business_server_version")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(sequence, first.server_version.value());
+    let foreign = Record {
+        id: Uuid::new_v4(),
+        ..record.clone()
+    };
+    db.upload_records(b.scope(), std::slice::from_ref(&foreign))
+        .await
+        .unwrap();
+    let own_new = Record {
+        id: Uuid::new_v4(),
+        ..record.clone()
+    };
+    assert!(
+        db.upload_records(a.scope(), &[own_new, foreign])
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        db.pull_records(a.scope(), ServerVersion::default(), 100)
+            .await
+            .unwrap()
+            .records,
+        vec![first.clone()]
+    );
+    let mut transaction = pool.begin().await.unwrap();
+    let pid: i32 = sqlx::query_scalar("SELECT pg_backend_pid()")
+        .fetch_one(&mut *transaction)
+        .await
+        .unwrap();
+    let held_version:i64=sqlx::query_scalar("INSERT INTO sync_record(id,owner_id,updated_at,is_deleted,body) VALUES($1,$2,1000,false,'{}') RETURNING server_version").bind(Uuid::new_v4()).bind(a.id).fetch_one(&mut *transaction).await.unwrap();
+    let next = Record {
+        id: Uuid::new_v4(),
+        ..record.clone()
+    };
+    let writer = db.clone();
+    let scope = a.scope();
+    let task = tokio::spawn(async move { writer.upload_records(scope, &[next]).await.unwrap() });
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            let blocked: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE $1=ANY(pg_blocking_pids(pid)))",
+            )
+            .bind(pid)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+            if blocked {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    let before = db
+        .pull_records(a.scope(), first.server_version, 100)
+        .await
+        .unwrap();
+    assert!(before.records.is_empty());
+    assert_eq!(before.cursor, first.server_version);
+    transaction.commit().await.unwrap();
+    let results = task.await.unwrap();
+    let UploadResult::Accepted(next) = &results[0] else {
+        panic!("expected accepted")
+    };
+    assert!(next.server_version.value() > held_version);
+    let page = db
+        .pull_records(a.scope(), first.server_version, 1)
+        .await
+        .unwrap();
+    assert_eq!(page.cursor.value(), held_version);
+    let following = db.pull_records(a.scope(), page.cursor, 1).await.unwrap();
+    assert_eq!(following.records, vec![next.clone()]);
+    let mut rolled_back = pool.begin().await.unwrap();
+    let gap:i64=sqlx::query_scalar("INSERT INTO sync_record(id,owner_id,updated_at,is_deleted,body) VALUES($1,$2,1000,false,'{}') RETURNING server_version").bind(Uuid::new_v4()).bind(a.id).fetch_one(&mut *rolled_back).await.unwrap();
+    rolled_back.rollback().await.unwrap();
+    let tombstone = Record {
+        updated_at: 1001,
+        is_deleted: true,
+        body: serde_json::Value::Null,
+        ..record.clone()
+    };
+    db.upload_records(a.scope(), std::slice::from_ref(&tombstone))
+        .await
+        .unwrap();
+    let page = db
+        .pull_records(a.scope(), following.cursor, 100)
+        .await
+        .unwrap();
+    assert_eq!(page.records[0].record, tombstone);
+    assert!(page.cursor.value() > gap);
+    assert!(
+        sqlx::query("DELETE FROM sync_record WHERE id=$1")
+            .bind(record.id)
+            .execute(&pool)
+            .await
+            .is_err()
+    );
+    let empty = db.pull_records(a.scope(), page.cursor, 100).await.unwrap();
+    assert_eq!(empty.records, Vec::new());
+    assert_eq!(empty.cursor, page.cursor);
+}

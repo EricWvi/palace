@@ -4,6 +4,7 @@ mod login;
 mod owner;
 mod session;
 mod session_crypto;
+mod sync;
 pub use session::{
     AuthenticatedSession, IdentityProvider, IdentityTokens, ProviderError, RevokeScope,
     SessionError,

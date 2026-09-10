@@ -1,6 +1,7 @@
 mod error;
 mod handlers;
 mod security;
+mod sync;
 #[cfg(test)]
 mod tests;
 
@@ -60,6 +61,7 @@ pub fn router<P: LoginProvider + 'static>(server: Server<P>) -> Router {
         .route("/auth/logout", post(logout::<P>))
         .route("/auth/logout-all", post(logout_all::<P>))
         .route("/api/me", get(me::<P>))
+        .route("/api/sync", get(sync::pull::<P>).post(sync::upload::<P>))
         .route("/api/import", post(import_text::<P>))
         .route("/api/import/file", post(import_file::<P>))
         .route("/api/conversations/{id}", get(conversation::<P>))

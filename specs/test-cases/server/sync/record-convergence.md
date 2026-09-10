@@ -1,6 +1,6 @@
 # 知识记录同步核心测试用例
 
-本文跟踪[客户端时间戳 LWW 与 PG 全局序列同步根决策](../../../decisions/server/sync/0-client-timestamp-lww-and-global-seq.md)中冲突、重试、提交顺序、游标和删除风险。当前尚未实现，全部直接证据均为 `Missing`。
+本文跟踪[客户端时间戳 LWW 与 PG 全局序列同步根决策](../../../decisions/server/sync/0-client-timestamp-lww-and-global-seq.md)中冲突、重试、提交顺序、游标和删除风险。实现证据按服务端与本地持久化边界分别维护。
 
 ## Record conflicts must use strict whole-record timestamp LWW
 
@@ -97,9 +97,9 @@ PG sequence 取号与提交错序，使客户端先处理更高版本并推进�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 并发有效写入按提交可见顺序发布版本 | Missing | 尚无实现测试 |
-| 回滚只产生允许的版本空洞 | Missing | 尚无实现测试 |
-| 被忽略或重复确认的写入不制造业务版本 | Missing | 尚无实现测试 |
+| 并发有效写入按提交可见顺序发布版本 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`，真实 PostgreSQL 17，默认 ignore |
+| 回滚只产生允许的版本空洞 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`，真实 PostgreSQL 17，默认 ignore |
+| 被忽略或重复确认的写入不制造业务版本 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`，真实 PostgreSQL 17，默认 ignore |
 | 绕过发布锁的同步写入路径不存在 | Missing | 尚无实现测试 |
 
 ### 决策依据
@@ -168,7 +168,7 @@ PG sequence 取号与提交错序，使客户端先处理更高版本并推进�
 | --- | --- | --- |
 | 墓碑无条件删除本地记录和待同步修改 | Missing | 尚无实现测试 |
 | 重复墓碑与迟到响应不能复活记录 | Missing | 尚无实现测试 |
-| 服务端墓碑持续参与增量拉取 | Missing | 尚无实现测试 |
+| 服务端墓碑持续参与增量拉取 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`，真实 PostgreSQL 17，默认 ignore |
 
 ### 决策依据
 

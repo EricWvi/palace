@@ -51,3 +51,11 @@ Session 不设绝对或空闲过期；每次受保护请求查持久化状态，
 | `GET /api/conversations/{id}/paths/{head}` | 验证后的完整祖先路径 |
 
 所有写请求必须携带严格匹配 `PALACE_ORIGIN` 的 Origin。业务请求没有 ownerId 授权参数。安全 cookie 使用 `__Host-` 前缀、Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain，持久期 180 天并滚动续期。业务响应为 `application/json` 且禁止缓存；原始 Markdown 作为 JSON 字符串返回，server 不提供 HTML 渲染。展示端必须安全渲染，不能将字符串直接写入 innerHTML。
+
+## 独立记录同步
+
+`POST /api/sync` 接收最多 100 条 `{id, updatedAt, isDeleted, body}`；每条 body 最多 1 MiB。`updatedAt` 为客户端产生的 epoch 毫秒整数。响应逐条返回 `accepted` 或 `retained` 及服务端当前完整记录；等值保留已有值。任何外部 Owner 记录 ID 使整批失败，不接受归属迁移。
+
+`GET /api/sync?cursor=0&limit=100` 按当前 Owner 取增量，limit 为 1–1000。`serverVersion` 及响应 cursor 为十进制字符串，禁止按 JavaScript Number 处理。空页保持游标；墓碑长期保留。有效写入在全局事务锁内取号并提交，数据库触发器也强制该规则；忽略旧值和等值不消耗业务版本。
+
+当前同步对象是独立记录；导入生成的 Conversation/Message/Import 不经这个通用写入口修改或分发。它们的结构同步、标题与正文编辑及级联删除必须先补齐 sync ADR 明确留给后续的多记录协议，避免半棵消息树通过逐记录 LWW 暴露给客户端。
