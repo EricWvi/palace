@@ -30,7 +30,10 @@ async fn database() -> (ContainerAsync<GenericImage>, Database, PgPool) {
         .await
         .unwrap();
     let host = container.get_host().await.unwrap();
-    let port = container.get_host_port_ipv4(5432).await.unwrap();
+    let port = container
+        .get_host_port_ipv4(/*internal_port*/ 5432)
+        .await
+        .unwrap();
     let url = format!("postgres://postgres:palace-test@{host}:{port}/palace");
     let db = Database::connect(&url).await.unwrap();
     let pool = PgPool::connect(&url).await.unwrap();
@@ -302,8 +305,8 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
     assert_ne!(stored.0, session.secret.as_bytes());
     assert_ne!(stored.1, b"initial");
     let (a, b) = tokio::join!(
-        db.authenticate(&session.secret, &key, &valid, 86500),
-        db.authenticate(&session.secret, &key, &valid, 86500)
+        db.authenticate(&session.secret, &key, &valid, /*now*/ 86500),
+        db.authenticate(&session.secret, &key, &valid, /*now*/ 86500)
     );
     let a = a.unwrap();
     let b = b.unwrap();
@@ -320,7 +323,8 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
         outcome: FakeOutcome::Unavailable,
     };
     assert!(matches!(
-        db.authenticate(&a.secret, &key, &transient, 172900).await,
+        db.authenticate(&a.secret, &key, &transient, /*now*/ 172900)
+            .await,
         Err(SessionError::Unavailable)
     ));
     let revoked: Option<i64> =
@@ -331,7 +335,7 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
             .unwrap();
     assert_eq!(revoked, None);
     let recovered = db
-        .authenticate(&a.secret, &key, &valid, 172900)
+        .authenticate(&a.secret, &key, &valid, /*now*/ 172900)
         .await
         .unwrap();
     let second = db
@@ -342,18 +346,18 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
         recovered.owner.scope(),
         recovered.id,
         RevokeScope::Current,
-        172901,
+        /*now*/ 172901,
     )
     .await
     .unwrap();
     db.retry_revocations(&key, &transient).await.unwrap();
     assert!(matches!(
-        db.authenticate(&recovered.secret, &key, &valid, 172901)
+        db.authenticate(&recovered.secret, &key, &valid, /*now*/ 172901)
             .await,
         Err(SessionError::Unauthorized)
     ));
     assert!(
-        db.authenticate(&second.secret, &key, &valid, 172901)
+        db.authenticate(&second.secret, &key, &valid, /*now*/ 172901)
             .await
             .is_ok()
     );
@@ -361,12 +365,12 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
         second.owner.scope(),
         second.id,
         RevokeScope::AllDevices,
-        172902,
+        /*now*/ 172902,
     )
     .await
     .unwrap();
     assert!(
-        db.authenticate(&second.secret, &key, &valid, 172902)
+        db.authenticate(&second.secret, &key, &valid, /*now*/ 172902)
             .await
             .is_err()
     );
@@ -387,12 +391,12 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
             outcome,
         };
         assert!(
-            db.authenticate(&s.secret, &key, &provider, 286400)
+            db.authenticate(&s.secret, &key, &provider, /*now*/ 286400)
                 .await
                 .is_err()
         );
         assert!(
-            db.authenticate(&s.secret, &key, &valid, 286401)
+            db.authenticate(&s.secret, &key, &valid, /*now*/ 286401)
                 .await
                 .is_err()
         );
@@ -406,7 +410,7 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
         .await
         .unwrap();
     assert!(
-        db.authenticate(&before.secret, &key, &valid, 300002)
+        db.authenticate(&before.secret, &key, &valid, /*now*/ 300002)
             .await
             .is_err()
     );
@@ -416,7 +420,7 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
         .await
         .unwrap();
     assert!(
-        db.authenticate(&after.secret, &key, &valid, 300003)
+        db.authenticate(&after.secret, &key, &valid, /*now*/ 300003)
             .await
             .is_err()
     );
@@ -428,31 +432,31 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
 async fn login_state_is_bound_expiring_and_single_use() {
     let (_container, db, _pool) = database().await;
     let key = palace_db::CredentialKey::new([9; 32]);
-    db.begin_login("state", "browser", "pkce and nonce", &key, 100)
+    db.begin_login("state", "browser", "pkce and nonce", &key, /*now*/ 100)
         .await
         .unwrap();
     assert!(
-        db.consume_login("state", "attacker", &key, 101)
+        db.consume_login("state", "attacker", &key, /*now*/ 101)
             .await
             .is_err()
     );
     assert_eq!(
         db.clone()
-            .consume_login("state", "browser", &key, 101)
+            .consume_login("state", "browser", &key, /*now*/ 101)
             .await
             .unwrap(),
         "pkce and nonce"
     );
     assert!(
-        db.consume_login("state", "browser", &key, 102)
+        db.consume_login("state", "browser", &key, /*now*/ 102)
             .await
             .is_err()
     );
-    db.begin_login("expired", "browser", "proof", &key, 100)
+    db.begin_login("expired", "browser", "proof", &key, /*now*/ 100)
         .await
         .unwrap();
     assert!(
-        db.consume_login("expired", "browser", &key, 700)
+        db.consume_login("expired", "browser", &key, /*now*/ 700)
             .await
             .is_err()
     );
@@ -518,7 +522,7 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
             .is_err()
     );
     assert_eq!(
-        db.pull_records(a.scope(), ServerVersion::default(), 100)
+        db.pull_records(a.scope(), ServerVersion::default(), /*limit*/ 100)
             .await
             .unwrap()
             .records,
@@ -537,7 +541,7 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
     let writer = db.clone();
     let scope = a.scope();
     let task = tokio::spawn(async move { writer.upload_records(scope, &[next]).await.unwrap() });
-    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+    tokio::time::timeout(std::time::Duration::from_secs(/*secs*/ 10), async {
         loop {
             let blocked: bool = sqlx::query_scalar(
                 "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE $1=ANY(pg_blocking_pids(pid)))",
@@ -555,7 +559,7 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
     .await
     .unwrap();
     let before = db
-        .pull_records(a.scope(), first.server_version, 100)
+        .pull_records(a.scope(), first.server_version, /*limit*/ 100)
         .await
         .unwrap();
     assert!(before.records.is_empty());
@@ -567,11 +571,14 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
     };
     assert!(next.server_version.value() > held_version);
     let page = db
-        .pull_records(a.scope(), first.server_version, 1)
+        .pull_records(a.scope(), first.server_version, /*limit*/ 1)
         .await
         .unwrap();
     assert_eq!(page.cursor.value(), held_version);
-    let following = db.pull_records(a.scope(), page.cursor, 1).await.unwrap();
+    let following = db
+        .pull_records(a.scope(), page.cursor, /*limit*/ 1)
+        .await
+        .unwrap();
     assert_eq!(following.records, vec![next.clone()]);
     let mut rolled_back = pool.begin().await.unwrap();
     let gap:i64=sqlx::query_scalar("INSERT INTO sync_record(id,owner_id,updated_at,is_deleted,body) VALUES($1,$2,1000,false,'{}') RETURNING server_version").bind(Uuid::new_v4()).bind(a.id).fetch_one(&mut *rolled_back).await.unwrap();
@@ -586,7 +593,7 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
         .await
         .unwrap();
     let page = db
-        .pull_records(a.scope(), following.cursor, 100)
+        .pull_records(a.scope(), following.cursor, /*limit*/ 100)
         .await
         .unwrap();
     assert_eq!(page.records[0].record, tombstone);
@@ -598,7 +605,10 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
             .await
             .is_err()
     );
-    let empty = db.pull_records(a.scope(), page.cursor, 100).await.unwrap();
+    let empty = db
+        .pull_records(a.scope(), page.cursor, /*limit*/ 100)
+        .await
+        .unwrap();
     assert_eq!(empty.records, Vec::new());
     assert_eq!(empty.cursor, page.cursor);
 }
@@ -616,18 +626,22 @@ async fn session_integrity_and_revocation_cannot_be_bypassed() {
     let mut empty = tokens();
     empty.refresh.clear();
     assert!(
-        db.create_session(empty, &key, 100, /*previous*/ None)
+        db.create_session(empty, &key, /*now*/ 100, /*previous*/ None)
             .await
             .is_err()
     );
     let session = db
-        .create_session(tokens(), &key, 100, /*previous*/ None)
+        .create_session(tokens(), &key, /*now*/ 100, /*previous*/ None)
         .await
         .unwrap();
     // Local logout intentionally succeeds beyond the verification deadline while Authelia is unavailable.
-    db.logout_browser(&session.secret, palace_db::RevokeScope::Current, 100000)
-        .await
-        .unwrap();
+    db.logout_browser(
+        &session.secret,
+        palace_db::RevokeScope::Current,
+        /*now*/ 100000,
+    )
+    .await
+    .unwrap();
     assert!(
         sqlx::query("UPDATE owner_session SET revoked_at=NULL WHERE id=$1")
             .bind(session.id)
@@ -636,12 +650,12 @@ async fn session_integrity_and_revocation_cannot_be_bypassed() {
             .is_err()
     );
     assert!(
-        db.authenticate(&session.secret, &key, &provider, 100001)
+        db.authenticate(&session.secret, &key, &provider, /*now*/ 100001)
             .await
             .is_err()
     );
     let damaged = db
-        .create_session(tokens(), &key, 100, /*previous*/ None)
+        .create_session(tokens(), &key, /*now*/ 100, /*previous*/ None)
         .await
         .unwrap();
     sqlx::query("UPDATE owner_session SET generation=generation+1 WHERE id=$1")
@@ -650,7 +664,7 @@ async fn session_integrity_and_revocation_cannot_be_bypassed() {
         .await
         .unwrap();
     assert!(
-        db.authenticate(&damaged.secret, &key, &provider, 101)
+        db.authenticate(&damaged.secret, &key, &provider, /*now*/ 101)
             .await
             .is_err()
     );
@@ -674,20 +688,20 @@ async fn retired_session_secret_replay_is_revoked() {
         outcome: FakeOutcome::Valid,
     };
     let session = db
-        .create_session(tokens(), &key, 100, /*previous*/ None)
+        .create_session(tokens(), &key, /*now*/ 100, /*previous*/ None)
         .await
         .unwrap();
     let rotated = db
-        .authenticate(&session.secret, &key, &provider, 86500)
+        .authenticate(&session.secret, &key, &provider, /*now*/ 86500)
         .await
         .unwrap();
     assert!(
-        db.authenticate(&session.secret, &key, &provider, 86530)
+        db.authenticate(&session.secret, &key, &provider, /*now*/ 86530)
             .await
             .is_err()
     );
     assert!(
-        db.authenticate(&rotated.secret, &key, &provider, 86531)
+        db.authenticate(&rotated.secret, &key, &provider, /*now*/ 86531)
             .await
             .is_err()
     );
@@ -697,4 +711,58 @@ async fn retired_session_secret_replay_is_revoked() {
         .await
         .unwrap();
     assert_eq!(reason, "retired secret replay");
+}
+
+/// Rejects owner/conversation/head mismatches and multi-row cycles independently of application checks.
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn all_scoped_references_and_multirow_cycles_are_rejected() {
+    let (_container, db, pool) = database().await;
+    let a = db
+        .resolve_identity("https://idp", "a", "a@example.com")
+        .await
+        .unwrap();
+    let b = db
+        .resolve_identity("https://idp", "b", "b@example.com")
+        .await
+        .unwrap();
+    let ar = db
+        .import_path(a.scope(), &request("a", &["A", "B"]))
+        .await
+        .unwrap();
+    let br = db
+        .import_path(b.scope(), &request("b", &["A"]))
+        .await
+        .unwrap();
+    assert!(
+        sqlx::query("UPDATE conversation_import SET head_message_id=$1 WHERE id=$2")
+            .bind(br.head_message_id)
+            .bind(ar.import_id)
+            .execute(&pool)
+            .await
+            .is_err()
+    );
+    let other = Uuid::new_v4();
+    sqlx::query("INSERT INTO conversation(id,owner_id,title,source,session_id) VALUES($1,$2,'other','grok','other')").bind(other).bind(a.id).execute(&pool).await.unwrap();
+    assert!(sqlx::query("INSERT INTO message(id,owner_id,conversation_id,parent_message_id,role,content) VALUES($1,$2,$3,$4,'user','bad')").bind(Uuid::new_v4()).bind(a.id).bind(other).bind(ar.head_message_id).execute(&pool).await.is_err());
+    let x = Uuid::new_v4();
+    let y = Uuid::new_v4();
+    assert!(sqlx::query("INSERT INTO message(id,owner_id,conversation_id,parent_message_id,role,content) VALUES($1,$3,$4,$2,'user','x'),($2,$3,$4,$1,'assistant','y')").bind(x).bind(y).bind(a.id).bind(other).execute(&pool).await.is_err());
+    let nullable:Vec<String>=sqlx::query_scalar("SELECT table_name FROM information_schema.columns WHERE table_schema='public' AND column_name='owner_id' AND is_nullable='YES'").fetch_all(&pool).await.unwrap();
+    assert_eq!(nullable, Vec::<String>::new());
+    // Identity removal has no cascade to knowledge records; sessions would separately restrict an unsafe unlink.
+    sqlx::query("DELETE FROM owner_identity WHERE id=$1")
+        .bind(a.identity_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        db.path(a.scope(), ar.conversation_id, ar.head_message_id)
+            .await
+            .unwrap()
+            .iter()
+            .map(|m| m.content.as_str())
+            .collect::<Vec<_>>(),
+        vec!["A", "B"]
+    );
 }

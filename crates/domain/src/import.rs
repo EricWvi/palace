@@ -264,6 +264,33 @@ mod tests {
             serde_json::json!([{"role":"user","content":" A\r\n"},{"role":"user","content":""}])
         );
     }
+    /// Accepts every checked-in exporter sample through the same minimal format without retaining extras.
+    #[test]
+    fn accepts_all_source_export_samples() {
+        for bytes in [
+            include_bytes!("../../../examples/chatgpt/conversation.json").as_slice(),
+            include_bytes!("../../../examples/chatgpt/conversation-2.json").as_slice(),
+            include_bytes!("../../../examples/gemini/conversation.json").as_slice(),
+            include_bytes!("../../../examples/grok/conversation.json").as_slice(),
+        ] {
+            let raw: serde_json::Value = serde_json::from_slice(bytes).unwrap();
+            let expected: Vec<MessageInput> = raw
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|item| MessageInput {
+                    role: serde_json::from_value(item["role"].clone()).unwrap(),
+                    content: item["content"].as_str().unwrap().to_owned(),
+                })
+                .collect();
+            assert_eq!(
+                ImportRequest::parse(input(bytes), ImportLimits::default())
+                    .unwrap()
+                    .messages(),
+                expected
+            );
+        }
+    }
     /// Distinguishes malformed JSON, invalid fields and every configurable capacity bound.
     #[test]
     fn reports_position_and_limits_before_writes() {
