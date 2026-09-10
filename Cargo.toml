@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/logging"]
+members = ["crates/logging", "crates/domain"]
 resolver = "2"
 
 [profile.dev]
@@ -14,6 +14,11 @@ version = "0.0.0"
 edition = "2024"
 
 [workspace.dependencies]
+palace-domain = { path = "crates/domain" }
+uuid = { version = "1", features = ["serde", "v4"] }
+url = "2"
+sha2 = "0.10"
+serde_path_to_error = "0.1"
 palace-logging = { path = "crates/logging" }
 chrono = "0.4"
 chrono-tz = "0.10"

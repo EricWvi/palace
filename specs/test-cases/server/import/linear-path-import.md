@@ -1,6 +1,6 @@
 # 线性对话路径导入核心测试用例
 
-本文跟踪[用户提交线性路径导入根决策](../../../decisions/server/import/0-user-submitted-linear-path.md)中输入兼容性、原子性、幂等和并发合并风险。当前尚未实现，全部直接证据均为 `Missing`。
+本文跟踪[用户提交线性路径导入根决策](../../../decisions/server/import/0-user-submitted-linear-path.md)中输入兼容性、原子性、幂等和并发合并风险。实现证据随对应提交维护；没有直接验证的义务继续标记为 `Missing`。
 
 ## Text and file inputs must have identical parsing semantics
 
@@ -30,8 +30,8 @@
 | --- | --- | --- |
 | 两种入口共用相同合法输入语义 | Missing | 尚无实现测试 |
 | 两种入口共用相同非法输入与错误定位语义 | Missing | 尚无实现测试 |
-| 额外字段被忽略且不持久化 | Missing | 尚无实现测试 |
-| 原始 Markdown、空白和换行不被规范化 | Missing | 尚无实现测试 |
+| 额外字段被忽略且不持久化 | Partial | `palace-domain` 单元测试 `preserves_linear_input_exactly`；持久化及 HTTP 证据另列 |
+| 原始 Markdown、空白和换行不被规范化 | Partial | `palace-domain` 单元测试 `preserves_linear_input_exactly`；持久化及 HTTP 证据另列 |
 
 ### 决策依据
 
@@ -66,7 +66,7 @@
 | 字段校验失败不产生业务写入 | Missing | 尚无实现测试 |
 | 容量超限在业务写入前失败 | Missing | 尚无实现测试 |
 | 任意持久化步骤失败使三类记录共同回滚 | Missing | 尚无实现测试 |
-| 错误类别与数组下标可定位 | Missing | 尚无实现测试 |
+| 错误类别与数组下标可定位 | Covered | `palace-domain` 单元测试 `reports_position_and_limits_before_writes`；持久化及 HTTP 证据另列 |
 
 ### 决策依据
 

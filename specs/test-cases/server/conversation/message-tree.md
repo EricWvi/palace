@@ -1,6 +1,6 @@
 # 来源会话与消息树核心测试用例
 
-本文跟踪[来源会话与消息树根决策](../../../decisions/server/conversation/0-source-session-and-message-tree.md)中身份隔离、树结构和安全跳转的长期风险。当前尚未实现，全部直接证据均为 `Missing`。
+本文跟踪[来源会话与消息树根决策](../../../decisions/server/conversation/0-source-session-and-message-tree.md)中身份隔离、树结构和安全跳转的长期风险。实现证据随对应提交维护；没有直接验证的义务继续标记为 `Missing`。
 
 ## Same source session must resolve to one conversation within an authorization scope
 
@@ -130,9 +130,9 @@ A、B 各只有一个共享 Message；C、D 是 B 的不同子消息；两个叶
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 三种 source 只使用各自受控模板 | Missing | 尚无实现测试 |
-| session_id 不能逃逸模板路径段 | Missing | 尚无实现测试 |
-| 模板更新不改变来源会话身份 | Missing | 尚无实现测试 |
+| 三种 source 只使用各自受控模板 | Covered | `palace-domain` 单元测试 `controlled_links_and_template_updates_preserve_identity`；持久化及 HTTP 证据另列 |
+| session_id 不能逃逸模板路径段 | Covered | `palace-domain` 单元测试 `controlled_links_and_template_updates_preserve_identity`；持久化及 HTTP 证据另列 |
+| 模板更新不改变来源会话身份 | Covered | `palace-domain` 单元测试 `controlled_links_and_template_updates_preserve_identity`；持久化及 HTTP 证据另列 |
 
 ### 决策依据
 
