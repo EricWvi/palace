@@ -264,3 +264,115 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
+
+/// Runs producer upload and consumer pull through the real HTTP/PG boundary and persists both local replicas.
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn http_sync_round_propagates_records_and_tombstones() {
+    use palace_domain::Record;
+    use palace_sync::{HttpTransport, Replica, SyncClient};
+    assert!(
+        std::process::Command::new("docker")
+            .args(["image", "inspect", "postgres:17-alpine"])
+            .output()
+            .unwrap()
+            .status
+            .success()
+    );
+    let container = GenericImage::new("postgres", "17-alpine")
+        .with_exposed_port(5432.tcp())
+        .with_wait_for(WaitFor::message_on_stderr(
+            "database system is ready to accept connections",
+        ))
+        .with_env_var("POSTGRES_PASSWORD", "test")
+        .start()
+        .await
+        .unwrap();
+    let host = container.get_host().await.unwrap();
+    let port = container.get_host_port_ipv4(5432).await.unwrap();
+    let db = Database::connect(&format!("postgres://postgres:test@{host}:{port}/postgres"))
+        .await
+        .unwrap();
+    let key = CredentialKey::new([4; 32]);
+    let session = db
+        .create_session(
+            IdentityTokens {
+                issuer: "https://idp.test".into(),
+                subject: "a".into(),
+                email: "a@example.com".into(),
+                refresh: "refresh".into(),
+            },
+            &key,
+            now(),
+            /*previous*/ None,
+        )
+        .await
+        .unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let app = router(Server {
+        database: db,
+        provider: Provider,
+        credential_key: key,
+        origin: origin.clone(),
+        links: SourceLinks::standard().unwrap(),
+        limits: ImportLimits::default(),
+        now,
+    });
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        "cookie",
+        format!("__Host-palace-session={}", session.secret)
+            .parse()
+            .unwrap(),
+    );
+    let transport = HttpTransport::new(
+        reqwest::Client::builder()
+            .default_headers(headers)
+            .build()
+            .unwrap(),
+        &origin,
+    )
+    .unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let producer = SyncClient::new(
+        Replica::open(&directory.path().join("producer.sqlite"), session.owner.id).unwrap(),
+    );
+    let consumer = SyncClient::new(
+        Replica::open(&directory.path().join("consumer.sqlite"), session.owner.id).unwrap(),
+    );
+    let record = Record {
+        id: uuid::Uuid::new_v4(),
+        updated_at: 1000,
+        is_deleted: false,
+        body: serde_json::json!({"text":"body"}),
+    };
+    producer.edit(record.clone()).unwrap();
+    producer.synchronize(&transport).await.unwrap();
+    consumer.synchronize(&transport).await.unwrap();
+    assert_eq!(
+        consumer.record(record.id).unwrap().unwrap().mutation.record,
+        record
+    );
+    producer
+        .edit(Record {
+            updated_at: 1001,
+            is_deleted: true,
+            body: serde_json::Value::Null,
+            ..record.clone()
+        })
+        .unwrap();
+    producer.synchronize(&transport).await.unwrap();
+    consumer.synchronize(&transport).await.unwrap();
+    assert_eq!(
+        (
+            producer.record(record.id).unwrap(),
+            consumer.record(record.id).unwrap()
+        ),
+        (None, None)
+    );
+    server.abort();
+}

@@ -5,3 +5,6 @@ mod store;
 mod tests;
 pub use engine::{RoundResult, SyncClient, SyncTransport};
 pub use store::{LocalRecord, Mutation, Replica, SyncError};
+
+mod http;
+pub use http::HttpTransport;

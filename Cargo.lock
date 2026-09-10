@@ -1994,6 +1994,7 @@ dependencies = [
  "palace-db",
  "palace-domain",
  "palace-logging",
+ "palace-sync",
  "pretty_assertions",
  "rand 0.8.8",
  "reqwest",
@@ -2001,6 +2002,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sqlx",
+ "tempfile",
  "testcontainers",
  "thiserror 2.0.20",
  "tokio",
@@ -2086,12 +2088,14 @@ version = "0.0.0"
 dependencies = [
  "palace-domain",
  "pretty_assertions",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
+ "url",
  "uuid",
 ]
 

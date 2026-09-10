@@ -40,6 +40,13 @@ impl SyncClient {
             .map_err(|_| SyncError::Poisoned)?
             .edit(record)
     }
+    /// Reads a current business record without blocking an in-flight synchronization round.
+    pub fn record(&self, id: uuid::Uuid) -> Result<Option<crate::LocalRecord>, SyncError> {
+        self.replica
+            .lock()
+            .map_err(|_| SyncError::Poisoned)?
+            .record(id)
+    }
     /// Runs upload before pull with finite deadlines; failed uploads remain pending and do not block consumption.
     pub async fn synchronize<T: SyncTransport>(
         &self,
