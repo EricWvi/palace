@@ -28,7 +28,7 @@
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 首次有效登录原子创建唯一 Owner/Identity | Partial | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
+| 首次有效登录原子创建唯一 Owner/Identity | Covered | `crates/db/tests/postgres.rs::owner_allocation_is_atomic_and_conflicts_preserve_existing_knowledge`；真实 PG 注入 Identity 写失败并并发首次解析；OIDC 校验由独立签名 token 测试覆盖 |
 | 重复登录及 email 变化保持 owner_id 稳定 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | OIDC 任一必要校验失败都不建立 Owner Scope | Covered | `palace-backend::oidc::tests::callback_rejects_invalid_signed_claims_and_requests_pkce`（签名 token 单元测试）及 `palace-db` 的 `login_state_is_bound_expiring_and_single_use`（真实 PG，ignore） |
 
@@ -62,10 +62,10 @@
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 已绑定身份缺少 email 时仍拒绝登录 | Missing | 尚无实现测试 |
-| 空值和不合法 email 均不能建立 Owner Scope | Missing | 尚无实现测试 |
-| 失败不使用历史 email 且不改变既有数据 | Missing | 尚无实现测试 |
-| email 恢复后重新解析到原 owner_id | Missing | 尚无实现测试 |
+| 已绑定身份缺少 email 时仍拒绝登录 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`；`palace-backend::oidc::tests::callback_rejects_invalid_signed_claims_and_requests_pkce` |
+| 空值和不合法 email 均不能建立 Owner Scope | Covered | `palace-db::owner::tests::email_is_current_validated_and_case_insensitive`；`crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners` |
+| 失败不使用历史 email 且不改变既有数据 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`（缺失 email 后重新解析同一 Owner，并检查绑定计数） |
+| email 恢复后重新解析到原 owner_id | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners` |
 
 ### 决策依据
 
@@ -99,7 +99,7 @@ Owner A 已绑定 `(issuer-1, subject-1)` 和 email E；准备未知 `(issuer-1,
 | --- | --- | --- |
 | 未知 subject 与已有 email 冲突时拒绝自动绑定 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | `(issuer, subject)` 两部分共同参与身份匹配 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
-| 冲突失败不改变 Owner、Identity 或业务记录 | Missing | 尚无实现测试 |
+| 冲突失败不改变 Owner、Identity 或业务记录 | Covered | `crates/db/tests/postgres.rs::owner_allocation_is_atomic_and_conflicts_preserve_existing_knowledge`；冲突前已有完整知识路径，失败后深比较 |
 
 ### 决策依据
 
@@ -131,10 +131,10 @@ Owner A、B 各有独立记录；请求已认证为 A，但在各类输入位置
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 所有外部 ownerId 均不能扩大认证范围 | Missing | 尚无实现测试 |
+| 所有外部 ownerId 均不能扩大认证范围 | Partial | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` 验证 JSON 冒充及他人 ID 读取；未穷举每种入口的 ownerId 变体 |
 | 全局记录 ID 查询仍附带 owner_id 条件 | Partial | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
-| 混合 Owner 批量请求完整失败 | Missing | 尚无实现测试 |
-| 后台任务持久化并恢复原 Owner Scope | Missing | 尚无实现测试 |
+| 混合 Owner 批量请求完整失败 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope` |
+| 后台任务持久化并恢复原 Owner Scope | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`（SQLite 派生任务；当前唯一业务后台状态） |
 
 ### 决策依据
 
@@ -167,9 +167,9 @@ Owner A、B 各有 Conversation 和 Message；准备跨 Owner conversation、par
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
 | Conversation/Message 跨 Owner 引用由数据库拒绝 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
-| Message 父关系同时保持 owner 与 conversation 一致 | Missing | 尚无实现测试 |
-| Import、head 和后台状态不能跨 Owner | Missing | 尚无实现测试 |
-| Owner-scoped 表的 owner_id 均不可为空 | Missing | 尚无实现测试 |
+| Message 父关系同时保持 owner 与 conversation 一致 | Covered | `crates/db/tests/postgres.rs::all_scoped_references_and_multirow_cycles_are_rejected` |
+| Import、head 和后台状态不能跨 Owner | Covered | `crates/db/tests/postgres.rs::all_scoped_references_and_multirow_cycles_are_rejected`；`palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart` |
+| Owner-scoped 表的 owner_id 均不可为空 | Covered | `crates/db/tests/postgres.rs::all_scoped_references_and_multirow_cycles_are_rejected`（检查 information_schema） |
 
 ### 决策依据
 
@@ -201,10 +201,10 @@ Owner A、B 在全局 sequence 中拥有交错版本；A 上传一个声称属�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 更大 updatedAt 不能改变既有 owner_id | Missing | 尚无实现测试 |
-| 全局版本拉取始终按 Owner Scope 过滤 | Missing | 尚无实现测试 |
-| 其他 Owner 版本只形成允许的游标空洞 | Missing | 尚无实现测试 |
-| Owner 切换隔离 cursor、墓碑和待同步状态 | Missing | 尚无实现测试 |
+| 更大 updatedAt 不能改变既有 owner_id | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`；使用更大时间戳的外部 Owner ID，整批拒绝 |
+| 全局版本拉取始终按 Owner Scope 过滤 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope` |
+| 其他 Owner 版本只形成允许的游标空洞 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope` |
+| Owner 切换隔离 cursor、墓碑和待同步状态 | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`；同一物理数据库内对相同记录 ID 分别编辑、拉取墓碑，验证另一个 Owner 的待同步、游标和任务不变 |
 
 ### 决策依据
 
@@ -236,9 +236,9 @@ Owner A、B 在全局 sequence 中拥有交错版本；A 上传一个声称属�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 普通业务更新不能转移记录 Owner | Missing | 尚无实现测试 |
-| Identity 删除不会级联删除知识数据 | Missing | 尚无实现测试 |
-| 未获批时 Owner 删除和跨 Owner 转移不可执行 | Missing | 尚无实现测试 |
+| 普通业务更新不能转移记录 Owner | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`；`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` |
+| Identity 删除不会级联删除知识数据 | Covered | `crates/db/tests/postgres.rs::all_scoped_references_and_multirow_cycles_are_rejected` |
+| 未获批时 Owner 删除和跨 Owner 转移不可执行 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners` 验证 Owner 删除/改归属被拒绝；HTTP 未暴露管理入口 |
 
 ### 决策依据
 
@@ -272,9 +272,9 @@ Owner A、B 在全局 sequence 中拥有交错版本；A 上传一个声称属�
 | --- | --- | --- |
 | 闲置超过 24 小时不自动撤销服务端 Session | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
 | 有效 refresh 在下一次请求完成复核并继续 | Covered | `palace-db` 的 `persistent_sessions_revalidate_rotate_and_revoke`（真实 PG + fake provider）及 `palace-backend` 的 `authelia_authorization_refresh_and_revocation_contract`（真实 Authelia 4.39.20），默认 ignore |
-| refresh 过期进入 OIDC，按 Authelia SSO 状态决定是否交互 | Missing | 尚无实现测试 |
+| refresh 过期进入 OIDC，按 Authelia SSO 状态决定是否交互 | Partial | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke` 验证拒绝凭据失效；真实 Authelia 测试验证重新登录协议，尚无浏览器 SSO 交互 E2E |
 | Authelia 临时不可达拒绝访问但保留 Session 供重试 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
-| cookie 缺失不能恢复原 Session | Missing | 尚无实现测试 |
+| cookie 缺失不能恢复原 Session | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`；无 cookie 请求返回 401 和登录入口 |
 
 ### 决策依据
 
@@ -306,9 +306,9 @@ cookie 暴露 owner_id 或 OIDC token，脚本读取长期凭证，登录后沿�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| cookie 只携带 opaque secret 且安全属性完整 | Missing | 尚无实现测试 |
-| 登录后旧匿名/预设 Session 不再有效 | Missing | 尚无实现测试 |
-| 状态变更具有独立 Origin/CSRF 防护 | Missing | 尚无实现测试 |
+| cookie 只携带 opaque secret 且安全属性完整 | Covered | `palace-backend::http::tests::origin_and_opaque_cookie_boundaries`；`palace-db::session_crypto::tests::credential_encryption_is_bound_to_session_and_rotation`；`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` |
+| 登录后旧匿名/预设 Session 不再有效 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`、`login_state_is_bound_expiring_and_single_use` |
+| 状态变更具有独立 Origin/CSRF 防护 | Covered | `palace-backend::http::tests::origin_and_opaque_cookie_boundaries`；`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` |
 | secret 轮换在并发下有界且最终淘汰旧值 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
 
 ### 决策依据
@@ -344,7 +344,7 @@ Palace 先持久化对应范围的 revoked_at，随后所有新请求均拒绝�
 | 当前设备与全部设备撤销范围正确 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
 | 本地撤销提交后旧 cookie 立即失效 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
 | Authelia 撤销失败不恢复 Session 且可重试 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
-| Session 状态缓存不能越过本地撤销 | Missing | 尚无实现测试 |
+| Session 状态缓存不能越过本地撤销 | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` 在退出成功后立即重放 cookie；服务端没有鉴权缓存 |
 
 ### 决策依据
 
@@ -376,10 +376,10 @@ Session、cookie 和 OIDC credential 均只保留在服务端安全域，不出�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 业务同步不返回 Session 或 OIDC credential | Missing | 尚无实现测试 |
-| Owner 数据导出不包含认证凭证 | Missing | 尚无实现测试 |
-| Session 不分配业务 serverVersion | Missing | 尚无实现测试 |
-| 新设备无法从业务数据复制认证状态 | Missing | 尚无实现测试 |
+| 业务同步不返回 Session 或 OIDC credential | Covered | `crates/backend/tests/http.rs::http_sync_round_propagates_records_and_tombstones`；深比较完整同步 JSON，仅有 Owner、业务记录和版本 |
+| Owner 数据导出不包含认证凭证 | Missing | Owner 数据导出尚未开放；本次没有导出接口，不能以同步测试替代未来导出验证 |
+| Session 不分配业务 serverVersion | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`；Session 全生命周期后 sequence 仍为未使用状态 |
+| 新设备无法从业务数据复制认证状态 | Covered | `crates/backend/tests/http.rs::http_sync_round_propagates_records_and_tombstones`；本地副本已有记录时，无独立 cookie 的 HTTP 请求仍返回 401 |
 
 ### 决策依据
 

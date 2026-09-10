@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 date: 2026-09-08
 ---
 
@@ -7,7 +7,7 @@ date: 2026-09-08
 
 Palace 使用 Authelia 完成认证，以 OIDC 的 `(issuer, subject)` 将外部身份绑定到内部稳定 `owner.id`，同时维护 Owner 与当前 email 的映射。所有保存 Owner 数据的业务表默认包含不可为空的 `owner_id`；请求中的 Owner Scope 只能由服务端认证上下文确定，客户端不能自报或改写。
 
-当前为 `approved`，决策已经评审通过但尚未实现；对应核心测试用例用于跟踪实现证据。本文件是 `server/owner` 的根决策，没有前序 ADR；第一版建立新身份与归属模型，不承担既有生产数据、其他认证提供方或旧客户端的自动迁移义务。Owner 删除、共享知识库和跨 Owner 转移留给后续决策。
+当前为 `implemented`，服务端契约已实现并验证；核心测试用例分别记录直接证据及仍属于展示端、设备交互或导出的后续验证边界。本文件是 `server/owner` 的根决策，没有前序 ADR；第一版建立新身份与归属模型，不承担既有生产数据、其他认证提供方或旧客户端的自动迁移义务。Owner 删除、共享知识库和跨 Owner 转移留给后续决策。
 
 ## 范围与依赖
 
@@ -30,7 +30,7 @@ email 适合显示和联系，但可能变化，也不具备 OIDC 稳定身份�
 
 Palace 使用自己生成的 `owner.id` 作为所有业务表的归属键，不把 email、Authelia username 或 OIDC subject 直接复制为业务主键。`owner_identity` 负责外部身份绑定，使认证提供方字段与业务身份分离；同一个 Owner 的全部历史数据在 email 改变后仍保持原 `owner_id`。
 
-第一版通过 Authelia OIDC Authorization Code Flow 建立登录会话。Palace 只接受经过 issuer、签名、audience、有效期、state 和 nonce 等协议校验的认证结果，并使用 `(issuer, subject)` 查询 `owner_identity`。具体库和会话载体属于实现细节，但不能降级为信任浏览器直接提交的身份字段。
+第一版通过 Authelia OIDC Authorization Code Flow 建立登录会话。Palace 只接受经过 issuer、签名、audience、有效期、state 和 nonce 等协议校验的认证结果，并使用 `(issuer, subject)` 查询 `owner_identity`。具体会话载体由[长期 Session 后续决策](20260908-persistent-revocable-owner-sessions.md)补充；不能信任浏览器直接提交的身份字段。
 
 Authelia client 的 subject 模式或 sector identifier 改变可能使 `sub` 整体变化，官方说明这种配置变化会让 relying party 把后续认证识别为新用户。[Authelia OIDC Client 配置](https://www.authelia.com/configuration/identity-providers/openid-connect/clients/)。部署不能直接修改这类配置后继续沿用旧绑定；必须先制定身份映射迁移并验证每个 Owner 的新旧 subject 对应关系。
 
@@ -57,6 +57,8 @@ Authelia client 的 subject 模式或 sector identifier 改变可能使 `sub` �
 | `conversation_import` | 是 | 导入、Conversation 与路径 head 必须属于同一 Owner |
 | 同步游标、客户端任务和 Owner 派生索引 | 是 | 状态不能在 Owner 之间复用 |
 | PG 全局 sequence 与静态系统配置 | 否 | 不保存某个 Owner 的业务内容 |
+
+尚未建立 Owner 的短期 OIDC 登录尝试仅保存浏览器绑定、state 与协议 proof，不保存或引用业务数据，因此作为全局安全基础设施例外不携带 owner_id。
 
 未来新增表默认加入 `owner_id NOT NULL`。只有同时满足“不包含 Owner 数据、不引用 Owner 数据、不会按 Owner 查询或同步”的全局基础设施表才可省略，并必须在所属 ADR 说明理由；不能以“可从父表推导”为由省略。
 
@@ -90,7 +92,7 @@ Owner-scoped 唯一约束和常用索引也必须以 owner_id 开头或包含 ow
 
 1. Palace Owner 由稳定内部 ID 标识，email、username 和 OIDC subject 都不作为业务外键。
 2. Authelia Identity 仅由经过验证的 `(issuer, subject)` 定位，email 不用于自动接管既有 Owner。
-3. 每次建立 Owner Scope 都要求本次经过验证的 Authelia 认证结果包含可用 email，已绑定 Owner 也不例外。
+3. 首次登录和身份复核要求当前经过验证的 Authelia 结果包含可用 email；复核窗口内恢复 Owner Scope 遵循[长期 Session 后续决策](20260908-persistent-revocable-owner-sessions.md)。
 4. Owner 的当前 email 变化不改变 owner_id 或任何业务记录归属。
 5. 保存、引用、查询或同步 Owner 数据的表默认包含 `owner_id NOT NULL`。
 6. Owner-scoped 父子关系和引用在数据库中拒绝跨 Owner 组合。
@@ -129,8 +131,8 @@ Authelia issuer、client subject 类型或 sector identifier 改变可能让全�
 - 管理员跨 Owner 运维、审计日志和 impersonation：必须有独立认证授权边界，不能复用普通接口。
 - PostgreSQL RLS、加密和备份隔离：可作为纵深防御另行评估，不改变本决策的显式 owner_id 规则。
 
-## 落地顺序
+## 落地与验收
 
-1. 实现 Owner/Identity 映射和认证上下文，以首次登录、email 变化、已绑定身份缺少 email、未知 subject 复用 email、伪造 ownerId 和 OIDC 校验失败场景验收。
-2. 为 Conversation、Message、Import 及同步状态加入 owner_id、复合外键与 Owner-leading 索引，以跨 Owner 父子关系、批量越权、后台任务和同步拉取场景验收。
-3. 补齐核心测试用例的直接证据；实现与批准决策一致后同步文档并转为 `implemented`。Owner 删除、共享和迁移仍保持未开放，直到对应后续 ADR 获批。
+Owner/Identity 映射、持久 Session、浏览器绑定登录 state、加密凭据、24 小时复核、并发轮换、Origin 校验与本地先撤销均已落地。身份协议由签名 token 单元测试和真实 Authelia 4.39.20 契约测试验证；数据库事务、禁用、撤销和隔离由真实 PostgreSQL 验证。共享、Owner 删除、身份迁移、设备 UI 与导出仍按上述后续边界处理。
+
+运行 `task test` 验证默认单元测试与 lint；`task test:integration`、`task test:contract` 显式运行默认忽略的容器测试。具体职责、接口、容量和部署配置见[运行文档](../../../../docs/README.md)，验证证据见对应领域核心测试用例。

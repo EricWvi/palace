@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 date: 2026-09-08
 ---
 
@@ -7,7 +7,7 @@ date: 2026-09-08
 
 Palace 在 Authelia OIDC 登录成功后建立服务端持久化的 opaque Session。Session 不设置产品级固定绝对寿命，也不因空闲自动过期；浏览器 cookie 在使用中滚动续期，使内网用户可以长期保持登录。同时，Session 必须可单独或按 Owner 撤销，并最迟每 24 小时通过 Authelia 重新确认 identity 与 email；不能用永不过期 JWT 或永不复核的 cookie 绕过认证变化。
 
-当前为 `approved`，决策已经评审通过但尚未实现；对应 Owner 核心测试用例用于跟踪实现证据。影响 Web 登录、OIDC token 保管、服务端 session 持久化、Owner Scope 建立与退出登录。本文件是 `server/owner` 根决策后的第一份后续 ADR；第一版建立新会话协议，不兼容其他 cookie/JWT 会话，也不迁移既有登录状态。
+当前为 `implemented`，长期 Session 的服务端契约已实现并验证；核心测试用例保留浏览器 SSO 交互及未来导出接口的后续验证边界。影响 Web 登录、OIDC token 保管、服务端 session 持久化、Owner Scope 建立与退出登录。本文件是 `server/owner` 根决策后的第一份后续 ADR；第一版建立新会话协议，不兼容其他 cookie/JWT 会话，也不迁移既有登录状态。
 
 ## 继承与修改
 
@@ -54,7 +54,7 @@ OIDC access/ID token 保持短期，不因 Palace Session 长期存在而延长�
 
 浏览器 cookie 使用 `Secure`、`HttpOnly`、host-only、`Path=/` 与适合 OIDC 跳转的 `SameSite=Lax`；不允许 JavaScript 读取。cookie 使用浏览器可接受的有限持久期限，并在有效请求或成功身份复核后滚动续期。浏览器删除 cookie、清理站点数据或限制持久 cookie 时仍需重新登录；“不过期”是 Palace 不主动设置绝对/空闲失效规则，不是对浏览器永久保存的承诺。
 
-状态变更请求仍需要 Origin/CSRF 校验；`SameSite` 和内网部署不能替代 CSRF 防护。登录成功时必须更换已有匿名或旧 Session，防止 session fixation。opaque secret 需要定期或在身份复核后轮换；并发标签页的短暂旧 secret 如何容忍由实现确定，但旧 secret 不能无限期并行有效。
+状态变更请求仍需要 Origin/CSRF 校验；`SameSite` 和内网部署不能替代 CSRF 防护。登录成功时必须更换已有匿名或旧 Session，防止 session fixation。opaque secret 需要定期或在身份复核后轮换；并发请求可在轮换后 30 秒内使用上一代 secret，并取得当前代次；超过该窗口的已知旧 secret 重放撤销该 Session。旧 secret 不能无限期并行有效。
 
 ## D3：最迟每 24 小时通过 Authelia 复核 identity 与 email
 
@@ -97,9 +97,9 @@ Authelia 不可达、refresh 被拒绝、协议校验失败、identity 不匹配
 | 管理员确认 cookie/credential 泄露 | 指定 Session、Identity 或 Owner 的全部 Session |
 | Session secret 重放、轮换异常或其他完整性失败 | 当前 owner_session，并记录原因 |
 
-撤销先在 Palace 数据库持久化 `revoked_at`，之后当前及后续请求都被拒绝；清除 cookie 和调用 Authelia revocation/logout 是必须尝试的外部副作用，但外部调用失败不能回滚本地撤销。失败的 Authelia token revocation 需记录并重试，不能让 Palace Session 恢复有效。
+撤销先在 Palace 数据库持久化 `revoked_at`，之后当前及后续请求都被拒绝；清除 cookie 和调用 Authelia revocation 是必须尝试的外部副作用，但外部调用失败不能回滚本地撤销。失败的 Authelia token revocation 需记录并重试，不能让 Palace Session 恢复有效。
 
-每次鉴权都读取或命中有明确失效边界的 Session 状态缓存。缓存不能无限期认可已撤销记录；具体缓存 TTL 由实现性能测试确定，但退出当前设备和管理员撤销在 Palace 接收成功后必须对新请求立即生效。
+每次鉴权都读取或命中有明确失效边界的 Session 状态缓存。缓存不能无限期认可已撤销记录；当前鉴权直接读取持久状态，不缓存有效性；退出当前设备和管理员撤销在 Palace 接收成功后对新请求立即生效。
 
 ## D5：Session 归属 Owner，但不参与业务同步
 
@@ -146,8 +146,8 @@ opaque secret、refresh credential 加密方式或轮换协议投入使用后不
 - Authelia 单点故障的高可用部署：属于基础设施边界，不能通过无限宽限绕过。
 - 原生客户端的 cookie 容器、安全存储与 OIDC PKCE：未来客户端接入前另行决定，不复用浏览器 secret 导出。
 
-## 落地顺序
+## 落地与验收
 
-1. 实现 owner_session、opaque cookie、CSRF 防护和登录轮换，以重启恢复、多标签页、cookie 伪造、session fixation 和浏览器清理场景验收。
-2. 实现 refresh/UserInfo 复核和撤销流程，以闲置超过 24 小时、email 变化/缺失、Authelia 不可达、refresh 过期/并发、退出当前/全部设备和管理员撤销场景验收。
-3. 补齐核心测试用例的直接证据；实现与批准决策一致后同步文档并转为 `implemented`。Owner 删除、Identity 解绑和客户端 Session 复制仍保持未开放。
+Owner/Identity 映射、持久 Session、浏览器绑定登录 state、加密凭据、24 小时复核、并发轮换、Origin 校验与本地先撤销均已落地。身份协议由签名 token 单元测试和真实 Authelia 4.39.20 契约测试验证；数据库事务、禁用、撤销和隔离由真实 PostgreSQL 验证。共享、Owner 删除、身份迁移、设备 UI 与导出仍按上述后续边界处理。
+
+运行 `task test` 验证默认单元测试与 lint；`task test:integration`、`task test:contract` 显式运行默认忽略的容器测试。具体职责、接口、容量和部署配置见[运行文档](../../../../docs/README.md)，验证证据见对应领域核心测试用例。

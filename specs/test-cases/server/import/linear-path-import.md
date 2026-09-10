@@ -28,10 +28,10 @@
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 两种入口共用相同合法输入语义 | Missing | 尚无实现测试 |
-| 两种入口共用相同非法输入与错误定位语义 | Missing | 尚无实现测试 |
-| 额外字段被忽略且不持久化 | Partial | `palace-domain` 单元测试 `preserves_linear_input_exactly`；持久化及 HTTP 证据另列 |
-| 原始 Markdown、空白和换行不被规范化 | Partial | `palace-domain` 单元测试 `preserves_linear_input_exactly`；持久化及 HTTP 证据另列 |
+| 两种入口共用相同合法输入语义 | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 HTTP router + PG，ignore） |
+| 两种入口共用相同非法输入与错误定位语义 | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（字段与容量错误，真实 PG，ignore） |
+| 额外字段被忽略且不持久化 | Covered | `palace-domain::import::tests::preserves_linear_input_exactly` 与 `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`；后者断言持久化后完整响应对象不含额外字段 |
+| 原始 Markdown、空白和换行不被规范化 | Covered | `palace-domain::import::tests::preserves_linear_input_exactly`、`accepts_all_source_export_samples`；`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 PG，ignore） |
 
 ### 决策依据
 
@@ -63,8 +63,8 @@
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 字段校验失败不产生业务写入 | Missing | 尚无实现测试 |
-| 容量超限在业务写入前失败 | Missing | 尚无实现测试 |
+| 字段校验失败不产生业务写入 | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（失败后断言三张业务表计数） |
+| 容量超限在业务写入前失败 | Covered | `palace-domain::import::tests::reports_position_and_limits_before_writes`；`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` |
 | 任意持久化步骤失败使三类记录共同回滚 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | 错误类别与数组下标可定位 | Covered | `palace-domain` 单元测试 `reports_position_and_limits_before_writes`；持久化及 HTTP 证据另列 |
 
@@ -133,9 +133,9 @@
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 导入流程不访问 Web Chat 页面 | Missing | 尚无实现测试 |
-| 来源页面状态不影响合法 JSON 导入 | Missing | 尚无实现测试 |
-| 存储保留原文且渲染阻止活动内容执行 | Missing | 尚无实现测试 |
+| 导入流程不访问 Web Chat 页面 | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`；配置可观察的失败来源端点，完整导入/读取后访问计数为 0 |
+| 来源页面状态不影响合法 JSON 导入 | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`；来源端点设为 503，导入结果不受影响 |
+| 存储保留原文且渲染阻止活动内容执行 | Partial | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` 验证 script 原文和 application/json；本次 server 不提供 Markdown UI，渲染测试留给展示端 |
 
 ### 决策依据
 

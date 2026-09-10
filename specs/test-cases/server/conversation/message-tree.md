@@ -28,9 +28,9 @@
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| `(source, session_id)` 在同一 Owner Scope 定位唯一 Conversation | Missing | 尚无实现测试 |
-| 标题变化不改变 Conversation 身份 | Missing | 尚无实现测试 |
-| 相同外部身份不能跨授权范围合并 | Missing | 尚无实现测试 |
+| `(source, session_id)` 在同一 Owner Scope 定位唯一 Conversation | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`（真实 PG，ignore） |
+| 标题变化不改变 Conversation 身份 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`（真实 PG，ignore） |
+| 相同外部身份不能跨授权范围合并 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`（真实 PG，ignore） |
 
 ### 决策依据
 
@@ -64,7 +64,7 @@ A、B 各只有一个共享 Message；C、D 是 B 的不同子消息；两个叶
 | --- | --- | --- |
 | 分叉只新增不同后缀并保留共享前缀 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | 任一叶子沿父链恢复唯一 Path | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
-| 从首条消息分叉时 Conversation 作为共同虚拟根 | Missing | 尚无实现测试 |
+| 从首条消息分叉时 Conversation 作为共同虚拟根 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`（真实 PG，ignore，额外 X-Y 根） |
 
 ### 决策依据
 
@@ -96,9 +96,9 @@ A、B 各只有一个共享 Message；C、D 是 B 的不同子消息；两个叶
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 跨 Conversation 父消息被拒绝 | Missing | 尚无实现测试 |
-| 自引用和祖先回指被拒绝 | Missing | 尚无实现测试 |
-| 非交替角色与 user 结尾保持原顺序 | Missing | 尚无实现测试 |
+| 跨 Conversation 父消息被拒绝 | Covered | `crates/db/tests/postgres.rs::all_scoped_references_and_multirow_cycles_are_rejected`（真实 PG，ignore） |
+| 自引用和祖先回指被拒绝 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`、`all_scoped_references_and_multirow_cycles_are_rejected`；`palace-domain::conversation::tests::path_requires_acyclic_scoped_ancestors` |
+| 非交替角色与 user 结尾保持原顺序 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`（真实 PG，ignore）；`palace-domain::import::tests::preserves_linear_input_exactly` |
 
 ### 决策依据
 
