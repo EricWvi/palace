@@ -2,23 +2,27 @@
 name = "palace-db"
 version.workspace = true
 edition.workspace = true
+[lib]
+name = "palace_db"
+path = "src/lib.rs"
+
 [lints]
 workspace = true
+
 [dependencies]
-email_address.workspace = true
-aes-gcm.workspace = true
-base64.workspace = true
-hmac.workspace = true
-rand.workspace = true
-sha2.workspace = true
-palace-domain.workspace = true
-palace-logging.workspace = true
-sqlx.workspace = true
+email_address = { workspace = true }
+aes-gcm = { workspace = true }
+base64 = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+palace-domain = { workspace = true }
+sqlx = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
-thiserror.workspace = true
-uuid.workspace = true
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
 [dev-dependencies]
-testcontainers.workspace = true
-tokio.workspace = true
-pretty_assertions.workspace = true
+testcontainers = { workspace = true }
+tokio = { workspace = true }
+pretty_assertions = { workspace = true }

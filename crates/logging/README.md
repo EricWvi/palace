@@ -52,3 +52,5 @@ interest cannot make structured-log tests order-dependent.
 
 See [Runtime Logging](../../docs/runtime-logging.md) for configuration and the
 JSON event contract.
+
+This component was copied from `example-repo/crates/logging` under the included Apache-2.0 license. Palace renamed the crate/macros and removed the Gitlancer bridge.

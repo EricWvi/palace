@@ -1,5 +1,12 @@
 [workspace]
-members = ["crates/logging", "crates/domain", "crates/db", "crates/backend", "apps/palace-server", "crates/sync"]
+members = [
+    "apps/palace-server",
+    "crates/backend",
+    "crates/db",
+    "crates/domain",
+    "crates/logging",
+    "crates/sync",
+]
 resolver = "2"
 
 [profile.dev]
@@ -14,41 +21,43 @@ version = "0.0.0"
 edition = "2024"
 
 [workspace.dependencies]
-palace-sync = { path = "crates/sync" }
-email_address = "0.2"
-rusqlite = { version = "0.32", features = ["bundled"] }
+# Internal
 palace-backend = { path = "crates/backend" }
-axum = { version = "0.8", features = ["multipart"] }
-tower = { version = "0.5", features = ["util"] }
-http-body-util = "0.1"
-aes-gcm = "0.10"
-base64 = "0.22"
-hmac = "0.12"
-rand = "0.8"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
-openidconnect = "4.0"
 palace-db = { path = "crates/db" }
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-ring", "postgres", "uuid", "json", "migrate", "macros"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time", "net", "signal"] }
-testcontainers = "0.25"
 palace-domain = { path = "crates/domain" }
-uuid = { version = "1", features = ["serde", "v4"] }
-url = "2"
-sha2 = "0.10"
-serde_path_to_error = "0.1"
 palace-logging = { path = "crates/logging" }
+palace-sync = { path = "crates/sync" }
+
+# External
+aes-gcm = "0.10"
+axum = { version = "0.8", features = ["multipart"] }
+base64 = "0.22"
 chrono = "0.4"
 chrono-tz = "0.10"
+email_address = "0.2"
+hmac = "0.12"
+http-body-util = "0.1"
+openidconnect = "4.0"
 pretty_assertions = "1"
 regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
 serde = "1.0"
 serde_json = "1.0"
+serde_path_to_error = "0.1"
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-ring", "postgres", "uuid", "json", "migrate", "macros"] }
 tempfile = "3"
+testcontainers = "0.25"
 thiserror = "2"
 time = { version = "0.3", features = ["formatting", "macros", "parsing"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time", "net", "signal"] }
+tower = { version = "0.5", features = ["util"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["fmt", "registry"] }
+url = "2"
+uuid = { version = "1", features = ["serde", "v4"] }
 
 [workspace.lints]
 rust = {}

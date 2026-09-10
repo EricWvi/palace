@@ -2,30 +2,32 @@
 name = "palace-backend"
 version.workspace = true
 edition.workspace = true
+[lib]
+name = "palace_backend"
+path = "src/lib.rs"
+
 [lints]
 workspace = true
+
 [dependencies]
-palace-db.workspace = true
-palace-domain.workspace = true
-palace-logging.workspace = true
-openidconnect.workspace = true
-reqwest.workspace = true
-axum.workspace = true
-tokio.workspace = true
+palace-db = { workspace = true }
+palace-domain = { workspace = true }
+openidconnect = { workspace = true }
+reqwest = { workspace = true }
+axum = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
-url.workspace = true
-uuid.workspace = true
-thiserror.workspace = true
-base64.workspace = true
-sha2.workspace = true
-rand.workspace = true
+serde_json = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+
 [dev-dependencies]
-tempfile.workspace = true
-palace-sync.workspace = true
-testcontainers.workspace = true
-sqlx.workspace = true
-chrono.workspace = true
-pretty_assertions.workspace = true
-tower.workspace = true
-http-body-util.workspace = true
+palace-logging = { workspace = true }
+tokio = { workspace = true }
+tempfile = { workspace = true }
+palace-sync = { workspace = true }
+testcontainers = { workspace = true }
+sqlx = { workspace = true }
+chrono = { workspace = true }
+pretty_assertions = { workspace = true }
+tower = { workspace = true }
+http-body-util = { workspace = true }

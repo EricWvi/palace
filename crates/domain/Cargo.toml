@@ -2,15 +2,21 @@
 name = "palace-domain"
 version.workspace = true
 edition.workspace = true
+[lib]
+name = "palace_domain"
+path = "src/lib.rs"
+
 [lints]
 workspace = true
+
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
-serde_path_to_error.workspace = true
-thiserror.workspace = true
-uuid.workspace = true
-url.workspace = true
-sha2.workspace = true
+serde_json = { workspace = true }
+serde_path_to_error = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+url = { workspace = true }
+sha2 = { workspace = true }
+
 [dev-dependencies]
-pretty_assertions.workspace = true
+pretty_assertions = { workspace = true }
