@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/logging", "crates/domain", "crates/db", "crates/backend"]
+members = ["crates/logging", "crates/domain", "crates/db", "crates/backend", "apps/palace-server"]
 resolver = "2"
 
 [profile.dev]

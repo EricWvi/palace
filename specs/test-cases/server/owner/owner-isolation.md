@@ -30,7 +30,7 @@
 | --- | --- | --- |
 | 首次有效登录原子创建唯一 Owner/Identity | Partial | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | 重复登录及 email 变化保持 owner_id 稳定 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
-| OIDC 任一必要校验失败都不建立 Owner Scope | Missing | 尚无实现测试 |
+| OIDC 任一必要校验失败都不建立 Owner Scope | Covered | `palace-backend::oidc::tests::callback_rejects_invalid_signed_claims_and_requests_pkce`（签名 token 单元测试）及 `palace-db` 的 `login_state_is_bound_expiring_and_single_use`（真实 PG，ignore） |
 
 ### 决策依据
 

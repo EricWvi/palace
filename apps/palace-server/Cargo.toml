@@ -1,0 +1,19 @@
+[package]
+name = "palace-server"
+version.workspace = true
+edition.workspace = true
+[lints]
+workspace = true
+[dependencies]
+palace-backend.workspace = true
+palace-db.workspace = true
+palace-domain.workspace = true
+palace-logging.workspace = true
+axum.workspace = true
+tokio.workspace = true
+base64.workspace = true
+chrono-tz.workspace = true
+tracing.workspace = true
+url.workspace = true
+[dev-dependencies]
+pretty_assertions.workspace = true

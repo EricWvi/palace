@@ -182,6 +182,35 @@ impl Database {
             secret: key.secret(id, generation)?,
         })
     }
+    /// Allows logout during provider outages without using stale identity to access business data.
+    pub async fn logout_browser(
+        &self,
+        secret: &str,
+        scope: RevokeScope,
+        now: i64,
+    ) -> Result<(), SessionError> {
+        let mut tx = self.pool.begin().await?;
+        let row = sqlx::query("SELECT id,owner_id FROM owner_session WHERE (secret_hash=$1 OR (previous_secret_hash=$1 AND previous_valid_until>$2)) AND revoked_at IS NULL FOR UPDATE")
+            .bind(secret_hash(secret)).bind(now).fetch_optional(&mut *tx).await?.ok_or(SessionError::Unauthorized)?;
+        let id: Uuid = row.try_get("id")?;
+        let owner: Uuid = row.try_get("owner_id")?;
+        let query = match scope {
+            RevokeScope::Current => {
+                "UPDATE owner_session SET revoked_at=$3,revoke_reason='logout',revocation_pending=true WHERE owner_id=$1 AND id=$2 AND revoked_at IS NULL"
+            }
+            RevokeScope::AllDevices => {
+                "UPDATE owner_session SET revoked_at=$3,revoke_reason='logout all',revocation_pending=true WHERE owner_id=$1 AND $2::uuid IS NOT NULL AND revoked_at IS NULL"
+            }
+        };
+        sqlx::query(query)
+            .bind(owner)
+            .bind(id)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
     /// Commits local logout first; the retry worker owns external revocation independently.
     pub async fn revoke_sessions(
         &self,

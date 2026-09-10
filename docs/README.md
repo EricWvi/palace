@@ -35,3 +35,19 @@ Session 不设绝对或空闲过期；每次受保护请求查持久化状态，
 `palace-backend` 使用 `openidconnect` 执行 Authelia Authorization Code Flow，申请 `openid profile email offline_access`，启用 S256 PKCE。登录 state、nonce、verifier 在服务端加密持久化；state 绑定独立浏览器 cookie，10 分钟过期且只能消费一次。ID token 必须通过签名、issuer、audience、有效期、nonce 与可选 at_hash 检查；刷新同时检查原 subject 并读取当前 UserInfo email。HTTP 5xx 和网络故障按临时不可用处理。
 
 协议 API 依据 [openidconnect 文档](https://docs.rs/openidconnect/4.0.1/openidconnect/)；Authelia 客户端需按[官方客户端配置](https://www.authelia.com/configuration/identity-providers/openid-connect/clients/)启用 Authorization Code、refresh token、相应 scopes 和 PKCE，使用 confidential client。
+
+## 运行与 HTTP 接口
+
+配置 `PALACE_DATABASE_URL`、`PALACE_ORIGIN`（外部 HTTPS origin）、`PALACE_OIDC_ISSUER`、`PALACE_OIDC_CLIENT_ID`、`PALACE_OIDC_CLIENT_SECRET`、`PALACE_SESSION_KEY`（32 字节随机密钥的标准 base64）。可选 `PALACE_LISTEN` 默认 `127.0.0.1:8080`、`PALACE_TIMEZONE` 默认 `Asia/Shanghai`。由可信反向代理终止 HTTPS 后转发给 server；运行 `task run:server`。
+
+| 接口 | 行为 |
+| --- | --- |
+| `GET /auth/login`、`GET /auth/callback` | OIDC 登录及回调 |
+| `GET /api/me` | 当前 Owner；未认证时返回 401 和登录地址 |
+| `POST /auth/logout`、`POST /auth/logout-all` | 当前或全部设备退出，认证服务故障时也可本地退出 |
+| `POST /api/import` | JSON 对象：title、source、session_id、history（原始 JSON 文本字符串）、idempotency_key |
+| `POST /api/import/file` | multipart 同名字段；history 为文件原始字节 |
+| `GET /api/conversations/{id}` | 对话、消息树和受控来源链接 |
+| `GET /api/conversations/{id}/paths/{head}` | 验证后的完整祖先路径 |
+
+所有写请求必须携带严格匹配 `PALACE_ORIGIN` 的 Origin。业务请求没有 ownerId 授权参数。安全 cookie 使用 `__Host-` 前缀、Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain，持久期 180 天并滚动续期。业务响应为 `application/json` 且禁止缓存；原始 Markdown 作为 JSON 字符串返回，server 不提供 HTML 渲染。展示端必须安全渲染，不能将字符串直接写入 innerHTML。

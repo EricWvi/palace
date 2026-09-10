@@ -74,3 +74,9 @@ tasks:
     desc: Run ignored PostgreSQL tests using locally prepared images
     cmds:
       - cargo test -p palace-db --test postgres -- --ignored
+      - cargo test -p palace-backend --test http -- --ignored
+
+  run:server:
+    desc: Run the Palace HTTP server with deployment environment configuration
+    cmds:
+      - cargo run -p palace-server
