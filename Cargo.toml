@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/logging", "crates/domain", "crates/db"]
+members = ["crates/logging", "crates/domain", "crates/db", "crates/backend"]
 resolver = "2"
 
 [profile.dev]
@@ -14,6 +14,10 @@ version = "0.0.0"
 edition = "2024"
 
 [workspace.dependencies]
+palace-backend = { path = "crates/backend" }
+axum = { version = "0.8", features = ["multipart"] }
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
 aes-gcm = "0.10"
 base64 = "0.22"
 hmac = "0.12"

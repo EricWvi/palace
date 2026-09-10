@@ -29,3 +29,9 @@ Session 不设绝对或空闲过期；每次受保护请求查持久化状态，
 浏览器 secret 由独立部署密钥、随机 Session UUID 和轮换代次通过 HMAC-SHA256 生成，数据库仅保存摘要；refresh credential 使用 AES-256-GCM 和 Session UUID 关联数据加密。部署必须持久保管同一密钥；密钥不能放入数据库或日志。旧 secret 只在轮换后 30 秒内接受，响应统一返回当前代次，避免并发标签页不断覆盖新 cookie。
 
 退出先提交本地撤销；外部撤销失败留在持久重试队列。Owner/Identity 禁用会触发数据库撤销相关 Session。认证凭证和 Session 不进入业务同步，也不分配业务版本。
+
+## OIDC 协议
+
+`palace-backend` 使用 `openidconnect` 执行 Authelia Authorization Code Flow，申请 `openid profile email offline_access`，启用 S256 PKCE。登录 state、nonce、verifier 在服务端加密持久化；state 绑定独立浏览器 cookie，10 分钟过期且只能消费一次。ID token 必须通过签名、issuer、audience、有效期、nonce 与可选 at_hash 检查；刷新同时检查原 subject 并读取当前 UserInfo email。HTTP 5xx 和网络故障按临时不可用处理。
+
+协议 API 依据 [openidconnect 文档](https://docs.rs/openidconnect/4.0.1/openidconnect/)；Authelia 客户端需按[官方客户端配置](https://www.authelia.com/configuration/identity-providers/openid-connect/clients/)启用 Authorization Code、refresh token、相应 scopes 和 PKCE，使用 confidential client。

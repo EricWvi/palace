@@ -406,3 +406,39 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
             .is_err()
     );
 }
+
+/// State is single-use, browser-bound and persisted across independent database handles.
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn login_state_is_bound_expiring_and_single_use() {
+    let (_container, db, _pool) = database().await;
+    let key = palace_db::CredentialKey::new([9; 32]);
+    db.begin_login("state", "browser", "pkce and nonce", &key, 100)
+        .await
+        .unwrap();
+    assert!(
+        db.consume_login("state", "attacker", &key, 101)
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        db.clone()
+            .consume_login("state", "browser", &key, 101)
+            .await
+            .unwrap(),
+        "pkce and nonce"
+    );
+    assert!(
+        db.consume_login("state", "browser", &key, 102)
+            .await
+            .is_err()
+    );
+    db.begin_login("expired", "browser", "proof", &key, 100)
+        .await
+        .unwrap();
+    assert!(
+        db.consume_login("expired", "browser", &key, 700)
+            .await
+            .is_err()
+    );
+}

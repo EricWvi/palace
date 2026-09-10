@@ -1,5 +1,6 @@
 //! PostgreSQL transactions enforce owner boundaries independently of HTTP inputs.
 mod import;
+mod login;
 mod owner;
 mod session;
 mod session_crypto;
