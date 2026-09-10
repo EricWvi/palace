@@ -1,0 +1,71 @@
+version: "3"
+
+tasks:
+  default:
+    cmds:
+      - task: list
+
+  list:
+    desc: List all tasks in the current project
+    cmds:
+      - task --list
+
+  install:crates:
+    desc: Install dependencies for all Rust workspace packages
+    cmds:
+      - cargo fetch
+
+  build:
+    desc: Build all Rust workspace packages
+    cmds:
+      - cargo build --workspace
+
+  build:test:
+    desc: Precompile Rust workspace checks and test targets
+    env:
+      CARGO_INCREMENTAL: "0"
+    cmds:
+      - cargo clippy --workspace -- -D warnings
+      - cargo test --workspace --no-run
+
+  clean:debug:
+    desc: Clean only Rust debug build artifacts
+    cmds:
+      - cargo clean --profile dev
+
+  format:
+    desc: Format all Rust workspace packages
+    cmds:
+      - task: format:crates
+
+  format:crates:
+    desc: Format all Rust workspace packages
+    silent: true
+    cmds:
+      - cargo fmt --all
+
+  lint:crates:
+    desc: Run linters on all crates packages
+    env:
+      CARGO_INCREMENTAL: "0"
+    silent: true
+    cmds:
+      - cargo fmt --all -- --check
+      - cargo clippy --workspace -- -D warnings
+
+  test:crates:
+    desc: Run all Rust workspace package test suites
+    env:
+      CARGO_INCREMENTAL: "0"
+    cmds:
+      - task: lint:crates
+      - cargo test --workspace
+
+  lint:
+    desc: Run all linters
+    cmds:
+      - task: lint:crates
+  test:
+    desc: Run all workspace lint and unit tests (container tests are ignored)
+    cmds:
+      - task: test:crates

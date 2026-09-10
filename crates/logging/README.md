@@ -1,0 +1,54 @@
+# palace-logging
+
+`palace-logging` owns Palace's process-wide structured logging contract, local
+clock, sink composition, and shared emission helpers.
+
+## Responsibilities
+
+- `init_logging` installs the subscriber from an explicit `LoggingConfig`,
+  initializes the immutable process timezone, and returns `InitializedLogging`.
+  Its `LoggingGuard` keeps non-blocking writers alive while its cloneable
+  `LogLevelControl` reads or replaces the process-wide filter.
+- Stdout and file sinks use a non-blocking, non-lossy writer: routine IO runs on
+  a background worker, and a full channel exerts backpressure on callers instead
+  of dropping lines, so log integrity wins under extreme sink stalls.
+- Output modes support stdout, daily rotating files, or both, with retention
+  cleanup for matching file series.
+- Events are formatted as one JSON object per line with stable top-level
+  timestamp, level, target, message, method, span, trace, and request fields;
+  business and error fields are grouped consistently.
+- `palace_trace!`, `palace_debug!`, `palace_info!`, `palace_warn!`, and
+  `palace_error!` attach the current method name and preserve the shared event
+  shape.
+- Correlation helpers create spans whose trace and request identifiers propagate
+  into nested events.
+- `ErrorReport::from_error` renders an `Error::source()` chain for the single
+  request-completion event emitted by runtime seams. Emitted reports preserve
+  the original node text in all build modes. The sanitizer and its bounded
+  rendering policy remain available for explicit use and testing. Traversal
+  itself stops after 1,024 source nodes so a malformed cyclic chain cannot block
+  completion logging, and `error.chain_depth` saturates at that safety limit
+  when the chain continues.
+- `clock` exposes local time and offsets from the IANA timezone fixed during
+  startup.
+
+## Boundaries
+
+Initialization is process-wide and the timezone can be set only once. Runtime
+composition roots must parse environment configuration, call initialization
+before clock access, retain `LoggingGuard` for the process lifetime, and inject
+only cloned `LogLevelControl` values into runtime state that needs hot reload.
+Reloading changes eligibility for future events without rebuilding sinks or
+recovering events that were already filtered.
+
+This crate does not decide business log messages, public error classification,
+field allowlists, or read environment variables. Callers remain responsible for
+excluding sensitive structured fields before the report's residual regex
+redaction. File rotation naming follows the underlying appender's daily
+boundary, while event timestamps remain authoritative local timestamps.
+
+Test helpers install a thread-scoped TRACE dispatcher so shared tracing callsite
+interest cannot make structured-log tests order-dependent.
+
+See [Runtime Logging](../../docs/runtime-logging.md) for configuration and the
+JSON event contract.
