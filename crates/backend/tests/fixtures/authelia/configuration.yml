@@ -1,0 +1,61 @@
+server:
+  address: tcp://0.0.0.0:9091/
+  tls:
+    certificate: /config/tls-cert.pem
+    key: /config/tls-key.pem
+log:
+  level: info
+ntp:
+  disable_startup_check: true
+identity_validation:
+  reset_password:
+    jwt_secret: palace-test-reset-jwt-secret-only
+authentication_backend:
+  file:
+    path: /config/users.yml
+access_control:
+  default_policy: one_factor
+session:
+  secret: palace-test-session-secret-not-for-production
+  cookies:
+    - domain: palace.test
+      authelia_url: https://auth.palace.test:@PORT@
+      default_redirection_url: https://palace.test
+storage:
+  encryption_key: palace-test-storage-encryption-key-only
+  local:
+    path: /config/db.sqlite3
+notifier:
+  filesystem:
+    filename: /config/notifications.txt
+identity_providers:
+  oidc:
+    hmac_secret: palace-test-oidc-hmac-secret-only
+    jwks:
+      - key_id: palace-test
+        algorithm: RS256
+        use: sig
+        key: |
+@SIGNING_KEY@
+    clients:
+      - client_id: palace
+        client_name: Palace Contract Test
+        client_secret: '$pbkdf2-sha512$310000$XFobyErFzFsIN/QCJHua4g$wNbJgBSK73s4duT.qyQcF0APKUHuPnCZPPIqdPRObQGRCtF63U0CYShwqYYSU/QF29ptuxz5y1w4JWcgGR8mCA'
+        public: false
+        authorization_policy: one_factor
+        consent_mode: implicit
+        require_pkce: true
+        pkce_challenge_method: S256
+        redirect_uris:
+          - https://palace.test/auth/callback
+        scopes:
+          - openid
+          - profile
+          - email
+          - offline_access
+        grant_types:
+          - authorization_code
+          - refresh_token
+        response_types:
+          - code
+        token_endpoint_auth_method: client_secret_basic

@@ -67,3 +67,9 @@ Session 不设绝对或空闲过期；每次受保护请求查持久化状态，
 业务修改和待同步代次同事务保存；确认同时比较业务版本与代次，防止同毫秒编辑、时钟回拨或删除重建被旧响应误确认。普通远端状态仅在时间戳严格更新时覆盖，墓碑无条件删除业务记录、待同步状态和派生任务。页面应用、派生任务和游标同事务提交；重复已提交页面无副作用。Owner 切换使用各自独立的本地状态与游标。
 
 本地单元测试覆盖真实 SQLite 事务和磁盘重开；PostgreSQL 锁与约束仍只由 testcontainers 测试证明。`rusqlite` 使用 0.32，以匹配 SQLx 0.8 依赖图中的 sqlite3 原生链接版本，避免两个 sqlite3 链接库冲突。
+
+## Authelia 契约测试
+
+`task test:contract` 使用已有 `authelia/authelia:4.39.20` 和 testcontainers 验证真实账号登录、用户授权、Authorization Code、UserInfo、refresh 和 revocation。所有测试账号、client、签名密钥和 TLS 文件位于 `crates/backend/tests/fixtures/authelia/` 及 OIDC 单元测试目录，只用于本地独立容器。测试自己注入 fixture CA 和本地 DNS 解析，不修改系统 hosts、不关闭生产 TLS 验证。
+
+Authelia 的 ID token 不必包含 email；Palace 在验证 ID token 后，通过 subject 匹配的 UserInfo 获取当前 email，登录和复核共用该边界。测试实际经过 offline_access 授权页面对应的 consent API，未依赖开发机已有登录或生产账号。

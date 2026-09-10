@@ -271,7 +271,7 @@ Owner A、B 在全局 sequence 中拥有交错版本；A 上传一个声称属�
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
 | 闲置超过 24 小时不自动撤销服务端 Session | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
-| 有效 refresh 在下一次请求完成复核并继续 | Missing | 尚无实现测试 |
+| 有效 refresh 在下一次请求完成复核并继续 | Covered | `palace-db` 的 `persistent_sessions_revalidate_rotate_and_revoke`（真实 PG + fake provider）及 `palace-backend` 的 `authelia_authorization_refresh_and_revocation_contract`（真实 Authelia 4.39.20），默认 ignore |
 | refresh 过期进入 OIDC，按 Authelia SSO 状态决定是否交互 | Missing | 尚无实现测试 |
 | Authelia 临时不可达拒绝访问但保留 Session 供重试 | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`，真实 PostgreSQL + fake provider，默认 ignore；不证明 Authelia 协议 |
 | cookie 缺失不能恢复原 Session | Missing | 尚无实现测试 |

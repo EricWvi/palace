@@ -1,0 +1,8 @@
+users:
+  eric-test:
+    disabled: false
+    displayname: Palace Test User
+    password: '$argon2id$v=19$m=65536,t=3,p=4$yN7JXSHElC0or3qxgy5xSg$dwpiCMVBrHko8mV0/+LKO+E9SazzCeyiEqCsob8+a/k'
+    email: eric-test@example.com
+    groups:
+      - users

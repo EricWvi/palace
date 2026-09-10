@@ -49,12 +49,22 @@ impl OidcProvider {
         client_secret: String,
         redirect: String,
     ) -> Result<Self, ProviderError> {
-        let issuer_url = IssuerUrl::new(issuer.clone()).map_err(|_| ProviderError::Rejected)?;
         let http = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .timeout(std::time::Duration::from_secs(15))
             .build()
             .map_err(|_| ProviderError::Unavailable)?;
+        Self::discover_with_http(issuer, client_id, client_secret, redirect, http).await
+    }
+    /// Allows isolated contract tests to supply their fixture CA and local DNS mapping.
+    pub(crate) async fn discover_with_http(
+        issuer: String,
+        client_id: String,
+        client_secret: String,
+        redirect: String,
+        http: reqwest::Client,
+    ) -> Result<Self, ProviderError> {
+        let issuer_url = IssuerUrl::new(issuer.clone()).map_err(|_| ProviderError::Rejected)?;
         let metadata = CoreProviderMetadata::discover_async(issuer_url, &http)
             .await
             .map_err(|_| ProviderError::Unavailable)?;
@@ -126,11 +136,7 @@ impl OidcProvider {
             .claims(&verifier, &Nonce::new(proof.nonce.clone()))
             .map_err(|_| ProviderError::Rejected)?;
         self.check_access_hash(&response)?;
-        let email = claims
-            .email()
-            .ok_or(ProviderError::Rejected)?
-            .as_str()
-            .to_owned();
+        let email = self.current_email(&response, claims.subject()).await?;
         let subject = claims.subject().as_str().to_owned();
         let refresh = response
             .refresh_token()
@@ -148,6 +154,28 @@ impl OidcProvider {
             email,
             refresh: serde_json::to_string(&credential).map_err(|_| ProviderError::Rejected)?,
         })
+    }
+    /// Reads current email from subject-bound UserInfo; Authelia need not include profile claims in ID tokens.
+    async fn current_email(
+        &self,
+        response: &CoreTokenResponse,
+        subject: &openidconnect::SubjectIdentifier,
+    ) -> Result<String, ProviderError> {
+        let info: openidconnect::core::CoreUserInfoClaims = self
+            .client
+            .user_info(response.access_token().clone(), Some(subject.clone()))
+            .map_err(|_| ProviderError::Rejected)?
+            .request_async(&|request| Self::request(self.http.clone(), request))
+            .await
+            .map_err(|error| match error {
+                openidconnect::UserInfoError::Request(_) => ProviderError::Unavailable,
+                _ => ProviderError::Rejected,
+            })?;
+        Ok(info
+            .email()
+            .ok_or(ProviderError::Rejected)?
+            .as_str()
+            .to_owned())
     }
     /// Treats HTTP server outages as transport failures so revalidation never revokes on a 5xx.
     async fn request(
@@ -213,24 +241,7 @@ impl IdentityProvider for OidcProvider {
             return Err(ProviderError::Rejected);
         }
         self.check_access_hash(&response)?;
-        let info: openidconnect::core::CoreUserInfoClaims = self
-            .client
-            .user_info(
-                response.access_token().clone(),
-                Some(claims.subject().clone()),
-            )
-            .map_err(|_| ProviderError::Rejected)?
-            .request_async(&|request| Self::request(self.http.clone(), request))
-            .await
-            .map_err(|error| match error {
-                openidconnect::UserInfoError::Request(_) => ProviderError::Unavailable,
-                _ => ProviderError::Rejected,
-            })?;
-        let email = info
-            .email()
-            .ok_or(ProviderError::Rejected)?
-            .as_str()
-            .to_owned();
+        let email = self.current_email(&response, claims.subject()).await?;
         let next = response
             .refresh_token()
             .map_or(stored.token, |token| token.secret().clone());
@@ -280,3 +291,6 @@ fn classify_token_error<RE: std::error::Error + 'static, TE: openidconnect::Erro
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod contract;

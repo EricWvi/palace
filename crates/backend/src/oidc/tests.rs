@@ -1,5 +1,8 @@
 use super::*;
-use axum::{Json, Router, routing::post};
+use axum::{
+    Json, Router,
+    routing::{get, post},
+};
 use openidconnect::{
     AccessToken, Audience, EmptyAdditionalClaims, EndUserEmail, JsonWebKeyId, JsonWebKeySet,
     PrivateSigningKey, StandardClaims, SubjectIdentifier,
@@ -29,10 +32,21 @@ async fn callback_rejects_invalid_signed_claims_and_requests_pkce() {
             }
         }),
     );
+    let info_state = response.clone();
+    let app = app.route(
+        "/userinfo",
+        get(move || {
+            let state = info_state.clone();
+            async move {
+                let value = state.lock().unwrap();
+                Json(serde_json::json!({"sub":"subject","email":value["test_email"]}))
+            }
+        }),
+    );
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    let metadata:CoreProviderMetadata=serde_json::from_value(serde_json::json!({"issuer":issuer,"authorization_endpoint":format!("{issuer}/authorize"),"token_endpoint":format!("{issuer}/token"),"jwks_uri":format!("{issuer}/jwks"),"response_types_supported":["code"],"subject_types_supported":["public"],"id_token_signing_alg_values_supported":["RS256"]})).unwrap();
+    let metadata:CoreProviderMetadata=serde_json::from_value(serde_json::json!({"issuer":issuer,"authorization_endpoint":format!("{issuer}/authorize"),"token_endpoint":format!("{issuer}/token"),"userinfo_endpoint":format!("{issuer}/userinfo"),"jwks_uri":format!("{issuer}/jwks"),"response_types_supported":["code"],"subject_types_supported":["public"],"id_token_signing_alg_values_supported":["RS256"]})).unwrap();
     let client = CoreClient::from_provider_metadata(
         metadata.set_jwks(JsonWebKeySet::new(vec![signing.as_verification_key()])),
         ClientId::new("palace".into()),
@@ -122,7 +136,7 @@ async fn callback_rejects_invalid_signed_claims_and_requests_pkce() {
                 },
             );
         }
-        *response.lock().unwrap() = serde_json::json!({"access_token":if invalid=="access_hash"{"substituted"}else{"access"},"token_type":"Bearer","refresh_token":"refresh","expires_in":300,"id_token":jwt});
+        *response.lock().unwrap() = serde_json::json!({"access_token":if invalid=="access_hash"{"substituted"}else{"access"},"test_email":if invalid=="email"{serde_json::Value::Null}else{serde_json::json!("a@example.com")},"token_type":"Bearer","refresh_token":"refresh","expires_in":300,"id_token":jwt});
         let result = provider.callback("code".into(), &login.proof).await;
         if invalid == "none" {
             let result = result.unwrap();

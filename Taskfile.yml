@@ -80,3 +80,8 @@ tasks:
     desc: Run the Palace HTTP server with deployment environment configuration
     cmds:
       - cargo run -p palace-server
+
+  test:contract:
+    desc: Run ignored Authelia protocol tests using locally prepared images
+    cmds:
+      - cargo test -p palace-backend authelia_authorization -- --ignored
