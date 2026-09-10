@@ -27,12 +27,14 @@ fn acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection()
     let id = Uuid::new_v4();
     let mut replica =
         Replica::from_connection(rusqlite::Connection::open_in_memory().unwrap(), owner).unwrap();
-    let old = replica.edit(record(id, 1000, "old")).unwrap();
-    let newer = replica.edit(record(id, 1000, "same millisecond")).unwrap();
+    let old = replica.edit(record(id, /*timestamp*/ 1000, "old")).unwrap();
+    let newer = replica
+        .edit(record(id, /*timestamp*/ 1000, "same millisecond"))
+        .unwrap();
     replica
         .acknowledge(
             &old,
-            &UploadResult::Accepted(published(owner, 1, old.record.clone())),
+            &UploadResult::Accepted(published(owner, /*version*/ 1, old.record.clone())),
         )
         .unwrap();
     assert_eq!(
@@ -44,7 +46,7 @@ fn acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection()
     );
     let tombstone = published(
         owner,
-        2,
+        /*version*/ 2,
         Record {
             updated_at: 999,
             is_deleted: true,
@@ -63,16 +65,18 @@ fn acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection()
     replica
         .acknowledge(
             &old,
-            &UploadResult::Accepted(published(owner, 1, old.record.clone())),
+            &UploadResult::Accepted(published(owner, /*version*/ 1, old.record.clone())),
         )
         .unwrap();
     assert_eq!(replica.record(id).unwrap(), None);
-    let recreated = replica.edit(record(id, 1000, "recreated")).unwrap();
+    let recreated = replica
+        .edit(record(id, /*timestamp*/ 1000, "recreated"))
+        .unwrap();
     assert!(recreated.generation > newer.generation);
     replica
         .acknowledge(
             &old,
-            &UploadResult::Accepted(published(owner, 1, old.record.clone())),
+            &UploadResult::Accepted(published(owner, /*version*/ 1, old.record.clone())),
         )
         .unwrap();
     assert_eq!(
@@ -82,11 +86,13 @@ fn acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection()
             pending: true
         })
     );
-    let newer = replica.edit(record(id, 1001, "newer")).unwrap();
+    let newer = replica
+        .edit(record(id, /*timestamp*/ 1001, "newer"))
+        .unwrap();
     replica
         .acknowledge(
             &old,
-            &UploadResult::Retained(published(owner, 1, old.record.clone())),
+            &UploadResult::Retained(published(owner, /*version*/ 1, old.record.clone())),
         )
         .unwrap();
     assert_eq!(replica.pending().unwrap(), vec![newer]);
@@ -100,8 +106,12 @@ fn pages_commit_records_jobs_and_cursor_together_and_survive_restart() {
     let other = Uuid::new_v4();
     let id = Uuid::new_v4();
     let page = SyncPage {
-        records: vec![published(owner, 7, record(id, 1000, "remote"))],
-        cursor: ServerVersion::new(7).unwrap(),
+        records: vec![published(
+            owner,
+            /*version*/ 7,
+            record(id, /*timestamp*/ 1000, "remote"),
+        )],
+        cursor: ServerVersion::new(/*value*/ 7).unwrap(),
     };
     {
         let mut replica = Replica::open(&path, owner).unwrap();
@@ -130,6 +140,16 @@ fn pages_commit_records_jobs_and_cursor_together_and_survive_restart() {
     );
     assert_eq!(replica.derived_jobs().unwrap(), vec![id.to_string()]);
     let another = Replica::open(&path, other).unwrap();
+    assert!(
+        another
+            .connection
+            .execute(
+                "INSERT INTO derived_job(owner_id,id) VALUES(?1,?2)",
+                rusqlite::params![other.to_string(), id.to_string()]
+            )
+            .is_err()
+    );
+    assert_eq!(another.derived_jobs().unwrap(), Vec::<String>::new());
     assert_eq!(
         (another.record(id).unwrap(), another.cursor().unwrap()),
         (None, ServerVersion::default())
@@ -141,11 +161,15 @@ fn pages_commit_records_jobs_and_cursor_together_and_survive_restart() {
         })
         .unwrap();
     assert_eq!(replica.cursor().unwrap(), page.cursor);
-    let ignored = published(owner, 8, record(id, 999, "older"));
+    let ignored = published(
+        owner,
+        /*version*/ 8,
+        record(id, /*timestamp*/ 999, "older"),
+    );
     replica
         .apply_page(&SyncPage {
             records: vec![ignored],
-            cursor: ServerVersion::new(8).unwrap(),
+            cursor: ServerVersion::new(/*value*/ 8).unwrap(),
         })
         .unwrap();
     assert_eq!(
@@ -153,8 +177,12 @@ fn pages_commit_records_jobs_and_cursor_together_and_survive_restart() {
         page.records[0].record
     );
     let foreign = SyncPage {
-        records: vec![published(other, 9, record(id, 1001, "foreign"))],
-        cursor: ServerVersion::new(9).unwrap(),
+        records: vec![published(
+            other,
+            /*version*/ 9,
+            record(id, /*timestamp*/ 1001, "foreign"),
+        )],
+        cursor: ServerVersion::new(/*value*/ 9).unwrap(),
     };
     assert!(replica.apply_page(&foreign).is_err());
     assert_eq!(replica.cursor().unwrap().value(), 8);
@@ -184,7 +212,9 @@ async fn failed_upload_does_not_block_pull() {
     let replica =
         Replica::from_connection(rusqlite::Connection::open_in_memory().unwrap(), owner).unwrap();
     let client = SyncClient::new(replica);
-    client.edit(record(Uuid::new_v4(), 1000, "local")).unwrap();
+    client
+        .edit(record(Uuid::new_v4(), /*timestamp*/ 1000, "local"))
+        .unwrap();
     let transport = OfflineUpload {
         calls: Default::default(),
     };

@@ -40,7 +40,7 @@ impl Replica {
     }
     /// Initializes owner-keyed tables; separate owner scopes can safely share a physical database.
     pub fn from_connection(connection: Connection, owner: Uuid) -> Result<Self, SyncError> {
-        connection.execute_batch("PRAGMA foreign_keys=ON; CREATE TABLE IF NOT EXISTS sync_scope(owner_id TEXT PRIMARY KEY,cursor INTEGER NOT NULL DEFAULT 0,generation INTEGER NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS local_record(owner_id TEXT NOT NULL,id TEXT NOT NULL,record TEXT NOT NULL,generation INTEGER NOT NULL,pending INTEGER NOT NULL,PRIMARY KEY(owner_id,id)); CREATE TABLE IF NOT EXISTS derived_job(owner_id TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(owner_id,id));")?;
+        connection.execute_batch("PRAGMA foreign_keys=ON; CREATE TABLE IF NOT EXISTS sync_scope(owner_id TEXT PRIMARY KEY,cursor INTEGER NOT NULL DEFAULT 0,generation INTEGER NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS local_record(owner_id TEXT NOT NULL,id TEXT NOT NULL,record TEXT NOT NULL,generation INTEGER NOT NULL,pending INTEGER NOT NULL,PRIMARY KEY(owner_id,id),FOREIGN KEY(owner_id) REFERENCES sync_scope(owner_id)); CREATE TABLE IF NOT EXISTS derived_job(owner_id TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(owner_id,id),FOREIGN KEY(owner_id,id) REFERENCES local_record(owner_id,id) DEFERRABLE INITIALLY DEFERRED);")?;
         connection.execute(
             "INSERT OR IGNORE INTO sync_scope(owner_id) VALUES(?1)",
             [owner.to_string()],
@@ -54,7 +54,7 @@ impl Replica {
         let generation: i64 = tx.query_row(
             "UPDATE sync_scope SET generation=generation+1 WHERE owner_id=?1 RETURNING generation",
             [&owner],
-            |row| row.get(0),
+            |row| row.get(/*idx*/ 0),
         )?;
         let mutation = Mutation { record, generation };
         tx.execute("INSERT INTO local_record(owner_id,id,record,generation,pending) VALUES(?1,?2,?3,?4,1) ON CONFLICT(owner_id,id) DO UPDATE SET record=excluded.record,generation=excluded.generation,pending=1",params![owner,mutation.record.id.to_string(),serde_json::to_string(&mutation.record)?,generation])?;
@@ -89,7 +89,7 @@ impl Replica {
         let value = self.connection.query_row(
             "SELECT cursor FROM sync_scope WHERE owner_id=?1",
             [self.owner.to_string()],
-            |row| row.get(0),
+            |row| row.get(/*idx*/ 0),
         )?;
         ServerVersion::new(value).map_err(|_| SyncError::Protocol)
     }
@@ -127,7 +127,7 @@ impl Replica {
         let cursor: i64 = tx.query_row(
             "SELECT cursor FROM sync_scope WHERE owner_id=?1",
             [&owner],
-            |row| row.get(0),
+            |row| row.get(/*idx*/ 0),
         )?;
         // A response replay after commit is harmless; the durable cursor already proves page processing.
         if page.cursor.value() <= cursor && !page.records.is_empty() {
@@ -167,7 +167,7 @@ impl Replica {
             .connection
             .prepare("SELECT id FROM derived_job WHERE owner_id=?1 ORDER BY id")?;
         Ok(statement
-            .query_map([self.owner.to_string()], |row| row.get(0))?
+            .query_map([self.owner.to_string()], |row| row.get(/*idx*/ 0))?
             .collect::<Result<Vec<_>, _>>()?)
     }
 }
@@ -225,7 +225,7 @@ fn apply_remote(
             current.as_ref().map(|current| &current.mutation.record),
             &remote.record,
         ) {
-            let generation:i64=connection.query_row("UPDATE sync_scope SET generation=generation+1 WHERE owner_id=?1 RETURNING generation",[&owner_key],|row|row.get(0))?;
+            let generation:i64=connection.query_row("UPDATE sync_scope SET generation=generation+1 WHERE owner_id=?1 RETURNING generation",[&owner_key],|row|row.get(/*idx*/ 0))?;
             connection.execute("INSERT INTO local_record(owner_id,id,record,generation,pending) VALUES(?1,?2,?3,?4,0) ON CONFLICT(owner_id,id) DO UPDATE SET record=excluded.record,generation=excluded.generation,pending=0",params![owner_key,id,serde_json::to_string(&remote.record)?,generation])?;
             connection.execute(
                 "INSERT OR IGNORE INTO derived_job(owner_id,id) VALUES(?1,?2)",
