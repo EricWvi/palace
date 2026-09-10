@@ -68,6 +68,9 @@ impl Database {
         now: i64,
         previous: Option<&str>,
     ) -> Result<AuthenticatedSession, SessionError> {
+        if tokens.refresh.trim().is_empty() {
+            return Err(SessionError::Unauthorized);
+        }
         let owner = self
             .resolve_identity(&tokens.issuer, &tokens.subject, &tokens.email)
             .await?;
@@ -98,7 +101,7 @@ impl Database {
     ) -> Result<AuthenticatedSession, SessionError> {
         let hash = secret_hash(secret);
         let mut tx = self.pool.begin().await?;
-        let row=sqlx::query("SELECT s.*,i.issuer,i.subject,i.disabled AS identity_disabled,o.disabled AS owner_disabled,o.email FROM owner_session s JOIN owner_identity i ON i.id=s.owner_identity_id AND i.owner_id=s.owner_id JOIN owner o ON o.id=s.owner_id WHERE s.secret_hash=$1 OR (s.previous_secret_hash=$1 AND s.previous_valid_until>$2) FOR UPDATE OF s")
+        let row=sqlx::query("SELECT s.*,i.issuer,i.subject,i.disabled AS identity_disabled,o.disabled AS owner_disabled,o.email FROM owner_session s JOIN owner_identity i ON i.id=s.owner_identity_id AND i.owner_id=s.owner_id JOIN owner o ON o.id=s.owner_id WHERE s.secret_hash=$1 OR (s.previous_secret_hash=$1 AND $2::bigint IS NOT NULL) FOR UPDATE OF s")
             .bind(&hash).bind(now).fetch_optional(&mut *tx).await?.ok_or(SessionError::Unauthorized)?;
         let id: Uuid = row.try_get("id")?;
         let owner_id: Uuid = row.try_get("owner_id")?;
@@ -107,6 +110,15 @@ impl Database {
             || row.try_get::<bool, _>("identity_disabled")?
             || row.try_get::<bool, _>("owner_disabled")?
         {
+            return Err(SessionError::Unauthorized);
+        }
+        if hash != row.try_get::<Vec<u8>, _>("secret_hash")?
+            && row
+                .try_get::<Option<i64>, _>("previous_valid_until")?
+                .is_none_or(|until| now >= until)
+        {
+            sqlx::query("UPDATE owner_session SET revoked_at=$2,revoke_reason='retired secret replay',revocation_pending=true WHERE id=$1").bind(id).bind(now).execute(&mut *tx).await?;
+            tx.commit().await?;
             return Err(SessionError::Unauthorized);
         }
         // READ COMMITTED may refresh the locked session tuple but retain an older joined owner tuple.
@@ -118,6 +130,11 @@ impl Database {
         }
         let mut generation: i64 = row.try_get("generation")?;
         let mut email: String = current.try_get("email")?;
+        if secret_hash(&key.secret(id, generation)?) != row.try_get::<Vec<u8>, _>("secret_hash")? {
+            sqlx::query("UPDATE owner_session SET revoked_at=$2,revoke_reason='secret integrity',revocation_pending=true WHERE id=$1").bind(id).bind(now).execute(&mut *tx).await?;
+            tx.commit().await?;
+            return Err(SessionError::Unauthorized);
+        }
         let last_verified: i64 = row.try_get("last_identity_verified_at")?;
         if needs_revalidation(last_verified, now) {
             let refresh = key.open(id, &row.try_get::<Vec<u8>, _>("refresh_credential")?);
@@ -129,7 +146,8 @@ impl Database {
                 Ok(tokens)
                     if tokens.issuer == row.try_get::<String, _>("issuer")?
                         && tokens.subject == row.try_get::<String, _>("subject")?
-                        && normalize_email(&tokens.email).is_ok() =>
+                        && normalize_email(&tokens.email).is_ok()
+                        && !tokens.refresh.trim().is_empty() =>
                 {
                     tokens
                 }

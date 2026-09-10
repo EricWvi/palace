@@ -315,10 +315,6 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
     assert_eq!(a.id, session.id);
     assert_eq!(a.owner.id, session.owner.id);
     assert_ne!(a.secret, session.secret);
-    assert!(matches!(
-        db.authenticate(&session.secret, &key, &valid, 86531).await,
-        Err(SessionError::Unauthorized)
-    ));
     let transient = FakeProvider {
         calls: Default::default(),
         outcome: FakeOutcome::Unavailable,
@@ -605,4 +601,100 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
     let empty = db.pull_records(a.scope(), page.cursor, 100).await.unwrap();
     assert_eq!(empty.records, Vec::new());
     assert_eq!(empty.cursor, page.cursor);
+}
+
+/// Revocation remains durable through direct writes, damaged rotation state and provider outages.
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn session_integrity_and_revocation_cannot_be_bypassed() {
+    let (_container, db, pool) = database().await;
+    let key = palace_db::CredentialKey::new([8; 32]);
+    let provider = FakeProvider {
+        calls: Default::default(),
+        outcome: FakeOutcome::Unavailable,
+    };
+    let mut empty = tokens();
+    empty.refresh.clear();
+    assert!(
+        db.create_session(empty, &key, 100, /*previous*/ None)
+            .await
+            .is_err()
+    );
+    let session = db
+        .create_session(tokens(), &key, 100, /*previous*/ None)
+        .await
+        .unwrap();
+    // Local logout intentionally succeeds beyond the verification deadline while Authelia is unavailable.
+    db.logout_browser(&session.secret, palace_db::RevokeScope::Current, 100000)
+        .await
+        .unwrap();
+    assert!(
+        sqlx::query("UPDATE owner_session SET revoked_at=NULL WHERE id=$1")
+            .bind(session.id)
+            .execute(&pool)
+            .await
+            .is_err()
+    );
+    assert!(
+        db.authenticate(&session.secret, &key, &provider, 100001)
+            .await
+            .is_err()
+    );
+    let damaged = db
+        .create_session(tokens(), &key, 100, /*previous*/ None)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE owner_session SET generation=generation+1 WHERE id=$1")
+        .bind(damaged.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(
+        db.authenticate(&damaged.secret, &key, &provider, 101)
+            .await
+            .is_err()
+    );
+    let revoked: Option<i64> =
+        sqlx::query_scalar("SELECT revoked_at FROM owner_session WHERE id=$1")
+            .bind(damaged.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(revoked, Some(101));
+}
+
+/// Recognized retired secrets revoke their session after the explicit concurrency grace ends.
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn retired_session_secret_replay_is_revoked() {
+    let (_container, db, pool) = database().await;
+    let key = palace_db::CredentialKey::new([8; 32]);
+    let provider = FakeProvider {
+        calls: Default::default(),
+        outcome: FakeOutcome::Valid,
+    };
+    let session = db
+        .create_session(tokens(), &key, 100, /*previous*/ None)
+        .await
+        .unwrap();
+    let rotated = db
+        .authenticate(&session.secret, &key, &provider, 86500)
+        .await
+        .unwrap();
+    assert!(
+        db.authenticate(&session.secret, &key, &provider, 86530)
+            .await
+            .is_err()
+    );
+    assert!(
+        db.authenticate(&rotated.secret, &key, &provider, 86531)
+            .await
+            .is_err()
+    );
+    let reason: String = sqlx::query_scalar("SELECT revoke_reason FROM owner_session WHERE id=$1")
+        .bind(session.id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(reason, "retired secret replay");
 }

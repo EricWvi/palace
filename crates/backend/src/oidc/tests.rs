@@ -150,3 +150,32 @@ async fn callback_rejects_invalid_signed_claims_and_requests_pkce() {
     }
     server.abort();
 }
+
+/// Rate limiting and server failures keep persisted sessions available for a later revalidation attempt.
+#[tokio::test]
+async fn provider_outages_are_retryable_transport_failures() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let app = Router::new().route(
+        "/{status}",
+        get(
+            |axum::extract::Path(status): axum::extract::Path<u16>| async move {
+                axum::http::StatusCode::from_u16(status).unwrap()
+            },
+        ),
+    );
+    let task = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    for status in [429, 500, 503] {
+        let request = axum::http::Request::builder()
+            .uri(format!("http://{address}/{status}"))
+            .body(Vec::new())
+            .unwrap();
+        assert!(matches!(
+            OidcProvider::request(reqwest::Client::new(), request).await,
+            Err(ProviderError::Unavailable)
+        ));
+    }
+    task.abort();
+}

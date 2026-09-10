@@ -185,7 +185,9 @@ impl OidcProvider {
         let response = openidconnect::AsyncHttpClient::call(&http, request)
             .await
             .map_err(|_| ProviderError::Unavailable)?;
-        if response.status().is_server_error() {
+        if response.status().is_server_error()
+            || response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS
+        {
             return Err(ProviderError::Unavailable);
         }
         Ok(response)

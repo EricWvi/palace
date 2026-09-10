@@ -75,3 +75,5 @@ Session 不设绝对或空闲过期；每次受保护请求查持久化状态，
 Authelia 的 ID token 不必包含 email；Palace 在验证 ID token 后，通过 subject 匹配的 UserInfo 获取当前 email，登录和复核共用该边界。测试实际经过 offline_access 授权页面对应的 consent API，未依赖开发机已有登录或生产账号。
 
 `PUT /api/conversations/{id}/title` 接收 `{ "title": "新标题" }`，原位修改显示标题。校验与导入相同，Owner、source/session_id、消息父链和 Import head 保持不变；该元数据操作尚不参与跨端结构同步。
+
+Session 的内部 ID、Identity 绑定和创建时间不可更新，撤销时间一经写入不能清空。检测到轮换代次与 secret 摘要不一致，或已知旧 secret 在 30 秒宽限结束后再次使用，会持久撤销该 Session。未知随机 secret 只返回未认证。认证服务限流（429）和 5xx 均属于临时失败，不触发身份失败撤销。email 由独立语法校验器检查，再进行冲突规范化。

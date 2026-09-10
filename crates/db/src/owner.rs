@@ -72,11 +72,7 @@ impl Database {
 /// Validates current email without substituting a historical value; normalization only detects conflicts.
 pub(crate) fn normalize_email(email: &str) -> Result<String, DbError> {
     let value = email.trim();
-    let parts: Vec<_> = value.split('@').collect();
-    if value.len() > 320
-        || parts.len() != 2
-        || parts[0].is_empty()
-        || parts[1].is_empty()
+    if !email_address::EmailAddress::is_valid(value)
         || value.chars().any(|c| c.is_whitespace() || c.is_control())
     {
         return Err(DbError::Conflict);
@@ -94,7 +90,19 @@ mod tests {
             normalize_email(" User@Example.COM ").unwrap(),
             "user@example.com"
         );
-        for value in ["", " ", "a", "@host", "a@", "a@@b", "a b@host", "a@b\nc"] {
+        for value in [
+            "",
+            " ",
+            "a",
+            "@host",
+            "a@",
+            "a@@b",
+            "a b@host",
+            "a@b\nc",
+            "a<>@example.com",
+            "a@example..com",
+            "a..b@example.com",
+        ] {
             assert!(normalize_email(value).is_err());
         }
     }
