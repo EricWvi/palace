@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/logging", "crates/domain"]
+members = ["crates/logging", "crates/domain", "crates/db"]
 resolver = "2"
 
 [profile.dev]
@@ -14,6 +14,10 @@ version = "0.0.0"
 edition = "2024"
 
 [workspace.dependencies]
+palace-db = { path = "crates/db" }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-ring", "postgres", "uuid", "json", "migrate", "macros"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time", "net", "signal"] }
+testcontainers = "0.25"
 palace-domain = { path = "crates/domain" }
 uuid = { version = "1", features = ["serde", "v4"] }
 url = "2"

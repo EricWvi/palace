@@ -69,3 +69,8 @@ tasks:
     desc: Run all workspace lint and unit tests (container tests are ignored)
     cmds:
       - task: test:crates
+
+  test:integration:
+    desc: Run ignored PostgreSQL tests using locally prepared images
+    cmds:
+      - cargo test -p palace-db --test postgres -- --ignored

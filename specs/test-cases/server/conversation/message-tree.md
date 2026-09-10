@@ -62,8 +62,8 @@ A、B 各只有一个共享 Message；C、D 是 B 的不同子消息；两个叶
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 分叉只新增不同后缀并保留共享前缀 | Missing | 尚无实现测试 |
-| 任一叶子沿父链恢复唯一 Path | Missing | 尚无实现测试 |
+| 分叉只新增不同后缀并保留共享前缀 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
+| 任一叶子沿父链恢复唯一 Path | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | 从首条消息分叉时 Conversation 作为共同虚拟根 | Missing | 尚无实现测试 |
 
 ### 决策依据

@@ -65,7 +65,7 @@
 | --- | --- | --- |
 | 字段校验失败不产生业务写入 | Missing | 尚无实现测试 |
 | 容量超限在业务写入前失败 | Missing | 尚无实现测试 |
-| 任意持久化步骤失败使三类记录共同回滚 | Missing | 尚无实现测试 |
+| 任意持久化步骤失败使三类记录共同回滚 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | 错误类别与数组下标可定位 | Covered | `palace-domain` 单元测试 `reports_position_and_limits_before_writes`；持久化及 HTTP 证据另列 |
 
 ### 决策依据
@@ -98,10 +98,10 @@
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 完全重复导入复用已有路径 | Missing | 尚无实现测试 |
-| `A-B-C` 与 `A-B-D` 并发后只共享一份 A、B | Missing | 尚无实现测试 |
-| 同一幂等键的相同请求返回已提交结果 | Missing | 尚无实现测试 |
-| 同一幂等键被不同请求复用时失败 | Missing | 尚无实现测试 |
+| 完全重复导入复用已有路径 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
+| `A-B-C` 与 `A-B-D` 并发后只共享一份 A、B | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
+| 同一幂等键的相同请求返回已提交结果 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
+| 同一幂等键被不同请求复用时失败 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 
 ### 决策依据
 

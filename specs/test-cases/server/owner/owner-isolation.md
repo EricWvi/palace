@@ -1,6 +1,6 @@
 # Owner 身份与数据隔离核心测试用例
 
-本文跟踪[Owner 与数据隔离根决策](../../../decisions/server/owner/0-authelia-identity-and-owner-scoped-records.md)及[长期 Palace Session 后续决策](../../../decisions/server/owner/20260908-persistent-revocable-owner-sessions.md)中认证绑定、email 映射、数据归属、会话和同步隔离的长期风险。当前尚未实现，全部直接证据均为 `Missing`。
+本文跟踪[Owner 与数据隔离根决策](../../../decisions/server/owner/0-authelia-identity-and-owner-scoped-records.md)及[长期 Palace Session 后续决策](../../../decisions/server/owner/20260908-persistent-revocable-owner-sessions.md)中认证绑定、email 映射、数据归属、会话和同步隔离的长期风险。实现证据随对应提交维护；没有直接验证的义务继续标记为 `Missing`。
 
 ## A verified Authelia identity must resolve to one stable owner
 
@@ -28,8 +28,8 @@
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 首次有效登录原子创建唯一 Owner/Identity | Missing | 尚无实现测试 |
-| 重复登录及 email 变化保持 owner_id 稳定 | Missing | 尚无实现测试 |
+| 首次有效登录原子创建唯一 Owner/Identity | Partial | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
+| 重复登录及 email 变化保持 owner_id 稳定 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | OIDC 任一必要校验失败都不建立 Owner Scope | Missing | 尚无实现测试 |
 
 ### 决策依据
@@ -97,8 +97,8 @@ Owner A 已绑定 `(issuer-1, subject-1)` 和 email E；准备未知 `(issuer-1,
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 未知 subject 与已有 email 冲突时拒绝自动绑定 | Missing | 尚无实现测试 |
-| `(issuer, subject)` 两部分共同参与身份匹配 | Missing | 尚无实现测试 |
+| 未知 subject 与已有 email 冲突时拒绝自动绑定 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
+| `(issuer, subject)` 两部分共同参与身份匹配 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | 冲突失败不改变 Owner、Identity 或业务记录 | Missing | 尚无实现测试 |
 
 ### 决策依据
@@ -132,7 +132,7 @@ Owner A、B 各有独立记录；请求已认证为 A，但在各类输入位置
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
 | 所有外部 ownerId 均不能扩大认证范围 | Missing | 尚无实现测试 |
-| 全局记录 ID 查询仍附带 owner_id 条件 | Missing | 尚无实现测试 |
+| 全局记录 ID 查询仍附带 owner_id 条件 | Partial | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | 混合 Owner 批量请求完整失败 | Missing | 尚无实现测试 |
 | 后台任务持久化并恢复原 Owner Scope | Missing | 尚无实现测试 |
 
@@ -166,7 +166,7 @@ Owner A、B 各有 Conversation 和 Message；准备跨 Owner conversation、par
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| Conversation/Message 跨 Owner 引用由数据库拒绝 | Missing | 尚无实现测试 |
+| Conversation/Message 跨 Owner 引用由数据库拒绝 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | Message 父关系同时保持 owner 与 conversation 一致 | Missing | 尚无实现测试 |
 | Import、head 和后台状态不能跨 Owner | Missing | 尚无实现测试 |
 | Owner-scoped 表的 owner_id 均不可为空 | Missing | 尚无实现测试 |

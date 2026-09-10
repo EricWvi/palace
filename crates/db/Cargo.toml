@@ -1,0 +1,18 @@
+[package]
+name = "palace-db"
+version.workspace = true
+edition.workspace = true
+[lints]
+workspace = true
+[dependencies]
+palace-domain.workspace = true
+palace-logging.workspace = true
+sqlx.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+[dev-dependencies]
+testcontainers.workspace = true
+tokio.workspace = true
+pretty_assertions.workspace = true
