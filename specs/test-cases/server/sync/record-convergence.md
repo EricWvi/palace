@@ -63,9 +63,9 @@
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
 | 业务修改与待同步标记原子持久化 | Missing | 尚无实现测试 |
-| 新 updatedAt 阻止旧确认清除待同步 | Missing | 尚无实现测试 |
-| 同毫秒新代次阻止旧确认清除待同步 | Missing | 尚无实现测试 |
-| 逐条失败不阻塞一轮后续拉取 | Missing | 尚无实现测试 |
+| 新 updatedAt 阻止旧确认清除待同步 | Covered | `palace-sync::tests::acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection`，SQLite 单元测试 |
+| 同毫秒新代次阻止旧确认清除待同步 | Covered | `palace-sync::tests::acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection`，SQLite 单元测试 |
+| 逐条失败不阻塞一轮后续拉取 | Covered | `palace-sync::tests::failed_upload_does_not_block_pull`，SQLite 单元测试 |
 
 ### 决策依据
 
@@ -132,9 +132,9 @@ PG sequence 取号与提交错序，使客户端先处理更高版本并推进�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 页面处理与游标推进原子提交 | Missing | 尚无实现测试 |
-| 崩溃恢复重放整页且结果幂等 | Missing | 尚无实现测试 |
-| 空页、忽略记录和授权范围变化符合游标规则 | Missing | 尚无实现测试 |
+| 页面处理与游标推进原子提交 | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`，SQLite 单元测试 |
+| 崩溃恢复重放整页且结果幂等 | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`，SQLite 单元测试 |
+| 空页、忽略记录和授权范围变化符合游标规则 | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`，SQLite 单元测试 |
 
 ### 决策依据
 
@@ -166,8 +166,8 @@ PG sequence 取号与提交错序，使客户端先处理更高版本并推进�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 墓碑无条件删除本地记录和待同步修改 | Missing | 尚无实现测试 |
-| 重复墓碑与迟到响应不能复活记录 | Missing | 尚无实现测试 |
+| 墓碑无条件删除本地记录和待同步修改 | Covered | `palace-sync::tests::acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection`，SQLite 单元测试 |
+| 重复墓碑与迟到响应不能复活记录 | Covered | `palace-sync::tests::acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection`，SQLite 单元测试 |
 | 服务端墓碑持续参与增量拉取 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`，真实 PostgreSQL 17，默认 ignore |
 
 ### 决策依据

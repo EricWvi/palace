@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/logging", "crates/domain", "crates/db", "crates/backend", "apps/palace-server"]
+members = ["crates/logging", "crates/domain", "crates/db", "crates/backend", "apps/palace-server", "crates/sync"]
 resolver = "2"
 
 [profile.dev]
@@ -14,6 +14,7 @@ version = "0.0.0"
 edition = "2024"
 
 [workspace.dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
 palace-backend = { path = "crates/backend" }
 axum = { version = "0.8", features = ["multipart"] }
 tower = { version = "0.5", features = ["util"] }
