@@ -115,12 +115,28 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     }
     let cookie = format!("__Host-palace-session={}", sessions[0].secret);
     let foreign = format!("__Host-palace-session={}", sessions[1].secret);
+    let source_hits = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let hits = source_hits.clone();
+    let source_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let source_url = format!("http://{}/source/", source_listener.local_addr().unwrap());
+    let trap = axum::Router::new().fallback(move || {
+        let hits = hits.clone();
+        async move {
+            hits.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            StatusCode::SERVICE_UNAVAILABLE
+        }
+    });
+    let source_server = tokio::spawn(async move {
+        axum::serve(source_listener, trap).await.unwrap();
+    });
+    let mut links = SourceLinks::standard().unwrap();
+    links.chatgpt = url::Url::parse(&source_url).unwrap();
     let app = router(Server {
         database: db,
         provider: Provider,
         credential_key: key,
         origin: "https://palace.test".into(),
-        links: SourceLinks::standard().unwrap(),
+        links,
         limits: ImportLimits {
             bytes: 1024,
             ..Default::default()
@@ -214,9 +230,11 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     let tree: serde_json::Value =
         serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(
-        tree["messages"][0]["content"],
-        "<script>alert(1)</script>\r\n"
+        tree,
+        serde_json::json!({"conversation":{"id":result["conversation_id"],"owner_id":sessions[0].owner.id,"title":"t","source":"chatgpt","session_id":"s"},"messages":[{"id":result["head_message_id"],"owner_id":sessions[0].owner.id,"conversation_id":result["conversation_id"],"parent_message_id":null,"role":"user","content":"<script>alert(1)</script>\r\n","created_order":1}],"original_link":format!("{source_url}s")})
     );
+    assert_eq!(source_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
+    source_server.abort();
     for (history, expected_status) in [
         (
             r#"[{"role":"user","content":1}]"#.to_owned(),
@@ -287,6 +305,25 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     }
     let counts:(i64,i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
     assert_eq!(counts, (1, 1, 1));
+    let anonymous = app
+        .clone()
+        .oneshot(request(
+            "GET",
+            "/api/me",
+            "",
+            "https://palace.test",
+            "application/json",
+            String::new(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(anonymous.status(), StatusCode::UNAUTHORIZED);
+    let error: serde_json::Value =
+        serde_json::from_slice(&anonymous.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(
+        error,
+        serde_json::json!({"error":"authentication_required","login":"/auth/login"})
+    );
     let mut spoof = input.clone();
     spoof["owner_id"] = serde_json::json!(sessions[1].owner.id);
     let response = app
@@ -439,6 +476,26 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         consumer.record(record.id).unwrap().unwrap().mutation.record,
         record
     );
+    let response = reqwest::Client::new()
+        .get(format!("{origin}/api/sync?cursor=0&limit=100"))
+        .header(
+            "cookie",
+            format!("__Host-palace-session={}", session.secret),
+        )
+        .send()
+        .await
+        .unwrap();
+    let page: serde_json::Value = response.json().await.unwrap();
+    assert_eq!(
+        page,
+        serde_json::json!({"records":[{"ownerId":session.owner.id,"serverVersion":"1","record":record}],"cursor":"1"})
+    );
+    let anonymous = reqwest::Client::new()
+        .get(format!("{origin}/api/me"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(anonymous.status(), StatusCode::UNAUTHORIZED);
     producer
         .edit(Record {
             updated_at: 1001,

@@ -117,6 +117,12 @@ fn pages_commit_records_jobs_and_cursor_together_and_survive_restart() {
         let mut replica = Replica::open(&path, owner).unwrap();
         replica.connection.execute_batch("CREATE TRIGGER fail_job BEFORE INSERT ON derived_job BEGIN SELECT RAISE(ABORT,'injected'); END;").unwrap();
         assert!(replica.apply_page(&page).is_err());
+        assert!(
+            replica
+                .edit(record(id, /*timestamp*/ 900, "failed edit"))
+                .is_err()
+        );
+        assert_eq!(replica.pending().unwrap(), Vec::<Mutation>::new());
         assert_eq!(
             (
                 replica.record(id).unwrap(),
@@ -139,7 +145,7 @@ fn pages_commit_records_jobs_and_cursor_together_and_survive_restart() {
         page.records[0].record
     );
     assert_eq!(replica.derived_jobs().unwrap(), vec![id.to_string()]);
-    let another = Replica::open(&path, other).unwrap();
+    let mut another = Replica::open(&path, other).unwrap();
     assert!(
         another
             .connection
@@ -186,6 +192,36 @@ fn pages_commit_records_jobs_and_cursor_together_and_survive_restart() {
     };
     assert!(replica.apply_page(&foreign).is_err());
     assert_eq!(replica.cursor().unwrap().value(), 8);
+    let independent = another
+        .edit(record(id, /*timestamp*/ 2000, "other owner pending"))
+        .unwrap();
+    let tombstone = published(
+        owner,
+        /*version*/ 9,
+        Record {
+            is_deleted: true,
+            ..record(id, /*timestamp*/ 1001, "deleted")
+        },
+    );
+    replica
+        .apply_page(&SyncPage {
+            records: vec![tombstone],
+            cursor: ServerVersion::new(9).unwrap(),
+        })
+        .unwrap();
+    assert_eq!(replica.record(id).unwrap(), None);
+    assert_eq!(
+        (
+            another.pending().unwrap(),
+            another.cursor().unwrap(),
+            another.derived_jobs().unwrap()
+        ),
+        (
+            vec![independent],
+            ServerVersion::default(),
+            vec![id.to_string()]
+        )
+    );
 }
 struct OfflineUpload {
     calls: std::sync::Mutex<Vec<&'static str>>,

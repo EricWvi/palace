@@ -474,6 +474,12 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
             .await
             .is_err()
     );
+    let sequence: (i64, bool) =
+        sqlx::query_as("SELECT last_value,is_called FROM business_server_version")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(sequence, (1, false));
 }
 
 /// State is single-use, browser-bound and persisted across independent database handles.
@@ -567,9 +573,18 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
         ..record.clone()
     };
     assert!(
-        db.upload_records(a.scope(), &[own_new, foreign])
-            .await
-            .is_err()
+        db.upload_records(
+            a.scope(),
+            &[
+                own_new,
+                Record {
+                    updated_at: 999999,
+                    ..foreign
+                }
+            ]
+        )
+        .await
+        .is_err()
     );
     assert_eq!(
         db.pull_records(a.scope(), ServerVersion::default(), /*limit*/ 100)
@@ -814,5 +829,59 @@ async fn all_scoped_references_and_multirow_cycles_are_rejected() {
             .map(|m| m.content.as_str())
             .collect::<Vec<_>>(),
         vec!["A", "B"]
+    );
+}
+
+/// A failing identity insert cannot leave an orphan Owner; concurrent first login resolves one pair.
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn owner_allocation_is_atomic_and_conflicts_preserve_existing_knowledge() {
+    let (_container, db, pool) = database().await;
+    sqlx::raw_sql("CREATE FUNCTION fail_identity() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected'; END $$; CREATE TRIGGER fail_identity BEFORE INSERT ON owner_identity FOR EACH ROW EXECUTE FUNCTION fail_identity();").execute(&pool).await.unwrap();
+    assert!(
+        db.resolve_identity("https://idp", "a", "a@example.com")
+            .await
+            .is_err()
+    );
+    let counts: (i64, i64) =
+        sqlx::query_as("SELECT (SELECT count(*) FROM owner),(SELECT count(*) FROM owner_identity)")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(counts, (0, 0));
+    sqlx::query("DROP TRIGGER fail_identity ON owner_identity")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let (first, second) = tokio::join!(
+        db.resolve_identity("https://idp", "a", "a@example.com"),
+        db.resolve_identity("https://idp", "a", "a@example.com")
+    );
+    let owner = first.unwrap();
+    assert_eq!(second.unwrap(), owner);
+    let imported = db
+        .import_path(owner.scope(), &request("first", &["A", "B"]))
+        .await
+        .unwrap();
+    let before = db
+        .conversation(owner.scope(), imported.conversation_id)
+        .await
+        .unwrap();
+    assert!(
+        db.resolve_identity("https://idp", "unknown", "a@example.com")
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        db.conversation(owner.scope(), imported.conversation_id)
+            .await
+            .unwrap(),
+        before
+    );
+    assert_eq!(
+        db.resolve_identity("https://idp", "a", "a@example.com")
+            .await
+            .unwrap(),
+        owner
     );
 }
