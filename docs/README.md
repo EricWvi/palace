@@ -58,7 +58,7 @@ Session 不设绝对或空闲过期；每次受保护请求查持久化状态，
 
 `GET /api/sync?cursor=0&limit=100` 按当前 Owner 取增量，limit 为 1–1000。`serverVersion` 及响应 cursor 为十进制字符串，禁止按 JavaScript Number 处理。空页保持游标；墓碑长期保留。有效写入在全局事务锁内取号并提交，数据库触发器也强制该规则；忽略旧值和等值不消耗业务版本。
 
-当前同步对象是独立记录；导入生成的 Conversation/Message/Import 不经这个通用写入口修改或分发。它们的结构同步、标题与正文编辑及级联删除必须先补齐 sync ADR 明确留给后续的多记录协议，避免半棵消息树通过逐记录 LWW 暴露给客户端。
+当前同步对象是独立记录；导入生成的 Conversation/Message/Import 不经这个通用写入口修改或分发。它们的结构同步、正文编辑及级联删除必须先补齐 sync ADR 明确留给后续的多记录协议，避免半棵消息树通过逐记录 LWW 暴露给客户端。
 
 ## 本地同步持久状态
 
@@ -73,3 +73,5 @@ Session 不设绝对或空闲过期；每次受保护请求查持久化状态，
 `task test:contract` 使用已有 `authelia/authelia:4.39.20` 和 testcontainers 验证真实账号登录、用户授权、Authorization Code、UserInfo、refresh 和 revocation。所有测试账号、client、签名密钥和 TLS 文件位于 `crates/backend/tests/fixtures/authelia/` 及 OIDC 单元测试目录，只用于本地独立容器。测试自己注入 fixture CA 和本地 DNS 解析，不修改系统 hosts、不关闭生产 TLS 验证。
 
 Authelia 的 ID token 不必包含 email；Palace 在验证 ID token 后，通过 subject 匹配的 UserInfo 获取当前 email，登录和复核共用该边界。测试实际经过 offline_access 授权页面对应的 consent API，未依赖开发机已有登录或生产账号。
+
+`PUT /api/conversations/{id}/title` 接收 `{ "title": "新标题" }`，原位修改显示标题。校验与导入相同，Owner、source/session_id、消息父链和 Import head 保持不变；该元数据操作尚不参与跨端结构同步。

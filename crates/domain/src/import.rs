@@ -76,13 +76,7 @@ impl ImportRequest {
                 "upload too large",
             ));
         }
-        if input.title.trim().is_empty() || input.title.len() > 1024 {
-            return Err(InputError::new(
-                InputErrorKind::Field,
-                "title",
-                "expected nonempty title of at most 1024 bytes",
-            ));
-        }
+        validate_title(&input.title)?;
         if input.idempotency_key.trim().is_empty() || input.idempotency_key.len() > 128 {
             return Err(InputError::new(
                 InputErrorKind::Field,
@@ -207,10 +201,31 @@ impl ImportRequest {
         &self.digest
     }
 }
+/// Applies the same metadata boundary to initial imports and later title edits without changing identity.
+pub fn validate_title(title: &str) -> Result<(), InputError> {
+    if title.trim().is_empty() || title.len() > 1024 {
+        return Err(InputError::new(
+            InputErrorKind::Field,
+            "title",
+            "expected nonempty title of at most 1024 bytes",
+        ));
+    }
+    Ok(())
+}
 #[cfg(test)]
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+    /// Title edits preserve original display text but never permit unusable or unbounded metadata.
+    #[test]
+    fn title_edits_share_import_validation() {
+        for title in ["", " ", "\n\t"] {
+            assert!(validate_title(title).is_err());
+        }
+        assert!(validate_title(&"a".repeat(1025)).is_err());
+        assert!(validate_title("  新标题  ").is_ok());
+        assert!(validate_title(&"a".repeat(1024)).is_ok());
+    }
     /// Builds identical byte inputs for either browser acquisition method.
     fn input(history: &[u8]) -> ImportInput {
         ImportInput {

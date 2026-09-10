@@ -9,7 +9,7 @@ use crate::{LoginRedirect, OidcProvider};
 use axum::{
     Router,
     extract::DefaultBodyLimit,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use error::ApiError;
 use handlers::*;
@@ -65,6 +65,7 @@ pub fn router<P: LoginProvider + 'static>(server: Server<P>) -> Router {
         .route("/api/import", post(import_text::<P>))
         .route("/api/import/file", post(import_file::<P>))
         .route("/api/conversations/{id}", get(conversation::<P>))
+        .route("/api/conversations/{id}/title", put(rename::<P>))
         .route("/api/conversations/{id}/paths/{head}", get(path::<P>))
         .layer(DefaultBodyLimit::max(limit))
         .with_state(Arc::new(server))

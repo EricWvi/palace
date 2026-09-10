@@ -97,6 +97,25 @@ async fn identity_and_database_constraints_isolate_owners() {
         .import_path(b.scope(), &request("b", &["A", "B"]))
         .await
         .unwrap();
+    let (mut renamed, messages) = db
+        .conversation(a.scope(), ar.conversation_id)
+        .await
+        .unwrap();
+    renamed.title = "新标题".into();
+    db.rename_conversation(a.scope(), ar.conversation_id, &renamed.title)
+        .await
+        .unwrap();
+    assert_eq!(
+        db.conversation(a.scope(), ar.conversation_id)
+            .await
+            .unwrap(),
+        (renamed, messages)
+    );
+    assert!(
+        db.rename_conversation(b.scope(), ar.conversation_id, "foreign")
+            .await
+            .is_err()
+    );
     assert_ne!(ar.conversation_id, br.conversation_id);
     assert!(matches!(
         db.conversation(a.scope(), br.conversation_id).await,

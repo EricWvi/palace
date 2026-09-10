@@ -58,6 +58,25 @@ impl Database {
         tx.commit().await?;
         Ok(result)
     }
+    /// Changes display metadata in place; source identity, message tree and import heads remain stable.
+    pub async fn rename_conversation(
+        &self,
+        owner: OwnerScope,
+        id: Uuid,
+        title: &str,
+    ) -> Result<(), DbError> {
+        palace_domain::validate_title(title)?;
+        let changed = sqlx::query("UPDATE conversation SET title=$3 WHERE owner_id=$1 AND id=$2")
+            .bind(owner.id())
+            .bind(id)
+            .bind(title)
+            .execute(&self.pool)
+            .await?;
+        if changed.rows_affected() != 1 {
+            return Err(DbError::NotFound);
+        }
+        Ok(())
+    }
     /// Reads metadata and a deterministic tree under one owner scope.
     pub async fn conversation(
         &self,

@@ -309,3 +309,27 @@ pub(super) async fn path<P: LoginProvider>(
         .await?;
     authenticated_response(&session, Json(path))
 }
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct Rename {
+    title: String,
+}
+/// Updates a title without exposing source, parent or owner reassignment through the request body.
+pub(super) async fn rename<P: LoginProvider>(
+    State(server): State<Arc<Server<P>>>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    Json(input): Json<Rename>,
+) -> Result<Response, ApiError> {
+    check_origin(&headers, &server.origin)?;
+    let session = authenticate(&server, &headers).await?;
+    server
+        .database
+        .rename_conversation(session.owner.scope(), id, &input.title)
+        .await?;
+    authenticated_response(
+        &session,
+        Json(serde_json::json!({"id":id,"title":input.title})),
+    )
+}

@@ -5,6 +5,7 @@ mod import;
 pub use conversation::{Conversation, Message, Role, SessionId, Source, SourceLinks, read_path};
 pub use import::{
     ImportInput, ImportLimits, ImportRequest, InputError, InputErrorKind, MessageInput,
+    validate_title,
 };
 mod sync;
 pub use sync::{PublishedRecord, Record, ServerVersion, SyncPage, UploadResult, accepts_record};
