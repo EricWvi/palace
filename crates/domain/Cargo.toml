@@ -2,6 +2,7 @@
 name = "palace-domain"
 version.workspace = true
 edition.workspace = true
+
 [lib]
 name = "palace_domain"
 path = "src/lib.rs"
