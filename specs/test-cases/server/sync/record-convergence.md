@@ -28,9 +28,9 @@
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 仅严格更大的 updatedAt 覆盖已有记录 | Covered | `palace-domain::sync::tests::lww_only_accepts_strictly_newer_business_timestamps`；`crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`；`palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart` |
-| 等值冲突保留接收方完整版本 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`；`palace-sync::tests::acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection` |
-| serverVersion 和本地状态不参与业务覆盖 | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`、`acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection` |
+| 仅严格更大的 updatedAt 覆盖已有记录 | Partial | `palace-domain::sync::tests::lww_only_accepts_strictly_newer_business_timestamps`；`crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`；客户端 SQLite 验证待 Android 原生实现补齐 |
+| 等值冲突保留接收方完整版本 | Partial | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`；客户端 SQLite 验证待 Android 原生实现补齐 |
+| serverVersion 和本地状态不参与业务覆盖 | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
 
 ### 决策依据
 
@@ -62,10 +62,10 @@
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 业务修改与待同步标记原子持久化 | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`；对 edit 和 page 分别在派生任务处注入失败，断言记录/待同步/游标共同回滚 |
-| 新 updatedAt 阻止旧确认清除待同步 | Covered | `palace-sync::tests::acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection`，SQLite 单元测试 |
-| 同毫秒新代次阻止旧确认清除待同步 | Covered | `palace-sync::tests::acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection`，SQLite 单元测试 |
-| 逐条失败不阻塞一轮后续拉取 | Covered | `palace-sync::tests::failed_upload_does_not_block_pull`，SQLite 单元测试 |
+| 业务修改与待同步标记原子持久化 | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
+| 新 updatedAt 阻止旧确认清除待同步 | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
+| 同毫秒新代次阻止旧确认清除待同步 | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
+| 逐条失败不阻塞一轮后续拉取 | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
 
 ### 决策依据
 
@@ -132,9 +132,9 @@ PG sequence 取号与提交错序，使客户端先处理更高版本并推进�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 页面处理与游标推进原子提交 | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`，SQLite 单元测试 |
-| 崩溃恢复重放整页且结果幂等 | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`，SQLite 单元测试 |
-| 空页、忽略记录和授权范围变化符合游标规则 | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`，SQLite 单元测试 |
+| 页面处理与游标推进原子提交 | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
+| 崩溃恢复重放整页且结果幂等 | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
+| 空页、忽略记录和授权范围变化符合游标规则 | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
 
 ### 决策依据
 
@@ -166,8 +166,8 @@ PG sequence 取号与提交错序，使客户端先处理更高版本并推进�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 墓碑无条件删除本地记录和待同步修改 | Covered | `palace-sync::tests::acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection`，SQLite 单元测试 |
-| 重复墓碑与迟到响应不能复活记录 | Covered | `palace-sync::tests::acknowledgements_preserve_new_mutations_and_tombstones_prevent_resurrection`，SQLite 单元测试 |
+| 墓碑无条件删除本地记录和待同步修改 | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
+| 重复墓碑与迟到响应不能复活记录 | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
 | 服务端墓碑持续参与增量拉取 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`，真实 PostgreSQL 17，默认 ignore |
 
 ### 决策依据

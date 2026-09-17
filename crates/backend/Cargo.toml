@@ -23,8 +23,6 @@ uuid = { workspace = true }
 [dev-dependencies]
 palace-logging = { workspace = true }
 tokio = { workspace = true }
-tempfile = { workspace = true }
-palace-sync = { workspace = true }
 testcontainers = { workspace = true }
 sqlx = { workspace = true }
 chrono = { workspace = true }

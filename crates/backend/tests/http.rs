@@ -381,12 +381,11 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
 
-/// Runs producer upload and consumer pull through the real HTTP/PG boundary and persists both local replicas.
+/// Verifies authenticated uploads and incremental pulls through the real HTTP/PostgreSQL boundary.
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn http_sync_round_propagates_records_and_tombstones() {
     use palace_domain::Record;
-    use palace_sync::{HttpTransport, Replica, SyncClient};
     assert!(
         std::process::Command::new("docker")
             .args(["image", "inspect", "postgres:17-alpine"])
@@ -442,49 +441,40 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         axum::serve(listener, app).await.unwrap();
     });
     let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert("origin", origin.parse().unwrap());
     headers.insert(
         "cookie",
         format!("__Host-palace-session={}", session.secret)
             .parse()
             .unwrap(),
     );
-    let transport = HttpTransport::new(
-        reqwest::Client::builder()
-            .default_headers(headers)
-            .build()
-            .unwrap(),
-        &origin,
-    )
-    .unwrap();
-    let directory = tempfile::tempdir().unwrap();
-    let producer = SyncClient::new(
-        Replica::open(&directory.path().join("producer.sqlite"), session.owner.id).unwrap(),
-    );
-    let consumer = SyncClient::new(
-        Replica::open(&directory.path().join("consumer.sqlite"), session.owner.id).unwrap(),
-    );
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .build()
+        .unwrap();
     let record = Record {
         id: uuid::Uuid::new_v4(),
         updated_at: 1000,
         is_deleted: false,
         body: serde_json::json!({"text":"body"}),
     };
-    producer.edit(record.clone()).unwrap();
-    producer.synchronize(&transport).await.unwrap();
-    consumer.synchronize(&transport).await.unwrap();
-    assert_eq!(
-        consumer.record(record.id).unwrap().unwrap().mutation.record,
-        record
-    );
-    let response = reqwest::Client::new()
-        .get(format!("{origin}/api/sync?cursor=0&limit=100"))
-        .header(
-            "cookie",
-            format!("__Host-palace-session={}", session.secret),
-        )
+    let response = client
+        .post(format!("{origin}/api/sync"))
+        .json(&[&record])
         .send()
         .await
         .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.json::<serde_json::Value>().await.unwrap(),
+        serde_json::json!([{"status":"accepted","record":{"ownerId":session.owner.id,"serverVersion":"1","record":record}}])
+    );
+    let response = client
+        .get(format!("{origin}/api/sync?cursor=0&limit=100"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
     let page: serde_json::Value = response.json().await.unwrap();
     assert_eq!(
         page,
@@ -496,22 +486,32 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         .await
         .unwrap();
     assert_eq!(anonymous.status(), StatusCode::UNAUTHORIZED);
-    producer
-        .edit(Record {
-            updated_at: 1001,
-            is_deleted: true,
-            body: serde_json::Value::Null,
-            ..record.clone()
-        })
+    let tombstone = Record {
+        updated_at: 1001,
+        is_deleted: true,
+        body: serde_json::Value::Null,
+        ..record
+    };
+    let response = client
+        .post(format!("{origin}/api/sync"))
+        .json(&[&tombstone])
+        .send()
+        .await
         .unwrap();
-    producer.synchronize(&transport).await.unwrap();
-    consumer.synchronize(&transport).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
-        (
-            producer.record(record.id).unwrap(),
-            consumer.record(record.id).unwrap()
-        ),
-        (None, None)
+        response.json::<serde_json::Value>().await.unwrap(),
+        serde_json::json!([{"status":"accepted","record":{"ownerId":session.owner.id,"serverVersion":"2","record":tombstone}}])
+    );
+    let response = client
+        .get(format!("{origin}/api/sync?cursor=1&limit=100"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.json::<serde_json::Value>().await.unwrap(),
+        serde_json::json!({"records":[{"ownerId":session.owner.id,"serverVersion":"2","record":tombstone}],"cursor":"2"})
     );
     server.abort();
 }

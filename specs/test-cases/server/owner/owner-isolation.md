@@ -134,7 +134,7 @@ Owner A、B 各有独立记录；请求已认证为 A，但在各类输入位置
 | 所有外部 ownerId 均不能扩大认证范围 | Partial | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` 验证 JSON 冒充及他人 ID 读取；未穷举每种入口的 ownerId 变体 |
 | 全局记录 ID 查询仍附带 owner_id 条件 | Partial | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | 混合 Owner 批量请求完整失败 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope` |
-| 后台任务持久化并恢复原 Owner Scope | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`（SQLite 派生任务；当前唯一业务后台状态） |
+| 后台任务持久化并恢复原 Owner Scope | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
 
 ### 决策依据
 
@@ -168,7 +168,7 @@ Owner A、B 各有 Conversation 和 Message；准备跨 Owner conversation、par
 | --- | --- | --- |
 | Conversation/Message 跨 Owner 引用由数据库拒绝 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
 | Message 父关系同时保持 owner 与 conversation 一致 | Covered | `crates/db/tests/postgres.rs::all_scoped_references_and_multirow_cycles_are_rejected` |
-| Import、head 和后台状态不能跨 Owner | Covered | `crates/db/tests/postgres.rs::all_scoped_references_and_multirow_cycles_are_rejected`；`palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart` |
+| Import、head 和后台状态不能跨 Owner | Partial | `crates/db/tests/postgres.rs::all_scoped_references_and_multirow_cycles_are_rejected`；客户端 SQLite 验证待 Android 原生实现补齐 |
 | Owner-scoped 表的 owner_id 均不可为空 | Covered | `crates/db/tests/postgres.rs::all_scoped_references_and_multirow_cycles_are_rejected`（检查 information_schema） |
 
 ### 决策依据
@@ -204,7 +204,7 @@ Owner A、B 在全局 sequence 中拥有交错版本；A 上传一个声称属�
 | 更大 updatedAt 不能改变既有 owner_id | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope`；使用更大时间戳的外部 Owner ID，整批拒绝 |
 | 全局版本拉取始终按 Owner Scope 过滤 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope` |
 | 其他 Owner 版本只形成允许的游标空洞 | Covered | `crates/db/tests/postgres.rs::sync_publication_preserves_commit_order_lww_and_owner_scope` |
-| Owner 切换隔离 cursor、墓碑和待同步状态 | Covered | `palace-sync::tests::pages_commit_records_jobs_and_cursor_together_and_survive_restart`；同一物理数据库内对相同记录 ID 分别编辑、拉取墓碑，验证另一个 Owner 的待同步、游标和任务不变 |
+| Owner 切换隔离 cursor、墓碑和待同步状态 | Missing | 客户端 SQLite 实现已移交 Android 原生开发，待补齐客户端测试证据 |
 
 ### 决策依据
 
@@ -379,7 +379,7 @@ Session、cookie 和 OIDC credential 均只保留在服务端安全域，不出�
 | 业务同步不返回 Session 或 OIDC credential | Covered | `crates/backend/tests/http.rs::http_sync_round_propagates_records_and_tombstones`；深比较完整同步 JSON，仅有 Owner、业务记录和版本 |
 | Owner 数据导出不包含认证凭证 | Missing | Owner 数据导出尚未开放；本次没有导出接口，不能以同步测试替代未来导出验证 |
 | Session 不分配业务 serverVersion | Covered | `crates/db/tests/postgres.rs::persistent_sessions_revalidate_rotate_and_revoke`；Session 全生命周期后 sequence 仍为未使用状态 |
-| 新设备无法从业务数据复制认证状态 | Covered | `crates/backend/tests/http.rs::http_sync_round_propagates_records_and_tombstones`；本地副本已有记录时，无独立 cookie 的 HTTP 请求仍返回 401 |
+| 新设备无法从业务数据复制认证状态 | Covered | `crates/backend/tests/http.rs::http_sync_round_propagates_records_and_tombstones`；已取得业务同步响应后，无独立 cookie 的 HTTP 请求仍返回 401 |
 
 ### 决策依据
 

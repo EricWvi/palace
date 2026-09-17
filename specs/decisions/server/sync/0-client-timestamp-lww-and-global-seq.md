@@ -118,6 +118,6 @@ Web client 负责知识记录的导入、修改与删除；服务端保存已接
 
 ## 落地与验收
 
-独立记录上传/拉取、严格整条 LWW、全局 sequence 及提交顺序锁、长期墓碑、本地修改代次、原子页面/任务/游标和 HTTP 同步组件均已落地。真实 PostgreSQL 锁图测试验证发布顺序；SQLite 故障注入与磁盘重开验证本地原子性；HTTP 测试验证两个副本传播记录和墓碑。Conversation/Message/Import 的结构同步未开放，仍需上述后续多记录协议。
+服务端独立记录上传/拉取、严格整条 LWW、全局 sequence 及提交顺序锁、长期墓碑均已落地。真实 PostgreSQL 锁图测试验证发布顺序，HTTP 测试直接验证记录上传、增量拉取和墓碑传播。SQLite 本地持久化改由 Android 原生客户端实现，原 Rust 客户端实现及测试已移除；本地修改代次、原子页面/任务/游标等客户端义务尚待客户端实现和验证。Conversation/Message/Import 的结构同步未开放，仍需上述后续多记录协议。
 
 运行 `task test` 验证默认单元测试与 lint；`task test:integration`、`task test:contract` 显式运行默认忽略的容器测试。具体职责、接口、容量和部署配置见[运行文档](../../../../docs/README.md)，验证证据见对应领域核心测试用例。

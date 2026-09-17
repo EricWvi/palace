@@ -62,13 +62,9 @@ Session 不设绝对或空闲过期；每次受保护请求查持久化状态，
 
 当前同步对象是独立记录；导入生成的 Conversation/Message/Import 不经这个通用写入口修改或分发。它们的结构同步、正文编辑及级联删除必须先补齐 sync ADR 明确留给后续的多记录协议，避免半棵消息树通过逐记录 LWW 暴露给客户端。
 
-## 本地同步持久状态
+## 客户端实现边界
 
-`palace-sync` 提供 SQLite `Replica` 和 `SyncClient`。每个运行中的 Owner Scope 由一个 `SyncClient` 持有；本轮同步互斥，但网络等待不持有本地数据库锁，业务编辑仍可持久化。先上传最多 100 个持久快照，再拉一页；网络阶段各有 15 秒上限，上传失败仍尝试拉取。
-
-业务修改和待同步代次同事务保存；确认同时比较业务版本与代次，防止同毫秒编辑、时钟回拨或删除重建被旧响应误确认。普通远端状态仅在时间戳严格更新时覆盖，墓碑无条件删除业务记录、待同步状态和派生任务。页面应用、派生任务和游标同事务提交；重复已提交页面无副作用。Owner 切换使用各自独立的本地状态与游标。
-
-本地单元测试覆盖真实 SQLite 事务和磁盘重开；PostgreSQL 锁与约束仍只由 testcontainers 测试证明。`rusqlite` 使用 0.32，以匹配 SQLx 0.8 依赖图中的 sqlite3 原生链接版本，避免两个 sqlite3 链接库冲突。
+SQLite 本地持久化由 Android 原生客户端实现；本仓库不再提供 Rust SQLite 副本、客户端同步调度或客户端 HTTP 封装。客户端事务、待同步状态、游标和冲突恢复的实现及验证由客户端负责；当前服务端仍提供上述独立记录同步接口。
 
 ## Authelia 契约测试
 
@@ -80,4 +76,4 @@ Authelia 的 ID token 不必包含 email；Palace 在验证 ID token 后，通�
 
 Session 的内部 ID、Identity 绑定和创建时间不可更新，撤销时间一经写入不能清空。检测到轮换代次与 secret 摘要不一致，或已知旧 secret 在 30 秒宽限结束后再次使用，会持久撤销该 Session。未知随机 secret 只返回未认证。认证服务限流（429）和 5xx 均属于临时失败，不触发身份失败撤销。email 由独立语法校验器检查，再进行冲突规范化。
 
-`palace-sync::HttpTransport` 可接入独立认证的 HTTP client，与 `SyncClient` 组成实际上传／拉取闭环。HTTP client 负责自己的登录与滚动 cookie 容器，Replica 只保存业务状态。HTTP 集成测试覆盖两个磁盘 SQLite 副本经 server/PostgreSQL 传播记录和墓碑。
+HTTP 集成测试直接调用 server/PostgreSQL 验证记录上传、增量拉取和墓碑传播，并检查同步响应不包含认证状态、无独立 cookie 的请求无法通过认证。
