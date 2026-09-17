@@ -1,5 +1,7 @@
 //! PostgreSQL transactions enforce owner boundaries independently of HTTP inputs.
+mod conversation_list;
 mod import;
+pub use conversation_list::ConversationSummary;
 mod login;
 mod owner;
 mod session;

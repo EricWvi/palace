@@ -93,6 +93,7 @@ fn business_router(server: BusinessServer) -> Router {
         .route("/api/sync", get(sync::pull).post(sync::upload))
         .route("/api/import", post(business::import_text))
         .route("/api/import/file", post(business::import_file))
+        .route("/api/conversations", get(business::conversations))
         .route("/api/conversations/{id}", get(business::conversation))
         .route("/api/conversations/{id}/title", put(business::rename))
         .route("/api/conversations/{id}/paths/{head}", get(business::path))

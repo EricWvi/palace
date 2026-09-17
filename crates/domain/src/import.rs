@@ -56,6 +56,7 @@ pub struct ImportInput {
     pub session_id: String,
     pub history: Vec<u8>,
     pub idempotency_key: String,
+    pub imported_at: i64,
 }
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ImportRequest {
@@ -65,6 +66,7 @@ pub struct ImportRequest {
     messages: Vec<MessageInput>,
     idempotency_key: String,
     digest: Vec<u8>,
+    imported_at: i64,
 }
 impl ImportRequest {
     /// Validates all input before persistence and ignores noncontract message fields.
@@ -77,6 +79,14 @@ impl ImportRequest {
             ));
         }
         validate_title(&input.title)?;
+        // Bound browser epoch milliseconds to calendar years 0001 through 9999.
+        if !(-62_135_596_800_000..=253_402_300_799_999).contains(&input.imported_at) {
+            return Err(InputError::new(
+                InputErrorKind::Field,
+                "imported_at",
+                "invalid epoch milliseconds",
+            ));
+        }
         if input.idempotency_key.trim().is_empty() || input.idempotency_key.len() > 128 {
             return Err(InputError::new(
                 InputErrorKind::Field,
@@ -163,11 +173,13 @@ impl ImportRequest {
             input.source.as_str().as_bytes(),
             session_id.as_str().as_bytes(),
             &input.history,
+            &input.imported_at.to_be_bytes(),
         ] {
             hash.update((bytes.len() as u64).to_be_bytes());
             hash.update(bytes);
         }
         Ok(Self {
+            imported_at: input.imported_at,
             title: input.title,
             source: input.source,
             session_id,
@@ -175,6 +187,10 @@ impl ImportRequest {
             idempotency_key: input.idempotency_key,
             digest: hash.finalize().to_vec(),
         })
+    }
+    /// Returns the user-selected import time as epoch milliseconds.
+    pub fn imported_at(&self) -> i64 {
+        self.imported_at
     }
     /// Exposes validated title metadata to persistence.
     pub fn title(&self) -> &str {
@@ -229,12 +245,30 @@ mod tests {
     /// Builds identical byte inputs for either browser acquisition method.
     fn input(history: &[u8]) -> ImportInput {
         ImportInput {
+            imported_at: 1_700_000_000_000,
             title: "Title".into(),
             source: Source::Chatgpt,
             session_id: "s".into(),
             history: history.to_vec(),
             idempotency_key: "k".into(),
         }
+    }
+    /// A retry cannot silently change the chosen time, and out-of-calendar values fail early.
+    #[test]
+    fn import_time_is_validated_and_part_of_idempotency() {
+        let mut first = input(br#"[{"role":"user","content":"hello"}]"#);
+        let original = ImportRequest::parse(first.clone(), ImportLimits::default()).unwrap();
+        first.imported_at += 1;
+        let changed = ImportRequest::parse(first.clone(), ImportLimits::default()).unwrap();
+        assert_ne!(original.digest(), changed.digest());
+        assert_eq!(changed.imported_at(), first.imported_at);
+        first.imported_at = i64::MAX;
+        assert_eq!(
+            ImportRequest::parse(first, ImportLimits::default())
+                .unwrap_err()
+                .path,
+            "imported_at"
+        );
     }
     /// Retains exact Markdown, empty messages, extra-field tolerance and consecutive user messages.
     #[test]

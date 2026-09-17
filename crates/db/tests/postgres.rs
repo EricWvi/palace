@@ -50,6 +50,7 @@ fn request(key: &str, messages: &[&str]) -> ImportRequest {
     .unwrap();
     ImportRequest::parse(
         ImportInput {
+            imported_at: 1_700_000_000_000,
             title: key.into(),
             source: Source::Chatgpt,
             session_id: "same".into(),
@@ -269,6 +270,7 @@ async fn concurrent_imports_reuse_prefix_and_failures_roll_back() {
     assert_eq!(counts, (1, 6, 4));
     let fresh = ImportRequest::parse(
         ImportInput {
+            imported_at: 1_700_000_000_000,
             title: "fresh".into(),
             source: Source::Gemini,
             session_id: "fresh".into(),
@@ -884,4 +886,59 @@ async fn owner_allocation_is_atomic_and_conflicts_preserve_existing_knowledge() 
             .unwrap(),
         owner
     );
+}
+
+/// Exercises actual timestamp persistence, deterministic ordering, deduplication and owner isolation.
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn library_lists_latest_import_per_owned_conversation() {
+    let (_container, db, _pool) = database().await;
+    let owner = db
+        .resolve_identity("https://idp", "library", "library@example.com")
+        .await
+        .unwrap();
+    let other = db
+        .resolve_identity("https://idp", "other-library", "other-library@example.com")
+        .await
+        .unwrap();
+    let mut expected = Vec::new();
+    for (key, session, imported_at) in [
+        ("first", "a", 1000),
+        ("second", "b", 3000),
+        ("third", "a", 2000),
+    ] {
+        let request = ImportRequest::parse(
+            ImportInput {
+                title: key.into(),
+                source: Source::Chatgpt,
+                session_id: session.into(),
+                history: br#"[{"role":"user","content":"hello"}]"#.to_vec(),
+                idempotency_key: key.into(),
+                imported_at,
+            },
+            ImportLimits::default(),
+        )
+        .unwrap();
+        let result = db.import_path(owner.scope(), &request).await.unwrap();
+        assert_eq!(
+            db.import_path(owner.scope(), &request).await.unwrap(),
+            result
+        );
+        if key != "first" {
+            expected.push(palace_db::ConversationSummary {
+                id: result.conversation_id,
+                title: if session == "a" { "first" } else { key }.into(),
+                source: Source::Chatgpt,
+                session_id: session.into(),
+                imported_at,
+                head_message_id: result.head_message_id,
+                message_count: 1,
+            });
+        }
+    }
+    assert_eq!(
+        db.list_conversations(owner.scope()).await.unwrap(),
+        expected
+    );
+    assert_eq!(db.list_conversations(other.scope()).await.unwrap(), vec![]);
 }

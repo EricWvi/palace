@@ -49,8 +49,9 @@ Session 不设绝对或空闲过期；每次受保护请求查持久化状态，
 | `GET /auth/login`、`GET /auth/callback` | OIDC 登录及回调 |
 | `GET /api/me` | 当前 Owner；未认证时返回 401 和登录地址 |
 | `POST /auth/logout`、`POST /auth/logout-all` | 当前或全部设备退出，认证服务故障时也可本地退出 |
-| `POST /api/import` | JSON 对象：title、source、session_id、history（原始 JSON 文本字符串）、idempotency_key |
+| `POST /api/import` | JSON 对象：title、source、session_id、history（原始 JSON 文本字符串）、idempotency_key、imported_at（epoch 毫秒） |
 | `POST /api/import/file` | multipart 同名字段；history 为文件原始字节 |
+| `GET /api/conversations` | 当前用户的会话，按最新导入时间降序，含路径 head |
 | `GET /api/conversations/{id}` | 对话、消息树和受控来源链接 |
 | `GET /api/conversations/{id}/paths/{head}` | 验证后的完整祖先路径 |
 

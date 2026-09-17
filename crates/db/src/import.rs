@@ -53,8 +53,8 @@ impl Database {
             created,
             reused: request.messages().len() - created,
         };
-        sqlx::query("INSERT INTO conversation_import(id,owner_id,conversation_id,head_message_id,input_digest,message_count,idempotency_key,result) VALUES($1,$2,$3,$4,$5,$6,$7,$8)")
-            .bind(result.import_id).bind(owner.id()).bind(id).bind(result.head_message_id).bind(request.digest()).bind(request.messages().len() as i64).bind(request.idempotency_key()).bind(sqlx::types::Json(&result)).execute(&mut *tx).await?;
+        sqlx::query("INSERT INTO conversation_import(id,owner_id,conversation_id,head_message_id,input_digest,message_count,idempotency_key,result,imported_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,to_timestamp($9::double precision / 1000.0))")
+            .bind(result.import_id).bind(owner.id()).bind(id).bind(result.head_message_id).bind(request.digest()).bind(request.messages().len() as i64).bind(request.idempotency_key()).bind(sqlx::types::Json(&result)).bind(request.imported_at()).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(result)
     }
