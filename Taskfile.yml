@@ -34,9 +34,10 @@ tasks:
       - cargo clean --profile dev
 
   format:
-    desc: Format all Rust workspace packages
+    desc: Format all workspace packages
     cmds:
       - task: format:crates
+      - task: format:frontend
 
   format:crates:
     desc: Format all Rust workspace packages
@@ -64,10 +65,13 @@ tasks:
   lint:
     desc: Run all linters
     cmds:
+      - task: lint:frontend
       - task: lint:crates
   test:
     desc: Run all workspace lint and unit tests (container tests are ignored)
     cmds:
+      - task: lint:frontend
+      - task: test:frontend
       - task: test:crates
 
   test:integration:
@@ -95,3 +99,28 @@ tasks:
     desc: Run ignored Authelia protocol tests using locally prepared images
     cmds:
       - cargo test -p palace-backend authelia_authorization -- --ignored
+
+  install:frontend:
+    desc: Install locked frontend dependencies (Node 24+)
+    cmds:
+      - npm ci
+  run:web:
+    desc: Start the Vite frontend development server
+    cmds:
+      - npm run dev
+  build:frontend:
+    desc: Build the frontend static dist
+    cmds:
+      - npm run build
+  format:frontend:
+    desc: Format frontend source and configuration
+    cmds:
+      - npm run format
+  lint:frontend:
+    desc: Typecheck and lint frontend source
+    cmds:
+      - npm run lint
+  test:frontend:
+    desc: Run frontend tests with clean stderr
+    cmds:
+      - npm test

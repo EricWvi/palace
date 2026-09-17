@@ -1,0 +1,35 @@
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--secondary);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--foreground);
+  --color-popover: var(--background);
+  --color-popover-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--primary);
+  --color-destructive: #b13e36;
+  --radius-md: 0.65rem;
+  --radius-lg: 0.9rem;
+  --radius-sm: 0.4rem;
+}
+:root {
+  --background: #fffefa;
+  --foreground: #292c25;
+  --primary: #546b40;
+  --primary-foreground: #fffefa;
+  --secondary: #efeee7;
+  --muted-foreground: #777a70;
+  --accent: #e8eddf;
+  --border: #e3e4db;
+  font-family: "Inter", "Noto Sans SC", system-ui, sans-serif;
+  color: var(--foreground);
+  background: var(--background);
+  font-synthesis: none;
+}

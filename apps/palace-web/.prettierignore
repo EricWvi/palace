@@ -1,0 +1,4 @@
+public/r/
+dist/
+test-results/
+playwright-report/

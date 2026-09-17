@@ -1,0 +1,18 @@
+{
+  "name": "palace",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/palace-web"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/palace-web",
+    "build": "npm run build -w apps/palace-web",
+    "test": "node scripts/run-with-clean-stderr.ts",
+    "lint": "npm run lint -w apps/palace-web",
+    "format": "prettier --ignore-path apps/palace-web/.prettierignore --write apps/palace-web scripts package.json"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}
