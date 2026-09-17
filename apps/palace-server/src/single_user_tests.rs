@@ -24,9 +24,10 @@ async fn json_response(app: &Router, request: Request<Body>) -> Value {
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn fixed_user_http_reuses_owner_without_login_or_cookies() {
     let directory = tempfile::tempdir().unwrap();
-    let postgres = super::postgres::Postgres::start(directory.path())
-        .await
-        .unwrap();
+    let postgres =
+        super::postgres::Postgres::start(directory.path(), super::postgres::PortBinding::Random)
+            .await
+            .unwrap();
     let database = Database::connect(&postgres.url).await.unwrap();
     let origin = "http://127.0.0.1:8080";
     let app = palace_backend::fixed_user_router(database.clone(), origin.into())

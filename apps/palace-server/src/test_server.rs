@@ -35,9 +35,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ancestors()
         .nth(2)
         .ok_or("server package must be inside the workspace apps directory")?;
-    let postgres = postgres::Postgres::start(&root.join(".data").join("postgres")).await?;
+    let postgres = postgres::Postgres::start(
+        &root.join(".data").join("postgres"),
+        postgres::PortBinding::Debug,
+    )
+    .await?;
     let result = async {
         let database = palace_db::Database::connect(&postgres.url).await?;
+        palace_info!(message="PostgreSQL debug port published",port=15432,database="palace",username="postgres");
         let app = palace_backend::fixed_user_router(database, origin.clone()).await?;
         palace_info!(message="Palace single-user test server listening",address=%address,origin=%origin);
         axum::serve(listener, app).with_graceful_shutdown(runtime::shutdown()).await?;

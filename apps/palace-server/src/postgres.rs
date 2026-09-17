@@ -5,6 +5,13 @@ use testcontainers::{
     runners::AsyncRunner,
 };
 
+/// Keeps the developer endpoint stable while allowing isolated tests to run concurrently.
+pub(crate) enum PortBinding {
+    Debug,
+    #[cfg(test)]
+    Random,
+}
+
 /// Owns both the container and exclusive access to its persistent development directory.
 pub(crate) struct Postgres {
     container: ContainerAsync<GenericImage>,
@@ -13,8 +20,11 @@ pub(crate) struct Postgres {
 }
 
 impl Postgres {
-    /// Reuses database files while creating a fresh container with a dynamically assigned port.
-    pub(crate) async fn start(directory: &Path) -> Result<Self, Box<dyn std::error::Error>> {
+    /// Reuses database files and publishes the port selected for the calling entry point.
+    pub(crate) async fn start(
+        directory: &Path,
+        binding: PortBinding,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         std::fs::create_dir_all(directory)?;
         let directory = directory.canonicalize()?;
         let lock = File::options()
@@ -32,7 +42,7 @@ impl Postgres {
                 "postgres:17-alpine must already exist in the local Docker/Podman engine".into(),
             );
         }
-        let container = GenericImage::new("postgres", "17-alpine")
+        let request = GenericImage::new("postgres", "17-alpine")
             .with_exposed_port(5432.tcp())
             // The initialization server only listens on a Unix socket. TCP listening identifies
             // the final server on both fresh and previously initialized data directories.
@@ -47,9 +57,13 @@ impl Postgres {
                     .to_str()
                     .ok_or("PostgreSQL data path must be UTF-8")?,
                 "/var/lib/postgresql/data",
-            ))
-            .start()
-            .await?;
+            ));
+        let request = match binding {
+            PortBinding::Debug => request.with_mapped_port(/*host_port*/ 15432, 5432.tcp()),
+            #[cfg(test)]
+            PortBinding::Random => request,
+        };
+        let container = request.start().await?;
         let host = container.get_host().await?;
         let port = container.get_host_port_ipv4(/*internal_port*/ 5432).await?;
         let url = format!("postgres://postgres:palace-test@{host}:{port}/palace");
@@ -82,8 +96,14 @@ mod tests {
     #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
     async fn preserves_data_across_restarts_and_rejects_concurrent_use() {
         let directory = tempfile::tempdir().unwrap();
-        let first = Postgres::start(directory.path()).await.unwrap();
-        assert!(Postgres::start(directory.path()).await.is_err());
+        let first = Postgres::start(directory.path(), PortBinding::Random)
+            .await
+            .unwrap();
+        assert!(
+            Postgres::start(directory.path(), PortBinding::Random)
+                .await
+                .is_err()
+        );
         let database = Database::connect(&first.url).await.unwrap();
         let owner = database
             .resolve_identity("https://test.invalid", "test-owner", "test@example.com")
@@ -92,7 +112,9 @@ mod tests {
         drop(database);
         first.shutdown().await.unwrap();
 
-        let second = Postgres::start(directory.path()).await.unwrap();
+        let second = Postgres::start(directory.path(), PortBinding::Random)
+            .await
+            .unwrap();
         let database = Database::connect(&second.url).await.unwrap();
         assert_eq!(
             database
