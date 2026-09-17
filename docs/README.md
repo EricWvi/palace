@@ -4,7 +4,7 @@
 `example-repo`，将 Ora 命名改为 Palace。Rust crate 位于
 `crates/<领域>`，包名使用 `palace-` 前缀；应用入口位于 `apps/`。
 
-运行 `task --list` 查看任务；`task format` 格式化 Rust workspace，`task test` 执行全量
+运行 `task --list` 查看任务；`task format` 格式化 Rust workspace 和前端，`task test` 执行全量
 lint 与默认测试。容器集成测试默认忽略，显式运行时只使用已有镜像，通过 Docker API
 连接 Podman socket。
 
@@ -80,3 +80,5 @@ Authelia 的 ID token 不必包含 email；Palace 在验证 ID token 后，通�
 Session 的内部 ID、Identity 绑定和创建时间不可更新，撤销时间一经写入不能清空。检测到轮换代次与 secret 摘要不一致，或已知旧 secret 在 30 秒宽限结束后再次使用，会持久撤销该 Session。未知随机 secret 只返回未认证。认证服务限流（429）和 5xx 均属于临时失败，不触发身份失败撤销。email 由独立语法校验器检查，再进行冲突规范化。
 
 HTTP 集成测试直接调用 server/PostgreSQL 验证记录上传、增量拉取和墓碑传播，并检查同步响应不包含认证状态、无独立 cookie 的请求无法通过认证。
+
+Web 开发、会话导入格式、shadcn 自有 style 与验证命令见 [会话前端](会话前端.md)。
