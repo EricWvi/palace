@@ -1,4 +1,9 @@
+mod business;
 mod error;
+#[cfg(feature = "test-server")]
+mod fixed_user;
+#[cfg(feature = "test-server")]
+pub use fixed_user::fixed_user_router;
 mod handlers;
 mod security;
 mod sync;
@@ -50,7 +55,16 @@ pub struct Server<P> {
 }
 /// Builds authenticated JSON/file endpoints with bounded bodies and no client-supplied owner scope.
 pub fn router<P: LoginProvider + 'static>(server: Server<P>) -> Router {
-    let limit = server.limits.bytes.saturating_add(64 * 1024);
+    let business = business_router(BusinessServer {
+        database: server.database.clone(),
+        links: server.links.clone(),
+        limits: server.limits,
+    });
+    let server = Arc::new(server);
+    let business = business.route_layer(axum::middleware::from_fn_with_state(
+        server.clone(),
+        authenticate_request::<P>,
+    ));
     Router::new()
         .route(
             "/",
@@ -60,13 +74,28 @@ pub fn router<P: LoginProvider + 'static>(server: Server<P>) -> Router {
         .route("/auth/callback", get(callback::<P>))
         .route("/auth/logout", post(logout::<P>))
         .route("/auth/logout-all", post(logout_all::<P>))
-        .route("/api/me", get(me::<P>))
-        .route("/api/sync", get(sync::pull::<P>).post(sync::upload::<P>))
-        .route("/api/import", post(import_text::<P>))
-        .route("/api/import/file", post(import_file::<P>))
-        .route("/api/conversations/{id}", get(conversation::<P>))
-        .route("/api/conversations/{id}/title", put(rename::<P>))
-        .route("/api/conversations/{id}/paths/{head}", get(path::<P>))
+        .with_state(server)
+        .merge(business)
+}
+
+/// Business handlers depend on an already resolved owner, never on a login provider.
+struct BusinessServer {
+    database: Database,
+    links: SourceLinks,
+    limits: ImportLimits,
+}
+
+/// Shares the complete business API between authenticated deployment and local single-user testing.
+fn business_router(server: BusinessServer) -> Router {
+    let limit = server.limits.bytes.saturating_add(64 * 1024);
+    Router::new()
+        .route("/api/me", get(business::me))
+        .route("/api/sync", get(sync::pull).post(sync::upload))
+        .route("/api/import", post(business::import_text))
+        .route("/api/import/file", post(business::import_file))
+        .route("/api/conversations/{id}", get(business::conversation))
+        .route("/api/conversations/{id}/title", put(business::rename))
+        .route("/api/conversations/{id}/paths/{head}", get(business::path))
         .layer(DefaultBodyLimit::max(limit))
         .with_state(Arc::new(server))
 }

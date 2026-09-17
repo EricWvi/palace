@@ -2,6 +2,16 @@
 name = "palace-server"
 version.workspace = true
 edition.workspace = true
+default-run = "palace-server"
+
+[features]
+test-server = ["dep:testcontainers", "palace-backend/test-server"]
+
+[[bin]]
+name = "palace-test-server"
+path = "src/test_server.rs"
+required-features = ["test-server"]
+
 [lints]
 workspace = true
 [dependencies]
@@ -14,5 +24,11 @@ tokio = { workspace = true }
 base64 = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
+testcontainers = { workspace = true, optional = true }
 [dev-dependencies]
+tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
+serde_json = { workspace = true }
+tower = { workspace = true }
+http-body-util = { workspace = true }
+uuid = { workspace = true }

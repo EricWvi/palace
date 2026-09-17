@@ -40,6 +40,8 @@ Session 不设绝对或空闲过期；每次受保护请求查持久化状态，
 
 配置 `PALACE_DATABASE_URL`、`PALACE_ORIGIN`（外部 HTTPS origin）、`PALACE_OIDC_ISSUER`、`PALACE_OIDC_CLIENT_ID`、`PALACE_OIDC_CLIENT_SECRET`、`PALACE_SESSION_KEY`（32 字节随机密钥的标准 base64）。可选 `PALACE_LISTEN` 默认 `127.0.0.1:8080`、`PALACE_TIMEZONE` 默认 `Asia/Shanghai`。由可信反向代理终止 HTTPS 后转发给 server；运行 `task run:server`。
 
+本地联调运行 `task run:test-server`，默认访问 `http://127.0.0.1:8080`。每次启动 PostgreSQL testcontainer，数据持久化到项目根目录 `.data/postgres/pgdata`。测试入口固定使用 `local-test@palace.test`，无需登录、OIDC、Session 密钥或 HTTPS；所有业务接口共用生产实现，但用户由本地入口固定指定，重启后保持同一 Owner。写请求仍需匹配的 Origin。需预先准备 `postgres:17-alpine` 镜像。`task test:test-server` 验证持久化和无需登录的单用户接口。
+
 完整的生产与测试环境变量说明见[环境变量](环境变量.md)。
 
 | 接口 | 行为 |

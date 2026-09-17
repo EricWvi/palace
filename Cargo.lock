@@ -2020,14 +2020,20 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "base64 0.22.1",
+ "http-body-util",
  "palace-backend",
  "palace-db",
  "palace-domain",
  "palace-logging",
  "pretty_assertions",
+ "serde_json",
+ "tempfile",
+ "testcontainers",
  "tokio",
+ "tower",
  "tracing",
  "url",
+ "uuid",
 ]
 
 [[package]]

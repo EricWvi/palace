@@ -1,31 +1,24 @@
-use super::{
-    ApiError, LoginProvider, Server,
-    handlers::{authenticate, authenticated_response},
-    security::check_origin,
-};
+use super::{ApiError, BusinessServer};
 use axum::{
     Json,
     extract::{Query, State},
-    http::HeaderMap,
-    response::Response,
+    response::{IntoResponse, Response},
 };
 use palace_domain::{Record, ServerVersion};
 use serde::Deserialize;
 use std::sync::Arc;
 
 /// Returns an explicit committed result for every uploaded independent record.
-pub(super) async fn upload<P: LoginProvider>(
-    State(server): State<Arc<Server<P>>>,
-    headers: HeaderMap,
+pub(super) async fn upload(
+    State(server): State<Arc<BusinessServer>>,
+    axum::Extension(owner): axum::Extension<palace_db::Owner>,
     Json(records): Json<Vec<Record>>,
 ) -> Result<Response, ApiError> {
-    check_origin(&headers, &server.origin)?;
-    let session = authenticate(&server, &headers).await?;
     let results = server
         .database
-        .upload_records(session.owner.scope(), &records)
+        .upload_records(owner.scope(), &records)
         .await?;
-    authenticated_response(&session, Json(results))
+    Ok(Json(results).into_response())
 }
 #[derive(Deserialize)]
 pub(super) struct Pull {
@@ -33,15 +26,14 @@ pub(super) struct Pull {
     limit: u32,
 }
 /// Supplies a scoped ordered page including tombstones and no inferred sequence high-water mark.
-pub(super) async fn pull<P: LoginProvider>(
-    State(server): State<Arc<Server<P>>>,
-    headers: HeaderMap,
+pub(super) async fn pull(
+    State(server): State<Arc<BusinessServer>>,
+    axum::Extension(owner): axum::Extension<palace_db::Owner>,
     Query(query): Query<Pull>,
 ) -> Result<Response, ApiError> {
-    let session = authenticate(&server, &headers).await?;
     let page = server
         .database
-        .pull_records(session.owner.scope(), query.cursor, query.limit)
+        .pull_records(owner.scope(), query.cursor, query.limit)
         .await?;
-    authenticated_response(&session, Json(page))
+    Ok(Json(page).into_response())
 }

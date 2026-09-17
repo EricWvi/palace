@@ -25,8 +25,8 @@ tasks:
     env:
       CARGO_INCREMENTAL: "0"
     cmds:
-      - cargo clippy --workspace -- -D warnings
-      - cargo test --workspace --no-run
+      - cargo clippy --workspace --all-features -- -D warnings
+      - cargo test --workspace --all-features --no-run
 
   clean:debug:
     desc: Clean only Rust debug build artifacts
@@ -51,7 +51,7 @@ tasks:
     silent: true
     cmds:
       - cargo fmt --all -- --check
-      - cargo clippy --workspace -- -D warnings
+      - cargo clippy --workspace --all-features -- -D warnings
 
   test:crates:
     desc: Run all Rust workspace package test suites
@@ -59,7 +59,7 @@ tasks:
       CARGO_INCREMENTAL: "0"
     cmds:
       - task: lint:crates
-      - cargo test --workspace
+      - cargo test --workspace --all-features
 
   lint:
     desc: Run all linters
@@ -80,6 +80,16 @@ tasks:
     desc: Run the Palace HTTP server with deployment environment configuration
     cmds:
       - cargo run -p palace-server
+
+  run:test-server:
+    desc: Run single-user Palace with a persistent PostgreSQL testcontainer
+    cmds:
+      - cargo run -p palace-server --features test-server --bin palace-test-server
+
+  test:test-server:
+    desc: Verify test server database persistence and fixed-user HTTP access
+    cmds:
+      - cargo test -p palace-server --features test-server --bin palace-test-server -- --ignored
 
   test:contract:
     desc: Run ignored Authelia protocol tests using locally prepared images

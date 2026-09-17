@@ -9,6 +9,9 @@ path = "src/lib.rs"
 [lints]
 workspace = true
 
+[features]
+test-server = []
+
 [dependencies]
 palace-db = { workspace = true }
 palace-domain = { workspace = true }
