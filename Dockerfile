@@ -26,6 +26,12 @@ WORKDIR /app
 COPY --from=server /build/target/release/palace-server /usr/local/bin/palace-server
 COPY --from=frontend /build/apps/palace-web/dist /app/dist
 
+ARG VERSION=unknown
+ARG BUILDTIME=unknown
+LABEL org.opencontainers.image.title="Palace" \
+      org.opencontainers.image.version="$VERSION" \
+      org.opencontainers.image.created="$BUILDTIME"
+
 ENV PALACE_LISTEN=0.0.0.0:8080 \
     PALACE_WEB_DIST=/app/dist
 EXPOSE 8080
