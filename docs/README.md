@@ -1,5 +1,9 @@
 # Palace 开发文档
 
+## 产品设计
+
+产品功能设计与领域模型见[产品设计文档](product/README.md)。
+
 工程结构、Rust 工具链、workspace 依赖与 lint、Taskfile及日志组件复用
 `example-repo`，将 Ora 命名改为 Palace。Rust crate 位于
 `crates/<领域>`，包名使用 `palace-` 前缀；应用入口位于 `apps/`。
