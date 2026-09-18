@@ -1,0 +1,8 @@
+.git
+.github
+.data
+target
+node_modules
+apps/palace-web/dist
+*.local
+*.log

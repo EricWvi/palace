@@ -66,10 +66,6 @@ pub fn router<P: LoginProvider + 'static>(server: Server<P>) -> Router {
         authenticate_request::<P>,
     ));
     Router::new()
-        .route(
-            "/",
-            get(|| async { axum::response::Redirect::to("/api/me") }),
-        )
         .route("/auth/login", get(login::<P>))
         .route("/auth/callback", get(callback::<P>))
         .route("/auth/logout", post(logout::<P>))
