@@ -146,22 +146,44 @@ pub(super) async fn conversation(
     axum::Extension(owner): axum::Extension<palace_db::Owner>,
     Path(id): Path<Uuid>,
 ) -> Result<Response, ApiError> {
-    let (conversation, messages) = server.database.conversation(owner.scope(), id).await?;
-    let link = server
-        .links
-        .original_link(conversation.source, &conversation.session_id)?;
-    Ok(Json(
-            serde_json::json!({"conversation":conversation,"messages":messages,"original_link":link.as_str()}),
-        ).into_response())
+    let detail = server
+        .database
+        .conversation_detail(owner.scope(), id)
+        .await?;
+    let paths = detail
+        .paths
+        .iter()
+        .map(|path| {
+            let mut value = serde_json::to_value(path).map_err(|_| ApiError::Internal)?;
+            value["original_link"] = serde_json::json!(
+                server
+                    .links
+                    .original_link(detail.conversation.source, &path.session_id)?
+                    .as_str()
+            );
+            Ok(value)
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?;
+    Ok(Json(serde_json::json!({"conversation":detail.conversation,"messages":detail.messages,"paths":paths})).into_response())
 }
 /// Exposes one validated ancestor path without inferring turns or role alternation.
 pub(super) async fn path(
     State(server): State<Arc<BusinessServer>>,
     axum::Extension(owner): axum::Extension<palace_db::Owner>,
-    Path((id, head)): Path<(Uuid, Uuid)>,
+    Path((id, path_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Response, ApiError> {
-    let path = server.database.path(owner.scope(), id, head).await?;
-    Ok(Json(path).into_response())
+    let detail = server
+        .database
+        .conversation_detail(owner.scope(), id)
+        .await?;
+    let path = detail
+        .paths
+        .iter()
+        .find(|path| path.id == path_id)
+        .ok_or(ApiError::NotFound)?;
+    let messages =
+        palace_domain::read_path(&detail.conversation, &detail.messages, path.head_message_id)?;
+    Ok(Json(messages).into_response())
 }
 
 #[derive(Deserialize)]

@@ -11,6 +11,8 @@ use uuid::Uuid;
 
 #[path = "postgres/import_times.rs"]
 mod import_times;
+#[path = "postgres/paths.rs"]
+mod paths;
 
 /// Requires the prepared image before testcontainers can attempt its pull-on-missing fallback.
 async fn database() -> (ContainerAsync<GenericImage>, Database, PgPool) {
@@ -173,121 +175,6 @@ async fn identity_and_database_constraints_isolate_owners() {
     let counts: (i64,i64,i64) = sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
     assert_eq!(counts, (2, 4, 2));
 }
-/// Simultaneous submissions share one prefix; failures after writes roll back every affected table.
-#[tokio::test]
-#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
-async fn concurrent_imports_reuse_prefix_and_failures_roll_back() {
-    let (_container, db, pool) = database().await;
-    let owner = db
-        .resolve_identity("https://idp", "a", "a@example.com")
-        .await
-        .unwrap();
-    let abc = request("abc", &["A", "B", "C"]);
-    let abd = request("abd", &["A", "B", "D"]);
-    let (c, d) = tokio::join!(
-        db.import_path(owner.scope(), &abc),
-        db.import_path(owner.scope(), &abd)
-    );
-    let c = c.unwrap();
-    let d = d.unwrap();
-    assert_eq!(c.conversation_id, d.conversation_id);
-    assert_eq!(c.created + d.created, 4);
-    assert_eq!(db.import_path(owner.scope(), &abc).await.unwrap(), c);
-    assert!(matches!(
-        db.import_path(owner.scope(), &request("abc", &["different"]))
-            .await,
-        Err(DbError::Conflict)
-    ));
-    let duplicate = db
-        .import_path(owner.scope(), &request("duplicate", &["A", "B", "C"]))
-        .await
-        .unwrap();
-    assert_eq!(
-        (
-            duplicate.head_message_id,
-            duplicate.created,
-            duplicate.reused
-        ),
-        (c.head_message_id, 0, 3)
-    );
-    let another_root = db
-        .import_path(owner.scope(), &request("root", &["X", "Y"]))
-        .await
-        .unwrap();
-    assert_eq!(
-        (
-            another_root.conversation_id,
-            another_root.created,
-            another_root.reused
-        ),
-        (c.conversation_id, 2, 0)
-    );
-    assert_eq!(
-        db.path(
-            owner.scope(),
-            c.conversation_id,
-            another_root.head_message_id
-        )
-        .await
-        .unwrap()
-        .iter()
-        .map(|m| m.content.as_str())
-        .collect::<Vec<_>>(),
-        vec!["X", "Y"]
-    );
-    let tree = db
-        .conversation(owner.scope(), c.conversation_id)
-        .await
-        .unwrap();
-    assert_eq!(tree.1.len(), 6);
-    for (head, content) in [
-        (c.head_message_id, vec!["A", "B", "C"]),
-        (d.head_message_id, vec!["A", "B", "D"]),
-    ] {
-        assert_eq!(
-            db.path(owner.scope(), c.conversation_id, head)
-                .await
-                .unwrap()
-                .iter()
-                .map(|m| m.content.as_str())
-                .collect::<Vec<_>>(),
-            content
-        );
-    }
-    sqlx::raw_sql("CREATE FUNCTION fail_import() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected'; END $$; CREATE TRIGGER fail_import BEFORE INSERT ON conversation_import FOR EACH ROW EXECUTE FUNCTION fail_import();").execute(&pool).await.unwrap();
-    assert!(
-        db.import_path(
-            owner.scope(),
-            &request("failure", &["new-root", "new-child"])
-        )
-        .await
-        .is_err()
-    );
-    assert_eq!(
-        db.conversation(owner.scope(), c.conversation_id)
-            .await
-            .unwrap(),
-        tree
-    );
-    let counts:(i64,i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
-    assert_eq!(counts, (1, 6, 4));
-    let fresh = ImportRequest::parse(
-        ImportInput {
-            occurred_at: 1_700_000_000_000,
-            title: "fresh".into(),
-            source: Source::Gemini,
-            session_id: "fresh".into(),
-            idempotency_key: "fresh".into(),
-            history: br#"[{"role":"assistant","content":"first"}]"#.to_vec(),
-        },
-        ImportLimits::default(),
-    )
-    .unwrap();
-    assert!(db.import_path(owner.scope(), &fresh).await.is_err());
-    let after:(i64,i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
-    assert_eq!(after, counts);
-}
-
 struct FakeProvider {
     calls: std::sync::atomic::AtomicUsize,
     outcome: FakeOutcome,
@@ -813,7 +700,12 @@ async fn all_scoped_references_and_multirow_cycles_are_rejected() {
             .is_err()
     );
     let other = Uuid::new_v4();
-    sqlx::query("INSERT INTO conversation(id,owner_id,title,source,session_id) VALUES($1,$2,'other','grok','other')").bind(other).bind(a.id).execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO conversation(id,owner_id,title,source) VALUES($1,$2,'other','grok')")
+        .bind(other)
+        .bind(a.id)
+        .execute(&pool)
+        .await
+        .unwrap();
     assert!(sqlx::query("INSERT INTO message(id,owner_id,conversation_id,parent_message_id,role,content) VALUES($1,$2,$3,$4,'user','bad')").bind(Uuid::new_v4()).bind(a.id).bind(other).bind(ar.head_message_id).execute(&pool).await.is_err());
     let x = Uuid::new_v4();
     let y = Uuid::new_v4();
@@ -908,7 +800,7 @@ async fn library_lists_latest_import_per_owned_conversation() {
     for (key, session, occurred_at) in [
         ("first", "a", 1000),
         ("second", "b", 3000),
-        ("third", "a", 2000),
+        ("third", "c", 2000),
     ] {
         let request = ImportRequest::parse(
             ImportInput {
@@ -927,18 +819,21 @@ async fn library_lists_latest_import_per_owned_conversation() {
             db.import_path(owner.scope(), &request).await.unwrap(),
             result
         );
-        if key != "first" {
+        {
             expected.push(palace_db::ConversationSummary {
                 id: result.conversation_id,
-                title: if session == "a" { "first" } else { key }.into(),
+                title: key.into(),
                 source: Source::Chatgpt,
-                session_id: session.into(),
+                session_ids: vec![session.into()],
+                path_count: 1,
+                path_id: result.path_id,
                 occurred_at,
                 head_message_id: result.head_message_id,
                 message_count: 1,
             });
         }
     }
+    expected.sort_by_key(|entry| std::cmp::Reverse(entry.occurred_at));
     assert_eq!(
         db.list_conversations(owner.scope()).await.unwrap(),
         expected

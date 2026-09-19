@@ -11,6 +11,7 @@ pub(super) enum ApiError {
     Unauthorized,
     Forbidden,
     Conflict,
+    DuplicateSession,
     NotFound,
     Unavailable,
     Internal,
@@ -27,6 +28,7 @@ impl From<DbError> for ApiError {
         match value {
             DbError::Input(e) => Self::Input(e),
             DbError::Conflict => Self::Conflict,
+            DbError::DuplicateSession => Self::DuplicateSession,
             DbError::NotFound => Self::NotFound,
             DbError::Disabled => Self::Unauthorized,
             DbError::Storage(_) | DbError::Migration(_) => Self::Internal,
@@ -70,6 +72,7 @@ impl IntoResponse for ApiError {
             ),
             Self::Forbidden => (StatusCode::FORBIDDEN, "origin_rejected", ""),
             Self::Conflict => (StatusCode::CONFLICT, "identity_or_request_conflict", ""),
+            Self::DuplicateSession => (StatusCode::CONFLICT, "session_already_exists", ""),
             Self::NotFound => (StatusCode::NOT_FOUND, "not_found", ""),
             Self::Unavailable => (StatusCode::SERVICE_UNAVAILABLE, "identity_unavailable", ""),
             Self::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "persistence_failed", ""),

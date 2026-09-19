@@ -121,7 +121,6 @@ pub struct Conversation {
     pub owner_id: Uuid,
     pub title: String,
     pub source: Source,
-    pub session_id: SessionId,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Message {
@@ -211,7 +210,6 @@ mod tests {
             owner_id: Uuid::new_v4(),
             title: "t".into(),
             source: Source::Grok,
-            session_id: SessionId::try_from("s".to_owned()).unwrap(),
         };
         let a = Message {
             id: Uuid::new_v4(),

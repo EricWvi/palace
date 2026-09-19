@@ -14,6 +14,9 @@ use testcontainers::{
 };
 use tower::ServiceExt;
 
+#[path = "http/paths.rs"]
+mod paths;
+
 struct Provider;
 impl IdentityProvider for Provider {
     /// Fails if this test's fresh sessions unexpectedly request remote revalidation.
@@ -200,7 +203,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     for (credential, expected) in [
         (
             &cookie,
-            serde_json::json!([{"id":result["conversation_id"],"title":"t","source":"chatgpt","session_id":"s","occurred_at":1700000000000_i64,"head_message_id":result["head_message_id"],"message_count":1}]),
+            serde_json::json!([{"id":result["conversation_id"],"title":"t","source":"chatgpt","session_ids":["s"],"path_id":result["path_id"],"path_count":1,"occurred_at":1700000000000_i64,"head_message_id":result["head_message_id"],"message_count":1}]),
         ),
         (&foreign, serde_json::json!([])),
     ] {
@@ -257,7 +260,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(
         tree,
-        serde_json::json!({"conversation":{"id":result["conversation_id"],"owner_id":sessions[0].owner.id,"title":"t","source":"chatgpt","session_id":"s"},"messages":[{"id":result["head_message_id"],"owner_id":sessions[0].owner.id,"conversation_id":result["conversation_id"],"parent_message_id":null,"role":"user","content":"<script>alert(1)</script>\r\n","created_order":1}],"original_link":format!("{source_url}s")})
+        serde_json::json!({"conversation":{"id":result["conversation_id"],"owner_id":sessions[0].owner.id,"title":"t","source":"chatgpt"},"messages":[{"id":result["head_message_id"],"owner_id":sessions[0].owner.id,"conversation_id":result["conversation_id"],"parent_message_id":null,"role":"user","content":"<script>alert(1)</script>\r\n","created_order":1}],"paths":[{"id":result["path_id"],"session_id":"s","head_message_id":result["head_message_id"],"message_count":1,"occurred_at":1700000000000_i64,"created_at":tree["paths"][0]["created_at"],"updated_at":tree["paths"][0]["updated_at"],"original_link":format!("{source_url}s")}]})
     );
     assert_eq!(source_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
     source_server.abort();
@@ -332,6 +335,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     }
     let counts:(i64,i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
     assert_eq!(counts, (1, 1, 1));
+    paths::exercise_path_lifecycle(&app, &cookie, &foreign).await;
     let anonymous = app
         .clone()
         .oneshot(request(

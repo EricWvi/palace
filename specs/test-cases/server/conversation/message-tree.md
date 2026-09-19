@@ -1,139 +1,35 @@
-# 来源会话与消息树核心测试用例
+# Conversation 树与 Session Path 核心测试用例
 
-本文跟踪[来源会话与消息树根决策](../../../decisions/server/conversation/0-source-session-and-message-tree.md)中身份隔离、树结构和安全跳转的长期风险。实现证据随对应提交维护；没有直接验证的义务继续标记为 `Missing`。
+当前决策：[树与 Path](../../../decisions/server/conversation/20260919-conversation-tree-and-session-paths.md)。根决策中同 Session 自动合并与不同根路径同树的旧验证义务已被替换。
 
-## Same source session must resolve to one conversation within an authorization scope
+## Source sessions must uniquely identify owned paths
 
-### 风险
+风险：重复 Session 生成多张卡片或跨 Owner 关联。前置：一个 Owner 已有 Session；触发：再次创建、并发创建或以其他 Owner 操作。
 
-同一来源会话因标题变化或重复导入生成多份 Conversation，或者不同授权范围的数据因相同 `source/session_id` 被错误合并。
+必须成立：同 Owner/来源的 Session 只能对应一个 Path，另一个 Owner 可以独立使用相同 Session；禁止产生孤立 Conversation。标题编辑不改变来源身份。
 
-### 前置状态
+证据：Covered — `paths::concurrent_duplicate_sessions_create_only_one_card`、`paths::branches_share_prefix_and_failures_roll_back`、`identity_and_database_constraints_isolate_owners`（真实 PostgreSQL）。HTTP Owner 与来源链接：`http/paths.rs::exercise_path_lifecycle`，由认证 HTTP 集成测试调用。
 
-一个 Owner Scope 内已经存在 source 为 chatgpt、session_id 为 S、标题为 T1 的 Conversation；另有一个独立 Owner Scope。
+## Shared and internal endpoint paths must remain independently manageable
 
-### 触发
+风险：以叶子充当身份，导致内部末端或相同路径的 Session 消失。前置：同树有长路径及两个相同的短路径。触发：删除长路径及其中一个短路径。
 
-在原范围以标题 T2 再次定位 S，并在另一范围提交同样的 source/session_id。
+必须成立：共享祖先保留，两个短路径拥有独立 ID；删除不能影响其他 Owner；最后一个 Path 通过删除 Conversation 移除。禁止残留没有内容的卡片。
 
-### 必须成立
+证据：Covered — `paths::deletion_preserves_shared_messages_and_owner_boundaries`（真实 PostgreSQL）。树投影与页面操作证据随前端实现补充。
 
-原 Owner Scope 复用既有 Conversation 且允许标题作为可编辑元数据变化；另一 Owner Scope 获得独立身份。Palace ID 不因标题或来源链接模板变化而改变。
+## Migration must preserve existing linear conversation identities
 
-### 禁止结果
+风险：升级更换消息身份或丢失来源链接。前置：已有单路径 Conversation；触发：执行 0007 迁移。
 
-不得在原范围仅因标题不同创建重复来源会话，不得跨授权范围返回或关联已有 Conversation。
+必须成立：Conversation 与 Message ID/正文保持不变，Session、发生时间及末端进入新 Path。禁止猜测新来源身份。
 
-### 验证义务与证据
+证据：Covered — `paths::migration_retains_existing_linear_conversations`（真实 PostgreSQL，有数据升级）。
 
-| 验证义务 | 状态 | 直接证据 |
-| --- | --- | --- |
-| `(source, session_id)` 在同一 Owner Scope 定位唯一 Conversation | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`（真实 PG，ignore） |
-| 标题变化不改变 Conversation 身份 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`（真实 PG，ignore） |
-| 相同外部身份不能跨授权范围合并 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`（真实 PG，ignore） |
+## Message parents must remain acyclic and owner scoped
 
-### 决策依据
+风险：跨树、跨 Owner 或循环父链导致泄露和无法读取。触发：直接 SQL 或损坏的读取输入。
 
-根决策 D1 及不变量 1。
+必须成立：父子同树同 Owner，已保存结构不可改写；读取拒绝循环或缺失祖先。角色无需交替。
 
-## Divergent paths must share their exact message prefix
-
-### 风险
-
-分叉导入复制完整正文、丢失后缀，或把不同内容误合并，使 `A-B-C` 与 `A-B-D` 无法恢复。
-
-### 前置状态
-
-Conversation 已包含路径 `A-B-C`。
-
-### 触发
-
-向同一 Conversation 加入路径 `A-B-D`，随后分别从 C、D 回溯并展开整棵树。
-
-### 必须成立
-
-A、B 各只有一个共享 Message；C、D 是 B 的不同子消息；两个叶子都能恢复唯一的完整祖先路径。若两条路径第一条消息即不同，它们都以 Conversation 作为虚拟根。
-
-### 禁止结果
-
-不得复制 A、B，不得把 C 覆盖为 D，不得产生父链环或无法归属于 Conversation 的根节点。
-
-### 验证义务与证据
-
-| 验证义务 | 状态 | 直接证据 |
-| --- | --- | --- |
-| 分叉只新增不同后缀并保留共享前缀 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
-| 任一叶子沿父链恢复唯一 Path | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`，真实 PostgreSQL 17，默认 ignore；身份输入为测试提供，不含 OIDC 协议验证 |
-| 从首条消息分叉时 Conversation 作为共同虚拟根 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`（真实 PG，ignore，额外 X-Y 根） |
-
-### 决策依据
-
-根决策 D3、D4 及不变量 3、5。
-
-## Message parent links must remain inside one acyclic conversation tree
-
-### 风险
-
-跨 Conversation 父子引用或环使授权边界失效，并让路径读取无法终止。
-
-### 前置状态
-
-存在两个 Conversation 及各自 Message，并准备自引用、祖先回指和跨 Conversation 三类父节点写入。
-
-### 触发
-
-分别提交三类非法关系，同时提交合法的连续 user、连续 assistant 和以 user 结束的路径。
-
-### 必须成立
-
-非法父节点写入均被拒绝且不改变已有树；合法路径按提交顺序保存，不要求角色交替或 assistant 结尾。
-
-### 禁止结果
-
-不得仅靠应用层读取习惯容忍跨对话引用或环，不得自动删除、合并或补齐连续同角色消息。
-
-### 验证义务与证据
-
-| 验证义务 | 状态 | 直接证据 |
-| --- | --- | --- |
-| 跨 Conversation 父消息被拒绝 | Covered | `crates/db/tests/postgres.rs::all_scoped_references_and_multirow_cycles_are_rejected`（真实 PG，ignore） |
-| 自引用和祖先回指被拒绝 | Covered | `crates/db/tests/postgres.rs::identity_and_database_constraints_isolate_owners`、`all_scoped_references_and_multirow_cycles_are_rejected`；`palace-domain::conversation::tests::path_requires_acyclic_scoped_ancestors` |
-| 非交替角色与 user 结尾保持原顺序 | Covered | `crates/db/tests/postgres.rs::concurrent_imports_reuse_prefix_and_failures_roll_back`（真实 PG，ignore）；`palace-domain::import::tests::preserves_linear_input_exactly` |
-
-### 决策依据
-
-根决策 D3 及不变量 3、4。
-
-## Original conversation links must use only controlled source templates
-
-### 风险
-
-恶意或畸形 session_id 将跳转引向非允许域名，或者模板变化误改来源会话身份。
-
-### 前置状态
-
-三种受支持 source 各有一个有效 session_id，并准备含路径分隔、查询串或外部 URL 的恶意输入。
-
-### 触发
-
-生成原始会话跳转链接并更新其中一个 source 的模板配置。
-
-### 必须成立
-
-链接域名和路径框架来自 source 的受控模板，session_id 经路径段校验与编码；模板更新后 Conversation、source、session_id 和 Palace ID 保持不变。
-
-### 禁止结果
-
-不得接受用户提供的任意完整 URL，不得让 session_id 改写 host、scheme 或模板路径，不得因模板更新迁移业务身份。
-
-### 验证义务与证据
-
-| 验证义务 | 状态 | 直接证据 |
-| --- | --- | --- |
-| 三种 source 只使用各自受控模板 | Covered | `palace-domain` 单元测试 `controlled_links_and_template_updates_preserve_identity`；持久化及 HTTP 证据另列 |
-| session_id 不能逃逸模板路径段 | Covered | `palace-domain` 单元测试 `controlled_links_and_template_updates_preserve_identity`；持久化及 HTTP 证据另列 |
-| 模板更新不改变来源会话身份 | Covered | `palace-domain` 单元测试 `controlled_links_and_template_updates_preserve_identity`；持久化及 HTTP 证据另列 |
-
-### 决策依据
-
-根决策 D2 及不变量 2。
+证据：Covered — `all_scoped_references_and_multirow_cycles_are_rejected`、`identity_and_database_constraints_isolate_owners`（真实 PostgreSQL），`path_requires_acyclic_scoped_ancestors`（领域单元测试）。

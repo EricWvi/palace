@@ -1,6 +1,7 @@
 use crate::{Role, SessionId, Source};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use uuid::Uuid;
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -59,10 +60,30 @@ pub struct ImportInput {
     pub occurred_at: i64,
 }
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub enum ImportTarget {
+    Conversation {
+        title: String,
+        source: Source,
+        session_id: SessionId,
+    },
+    Branch {
+        conversation_id: Uuid,
+        session_id: SessionId,
+    },
+    Update {
+        conversation_id: Uuid,
+        path_id: Uuid,
+    },
+}
+/// Carries the common upload independently of conversation metadata and path identity.
+pub struct PathInput {
+    pub history: Vec<u8>,
+    pub idempotency_key: String,
+    pub occurred_at: i64,
+}
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ImportRequest {
-    title: String,
-    source: Source,
-    session_id: SessionId,
+    target: ImportTarget,
     messages: Vec<MessageInput>,
     idempotency_key: String,
     digest: Vec<u8>,
@@ -71,6 +92,26 @@ pub struct ImportRequest {
 impl ImportRequest {
     /// Validates all input before persistence and ignores noncontract message fields.
     pub fn parse(input: ImportInput, limits: ImportLimits) -> Result<Self, InputError> {
+        Self::parse_target(
+            ImportTarget::Conversation {
+                title: input.title,
+                source: input.source,
+                session_id: SessionId::try_from(input.session_id)?,
+            },
+            PathInput {
+                history: input.history,
+                idempotency_key: input.idempotency_key,
+                occurred_at: input.occurred_at,
+            },
+            limits,
+        )
+    }
+    /// Shares strict content validation across creation, branching and append-only updates.
+    pub fn parse_target(
+        target: ImportTarget,
+        input: PathInput,
+        limits: ImportLimits,
+    ) -> Result<Self, InputError> {
         if input.history.len() > limits.bytes {
             return Err(InputError::new(
                 InputErrorKind::Limit,
@@ -78,7 +119,9 @@ impl ImportRequest {
                 "upload too large",
             ));
         }
-        validate_title(&input.title)?;
+        if let ImportTarget::Conversation { title, .. } = &target {
+            validate_title(title)?;
+        }
         // Bound browser epoch milliseconds to calendar years 0001 through 9999.
         if !(-62_135_596_800_000..=253_402_300_799_999).contains(&input.occurred_at) {
             return Err(InputError::new(
@@ -94,7 +137,6 @@ impl ImportRequest {
                 "expected 1..128 bytes",
             ));
         }
-        let session_id = SessionId::try_from(input.session_id)?;
         // Scan before deserialization so ignored metadata cannot bypass the nesting limit.
         let mut depth = 0_usize;
         let mut in_string = false;
@@ -168,11 +210,11 @@ impl ImportRequest {
         }
         // Length framing prevents ambiguous concatenations; raw input detects key reuse even when extra fields differ.
         let mut hash = Sha256::new();
+        let identity = serde_json::to_vec(&target)
+            .map_err(|error| InputError::new(InputErrorKind::Field, "target", error.to_string()))?;
         for bytes in [
-            input.title.as_bytes(),
-            input.source.as_str().as_bytes(),
-            session_id.as_str().as_bytes(),
-            &input.history,
+            identity.as_slice(),
+            input.history.as_slice(),
             &input.occurred_at.to_be_bytes(),
         ] {
             hash.update((bytes.len() as u64).to_be_bytes());
@@ -180,9 +222,7 @@ impl ImportRequest {
         }
         Ok(Self {
             occurred_at: input.occurred_at,
-            title: input.title,
-            source: input.source,
-            session_id,
+            target,
             messages,
             idempotency_key: input.idempotency_key,
             digest: hash.finalize().to_vec(),
@@ -192,17 +232,9 @@ impl ImportRequest {
     pub fn occurred_at(&self) -> i64 {
         self.occurred_at
     }
-    /// Exposes validated title metadata to persistence.
-    pub fn title(&self) -> &str {
-        &self.title
-    }
-    /// Identifies the controlled source namespace.
-    pub fn source(&self) -> Source {
-        self.source
-    }
-    /// Exposes the unchanged source identity.
-    pub fn session_id(&self) -> &SessionId {
-        &self.session_id
+    /// Prevents branch imports from redefining conversation metadata or source identity.
+    pub fn target(&self) -> &ImportTarget {
+        &self.target
     }
     /// Exposes only validated role/content pairs.
     pub fn messages(&self) -> &[MessageInput] {

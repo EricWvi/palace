@@ -1,5 +1,8 @@
 //! PostgreSQL transactions enforce owner boundaries independently of HTTP inputs.
+mod conversation_delete;
 mod conversation_list;
+mod conversation_tree;
+pub use conversation_tree::{ConversationDetail, ConversationPath};
 mod import;
 pub use conversation_list::ConversationSummary;
 mod login;
@@ -25,6 +28,8 @@ pub enum DbError {
     Migration(#[from] sqlx::migrate::MigrateError),
     #[error("identity or source conflicts with existing state")]
     Conflict,
+    #[error("this source session already belongs to a conversation path")]
+    DuplicateSession,
     #[error("record is unavailable in this owner scope")]
     NotFound,
     #[error("owner or identity is disabled")]

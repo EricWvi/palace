@@ -2,6 +2,7 @@ mod business;
 mod error;
 #[cfg(feature = "test-server")]
 mod fixed_user;
+mod path_management;
 #[cfg(feature = "test-server")]
 pub use fixed_user::fixed_user_router;
 mod handlers;
@@ -90,9 +91,21 @@ fn business_router(server: BusinessServer) -> Router {
         .route("/api/import", post(business::import_text))
         .route("/api/import/file", post(business::import_file))
         .route("/api/conversations", get(business::conversations))
-        .route("/api/conversations/{id}", get(business::conversation))
+        .route(
+            "/api/conversations/{id}",
+            get(business::conversation).delete(path_management::delete_conversation),
+        )
         .route("/api/conversations/{id}/title", put(business::rename))
-        .route("/api/conversations/{id}/paths/{head}", get(business::path))
+        .route(
+            "/api/conversations/{id}/paths",
+            post(path_management::create),
+        )
+        .route(
+            "/api/conversations/{id}/paths/{path_id}",
+            get(business::path)
+                .put(path_management::update)
+                .delete(path_management::delete),
+        )
         .layer(DefaultBodyLimit::max(limit))
         .with_state(Arc::new(server))
 }

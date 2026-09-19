@@ -8,15 +8,17 @@
 
 **来源会话（Source Session）**：由来源网站与该网站的 `session_id` 共同标识的原始对话；`session_id` 只在所属来源网站内解释。
 
-**对话（Conversation）**：Palace 中承载一个来源会话的标题、来源信息与全部消息节点的知识记录。
+**对话（Conversation）**：Palace 中以一张卡片呈现的知识记录，拥有标题、来源网站及一棵消息树，可以包含多个来源会话。
 
 **消息（Message）**：对话中的最小内容单元，由 `user` 或 `assistant` 角色及原始 Markdown 内容构成。
 
 **对话树（Conversation Tree）**：同一对话内由消息父子关系形成的有根树；共享前缀只保存一次，一个消息拥有多个子消息时形成分叉。
 
-**对话路径（Conversation Path）**：从对话树根部到某个消息节点的有序消息序列。第一版的一次导入只表达一条路径。
+**对话路径（Conversation Path）**：一个来源会话在对话树中对应的完整消息路径，具有独立身份、Session ID 和时间信息。末端不必是树的叶子；不同 Path 可以暂时具有完全相同的消息序列。
 
-**导入（Import）**：用户向 Palace 提交标题、来源网站、`session_id` 与一条对话路径并由系统原子处理的操作。
+**导入（Import）**：用户提交完整对话历史，由系统原子创建 Conversation 及首条 Path、创建分支或追加更新已有 Path 的操作。
+
+**分支（Branch）**：同一 Conversation 中与已有 Path 共享从根到至少一条 assistant 消息的完整前缀、具有独立来源 Session ID 的 Path。
 
 **轮次（Turn）**：界面可按需要从连续消息派生的展示分组，不是第一版持久化身份或导入边界。
 
