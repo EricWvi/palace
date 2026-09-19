@@ -10,7 +10,9 @@ const old = {
   id: "old",
   title: "较早的思考",
   source: "chatgpt",
-  session_id: "session-old",
+  session_ids: ["session-old"],
+  path_id: "path-old",
+  path_count: 1,
   occurred_at: 1000,
   head_message_id: "head-old",
   message_count: 2,
@@ -18,6 +20,7 @@ const old = {
 const latest = {
   ...old,
   id: "new",
+  path_id: "path-new",
   title: "新的灵感",
   occurred_at: 3000,
   head_message_id: "head-new",
@@ -61,13 +64,25 @@ function mockApi() {
     if (path === "/api/import/file")
       return Response.json({
         conversation_id: "new",
+        path_id: "path-new",
         head_message_id: "head-new",
       });
     if (path.includes("/paths/")) return Response.json(messages);
     return Response.json({
       conversation: latest,
       messages,
-      original_link: "https://chatgpt.com/c/session-old",
+      paths: [
+        {
+          id: "path-new",
+          session_id: "session-old",
+          head_message_id: "head-new",
+          occurred_at: 3000,
+          created_at: 4000,
+          updated_at: 4000,
+          message_count: 2,
+          original_link: "https://chatgpt.com/c/session-old",
+        },
+      ],
     });
   });
 }

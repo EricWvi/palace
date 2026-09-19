@@ -14,14 +14,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DateTimePicker } from "./date-time-picker";
 import { ErrorState } from "./error-state";
-import { request, sources, type Source, type ImportResult } from "@/lib/api";
+import {
+  request,
+  sources,
+  type Source,
+  type ImportResult,
+  type Conversation,
+  type ConversationPath,
+} from "@/lib/api";
 import { validateFile } from "@/lib/import-file";
+export type ImportMode =
+  | { kind: "conversation" }
+  | { kind: "branch"; conversation: Conversation }
+  | { kind: "update"; conversation: Conversation; path: ConversationPath };
+const newConversation: ImportMode = { kind: "conversation" };
 export function ImportDialog({
   open,
   onOpenChange,
+  mode = newConversation,
+  onImported,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  mode?: ImportMode;
+  onImported?: () => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -30,21 +46,53 @@ export function ImportDialog({
           <span className="dialog-icon">
             <Upload size={22} />
           </span>
-          <DialogTitle>收藏一段对话</DialogTitle>
+          <DialogTitle>
+            {mode.kind === "conversation"
+              ? "收藏一段对话"
+              : mode.kind === "branch"
+                ? "新建分支"
+                : "更新分支"}
+          </DialogTitle>
           <DialogDescription>
-            从 JSON 文件导入，给这次思考一个名字。
+            {mode.kind === "conversation"
+              ? "从 JSON 文件导入，给这次思考一个名字。"
+              : mode.kind === "branch"
+                ? "上传完整 JSON，必须与已有路径共享包含 assistant 回复的前缀。"
+                : "上传完整 JSON，只允许追加消息，不可修改或截短历史。"}
           </DialogDescription>
         </DialogHeader>
-        {open && <ImportForm onComplete={() => onOpenChange(false)} />}
+        {open && (
+          <ImportForm
+            mode={mode}
+            onImported={onImported}
+            onComplete={() => onOpenChange(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
 }
-function ImportForm({ onComplete }: { onComplete: () => void }) {
-  const [source, setSource] = useState<Source>("chatgpt");
-  const [title, setTitle] = useState("");
-  const [session, setSession] = useState("");
-  const [date, setDate] = useState(() => new Date());
+function ImportForm({
+  onComplete,
+  mode,
+  onImported,
+}: {
+  onComplete: () => void;
+  mode: ImportMode;
+  onImported?: () => void;
+}) {
+  const [source, setSource] = useState<Source>(
+    mode.kind === "conversation" ? "chatgpt" : mode.conversation.source,
+  );
+  const [title, setTitle] = useState(
+    mode.kind === "conversation" ? "" : mode.conversation.title,
+  );
+  const [session, setSession] = useState(
+    mode.kind === "update" ? mode.path.session_id : "",
+  );
+  const [date, setDate] = useState(() =>
+    mode.kind === "update" ? new Date(mode.path.occurred_at) : new Date(),
+  );
   const [file, setFile] = useState<File | null>(null);
   const [attempt, setAttempt] = useState<{
     fingerprint: string;
@@ -64,19 +112,41 @@ function ImportForm({ onComplete }: { onComplete: () => void }) {
         throw new Error("请输入 Session ID 本身，而不是网址。");
       if (!file) throw new Error("请选择 JSON 文件。");
       await validateFile(file);
+      const history = await file.text();
       // Reuse the key after an ambiguous network failure, but never for edited input.
       const fingerprint = JSON.stringify([
         source,
         title,
         session,
         date.getTime(),
-        await file.text(),
+        history,
+        mode.kind,
+        mode.kind === "conversation" ? null : mode.conversation.id,
+        mode.kind === "update" ? mode.path.id : null,
       ]);
       const key =
         attempt?.fingerprint === fingerprint
           ? attempt.key
           : crypto.randomUUID();
       setAttempt({ fingerprint, key });
+      if (mode.kind !== "conversation") {
+        const base = `/api/conversations/${encodeURIComponent(mode.conversation.id)}/paths`;
+        return request<ImportResult>(
+          mode.kind === "branch"
+            ? base
+            : `${base}/${encodeURIComponent(mode.path.id)}`,
+          {
+            method: mode.kind === "branch" ? "POST" : "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...(mode.kind === "branch" ? { session_id: session } : {}),
+              history,
+              occurred_at: date.getTime(),
+              idempotency_key: key,
+            }),
+          },
+        );
+      }
       const body = new FormData();
       body.set("source", source);
       body.set("title", title);
@@ -89,14 +159,20 @@ function ImportForm({ onComplete }: { onComplete: () => void }) {
         body,
       });
     },
-    onSuccess: (result) => {
-      void client.invalidateQueries({ queryKey: ["conversations"] });
-      void client.invalidateQueries({
-        queryKey: ["conversation", result.conversation_id],
-      });
+    onSuccess: async (result) => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["conversations"] }),
+        client.invalidateQueries({
+          queryKey: ["conversation", result.conversation_id],
+        }),
+      ]);
       onComplete();
+      if (onImported) {
+        onImported();
+        return;
+      }
       navigate(
-        `/conversations/${result.conversation_id}?head=${result.head_message_id}`,
+        `/conversations/${result.conversation_id}?path=${result.path_id}`,
       );
     },
   });
@@ -111,6 +187,7 @@ function ImportForm({ onComplete }: { onComplete: () => void }) {
           <Label htmlFor="title">自定义标题</Label>
           <Input
             id="title"
+            disabled={mode.kind !== "conversation"}
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -121,6 +198,7 @@ function ImportForm({ onComplete }: { onComplete: () => void }) {
           <Label htmlFor="source">会话来源</Label>
           <select
             id="source"
+            disabled={mode.kind !== "conversation"}
             className="select-input"
             value={source}
             onChange={(e) => setSource(e.target.value as Source)}
@@ -136,12 +214,17 @@ function ImportForm({ onComplete }: { onComplete: () => void }) {
           <Label htmlFor="session">来源网站 Session ID</Label>
           <Input
             id="session"
+            disabled={mode.kind === "update"}
             required
             value={session}
             onChange={(e) => setSession(e.target.value)}
             placeholder="例如：会话网址最后一段的 ID"
           />
-          <p className="field-hint">相同来源与 ID 将合并消息，保留已有标题。</p>
+          <p className="field-hint">
+            {mode.kind === "update"
+              ? "Session ID 保持不变；发生时间可以修改。"
+              : "同一来源的 Session ID 不可重复。"}
+          </p>
         </div>
         <div>
           <Label>对话发生日期与时间</Label>
@@ -175,7 +258,13 @@ function ImportForm({ onComplete }: { onComplete: () => void }) {
         {mutation.isError && <ErrorState error={mutation.error} />}
         <Button type="submit" className="submit-import">
           <Upload size={16} />
-          {mutation.isPending ? "正在导入…" : "导入并查看会话"}
+          {mutation.isPending
+            ? "正在导入…"
+            : mode.kind === "conversation"
+              ? "导入并查看会话"
+              : mode.kind === "branch"
+                ? "导入分支"
+                : "保存更新"}
         </Button>
       </fieldset>
     </form>

@@ -9,7 +9,9 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
     id: "one",
     title: "把零散的灵感，整理成自己的知识体系",
     source: "chatgpt",
-    session_id: "knowledge-notes",
+    session_ids: ["knowledge-notes"],
+    path_id: "path-one",
+    path_count: 1,
     occurred_at: 1789648800000,
     head_message_id: "answer",
     message_count: 2,
@@ -37,19 +39,42 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
       path === "/api/conversations"
         ? [item]
         : path === "/api/import/file"
-          ? { conversation_id: "one", head_message_id: "answer" }
+          ? {
+              conversation_id: "one",
+              path_id: "path-one",
+              head_message_id: "answer",
+            }
           : path.includes("/paths/")
             ? messages
             : {
                 conversation: item,
                 messages,
-                original_link: "https://chatgpt.com/c/knowledge-notes",
+                paths: [
+                  {
+                    id: "path-one",
+                    session_id: "knowledge-notes",
+                    head_message_id: "answer",
+                    occurred_at: item.occurred_at,
+                    created_at: item.occurred_at,
+                    updated_at: item.occurred_at,
+                    message_count: 2,
+                    original_link: "https://chatgpt.com/c/knowledge-notes",
+                  },
+                ],
               };
     await route.fulfill({ json: data });
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
   await expect(page.getByText(item.title)).toBeVisible();
+  await page.getByRole("button", { name: `会话菜单 ${item.title}` }).click();
+  await page.getByRole("menuitem", { name: "分支管理" }).click();
+  const manager = page.getByRole("dialog", { name: "分支管理" });
+  await expect(manager.getByText(messages[0].content)).toBeVisible();
+  await expect(
+    manager.getByRole("button", { name: "删除分支 knowledge-notes" }),
+  ).toBeDisabled();
+  await manager.getByRole("button", { name: "Close", exact: true }).click();
   await page.screenshot({ path: "/tmp/palace-library.png", fullPage: true });
   await page.getByRole("button", { name: "导入会话", exact: true }).click();
   await page.getByLabel("来源网站 Session ID").fill("knowledge-notes");
@@ -83,6 +108,10 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
   ).toBeVisible();
   await page.screenshot({ path: "/tmp/palace-chat.png", fullPage: true });
   await page.reload();
+  await expect(page.getByRole("link", { name: "继续对话" })).toHaveAttribute(
+    "href",
+    "https://chatgpt.com/c/knowledge-notes",
+  );
   await expect(page.getByRole("heading", { name: item.title })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: "/tmp/palace-mobile.png", fullPage: true });

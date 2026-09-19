@@ -564,3 +564,82 @@ h1 {
     flex-wrap: wrap;
   }
 }
+/* Cards keep navigation and menu actions as separate interactive targets. */
+.conversation-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.conversation-card > .conversation-row {
+  flex: 1;
+  min-width: 0;
+}
+.conversation-menu {
+  z-index: 60;
+  min-width: 150px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 8px 24px #0002;
+}
+.conversation-menu [role="menuitem"] {
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+}
+.conversation-menu [data-highlighted] {
+  background: var(--accent);
+}
+.branch-dialog {
+  width: min(720px, calc(100vw - 32px));
+  max-width: 720px;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
+.branch-tree {
+  min-width: 0;
+  overflow-x: hidden;
+}
+.branch-tree-node {
+  min-width: 0;
+  padding: 8px 0 8px 12px;
+  border-inline-start: 2px solid var(--border);
+}
+.branch-node-text,
+.path-session {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.branch-node-text {
+  max-width: min(32ch, 100%);
+  margin: 0;
+}
+.path-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin-top: 4px;
+}
+.path-session {
+  flex: 1;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.path-actions button {
+  flex-shrink: 0;
+}
+.continue-conversation {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}

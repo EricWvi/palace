@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ImportDialog } from "@/components/import-dialog";
 import { ErrorState } from "@/components/error-state";
+import { ConversationActions } from "@/components/conversation-actions";
 export function LibraryPage() {
   const query = useQuery(libraryOptions);
   const [open, setOpen] = useState(false);
@@ -15,7 +16,7 @@ export function LibraryPage() {
   const entries = [...(query.data ?? [])]
     .sort((a, b) => b.occurred_at - a.occurred_at || b.id.localeCompare(a.id))
     .filter((item) =>
-      `${item.title} ${item.session_id} ${sources[item.source]}`
+      `${item.title} ${item.session_ids.join(" ")} ${sources[item.source]}`
         .toLowerCase()
         .includes(search.toLowerCase()),
     );
@@ -86,28 +87,30 @@ export function LibraryPage() {
         ) : (
           <div className="conversation-list">
             {entries.map((item) => (
-              <Link
-                key={item.id}
-                className="conversation-row"
-                to={`/conversations/${item.id}?head=${item.head_message_id}`}
-              >
-                <span className={`source-icon ${item.source}`}>
-                  {sources[item.source].slice(0, 1)}
-                </span>
-                <div className="conversation-info">
-                  <h2>{item.title}</h2>
-                  <p>
-                    {sources[item.source]}
-                    <span>·</span>
-                    {item.message_count} 条消息<span>·</span>
-                    <span className="session-id">{item.session_id}</span>
-                  </p>
-                </div>
-                <time dateTime={new Date(item.occurred_at).toISOString()}>
-                  {formatTime(item.occurred_at)}
-                </time>
-                <ArrowUpRight size={18} />
-              </Link>
+              <div key={item.id} className="conversation-card">
+                <Link
+                  className="conversation-row"
+                  to={`/conversations/${item.id}`}
+                >
+                  <span className={`source-icon ${item.source}`}>
+                    {sources[item.source].slice(0, 1)}
+                  </span>
+                  <div className="conversation-info">
+                    <h2>{item.title}</h2>
+                    <p>
+                      {sources[item.source]}
+                      <span>·</span>
+                      {item.message_count} 条消息<span>·</span>
+                      <span>{item.path_count} 个分支</span>
+                    </p>
+                  </div>
+                  <time dateTime={new Date(item.occurred_at).toISOString()}>
+                    {formatTime(item.occurred_at)}
+                  </time>
+                  <ArrowUpRight size={18} />
+                </Link>
+                <ConversationActions conversation={item} />
+              </div>
             ))}
           </div>
         )}

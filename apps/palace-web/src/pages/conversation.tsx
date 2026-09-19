@@ -3,7 +3,8 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ArrowLeft, ExternalLink, Sparkles } from "lucide-react";
-import { request, sources, type Detail, type Message } from "@/lib/api";
+import { request, sources, type Detail } from "@/lib/api";
+import { resolvePaths } from "@/lib/conversation-tree";
 import { ErrorState } from "@/components/error-state";
 export function ConversationPage() {
   const { id } = useParams();
@@ -13,20 +14,9 @@ export function ConversationPage() {
     queryFn: () =>
       request<Detail>(`/api/conversations/${encodeURIComponent(id!)}`),
   });
-  const messages = detail.data?.messages ?? [];
-  const parents = new Set(messages.map((m) => m.parent_message_id));
-  const leaves = messages
-    .filter((m) => !parents.has(m.id))
-    .sort((a, b) => b.created_order - a.created_order);
-  const head = params.get("head") ?? leaves[0]?.id;
-  const path = useQuery({
-    queryKey: ["conversation", id, "path", head],
-    queryFn: () =>
-      request<Message[]>(
-        `/api/conversations/${encodeURIComponent(id!)}/paths/${encodeURIComponent(head!)}`,
-      ),
-    enabled: !!detail.data && !!head,
-  });
+  const paths = detail.data ? resolvePaths(detail.data) : [];
+  const selected =
+    paths.find(({ path }) => path.id === params.get("path")) ?? paths[0];
   const conversation = detail.data?.conversation;
   return (
     <>
@@ -35,17 +25,6 @@ export function ConversationPage() {
           <ArrowLeft size={16} />
           返回会话收藏
         </Link>
-        {detail.data && (
-          <a
-            className="back-link"
-            href={detail.data.original_link}
-            target="_blank"
-            rel="noreferrer"
-          >
-            查看原会话
-            <ExternalLink size={14} />
-          </a>
-        )}
       </header>
       {detail.isPending ? (
         <p role="status" className="empty">
@@ -60,32 +39,28 @@ export function ConversationPage() {
               {sources[conversation!.source]} · 会话存档
             </p>
             <h1>{conversation!.title}</h1>
-            <p className="muted">{conversation!.session_id}</p>
-            {leaves.length > 1 && (
+            <p className="muted">{selected?.path.session_id}</p>
+            {paths.length > 1 && (
               <label className="branch-picker">
                 对话分支
                 <select
                   className="select-input"
                   aria-label="对话分支"
-                  value={head}
-                  onChange={(e) => setParams({ head: e.target.value })}
+                  value={selected?.path.id}
+                  onChange={(e) => setParams({ path: e.target.value })}
                 >
-                  {leaves.map((leaf, index) => (
-                    <option key={leaf.id} value={leaf.id}>
-                      分支 {index + 1} · {leaf.content.slice(0, 35) || "空消息"}
+                  {paths.map(({ path }) => (
+                    <option key={path.id} value={path.id}>
+                      {path.session_id}
                     </option>
                   ))}
                 </select>
               </label>
             )}
           </header>
-          {path.isError ? (
-            <ErrorState error={path.error} retry={() => void path.refetch()} />
-          ) : path.isPending && head ? (
-            <p role="status">正在加载消息…</p>
-          ) : (
+          {selected && (
             <div className="messages">
-              {path.data?.map((message) => (
+              {selected.messages.map((message) => (
                 <article key={message.id} className={`message ${message.role}`}>
                   <div className="message-label">
                     {message.role === "assistant" && <Sparkles size={16} />}
@@ -126,7 +101,17 @@ export function ConversationPage() {
             </div>
           )}
           <footer className="chat-footer">
-            已归档的对话 · 在这里重温，在下一次思考中继续
+            {selected && (
+              <a
+                className="continue-conversation"
+                href={selected.path.original_link}
+                target="_blank"
+                rel="noreferrer"
+              >
+                继续对话
+                <ExternalLink size={16} />
+              </a>
+            )}
           </footer>
         </section>
       )}
