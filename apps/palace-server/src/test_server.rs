@@ -16,9 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ))?;
     let address = std::env::var("PALACE_LISTEN").unwrap_or_else(|_| "127.0.0.1:8080".into());
     let listener = tokio::net::TcpListener::bind(&address).await?;
-    let bound_address = listener.local_addr()?;
-    let origin =
-        std::env::var("PALACE_ORIGIN").unwrap_or_else(|_| format!("http://{bound_address}"));
+    let origin = std::env::var("PALACE_ORIGIN")?;
     let url = url::Url::parse(&origin)?;
     if !matches!(url.scheme(), "http" | "https")
         || url.host_str().is_none()

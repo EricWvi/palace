@@ -51,7 +51,7 @@ docker build --tag palace:local .
 docker run --publish 8080:8080 --env-file .env palace:local
 ```
 
-本地联调运行 `task run:test-server`，默认访问 `http://127.0.0.1:8080`。每次启动 PostgreSQL testcontainer，数据持久化到项目根目录 `.data/postgres/pgdata`，PostgreSQL 固定映射到宿主机端口 `15432`，可直接连接调试。测试入口固定使用 `local-test@palace.test`，无需登录、OIDC、Session 密钥或 HTTPS；所有业务接口共用生产实现，但用户由本地入口固定指定，重启后保持同一 Owner。写请求仍需匹配的 Origin。需预先准备 `postgres:17-alpine` 镜像。`task test:test-server` 验证持久化和无需登录的单用户接口。
+本地联调运行 `task run:test-server`，默认访问 `http://127.0.0.1:8080`，并允许 Vite 页面使用的 `http://127.0.0.1:5173` Origin。每次启动 PostgreSQL testcontainer，数据持久化到项目根目录 `.data/postgres/pgdata`，PostgreSQL 固定映射到宿主机端口 `15432`，可直接连接调试。测试入口固定使用 `local-test@palace.test`，无需登录、OIDC、Session 密钥或 HTTPS；所有业务接口共用生产实现，但用户由本地入口固定指定，重启后保持同一 Owner。写请求仍需匹配的 Origin。需预先准备 `postgres:17-alpine` 镜像。`task test:test-server` 验证持久化和无需登录的单用户接口。
 
 完整的生产与测试环境变量说明见[环境变量](环境变量.md)。
 
