@@ -31,6 +31,11 @@ async fn call(
     (status, body)
 }
 /// Covers metadata rejection, unique source links, append-only updates, owner isolation and deletion.
+/// Core test cases:
+/// - `specs/test-cases/server/conversation/message-tree.md#source-sessions-must-uniquely-identify-owned-paths`
+/// - `specs/test-cases/server/conversation/message-tree.md#metadata-correction-must-atomically-preserve-conversation-tree-identities`
+/// - `specs/test-cases/server/import/linear-path-import.md#path-updates-must-retain-the-entire-historical-prefix`
+/// - `specs/test-cases/server/import/linear-path-import.md#import-receipts-and-tree-mutations-must-commit-atomically`
 pub(super) async fn exercise_path_lifecycle(app: &Router, cookie: &str, foreign: &str) {
     let history = r#"[{"role":"user","content":"U1"},{"role":"assistant","content":"A1"}]"#;
     let root = json!({"title":"branches","source":"chatgpt","session_id":"http-root","history":history,"occurred_at":1000,"idempotency_key":"http-root"});

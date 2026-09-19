@@ -7,6 +7,8 @@ use testcontainers::{
 };
 
 /// Exercises discovery, a real login, code exchange, current UserInfo, refresh and external revocation.
+/// Core test case:
+/// - `specs/test-cases/server/owner/owner-isolation.md#an-inactive-session-past-24-hours-must-revalidate-on-its-next-request`
 #[tokio::test]
 #[ignore = "requires prepared authelia/authelia:4.39.20 image and Docker/Podman socket"]
 async fn authelia_authorization_refresh_and_revocation_contract() {

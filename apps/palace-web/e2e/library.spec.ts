@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 
+// Core test case: `specs/test-cases/server/conversation/message-tree.md#card-menu-metadata-editing-must-refresh-every-visible-projection`
 test("desktop and mobile library, calendar import, and routed chat", async ({
   page,
 }) => {

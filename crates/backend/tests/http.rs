@@ -65,6 +65,13 @@ fn request(
         .unwrap()
 }
 /// Checks owner spoofing, JSON/file parity, inert content, rolling cookies and CSRF against real PostgreSQL.
+/// Core test cases:
+/// - `specs/test-cases/server/import/linear-path-import.md#text-and-file-inputs-must-have-identical-parsing-semantics`
+/// - `specs/test-cases/server/owner/owner-isolation.md#owner-scope-must-come-only-from-the-authenticated-server-context`
+/// - `specs/test-cases/server/owner/owner-isolation.md#ordinary-operations-must-not-transfer-or-cascade-delete-an-owner`
+/// - `specs/test-cases/server/owner/owner-isolation.md#an-inactive-session-past-24-hours-must-revalidate-on-its-next-request`
+/// - `specs/test-cases/server/owner/owner-isolation.md#a-browser-session-secret-must-remain-opaque-and-resistant-to-fixation`
+/// - `specs/test-cases/server/owner/owner-isolation.md#local-session-revocation-must-take-effect-before-external-logout-succeeds`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {
@@ -413,6 +420,8 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
 }
 
 /// Verifies authenticated uploads and incremental pulls through the real HTTP/PostgreSQL boundary.
+/// Core test case:
+/// - `specs/test-cases/server/owner/owner-isolation.md#owner-sessions-and-oidc-credentials-must-never-enter-business-synchronization`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn http_sync_round_propagates_records_and_tombstones() {

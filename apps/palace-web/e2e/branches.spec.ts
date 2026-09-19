@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+// Core test cases:
+// - `specs/test-cases/server/conversation/message-tree.md#shared-and-internal-endpoint-paths-must-remain-independently-manageable`
+// - `specs/test-cases/server/conversation/message-tree.md#fork-selection-must-resolve-to-one-real-source-session`
 test("nested forks, internal endpoints, branch forms and mixed-language tree labels", async ({
   page,
 }) => {

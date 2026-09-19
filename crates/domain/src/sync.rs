@@ -85,6 +85,8 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
     /// Proves strict whole-record arbitration for normal records and uploaded tombstones alike.
+    /// Core test case:
+    /// - `specs/test-cases/server/sync/record-convergence.md#record-conflicts-must-use-strict-whole-record-timestamp-lww`
     #[test]
     fn lww_only_accepts_strictly_newer_business_timestamps() {
         let existing = Record {

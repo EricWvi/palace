@@ -107,6 +107,11 @@ ADR 应让 reviewer 在没有实现代码的情况下，沿着“问题 → 约�
 - 供代码注释引用的核心用例标题必须使用英文，并作为文档中的二级标题。文件路径与该标题生成的
   Markdown anchor 共同构成稳定引用，例如
   `specs/test-cases/desktop/core/effect/convergence.md#replaying-a-converged-generation-must-have-no-side-effects`。
+- 核心用例列出的代表性测试函数也必须反向引用对应的 test-case 文档：在测试函数签名上方的注释中写出
+  完整的 `specs/test-cases/...md#...` 路径和 anchor。该路径始终相对于项目根目录计算，例如
+  `specs/test-cases/server/conversation/message-tree.md#metadata-correction-must-atomically-preserve-conversation-tree-identities`；
+  不要写相对于测试源码文件的 `../../...` 等路径，也不要只写测试函数名或只写文档文件名。一个测试函数
+  若对应多个核心用例，应逐一列出所有完整引用；核心用例文档中的证据名称必须能反向定位到这些注释。
 - 文档标题、风险、前置状态、验证义务等非引用标题使用中文；仅核心用例标题为稳定代码引用保留
   英文。
 - 重命名或移动已有核心用例前，先更新代码中的全部引用和本目录内的索引链接。

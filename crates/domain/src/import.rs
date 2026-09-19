@@ -265,6 +265,8 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
     /// Title edits preserve original display text but never permit unusable or unbounded metadata.
+    /// Core test case:
+    /// - `specs/test-cases/server/conversation/message-tree.md#metadata-correction-must-atomically-preserve-conversation-tree-identities`
     #[test]
     fn title_edits_share_import_validation() {
         for title in ["", " ", "\n\t"] {

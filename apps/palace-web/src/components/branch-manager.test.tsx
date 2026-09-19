@@ -146,6 +146,7 @@ function setup(menu = false) {
   );
   return { fetch, user: userEvent.setup() };
 }
+// Core test case: `specs/test-cases/server/conversation/message-tree.md#shared-and-internal-endpoint-paths-must-remain-independently-manageable`
 it("projects user nodes and exposes separate actions for internal and identical path endpoints", async () => {
   setup();
   await screen.findByText("后续问题");
@@ -221,6 +222,7 @@ it("updates using the original occurrence time without sending disabled identity
     },
   ]);
 });
+// Core test case: `specs/test-cases/server/conversation/message-tree.md#shared-and-internal-endpoint-paths-must-remain-independently-manageable`
 it("confirms path deletion then refreshes the tree", async () => {
   const { fetch, user } = setup();
   await user.click(await screen.findByRole("button", { name: "删除分支 s2" }));
@@ -252,6 +254,7 @@ it("offers branch management and confirmed whole-conversation deletion from the 
     expect.objectContaining({ method: "DELETE" }),
   );
 });
+// Core test case: `specs/test-cases/server/conversation/message-tree.md#card-menu-metadata-editing-must-refresh-every-visible-projection`
 it("edits complete conversation metadata from the card menu", async () => {
   const { fetch, user } = setup(true);
   await user.tab();

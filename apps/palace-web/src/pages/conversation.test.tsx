@@ -52,6 +52,7 @@ function setup(route = "/conversations/tree") {
   );
   return userEvent.setup();
 }
+// Core test case: `specs/test-cases/server/conversation/message-tree.md#fork-selection-must-resolve-to-one-real-source-session`
 it("defaults to the latest path and resets downstream forks to the latest matching continuation", async () => {
   const user = setup();
   await screen.findByText("A5");
@@ -90,6 +91,7 @@ it("defaults to the latest path and resets downstream forks to the latest matchi
     "https://chatgpt.com/c/s3",
   );
 });
+// Core test case: `specs/test-cases/server/conversation/message-tree.md#fork-selection-must-resolve-to-one-real-source-session`
 it("deep-links to internal endpoints and distinguishes sessions with identical message paths", async () => {
   const user = setup("/conversations/tree?path=p4");
   await screen.findByText("A1");

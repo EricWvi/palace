@@ -7,6 +7,8 @@ use pretty_assertions::assert_eq;
 use uuid::Uuid;
 
 /// The single-path upgrade preserves message identities and recovers source metadata from legacy rows.
+/// Core test case:
+/// - `specs/test-cases/server/conversation/message-tree.md#migration-must-preserve-existing-linear-conversation-identities`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn migration_retains_existing_linear_conversations() {
@@ -62,6 +64,8 @@ fn history(contents: &[&str]) -> Vec<u8> {
 }
 
 /// Card chronology follows occurrence time while opening follows the most recently updated session.
+/// Core test case:
+/// - `specs/test-cases/server/conversation/message-tree.md#fork-selection-must-resolve-to-one-real-source-session`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn library_separates_occurrence_order_from_default_path_selection() {
@@ -151,6 +155,8 @@ fn branch(id: Uuid, session: &str, contents: &[&str]) -> ImportRequest {
 }
 
 /// Source correction cascades to every path without changing tree or receipt identity.
+/// Core test case:
+/// - `specs/test-cases/server/conversation/message-tree.md#metadata-correction-must-atomically-preserve-conversation-tree-identities`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn metadata_correction_is_atomic_and_preserves_tree_identities() {
@@ -272,6 +278,10 @@ async fn metadata_correction_is_atomic_and_preserves_tree_identities() {
 }
 
 /// Concurrent branches share ancestors; failed receipts roll back all newly allocated state.
+/// Core test cases:
+/// - `specs/test-cases/server/conversation/message-tree.md#source-sessions-must-uniquely-identify-owned-paths`
+/// - `specs/test-cases/server/import/linear-path-import.md#new-branches-must-share-an-assistant-prefix`
+/// - `specs/test-cases/server/import/linear-path-import.md#import-receipts-and-tree-mutations-must-commit-atomically`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn branches_share_prefix_and_failures_roll_back() {
@@ -381,6 +391,9 @@ async fn branches_share_prefix_and_failures_roll_back() {
 }
 
 /// Updates retain the full historical prefix, preserve timestamps on retries and reject stale histories.
+/// Core test cases:
+/// - `specs/test-cases/server/import/linear-path-import.md#path-updates-must-retain-the-entire-historical-prefix`
+/// - `specs/test-cases/server/import/linear-path-import.md#import-receipts-and-tree-mutations-must-commit-atomically`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn updates_are_append_only_and_retries_preserve_path_metadata() {
@@ -485,6 +498,9 @@ async fn updates_are_append_only_and_retries_preserve_path_metadata() {
 }
 
 /// Identical and internal-endpoint paths survive deletion of siblings without losing shared messages.
+/// Core test cases:
+/// - `specs/test-cases/server/conversation/message-tree.md#shared-and-internal-endpoint-paths-must-remain-independently-manageable`
+/// - `specs/test-cases/server/import/linear-path-import.md#new-branches-must-share-an-assistant-prefix`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn deletion_preserves_shared_messages_and_owner_boundaries() {
@@ -553,6 +569,9 @@ async fn deletion_preserves_shared_messages_and_owner_boundaries() {
 }
 
 /// Competing initial imports cannot create duplicate session identities or orphan cards.
+/// Core test cases:
+/// - `specs/test-cases/server/conversation/message-tree.md#source-sessions-must-uniquely-identify-owned-paths`
+/// - `specs/test-cases/server/import/linear-path-import.md#import-receipts-and-tree-mutations-must-commit-atomically`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn concurrent_duplicate_sessions_create_only_one_card() {

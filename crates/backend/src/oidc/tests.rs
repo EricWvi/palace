@@ -11,6 +11,9 @@ use openidconnect::{
 use pretty_assertions::assert_eq;
 
 /// Exercises actual token signature and claim verification against a local fake token endpoint.
+/// Core test cases:
+/// - `specs/test-cases/server/owner/owner-isolation.md#a-verified-authelia-identity-must-resolve-to-one-stable-owner`
+/// - `specs/test-cases/server/owner/owner-isolation.md#every-login-must-include-a-currently-verified-usable-email`
 #[tokio::test]
 async fn callback_rejects_invalid_signed_claims_and_requests_pkce() {
     let signing = CoreRsaPrivateSigningKey::from_pem(

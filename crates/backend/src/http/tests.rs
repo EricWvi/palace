@@ -3,6 +3,8 @@ use axum::http::{HeaderMap, HeaderValue, header};
 use pretty_assertions::assert_eq;
 
 /// Requires explicit same-origin writes independently of SameSite cookie behavior.
+/// Core test case:
+/// - `specs/test-cases/server/owner/owner-isolation.md#a-browser-session-secret-must-remain-opaque-and-resistant-to-fixation`
 #[test]
 fn origin_and_opaque_cookie_boundaries() {
     let mut headers = HeaderMap::new();

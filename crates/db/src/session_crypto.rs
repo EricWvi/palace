@@ -66,6 +66,8 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
     /// Protects persisted tokens against substitution and separates every opaque generation.
+    /// Core test case:
+    /// - `specs/test-cases/server/owner/owner-isolation.md#a-browser-session-secret-must-remain-opaque-and-resistant-to-fixation`
     #[test]
     fn credential_encryption_is_bound_to_session_and_rotation() {
         let key = CredentialKey::new([7; 32]);

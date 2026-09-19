@@ -67,6 +67,15 @@ fn request(key: &str, messages: &[&str]) -> ImportRequest {
     .unwrap()
 }
 /// Verifies real constraints, stable identity and cross-owner queries, including email takeover attempts.
+/// Core test cases:
+/// - `specs/test-cases/server/conversation/message-tree.md#source-sessions-must-uniquely-identify-owned-paths`
+/// - `specs/test-cases/server/conversation/message-tree.md#message-parents-must-remain-acyclic-and-owner-scoped`
+/// - `specs/test-cases/server/owner/owner-isolation.md#a-verified-authelia-identity-must-resolve-to-one-stable-owner`
+/// - `specs/test-cases/server/owner/owner-isolation.md#every-login-must-include-a-currently-verified-usable-email`
+/// - `specs/test-cases/server/owner/owner-isolation.md#an-unknown-subject-must-never-take-over-an-owner-by-matching-email`
+/// - `specs/test-cases/server/owner/owner-isolation.md#owner-scope-must-come-only-from-the-authenticated-server-context`
+/// - `specs/test-cases/server/owner/owner-isolation.md#owner-scoped-relationships-must-reject-cross-owner-references`
+/// - `specs/test-cases/server/owner/owner-isolation.md#ordinary-operations-must-not-transfer-or-cascade-delete-an-owner`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn identity_and_database_constraints_isolate_owners() {
@@ -245,6 +254,11 @@ fn tokens() -> palace_db::IdentityTokens {
     }
 }
 /// Tests persisted restart recovery, serialized refresh, bounded rotation and local-first revocation.
+/// Core test cases:
+/// - `specs/test-cases/server/owner/owner-isolation.md#an-inactive-session-past-24-hours-must-revalidate-on-its-next-request`
+/// - `specs/test-cases/server/owner/owner-isolation.md#a-browser-session-secret-must-remain-opaque-and-resistant-to-fixation`
+/// - `specs/test-cases/server/owner/owner-isolation.md#local-session-revocation-must-take-effect-before-external-logout-succeeds`
+/// - `specs/test-cases/server/owner/owner-isolation.md#owner-sessions-and-oidc-credentials-must-never-enter-business-synchronization`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn persistent_sessions_revalidate_rotate_and_revoke() {
@@ -397,6 +411,9 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
 }
 
 /// State is single-use, browser-bound and persisted across independent database handles.
+/// Core test cases:
+/// - `specs/test-cases/server/owner/owner-isolation.md#a-verified-authelia-identity-must-resolve-to-one-stable-owner`
+/// - `specs/test-cases/server/owner/owner-isolation.md#a-browser-session-secret-must-remain-opaque-and-resistant-to-fixation`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn login_state_is_bound_expiring_and_single_use() {
@@ -433,6 +450,12 @@ async fn login_state_is_bound_expiring_and_single_use() {
 }
 
 /// Uses the database lock graph to order concurrent commits without sleeping or assuming scheduler timing.
+/// Core test cases:
+/// - `specs/test-cases/server/owner/owner-isolation.md#owner-scope-must-come-only-from-the-authenticated-server-context`
+/// - `specs/test-cases/server/owner/owner-isolation.md#synchronization-must-preserve-immutable-owner-assignment`
+/// - `specs/test-cases/server/sync/record-convergence.md#record-conflicts-must-use-strict-whole-record-timestamp-lww`
+/// - `specs/test-cases/server/sync/record-convergence.md#published-server-versions-must-never-become-invisible-behind-a-cursor`
+/// - `specs/test-cases/server/sync/record-convergence.md#server-tombstones-must-delete-locally-without-timestamp-comparison`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
@@ -693,6 +716,10 @@ async fn retired_session_secret_replay_is_revoked() {
 }
 
 /// Rejects owner/conversation/head mismatches and multi-row cycles independently of application checks.
+/// Core test cases:
+/// - `specs/test-cases/server/conversation/message-tree.md#message-parents-must-remain-acyclic-and-owner-scoped`
+/// - `specs/test-cases/server/owner/owner-isolation.md#owner-scoped-relationships-must-reject-cross-owner-references`
+/// - `specs/test-cases/server/owner/owner-isolation.md#ordinary-operations-must-not-transfer-or-cascade-delete-an-owner`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn all_scoped_references_and_multirow_cycles_are_rejected() {
@@ -752,6 +779,9 @@ async fn all_scoped_references_and_multirow_cycles_are_rejected() {
 }
 
 /// A failing identity insert cannot leave an orphan Owner; concurrent first login resolves one pair.
+/// Core test cases:
+/// - `specs/test-cases/server/owner/owner-isolation.md#a-verified-authelia-identity-must-resolve-to-one-stable-owner`
+/// - `specs/test-cases/server/owner/owner-isolation.md#an-unknown-subject-must-never-take-over-an-owner-by-matching-email`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn owner_allocation_is_atomic_and_conflicts_preserve_existing_knowledge() {

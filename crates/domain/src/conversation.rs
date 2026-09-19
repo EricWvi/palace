@@ -203,6 +203,8 @@ mod tests {
         }
     }
     /// Rejects cycles and foreign ancestors while preserving nonalternating paths.
+    /// Core test case:
+    /// - `specs/test-cases/server/conversation/message-tree.md#message-parents-must-remain-acyclic-and-owner-scoped`
     #[test]
     fn path_requires_acyclic_scoped_ancestors() {
         let c = Conversation {

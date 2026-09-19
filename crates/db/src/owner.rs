@@ -84,6 +84,8 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
     /// Prevents missing or ambiguous email from reaching owner allocation.
+    /// Core test case:
+    /// - `specs/test-cases/server/owner/owner-isolation.md#every-login-must-include-a-currently-verified-usable-email`
     #[test]
     fn email_is_current_validated_and_case_insensitive() {
         assert_eq!(
