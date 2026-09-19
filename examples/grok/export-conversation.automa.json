@@ -1,1 +1,661 @@
-{"extVersion":"1.30.02","name":"Grok","icon":"riGlobalLine","table":[],"version":"1.30.02","drawflow":{"edges":[{"id":"vueflow__edge-SlP0Dj43vUp4djSLQRZMpSlP0Dj43vUp4djSLQRZMp-output-1-fbyrzrcfbyrzrc-input-1","type":"custom","source":"SlP0Dj43vUp4djSLQRZMp","target":"fbyrzrc","sourceHandle":"SlP0Dj43vUp4djSLQRZMp-output-1","targetHandle":"fbyrzrc-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":311.9999008549755,"sourceY":138.5000240986374,"targetX":364.00010784420084,"targetY":138.5000240986374},{"id":"vueflow__edge-fbyrzrcfbyrzrc-output-1-uu3mmo8uu3mmo8-input-1","type":"custom","source":"fbyrzrc","target":"uu3mmo8","sourceHandle":"fbyrzrc-output-1","targetHandle":"uu3mmo8-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":603.9999008549755,"sourceY":138.5000240986374,"targetX":656.0000078996197,"targetY":138.5000240986374},{"id":"vueflow__edge-zzmi7ilzzmi7il-output-1-j5a7mlmj5a7mlm-input-1","type":"custom","source":"zzmi7il","target":"j5a7mlm","sourceHandle":"zzmi7il-output-1","targetHandle":"j5a7mlm-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":1771.9999008549755,"sourceY":138.5000240986374,"targetX":1823.9999079550385,"targetY":138.5000240986374},{"id":"vueflow__edge-j5a7mlmj5a7mlm-output-1-xvm5a4fxvm5a4f-input-1","type":"custom","source":"j5a7mlm","target":"xvm5a4f","sourceHandle":"j5a7mlm-output-1","targetHandle":"xvm5a4f-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":2063.9999008549757,"sourceY":138.5000240986374,"targetX":2147.9999079550385,"targetY":205.08590249540993},{"id":"vueflow__edge-xvm5a4fxvm5a4f-output-DtYSONkWtMbIm0RG8YIIS-rxdvjyjrxdvjyj-input-1","type":"custom","source":"xvm5a4f","target":"rxdvjyj","sourceHandle":"xvm5a4f-output-DtYSONkWtMbIm0RG8YIIS","targetHandle":"rxdvjyj-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":2452.9998586383845,"sourceY":191.6796861887271,"targetX":2472.000107844201,"targetY":77.5000240986374},{"id":"vueflow__edge-uu3mmo8uu3mmo8-output-1-xxep41uxxep41u-input-1","type":"custom","source":"uu3mmo8","target":"xxep41u","sourceHandle":"uu3mmo8-output-1","targetHandle":"xxep41u-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":895.9999008549755,"sourceY":138.5000240986374,"targetX":948.0000078996197,"targetY":138.5000240986374},{"id":"vueflow__edge-xxep41uxxep41u-output-1-jiglnitjiglnit-input-1","type":"custom","source":"xxep41u","target":"jiglnit","sourceHandle":"xxep41u-output-1","targetHandle":"jiglnit-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":1187.9999008549755,"sourceY":138.5000240986374,"targetX":1240.0000078996197,"targetY":138.5000240986374},{"id":"vueflow__edge-jiglnitjiglnit-output-1-zzmi7ilzzmi7il-input-1","type":"custom","source":"jiglnit","target":"zzmi7il","sourceHandle":"jiglnit-output-1","targetHandle":"zzmi7il-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":1479.9999008549755,"sourceY":138.5000240986374,"targetX":1532.0000078996197,"targetY":138.5000240986374},{"id":"vueflow__edge-i6mlj2ri6mlj2r-output-1-cqwhcdlcqwhcdl-input-1","type":"custom","source":"i6mlj2r","target":"cqwhcdl","sourceHandle":"i6mlj2r-output-1","targetHandle":"cqwhcdl-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":3295.9999008549757,"sourceY":138.5000240986374,"targetX":3348.000107844201,"targetY":178.08592387555473},{"id":"vueflow__edge-xvm5a4fxvm5a4f-output-Q4sSC2DgGKfaL882OTlbN-0wxah8h0wxah8h-input-1","type":"custom","source":"xvm5a4f","target":"0wxah8h","sourceHandle":"xvm5a4f-output-Q4sSC2DgGKfaL882OTlbN","targetHandle":"0wxah8h-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":2452.9998586383845,"sourceY":239.6796703894877,"targetX":2472.000107844201,"targetY":199.49997412634684},{"id":"vueflow__edge-rxdvjyjrxdvjyj-output-1-mvrr91umvrr91u-input-1","type":"custom","source":"rxdvjyj","target":"mvrr91u","sourceHandle":"rxdvjyj-output-1","targetHandle":"mvrr91u-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":2711.9999008549757,"sourceY":77.5000240986374,"targetX":2764.000107844201,"targetY":161.08590032061582},{"id":"vueflow__edge-0wxah8h0wxah8h-output-1-mvrr91umvrr91u-input-1","type":"custom","source":"0wxah8h","target":"mvrr91u","sourceHandle":"0wxah8h-output-1","targetHandle":"mvrr91u-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":2711.9999008549757,"sourceY":199.49997412634684,"targetX":2764.000107844201,"targetY":161.08590032061582},{"id":"vueflow__edge-mvrr91umvrr91u-output-1-i6mlj2ri6mlj2r-input-1","type":"custom","source":"mvrr91u","target":"i6mlj2r","sourceHandle":"mvrr91u-output-1","targetHandle":"i6mlj2r-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":3003.9999008549757,"sourceY":161.08590032061582,"targetX":3055.9999079550385,"targetY":138.5000240986374},{"id":"vueflow__edge-cqwhcdlcqwhcdl-output-1-qrwsswrqrwsswr-input-1","type":"custom","source":"cqwhcdl","target":"qrwsswr","sourceHandle":"cqwhcdl-output-1","targetHandle":"qrwsswr-input-1","updatable":true,"selectable":true,"data":{},"label":"","markerEnd":"arrowclosed","sourceX":3587.9999008549757,"sourceY":178.08592387555473,"targetX":3640.000017109746,"targetY":138.49998003863}],"zoom":0.3,"nodes":[{"id":"SlP0Dj43vUp4djSLQRZMp","type":"BlockBasic","initialized":false,"position":{"x":96,"y":102.5},"data":{"disableBlock":false,"description":"","type":"manual","interval":60,"delay":5,"date":"","time":"00:00","url":"","shortcut":"","activeInInput":false,"isUrlRegex":false,"days":[],"contextMenuName":"","contextTypes":[],"parameters":[],"preferParamsInTab":false,"observeElement":{"selector":"","baseSelector":"","matchPattern":"","targetOptions":{"subtree":false,"childList":true,"attributes":false,"attributeFilter":[],"characterData":false},"baseElOptions":{"subtree":false,"childList":true,"attributes":false,"attributeFilter":[],"characterData":false}},"settings":{"blockTimeout":0,"debugMode":false}},"label":"trigger"},{"id":"fbyrzrc","type":"BlockBasic","initialized":false,"position":{"x":388,"y":102.5},"data":{"disableBlock":false,"settings":{"blockTimeout":0,"debugMode":false},"onError":{"retry":false,"enable":false,"retryTimes":1,"retryInterval":2,"toDo":"error","errorMessage":"","insertData":false,"dataToInsert":[]}},"label":"active-tab"},{"id":"uu3mmo8","type":"BlockBasic","initialized":false,"position":{"x":680,"y":102.5},"data":{"disableBlock":false,"description":"校验页面","timeout":20000,"context":"website","code":"const users =\n  document.querySelectorAll('[data-testid=\"user-message\"]').length;\n\nconst assistants =\n  document.querySelectorAll('[data-testid=\"assistant-message\"]').length;\n\nconst total = users + assistants;\n\nif (total === 0) {\n  throw new Error(\n    \"未找到 Grok 对话，请确认当前页面是 Grok 聊天页面\"\n  );\n}\n\nautomaSetVariable(\"grokPageCheck\", {\n  users,\n  assistants,\n  total,\n  url: location.href\n});\n\nconsole.log(\"[Grok export] page check\", {\n  users,\n  assistants,\n  total\n});","preloadScripts":[],"everyNewTab":false,"runBeforeLoad":false,"settings":{"blockTimeout":0,"debugMode":false},"onError":{"retry":false,"enable":false,"retryTimes":1,"retryInterval":2,"toDo":"error","errorMessage":"","insertData":false,"dataToInsert":[]}},"label":"javascript-code"},{"id":"zzmi7il","type":"BlockBasic","initialized":false,"position":{"x":1556,"y":102.5},"data":{"disableBlock":false,"loopId":"PZypES","selector":"[data-scroll-anchor-root=\"true\"][id^=\"response-\"]","maxLoop":"0","description":"","reverseLoop":false,"actionElSelector":"","findBy":"cssSelector","actionElMaxWaitTime":5,"actionPageMaxWaitTime":10,"loadMoreAction":"none","scrollToBottom":true,"waitForSelector":false,"waitSelectorTimeout":5000},"label":"loop-elements"},{"id":"j5a7mlm","type":"BlockBasic","initialized":false,"position":{"x":1848,"y":102.5},"data":{"disableBlock":false,"description":"","findBy":"cssSelector","waitForSelector":false,"waitSelectorTimeout":5000,"selector":"{{loopData@PZypES}}","markEl":false,"multiple":false},"label":"hover-element"},{"id":"xvm5a4f","type":"BlockConditions","initialized":false,"position":{"x":2172,"y":102.5},"data":{"description":"","disableBlock":false,"conditions":[{"id":"DtYSONkWtMbIm0RG8YIIS","name":"User","conditions":[{"id":"ndwxgwbiPUTInAn-Hk2sl","conditions":[{"id":"PsCl_r_DguNXFsPTPIc6q","items":[{"type":"element#exists","category":"value","data":{"selector":"{{loopData@PZypES}} [data-testid=\"user-message\"]"},"id":"3UDHn0i2qRPVc6TOQInhb"}]}]}]},{"id":"Q4sSC2DgGKfaL882OTlbN","name":"Assistant","conditions":[{"id":"1XDJ5_tkENnHaD9p93JVQ","conditions":[{"id":"40D2BE1Q1fsWMknTEr83M","items":[{"type":"element#exists","category":"value","data":{"selector":"{{loopData@PZypES}} [data-testid=\"assistant-message\"]"},"id":"j2niuvhg5KsUsCe3eH8Dy"}]}]}]}],"retryConditions":false,"retryCount":10,"retryTimeout":1000,"settings":{"blockTimeout":0,"debugMode":false}},"label":"conditions"},{"id":"rxdvjyj","type":"BlockBasic","initialized":false,"position":{"x":2496,"y":41.5},"data":{"disableBlock":false,"description":"","findBy":"cssSelector","waitForSelector":true,"waitSelectorTimeout":5000,"selector":"{{loopData@PZypES}} button[aria-label=\"Copy\"]","markEl":false,"multiple":false},"label":"event-click"},{"id":"cqwhcdl","type":"BlockLoopBreakpoint","initialized":false,"position":{"x":3372,"y":102.5},"data":{"disableBlock":false,"loopId":"PZypES","clearLoop":false},"label":"loop-breakpoint"},{"id":"xxep41u","type":"BlockBasic","initialized":false,"position":{"x":972,"y":102.5},"data":{"disableBlock":false,"description":"拦截剪切板","timeout":20000,"context":"website","code":"const preview = text =>\n  text.length > 30 ? text.slice(0, 30) + \"…\" : text;\n\nwindow.__grokCopiedText = null;\nwindow.__grokCopySeq = 0;\nwindow.__grokLastReadSeq = 0;\n\n// 避免重复安装\nif (!window.__grokClipboardInstalled) {\n  window.__grokClipboardInstalled = true;\n\n  const clipboard = navigator.clipboard;\n\n  // Prompt 通常走 writeText\n  if (clipboard?.writeText) {\n    clipboard.writeText = async function (text) {\n      window.__grokCopiedText = text;\n      window.__grokCopySeq++;\n\n      console.log(\n        \"[Grok export] writeText:\",\n        window.__grokCopySeq,\n        preview(text)\n      );\n\n      // 不真正写入系统剪贴板\n      return;\n    };\n  }\n\n  // Response 可能走 write\n  if (clipboard?.write) {\n    clipboard.write = async function (items) {\n      console.log(\n        \"[Grok export] write() called\",\n        items.length\n      );\n\n      for (const item of items) {\n        if (!item.types?.includes(\"text/plain\")) {\n          continue;\n        }\n\n        const blob =\n          await item.getType(\"text/plain\");\n\n        const text =\n          await blob.text();\n\n        window.__grokCopiedText = text;\n        window.__grokCopySeq++;\n\n        console.log(\n          \"[Grok export] write:\",\n          window.__grokCopySeq,\n          preview(text)\n        );\n\n        return;\n      }\n\n      console.warn(\n        \"[Grok export] write() 中没有 text/plain\"\n      );\n    };\n  }\n}\n\nconsole.log(\n  \"[Grok export] clipboard interceptor ready\"\n);","preloadScripts":[],"everyNewTab":false,"runBeforeLoad":false},"label":"javascript-code"},{"id":"i6mlj2r","type":"BlockBasic","initialized":false,"position":{"x":3080,"y":102.5},"data":{"disableBlock":false,"description":"","timeout":20000,"context":"website","code":"const seq =\n  window.__grokCopySeq || 0;\n\nconst lastSeq =\n  window.__grokLastReadSeq || 0;\n\nconst text =\n  window.__grokCopiedText;\n\nif (seq <= lastSeq) {\n  throw new Error(\n    `本轮没有捕获到新的复制内容: seq=${seq}, lastSeq=${lastSeq}`\n  );\n}\n\nif (typeof text !== \"string\") {\n  throw new Error(\"捕获到的复制内容不是字符串\");\n}\n\nconst loopData =\n  automaRefData(\"loopData\", \"PZypES\");\n\nconst selector = loopData?.data;\n\nif (!selector) {\n  throw new Error(\"无法获取当前 loop selector\");\n}\n\nconst element =\n  document.querySelector(selector);\n\nif (!element) {\n  throw new Error(\n    `找不到当前 loop 元素: ${selector}`\n  );\n}\n\nlet role;\n\nif (\n  element.matches('[data-testid=\"user-message\"]') ||\n  element.querySelector('[data-testid=\"user-message\"]')\n) {\n  role = \"user\";\n} else if (\n  element.matches('[data-testid=\"assistant-message\"]') ||\n  element.querySelector('[data-testid=\"assistant-message\"]')\n) {\n  role = \"assistant\";\n} else {\n  throw new Error(\n    `无法识别消息类型: ${element.tagName}`\n  );\n}\n\nwindow.__grokLastReadSeq = seq;\n\nconst conversation =\n  automaRefData(\n    \"variables\",\n    \"conversation\"\n  ) || [];\n\nconversation.push({\n  role,\n  content: text\n});\n\nautomaSetVariable(\n  \"conversation\",\n  conversation\n);\n\nautomaSetVariable(\n  \"currentMessage\",\n  {\n    role,\n    content: text\n  }\n);\n\nconsole.log(\n  \"[Grok export] consumed\",\n  {\n    index: conversation.length - 1,\n    role,\n    seq\n  }\n);","preloadScripts":[],"everyNewTab":false,"runBeforeLoad":false},"label":"javascript-code"},{"id":"jiglnit","type":"BlockBasic","initialized":false,"position":{"x":1264,"y":102.5},"data":{"disableBlock":false,"description":"初始化数组","timeout":20000,"context":"website","code":"automaSetVariable(\"conversation\", []);\nautomaSetVariable(\"currentMessage\", null);\n\nconsole.log(\n  \"[Grok export] conversation initialized\"\n);","preloadScripts":[],"everyNewTab":false,"runBeforeLoad":false},"label":"javascript-code"},{"id":"mvrr91u","type":"BlockDelay","initialized":false,"position":{"x":2788,"y":102.5},"data":{"disableBlock":false,"time":"300"},"label":"delay"},{"id":"0wxah8h","type":"BlockBasic","initialized":false,"position":{"x":2496,"y":163.5},"data":{"disableBlock":false,"description":"","timeout":20000,"context":"website","code":"const loopData =\n  automaRefData(\"loopData\", \"PZypES\");\n\nif (!loopData) {\n  throw new Error(\"无法获取当前 loopData\");\n}\n\nconst selector = loopData.data;\n\nif (!selector) {\n  throw new Error(\n    \"当前 loopData 中没有 data selector\"\n  );\n}\n\nconsole.log(\n  \"[Grok export] assistant selector:\",\n  selector\n);\n\nconst button = document.querySelector(\n  `${selector} button[aria-label=\"Copy response\"]`\n);\n\nif (!button) {\n  throw new Error(\n    `找不到 Assistant Copy response 按钮: ${selector}`\n  );\n}\n\nconsole.log(\n  \"[Grok export] assistant click\",\n  {\n    focused: document.hasFocus(),\n    selector\n  }\n);\n\nbutton.click();","preloadScripts":[],"everyNewTab":false,"runBeforeLoad":false},"label":"javascript-code"},{"id":"qrwsswr","type":"BlockBasic","initialized":false,"position":{"x":3664,"y":102.5},"data":{"disableBlock":false,"name":"grok-conversation","refKey":"","type":"json","description":"","variableName":"conversation","csvDelimiter":",","addBOMHeader":true,"onConflict":"uniquify","dataToExport":"variable"},"label":"export-data"}],"position":[-118.50157495103338,390.65],"viewport":{"x":-118.50157495103338,"y":390.65,"zoom":0.3}},"settings":{"publicId":"","aipowerToken":"","blockDelay":0,"saveLog":true,"debugMode":false,"restartTimes":3,"notification":true,"execContext":"popup","reuseLastState":false,"inputAutocomplete":true,"onError":"stop-workflow","executedBlockOnWeb":false,"insertDefaultColumn":false,"defaultColumnName":"column","tabLoadTimeout":30000},"globalData":"{\n\t\"key\": \"value\"\n}","description":"","includedWorkflows":{}}
+{
+    "extVersion": "1.30.02",
+    "name": "Grok",
+    "icon": "riGlobalLine",
+    "table": [],
+    "version": "1.30.02",
+    "drawflow": {
+        "edges": [
+            {
+                "id": "vueflow__edge-SlP0Dj43vUp4djSLQRZMpSlP0Dj43vUp4djSLQRZMp-output-1-fbyrzrcfbyrzrc-input-1",
+                "type": "custom",
+                "source": "SlP0Dj43vUp4djSLQRZMp",
+                "target": "fbyrzrc",
+                "sourceHandle": "SlP0Dj43vUp4djSLQRZMp-output-1",
+                "targetHandle": "fbyrzrc-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 311.9999008549755,
+                "sourceY": 138.5000240986374,
+                "targetX": 364.00010784420084,
+                "targetY": 138.5000240986374
+            },
+            {
+                "id": "vueflow__edge-fbyrzrcfbyrzrc-output-1-uu3mmo8uu3mmo8-input-1",
+                "type": "custom",
+                "source": "fbyrzrc",
+                "target": "uu3mmo8",
+                "sourceHandle": "fbyrzrc-output-1",
+                "targetHandle": "uu3mmo8-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 603.9999008549755,
+                "sourceY": 138.5000240986374,
+                "targetX": 656.0000078996197,
+                "targetY": 138.5000240986374
+            },
+            {
+                "id": "vueflow__edge-zzmi7ilzzmi7il-output-1-j5a7mlmj5a7mlm-input-1",
+                "type": "custom",
+                "source": "zzmi7il",
+                "target": "j5a7mlm",
+                "sourceHandle": "zzmi7il-output-1",
+                "targetHandle": "j5a7mlm-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 1771.9999008549755,
+                "sourceY": 138.5000240986374,
+                "targetX": 1823.9999079550385,
+                "targetY": 138.5000240986374
+            },
+            {
+                "id": "vueflow__edge-j5a7mlmj5a7mlm-output-1-xvm5a4fxvm5a4f-input-1",
+                "type": "custom",
+                "source": "j5a7mlm",
+                "target": "xvm5a4f",
+                "sourceHandle": "j5a7mlm-output-1",
+                "targetHandle": "xvm5a4f-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 2063.9999008549757,
+                "sourceY": 138.5000240986374,
+                "targetX": 2147.9999079550385,
+                "targetY": 205.08590249540993
+            },
+            {
+                "id": "vueflow__edge-xvm5a4fxvm5a4f-output-DtYSONkWtMbIm0RG8YIIS-rxdvjyjrxdvjyj-input-1",
+                "type": "custom",
+                "source": "xvm5a4f",
+                "target": "rxdvjyj",
+                "sourceHandle": "xvm5a4f-output-DtYSONkWtMbIm0RG8YIIS",
+                "targetHandle": "rxdvjyj-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 2452.9998586383845,
+                "sourceY": 191.6796861887271,
+                "targetX": 2472.000107844201,
+                "targetY": 77.5000240986374
+            },
+            {
+                "id": "vueflow__edge-uu3mmo8uu3mmo8-output-1-xxep41uxxep41u-input-1",
+                "type": "custom",
+                "source": "uu3mmo8",
+                "target": "xxep41u",
+                "sourceHandle": "uu3mmo8-output-1",
+                "targetHandle": "xxep41u-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 895.9999008549755,
+                "sourceY": 138.5000240986374,
+                "targetX": 948.0000078996197,
+                "targetY": 138.5000240986374
+            },
+            {
+                "id": "vueflow__edge-xxep41uxxep41u-output-1-jiglnitjiglnit-input-1",
+                "type": "custom",
+                "source": "xxep41u",
+                "target": "jiglnit",
+                "sourceHandle": "xxep41u-output-1",
+                "targetHandle": "jiglnit-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 1187.9999008549755,
+                "sourceY": 138.5000240986374,
+                "targetX": 1240.0000078996197,
+                "targetY": 138.5000240986374
+            },
+            {
+                "id": "vueflow__edge-jiglnitjiglnit-output-1-zzmi7ilzzmi7il-input-1",
+                "type": "custom",
+                "source": "jiglnit",
+                "target": "zzmi7il",
+                "sourceHandle": "jiglnit-output-1",
+                "targetHandle": "zzmi7il-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 1479.9999008549755,
+                "sourceY": 138.5000240986374,
+                "targetX": 1532.0000078996197,
+                "targetY": 138.5000240986374
+            },
+            {
+                "id": "vueflow__edge-i6mlj2ri6mlj2r-output-1-cqwhcdlcqwhcdl-input-1",
+                "type": "custom",
+                "source": "i6mlj2r",
+                "target": "cqwhcdl",
+                "sourceHandle": "i6mlj2r-output-1",
+                "targetHandle": "cqwhcdl-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 3295.9999008549757,
+                "sourceY": 138.5000240986374,
+                "targetX": 3348.000107844201,
+                "targetY": 178.08592387555473
+            },
+            {
+                "id": "vueflow__edge-xvm5a4fxvm5a4f-output-Q4sSC2DgGKfaL882OTlbN-0wxah8h0wxah8h-input-1",
+                "type": "custom",
+                "source": "xvm5a4f",
+                "target": "0wxah8h",
+                "sourceHandle": "xvm5a4f-output-Q4sSC2DgGKfaL882OTlbN",
+                "targetHandle": "0wxah8h-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 2452.9998586383845,
+                "sourceY": 239.6796703894877,
+                "targetX": 2472.000107844201,
+                "targetY": 199.49997412634684
+            },
+            {
+                "id": "vueflow__edge-rxdvjyjrxdvjyj-output-1-mvrr91umvrr91u-input-1",
+                "type": "custom",
+                "source": "rxdvjyj",
+                "target": "mvrr91u",
+                "sourceHandle": "rxdvjyj-output-1",
+                "targetHandle": "mvrr91u-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 2711.9999008549757,
+                "sourceY": 77.5000240986374,
+                "targetX": 2764.000107844201,
+                "targetY": 161.08590032061582
+            },
+            {
+                "id": "vueflow__edge-0wxah8h0wxah8h-output-1-mvrr91umvrr91u-input-1",
+                "type": "custom",
+                "source": "0wxah8h",
+                "target": "mvrr91u",
+                "sourceHandle": "0wxah8h-output-1",
+                "targetHandle": "mvrr91u-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 2711.9999008549757,
+                "sourceY": 199.49997412634684,
+                "targetX": 2764.000107844201,
+                "targetY": 161.08590032061582
+            },
+            {
+                "id": "vueflow__edge-mvrr91umvrr91u-output-1-i6mlj2ri6mlj2r-input-1",
+                "type": "custom",
+                "source": "mvrr91u",
+                "target": "i6mlj2r",
+                "sourceHandle": "mvrr91u-output-1",
+                "targetHandle": "i6mlj2r-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 3003.9999008549757,
+                "sourceY": 161.08590032061582,
+                "targetX": 3055.9999079550385,
+                "targetY": 138.5000240986374
+            },
+            {
+                "id": "vueflow__edge-cqwhcdlcqwhcdl-output-1-qrwsswrqrwsswr-input-1",
+                "type": "custom",
+                "source": "cqwhcdl",
+                "target": "qrwsswr",
+                "sourceHandle": "cqwhcdl-output-1",
+                "targetHandle": "qrwsswr-input-1",
+                "updatable": true,
+                "selectable": true,
+                "data": {},
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "sourceX": 3587.9999008549757,
+                "sourceY": 178.08592387555473,
+                "targetX": 3640.000017109746,
+                "targetY": 138.49998003863
+            }
+        ],
+        "zoom": 0.3,
+        "nodes": [
+            {
+                "id": "SlP0Dj43vUp4djSLQRZMp",
+                "type": "BlockBasic",
+                "initialized": false,
+                "position": {
+                    "x": 96,
+                    "y": 102.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "description": "",
+                    "type": "manual",
+                    "interval": 60,
+                    "delay": 5,
+                    "date": "",
+                    "time": "00:00",
+                    "url": "",
+                    "shortcut": "",
+                    "activeInInput": false,
+                    "isUrlRegex": false,
+                    "days": [],
+                    "contextMenuName": "",
+                    "contextTypes": [],
+                    "parameters": [],
+                    "preferParamsInTab": false,
+                    "observeElement": {
+                        "selector": "",
+                        "baseSelector": "",
+                        "matchPattern": "",
+                        "targetOptions": {
+                            "subtree": false,
+                            "childList": true,
+                            "attributes": false,
+                            "attributeFilter": [],
+                            "characterData": false
+                        },
+                        "baseElOptions": {
+                            "subtree": false,
+                            "childList": true,
+                            "attributes": false,
+                            "attributeFilter": [],
+                            "characterData": false
+                        }
+                    },
+                    "settings": {
+                        "blockTimeout": 0,
+                        "debugMode": false
+                    }
+                },
+                "label": "trigger"
+            },
+            {
+                "id": "fbyrzrc",
+                "type": "BlockBasic",
+                "initialized": false,
+                "position": {
+                    "x": 388,
+                    "y": 102.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "settings": {
+                        "blockTimeout": 0,
+                        "debugMode": false
+                    },
+                    "onError": {
+                        "retry": false,
+                        "enable": false,
+                        "retryTimes": 1,
+                        "retryInterval": 2,
+                        "toDo": "error",
+                        "errorMessage": "",
+                        "insertData": false,
+                        "dataToInsert": []
+                    }
+                },
+                "label": "active-tab"
+            },
+            {
+                "id": "uu3mmo8",
+                "type": "BlockBasic",
+                "initialized": false,
+                "position": {
+                    "x": 680,
+                    "y": 102.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "description": "校验页面",
+                    "timeout": 20000,
+                    "context": "website",
+                    "code": "const users =\n  document.querySelectorAll('[data-testid=\"user-message\"]').length;\n\nconst assistants =\n  document.querySelectorAll('[data-testid=\"assistant-message\"]').length;\n\nconst total = users + assistants;\n\nif (total === 0) {\n  throw new Error(\n    \"未找到 Grok 对话，请确认当前页面是 Grok 聊天页面\"\n  );\n}\n\nautomaSetVariable(\"grokPageCheck\", {\n  users,\n  assistants,\n  total,\n  url: location.href\n});\n\nconsole.log(\"[Grok export] page check\", {\n  users,\n  assistants,\n  total\n});",
+                    "preloadScripts": [],
+                    "everyNewTab": false,
+                    "runBeforeLoad": false,
+                    "settings": {
+                        "blockTimeout": 0,
+                        "debugMode": false
+                    },
+                    "onError": {
+                        "retry": false,
+                        "enable": false,
+                        "retryTimes": 1,
+                        "retryInterval": 2,
+                        "toDo": "error",
+                        "errorMessage": "",
+                        "insertData": false,
+                        "dataToInsert": []
+                    }
+                },
+                "label": "javascript-code"
+            },
+            {
+                "id": "zzmi7il",
+                "type": "BlockBasic",
+                "initialized": false,
+                "position": {
+                    "x": 1556,
+                    "y": 102.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "loopId": "PZypES",
+                    "selector": "[data-scroll-anchor-root=\"true\"][id^=\"response-\"]",
+                    "maxLoop": "0",
+                    "description": "",
+                    "reverseLoop": false,
+                    "actionElSelector": "",
+                    "findBy": "cssSelector",
+                    "actionElMaxWaitTime": 5,
+                    "actionPageMaxWaitTime": 10,
+                    "loadMoreAction": "none",
+                    "scrollToBottom": true,
+                    "waitForSelector": false,
+                    "waitSelectorTimeout": 5000
+                },
+                "label": "loop-elements"
+            },
+            {
+                "id": "j5a7mlm",
+                "type": "BlockBasic",
+                "initialized": false,
+                "position": {
+                    "x": 1848,
+                    "y": 102.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "description": "",
+                    "findBy": "cssSelector",
+                    "waitForSelector": false,
+                    "waitSelectorTimeout": 5000,
+                    "selector": "{{loopData@PZypES}}",
+                    "markEl": false,
+                    "multiple": false
+                },
+                "label": "hover-element"
+            },
+            {
+                "id": "xvm5a4f",
+                "type": "BlockConditions",
+                "initialized": false,
+                "position": {
+                    "x": 2172,
+                    "y": 102.5
+                },
+                "data": {
+                    "description": "",
+                    "disableBlock": false,
+                    "conditions": [
+                        {
+                            "id": "DtYSONkWtMbIm0RG8YIIS",
+                            "name": "User",
+                            "conditions": [
+                                {
+                                    "id": "ndwxgwbiPUTInAn-Hk2sl",
+                                    "conditions": [
+                                        {
+                                            "id": "PsCl_r_DguNXFsPTPIc6q",
+                                            "items": [
+                                                {
+                                                    "type": "element#exists",
+                                                    "category": "value",
+                                                    "data": {
+                                                        "selector": "{{loopData@PZypES}} [data-testid=\"user-message\"]"
+                                                    },
+                                                    "id": "3UDHn0i2qRPVc6TOQInhb"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "id": "Q4sSC2DgGKfaL882OTlbN",
+                            "name": "Assistant",
+                            "conditions": [
+                                {
+                                    "id": "1XDJ5_tkENnHaD9p93JVQ",
+                                    "conditions": [
+                                        {
+                                            "id": "40D2BE1Q1fsWMknTEr83M",
+                                            "items": [
+                                                {
+                                                    "type": "element#exists",
+                                                    "category": "value",
+                                                    "data": {
+                                                        "selector": "{{loopData@PZypES}} [data-testid=\"assistant-message\"]"
+                                                    },
+                                                    "id": "j2niuvhg5KsUsCe3eH8Dy"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ],
+                    "retryConditions": false,
+                    "retryCount": 10,
+                    "retryTimeout": 1000,
+                    "settings": {
+                        "blockTimeout": 0,
+                        "debugMode": false
+                    }
+                },
+                "label": "conditions"
+            },
+            {
+                "id": "rxdvjyj",
+                "type": "BlockBasic",
+                "initialized": false,
+                "position": {
+                    "x": 2496,
+                    "y": 41.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "description": "",
+                    "findBy": "cssSelector",
+                    "waitForSelector": true,
+                    "waitSelectorTimeout": 5000,
+                    "selector": "{{loopData@PZypES}} button[aria-label=\"Copy\"]",
+                    "markEl": false,
+                    "multiple": false
+                },
+                "label": "event-click"
+            },
+            {
+                "id": "cqwhcdl",
+                "type": "BlockLoopBreakpoint",
+                "initialized": false,
+                "position": {
+                    "x": 3372,
+                    "y": 102.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "loopId": "PZypES",
+                    "clearLoop": false
+                },
+                "label": "loop-breakpoint"
+            },
+            {
+                "id": "xxep41u",
+                "type": "BlockBasic",
+                "initialized": false,
+                "position": {
+                    "x": 972,
+                    "y": 102.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "description": "拦截剪切板",
+                    "timeout": 20000,
+                    "context": "website",
+                    "code": "const preview = text =>\n  text.length > 30 ? text.slice(0, 30) + \"…\" : text;\n\nwindow.__grokCopiedText = null;\nwindow.__grokCopySeq = 0;\nwindow.__grokLastReadSeq = 0;\n\n// 避免重复安装\nif (!window.__grokClipboardInstalled) {\n  window.__grokClipboardInstalled = true;\n\n  const clipboard = navigator.clipboard;\n\n  // Prompt 通常走 writeText\n  if (clipboard?.writeText) {\n    clipboard.writeText = async function (text) {\n      window.__grokCopiedText = text;\n      window.__grokCopySeq++;\n\n      console.log(\n        \"[Grok export] writeText:\",\n        window.__grokCopySeq,\n        preview(text)\n      );\n\n      // 不真正写入系统剪贴板\n      return;\n    };\n  }\n\n  // Response 可能走 write\n  if (clipboard?.write) {\n    clipboard.write = async function (items) {\n      console.log(\n        \"[Grok export] write() called\",\n        items.length\n      );\n\n      for (const item of items) {\n        if (!item.types?.includes(\"text/plain\")) {\n          continue;\n        }\n\n        const blob =\n          await item.getType(\"text/plain\");\n\n        const text =\n          await blob.text();\n\n        window.__grokCopiedText = text;\n        window.__grokCopySeq++;\n\n        console.log(\n          \"[Grok export] write:\",\n          window.__grokCopySeq,\n          preview(text)\n        );\n\n        return;\n      }\n\n      console.warn(\n        \"[Grok export] write() 中没有 text/plain\"\n      );\n    };\n  }\n}\n\nconsole.log(\n  \"[Grok export] clipboard interceptor ready\"\n);",
+                    "preloadScripts": [],
+                    "everyNewTab": false,
+                    "runBeforeLoad": false
+                },
+                "label": "javascript-code"
+            },
+            {
+                "id": "i6mlj2r",
+                "type": "BlockBasic",
+                "initialized": false,
+                "position": {
+                    "x": 3080,
+                    "y": 102.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "description": "",
+                    "timeout": 20000,
+                    "context": "website",
+                    "code": "const seq =\n  window.__grokCopySeq || 0;\n\nconst lastSeq =\n  window.__grokLastReadSeq || 0;\n\nconst text =\n  window.__grokCopiedText;\n\nif (seq <= lastSeq) {\n  throw new Error(\n    `本轮没有捕获到新的复制内容: seq=${seq}, lastSeq=${lastSeq}`\n  );\n}\n\nif (typeof text !== \"string\") {\n  throw new Error(\"捕获到的复制内容不是字符串\");\n}\n\nconst loopData =\n  automaRefData(\"loopData\", \"PZypES\");\n\nconst selector = loopData?.data;\n\nif (!selector) {\n  throw new Error(\"无法获取当前 loop selector\");\n}\n\nconst element =\n  document.querySelector(selector);\n\nif (!element) {\n  throw new Error(\n    `找不到当前 loop 元素: ${selector}`\n  );\n}\n\nlet role;\n\nif (\n  element.matches('[data-testid=\"user-message\"]') ||\n  element.querySelector('[data-testid=\"user-message\"]')\n) {\n  role = \"user\";\n} else if (\n  element.matches('[data-testid=\"assistant-message\"]') ||\n  element.querySelector('[data-testid=\"assistant-message\"]')\n) {\n  role = \"assistant\";\n} else {\n  throw new Error(\n    `无法识别消息类型: ${element.tagName}`\n  );\n}\n\nwindow.__grokLastReadSeq = seq;\n\nconst conversation =\n  automaRefData(\n    \"variables\",\n    \"conversation\"\n  ) || [];\n\nconversation.push({\n  role,\n  content: text\n});\n\nautomaSetVariable(\n  \"conversation\",\n  conversation\n);\n\nautomaSetVariable(\n  \"currentMessage\",\n  {\n    role,\n    content: text\n  }\n);\n\nconsole.log(\n  \"[Grok export] consumed\",\n  {\n    index: conversation.length - 1,\n    role,\n    seq\n  }\n);",
+                    "preloadScripts": [],
+                    "everyNewTab": false,
+                    "runBeforeLoad": false
+                },
+                "label": "javascript-code"
+            },
+            {
+                "id": "jiglnit",
+                "type": "BlockBasic",
+                "initialized": false,
+                "position": {
+                    "x": 1264,
+                    "y": 102.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "description": "初始化数组",
+                    "timeout": 20000,
+                    "context": "website",
+                    "code": "automaSetVariable(\"conversation\", []);\nautomaSetVariable(\"currentMessage\", null);\n\nconsole.log(\n  \"[Grok export] conversation initialized\"\n);",
+                    "preloadScripts": [],
+                    "everyNewTab": false,
+                    "runBeforeLoad": false
+                },
+                "label": "javascript-code"
+            },
+            {
+                "id": "mvrr91u",
+                "type": "BlockDelay",
+                "initialized": false,
+                "position": {
+                    "x": 2788,
+                    "y": 102.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "time": "300"
+                },
+                "label": "delay"
+            },
+            {
+                "id": "0wxah8h",
+                "type": "BlockBasic",
+                "initialized": false,
+                "position": {
+                    "x": 2496,
+                    "y": 163.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "description": "",
+                    "timeout": 20000,
+                    "context": "website",
+                    "code": "const loopData =\n  automaRefData(\"loopData\", \"PZypES\");\n\nif (!loopData) {\n  throw new Error(\"无法获取当前 loopData\");\n}\n\nconst selector = loopData.data;\n\nif (!selector) {\n  throw new Error(\n    \"当前 loopData 中没有 data selector\"\n  );\n}\n\nconsole.log(\n  \"[Grok export] assistant selector:\",\n  selector\n);\n\nconst button = document.querySelector(\n  `${selector} button[aria-label=\"Copy response\"]`\n);\n\nif (!button) {\n  throw new Error(\n    `找不到 Assistant Copy response 按钮: ${selector}`\n  );\n}\n\nconsole.log(\n  \"[Grok export] assistant click\",\n  {\n    focused: document.hasFocus(),\n    selector\n  }\n);\n\nbutton.click();",
+                    "preloadScripts": [],
+                    "everyNewTab": false,
+                    "runBeforeLoad": false
+                },
+                "label": "javascript-code"
+            },
+            {
+                "id": "qrwsswr",
+                "type": "BlockBasic",
+                "initialized": false,
+                "position": {
+                    "x": 3664,
+                    "y": 102.5
+                },
+                "data": {
+                    "disableBlock": false,
+                    "name": "grok-conversation",
+                    "refKey": "",
+                    "type": "json",
+                    "description": "",
+                    "variableName": "conversation",
+                    "csvDelimiter": ",",
+                    "addBOMHeader": true,
+                    "onConflict": "uniquify",
+                    "dataToExport": "variable"
+                },
+                "label": "export-data"
+            }
+        ],
+        "position": [
+            -118.50157495103338,
+            390.65
+        ],
+        "viewport": {
+            "x": -118.50157495103338,
+            "y": 390.65,
+            "zoom": 0.3
+        }
+    },
+    "settings": {
+        "publicId": "",
+        "aipowerToken": "",
+        "blockDelay": 0,
+        "saveLog": true,
+        "debugMode": false,
+        "restartTimes": 3,
+        "notification": true,
+        "execContext": "popup",
+        "reuseLastState": false,
+        "inputAutocomplete": true,
+        "onError": "stop-workflow",
+        "executedBlockOnWeb": false,
+        "insertDefaultColumn": false,
+        "defaultColumnName": "column",
+        "tabLoadTimeout": 30000
+    },
+    "globalData": "{\n\t\"key\": \"value\"\n}",
+    "description": "",
+    "includedWorkflows": {}
+}
