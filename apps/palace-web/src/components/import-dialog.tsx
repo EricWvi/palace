@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { v7 as uuidv7 } from "uuid";
 import { useNavigate } from "react-router-dom";
 import { FileJson, Upload } from "lucide-react";
 import {
@@ -124,10 +125,7 @@ function ImportForm({
         mode.kind === "conversation" ? null : mode.conversation.id,
         mode.kind === "update" ? mode.path.id : null,
       ]);
-      const key =
-        attempt?.fingerprint === fingerprint
-          ? attempt.key
-          : crypto.randomUUID();
+      const key = attempt?.fingerprint === fingerprint ? attempt.key : uuidv7();
       setAttempt({ fingerprint, key });
       if (mode.kind !== "conversation") {
         const base = `/api/conversations/${encodeURIComponent(mode.conversation.id)}/paths`;

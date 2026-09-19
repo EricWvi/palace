@@ -69,10 +69,10 @@ mod tests {
     #[test]
     fn credential_encryption_is_bound_to_session_and_rotation() {
         let key = CredentialKey::new([7; 32]);
-        let id = Uuid::new_v4();
+        let id = Uuid::now_v7();
         let encrypted = key.seal(id, "refresh").unwrap();
         assert_eq!(key.open(id, &encrypted).unwrap(), "refresh");
-        assert!(key.open(Uuid::new_v4(), &encrypted).is_err());
+        assert!(key.open(Uuid::now_v7(), &encrypted).is_err());
         let mut tampered = encrypted.clone();
         *tampered.last_mut().unwrap() ^= 1;
         assert!(key.open(id, &tampered).is_err());

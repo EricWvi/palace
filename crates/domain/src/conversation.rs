@@ -206,13 +206,13 @@ mod tests {
     #[test]
     fn path_requires_acyclic_scoped_ancestors() {
         let c = Conversation {
-            id: Uuid::new_v4(),
-            owner_id: Uuid::new_v4(),
+            id: Uuid::now_v7(),
+            owner_id: Uuid::now_v7(),
             title: "t".into(),
             source: Source::Grok,
         };
         let a = Message {
-            id: Uuid::new_v4(),
+            id: Uuid::now_v7(),
             owner_id: c.owner_id,
             conversation_id: c.id,
             parent_message_id: None,
@@ -221,7 +221,7 @@ mod tests {
             created_order: 1,
         };
         let mut b = Message {
-            id: Uuid::new_v4(),
+            id: Uuid::now_v7(),
             parent_message_id: Some(a.id),
             content: "B".into(),
             created_order: 2,
@@ -234,10 +234,10 @@ mod tests {
         b.parent_message_id = Some(b.id);
         assert!(read_path(&c, &[b.clone()], b.id).is_err());
         b.parent_message_id = Some(a.id);
-        b.owner_id = Uuid::new_v4();
+        b.owner_id = Uuid::now_v7();
         assert!(read_path(&c, &[a.clone(), b.clone()], b.id).is_err());
         b.owner_id = c.owner_id;
-        b.conversation_id = Uuid::new_v4();
+        b.conversation_id = Uuid::now_v7();
         assert!(read_path(&c, &[a, b.clone()], b.id).is_err());
     }
 }

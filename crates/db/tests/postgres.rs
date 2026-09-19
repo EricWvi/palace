@@ -117,6 +117,22 @@ async fn identity_and_database_constraints_isolate_owners() {
         .import_path(b.scope(), &request("b", &["A", "B"]))
         .await
         .unwrap();
+    for id in [
+        a.id,
+        a.identity_id,
+        b.id,
+        b.identity_id,
+        ar.import_id,
+        ar.conversation_id,
+        ar.path_id,
+        ar.head_message_id,
+        br.import_id,
+        br.conversation_id,
+        br.path_id,
+        br.head_message_id,
+    ] {
+        assert_eq!(id.get_version_num(), 7);
+    }
     let (mut renamed, messages) = db
         .conversation(a.scope(), ar.conversation_id)
         .await
@@ -141,7 +157,7 @@ async fn identity_and_database_constraints_isolate_owners() {
         db.conversation(a.scope(), br.conversation_id).await,
         Err(DbError::NotFound)
     ));
-    assert!(sqlx::query("INSERT INTO message(id,owner_id,conversation_id,role,content) VALUES($1,$2,$3,'user','bad')").bind(Uuid::new_v4()).bind(a.id).bind(br.conversation_id).execute(&pool).await.is_err());
+    assert!(sqlx::query("INSERT INTO message(id,owner_id,conversation_id,role,content) VALUES($1,$2,$3,'user','bad')").bind(Uuid::now_v7()).bind(a.id).bind(br.conversation_id).execute(&pool).await.is_err());
     assert!(
         sqlx::query("UPDATE message SET parent_message_id=id WHERE owner_id=$1")
             .bind(a.id)
@@ -238,6 +254,7 @@ async fn persistent_sessions_revalidate_rotate_and_revoke() {
         .create_session(tokens(), &key, /*now*/ 100, /*previous*/ None)
         .await
         .unwrap();
+    assert_eq!(session.id.get_version_num(), 7);
     let stored: (Vec<u8>, Vec<u8>) =
         sqlx::query_as("SELECT secret_hash,refresh_credential FROM owner_session WHERE id=$1")
             .bind(session.id)
@@ -425,7 +442,7 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
         .await
         .unwrap();
     let record = Record {
-        id: Uuid::new_v4(),
+        id: Uuid::now_v7(),
         updated_at: 1000,
         is_deleted: false,
         body: serde_json::json!({"title":"first","text":"body"}),
@@ -454,14 +471,14 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
         .unwrap();
     assert_eq!(sequence, first.server_version.value());
     let foreign = Record {
-        id: Uuid::new_v4(),
+        id: Uuid::now_v7(),
         ..record.clone()
     };
     db.upload_records(b.scope(), std::slice::from_ref(&foreign))
         .await
         .unwrap();
     let own_new = Record {
-        id: Uuid::new_v4(),
+        id: Uuid::now_v7(),
         ..record.clone()
     };
     assert!(
@@ -490,9 +507,9 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
         .fetch_one(&mut *transaction)
         .await
         .unwrap();
-    let held_version:i64=sqlx::query_scalar("INSERT INTO sync_record(id,owner_id,updated_at,is_deleted,body) VALUES($1,$2,1000,false,'{}') RETURNING server_version").bind(Uuid::new_v4()).bind(a.id).fetch_one(&mut *transaction).await.unwrap();
+    let held_version:i64=sqlx::query_scalar("INSERT INTO sync_record(id,owner_id,updated_at,is_deleted,body) VALUES($1,$2,1000,false,'{}') RETURNING server_version").bind(Uuid::now_v7()).bind(a.id).fetch_one(&mut *transaction).await.unwrap();
     let next = Record {
-        id: Uuid::new_v4(),
+        id: Uuid::now_v7(),
         ..record.clone()
     };
     let writer = db.clone();
@@ -538,7 +555,7 @@ async fn sync_publication_preserves_commit_order_lww_and_owner_scope() {
         .unwrap();
     assert_eq!(following.records, vec![next.clone()]);
     let mut rolled_back = pool.begin().await.unwrap();
-    let gap:i64=sqlx::query_scalar("INSERT INTO sync_record(id,owner_id,updated_at,is_deleted,body) VALUES($1,$2,1000,false,'{}') RETURNING server_version").bind(Uuid::new_v4()).bind(a.id).fetch_one(&mut *rolled_back).await.unwrap();
+    let gap:i64=sqlx::query_scalar("INSERT INTO sync_record(id,owner_id,updated_at,is_deleted,body) VALUES($1,$2,1000,false,'{}') RETURNING server_version").bind(Uuid::now_v7()).bind(a.id).fetch_one(&mut *rolled_back).await.unwrap();
     rolled_back.rollback().await.unwrap();
     let tombstone = Record {
         updated_at: 1001,
@@ -699,16 +716,16 @@ async fn all_scoped_references_and_multirow_cycles_are_rejected() {
             .await
             .is_err()
     );
-    let other = Uuid::new_v4();
+    let other = Uuid::now_v7();
     sqlx::query("INSERT INTO conversation(id,owner_id,title,source) VALUES($1,$2,'other','grok')")
         .bind(other)
         .bind(a.id)
         .execute(&pool)
         .await
         .unwrap();
-    assert!(sqlx::query("INSERT INTO message(id,owner_id,conversation_id,parent_message_id,role,content) VALUES($1,$2,$3,$4,'user','bad')").bind(Uuid::new_v4()).bind(a.id).bind(other).bind(ar.head_message_id).execute(&pool).await.is_err());
-    let x = Uuid::new_v4();
-    let y = Uuid::new_v4();
+    assert!(sqlx::query("INSERT INTO message(id,owner_id,conversation_id,parent_message_id,role,content) VALUES($1,$2,$3,$4,'user','bad')").bind(Uuid::now_v7()).bind(a.id).bind(other).bind(ar.head_message_id).execute(&pool).await.is_err());
+    let x = Uuid::now_v7();
+    let y = Uuid::now_v7();
     assert!(sqlx::query("INSERT INTO message(id,owner_id,conversation_id,parent_message_id,role,content) VALUES($1,$3,$4,$2,'user','x'),($2,$3,$4,$1,'assistant','y')").bind(x).bind(y).bind(a.id).bind(other).execute(&pool).await.is_err());
     let nullable:Vec<String>=sqlx::query_scalar("SELECT table_name FROM information_schema.columns WHERE table_schema='public' AND column_name='owner_id' AND is_nullable='YES'").fetch_all(&pool).await.unwrap();
     assert_eq!(nullable, Vec::<String>::new());

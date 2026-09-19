@@ -166,7 +166,9 @@ it("imports the selected source, ID, title, local date/time and JSON as multipar
   expect(
     Math.abs(Number(body.get("occurred_at")) - now.getTime()),
   ).toBeLessThan(10_000);
-  expect(body.get("idempotency_key")).toEqual(expect.any(String));
+  expect(body.get("idempotency_key")).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  );
 });
 it("rejects malformed JSON before sending and preserves the form for correction", async () => {
   const fetch = mockApi();

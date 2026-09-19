@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn lww_only_accepts_strictly_newer_business_timestamps() {
         let existing = Record {
-            id: Uuid::new_v4(),
+            id: Uuid::now_v7(),
             updated_at: 1000,
             is_deleted: false,
             body: serde_json::json!({"title":"existing","content":"old"}),

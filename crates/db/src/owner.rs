@@ -51,7 +51,7 @@ impl Database {
                 row.try_get::<Uuid, _>("identity_id")?,
             )
         } else {
-            (Uuid::new_v4(), Uuid::new_v4())
+            (Uuid::now_v7(), Uuid::now_v7())
         };
         let conflict: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM owner WHERE normalized_email=$1 AND id<>$2 AND NOT disabled)").bind(&normalized).bind(id).fetch_one(&mut *tx).await?;
         if conflict {

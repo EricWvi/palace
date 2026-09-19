@@ -37,7 +37,7 @@ impl Database {
                 source,
                 session_id,
             } => {
-                let id = Uuid::new_v4();
+                let id = Uuid::now_v7();
                 sqlx::query(
                     "INSERT INTO conversation(id,owner_id,title,source) VALUES($1,$2,$3,$4)",
                 )
@@ -49,7 +49,7 @@ impl Database {
                 .await?;
                 (
                     id,
-                    Uuid::new_v4(),
+                    Uuid::now_v7(),
                     source.as_str().to_owned(),
                     session_id.as_str().to_owned(),
                     None,
@@ -69,7 +69,7 @@ impl Database {
                 .ok_or(DbError::NotFound)?;
                 (
                     *conversation_id,
-                    Uuid::new_v4(),
+                    Uuid::now_v7(),
                     source,
                     session_id.as_str().to_owned(),
                     None,
@@ -119,7 +119,7 @@ impl Database {
                     )
                     .into());
                 }
-                let id = Uuid::new_v4();
+                let id = Uuid::now_v7();
                 sqlx::query("INSERT INTO message(id,owner_id,conversation_id,parent_message_id,role,content) VALUES($1,$2,$3,$4,$5,$6)")
                     .bind(id).bind(owner.id()).bind(conversation_id).bind(parent).bind(message.role.as_str()).bind(&message.content).execute(&mut *tx).await?;
                 created += 1;
@@ -143,7 +143,7 @@ impl Database {
             .into());
         }
         let result = ImportResult {
-            import_id: Uuid::new_v4(),
+            import_id: Uuid::now_v7(),
             conversation_id,
             path_id,
             head_message_id: parent.ok_or(DbError::Conflict)?,

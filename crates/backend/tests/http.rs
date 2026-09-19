@@ -484,7 +484,7 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         .build()
         .unwrap();
     let record = Record {
-        id: uuid::Uuid::new_v4(),
+        id: uuid::Uuid::now_v7(),
         updated_at: 1000,
         is_deleted: false,
         body: serde_json::json!({"text":"body"}),

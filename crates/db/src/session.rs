@@ -74,7 +74,7 @@ impl Database {
         let owner = self
             .resolve_identity(&tokens.issuer, &tokens.subject, &tokens.email)
             .await?;
-        let id = Uuid::new_v4();
+        let id = Uuid::now_v7();
         let secret = key.secret(id, /*generation*/ 0)?;
         let encrypted = key.seal(id, &tokens.refresh)?;
         let mut tx = self.pool.begin().await?;

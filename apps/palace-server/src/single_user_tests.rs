@@ -49,7 +49,7 @@ async fn fixed_user_http_reuses_owner_without_login_or_cookies() {
         .await
         .unwrap();
     let foreign = Record {
-        id: uuid::Uuid::new_v4(),
+        id: uuid::Uuid::now_v7(),
         updated_at: 1,
         is_deleted: false,
         body: json!({"text":"foreign"}),
@@ -59,7 +59,7 @@ async fn fixed_user_http_reuses_owner_without_login_or_cookies() {
         .await
         .unwrap();
     let own = Record {
-        id: uuid::Uuid::new_v4(),
+        id: uuid::Uuid::now_v7(),
         updated_at: 1,
         is_deleted: false,
         body: json!({"text":"local"}),

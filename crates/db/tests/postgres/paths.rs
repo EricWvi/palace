@@ -229,7 +229,7 @@ async fn branches_share_prefix_and_failures_roll_back() {
     ));
     assert!(
         sqlx::query("UPDATE conversation_path SET head_message_id=$1 WHERE id=$2")
-            .bind(Uuid::new_v4())
+            .bind(Uuid::now_v7())
             .bind(left.path_id)
             .execute(&pool)
             .await

@@ -12,7 +12,7 @@ impl Database {
         key: &CredentialKey,
         now: i64,
     ) -> Result<(), SessionError> {
-        let id = Uuid::new_v4();
+        let id = Uuid::now_v7();
         let encrypted = key.seal(id, proof)?;
         let mut tx = self.pool.begin().await?;
         sqlx::query("DELETE FROM oidc_login WHERE expires_at<=$1")
