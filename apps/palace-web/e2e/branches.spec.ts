@@ -102,6 +102,22 @@ test("nested forks, internal endpoints, branch forms and mixed-language tree lab
   await page.getByRole("menuitem", { name: "分支管理" }).click();
   const manager = page.getByRole("dialog", { name: "分支管理" });
   await expect(manager.locator(".branch-node-text")).toHaveCount(5);
+  await expect(manager.locator(".react-flow__edge")).toHaveCount(4);
+  const root = manager.locator('.react-flow__node[data-id="U1"]');
+  const child = manager.locator('.react-flow__node[data-id="U3"]');
+  await expect(root).toBeVisible();
+  expect((await root.boundingBox())!.y).toBeLessThan(
+    (await child.boundingBox())!.y,
+  );
+  const rootActions = root.locator(".branch-node-buttons").first();
+  await expect(rootActions).toHaveCSS("opacity", "0");
+  await root.hover();
+  await expect(rootActions).toHaveCSS("opacity", "1");
+  await page.screenshot({ path: "/tmp/palace-branches-desktop.png" });
+  await manager.getByRole("button", { name: "适应画布" }).hover();
+  await expect(rootActions).toHaveCSS("opacity", "0");
+  await manager.getByRole("button", { name: "更新分支 s4" }).focus();
+  await expect(rootActions).toHaveCSS("opacity", "1");
   await expect(
     manager.getByRole("button", { name: "更新分支 s4" }),
   ).toBeVisible();
@@ -109,6 +125,7 @@ test("nested forks, internal endpoints, branch forms and mixed-language tree lab
     manager.getByRole("button", { name: "更新分支 s5" }),
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
+  await manager.getByRole("button", { name: "适应画布" }).click();
   expect(
     await manager.evaluate((element) => {
       const rect = element.getBoundingClientRect();
@@ -153,6 +170,7 @@ test("nested forks, internal endpoints, branch forms and mixed-language tree lab
     path: "/tmp/palace-branches-mobile.png",
     fullPage: true,
   });
+  await manager.locator('.react-flow__node[data-id="U4"]').hover();
   await manager.getByRole("button", { name: "更新分支 s2" }).click();
   const update = page.getByRole("dialog", { name: "更新分支" });
   await expect(update.getByLabel("自定义标题")).toBeDisabled();

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import {
@@ -18,6 +18,10 @@ import {
   type Detail,
 } from "@/lib/api";
 import { resolvePaths, userTree } from "@/lib/conversation-tree";
+
+const BranchGraph = lazy(() =>
+  import("./branch-graph").then((module) => ({ default: module.BranchGraph })),
+);
 
 export function BranchManager({
   conversation,
@@ -52,36 +56,10 @@ export function BranchManager({
       setDeleting(null);
     },
   });
-  const tree = detail.data ? userTree(resolvePaths(detail.data)) : null;
-  function actions(paths: ConversationPath[]) {
-    return paths.map((path) => (
-      <div key={path.id} className="path-actions">
-        <span className="path-session" title={path.session_id}>
-          {path.session_id}
-        </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={`更新分支 ${path.session_id}`}
-          onClick={() => setForm({ kind: "update", conversation, path })}
-        >
-          更新
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={`删除分支 ${path.session_id}`}
-          disabled={detail.data!.paths.length === 1}
-          onClick={() => {
-            deletion.reset();
-            setDeleting(path);
-          }}
-        >
-          删除
-        </Button>
-      </div>
-    ));
-  }
+  const tree = useMemo(
+    () => (detail.data ? userTree(resolvePaths(detail.data)) : null),
+    [detail.data],
+  );
   return (
     <Dialog
       open
@@ -105,35 +83,37 @@ export function BranchManager({
           />
         ) : (
           <>
-            <div className="branch-tree" aria-label="用户消息树">
-              {tree!.nodes.map(({ message, depth, paths }) => (
-                <div
-                  key={message.id}
-                  className="branch-tree-node"
-                  style={{ marginInlineStart: `${Math.min(depth, 8) * 16}px` }}
-                >
-                  <p className="branch-node-text" title={message.content}>
-                    {message.content || "（空消息）"}
-                  </p>
-                  {actions(paths)}
+            <Suspense
+              fallback={
+                <div className="branch-graph-loading" role="status">
+                  正在绘制对话树…
                 </div>
-              ))}
-              {tree!.withoutUser.length > 0 && (
-                <div className="branch-tree-node">
-                  <p>无用户消息</p>
-                  {actions(tree!.withoutUser)}
-                </div>
-              )}
-            </div>
+              }
+            >
+              <BranchGraph
+                tree={tree!}
+                canDelete={detail.data!.paths.length > 1}
+                onUpdate={(path) =>
+                  setForm({ kind: "update", conversation, path })
+                }
+                onDelete={(path) => {
+                  deletion.reset();
+                  setDeleting(path);
+                }}
+              />
+            </Suspense>
             {detail.data!.paths.length === 1 && (
               <p className="field-hint">
                 最后一个分支请通过卡片菜单的“删除对话”移除。
               </p>
             )}
-            <Button onClick={() => setForm({ kind: "branch", conversation })}>
-              <Plus size={16} />
-              新建分支
-            </Button>
+            <div className="branch-toolbar">
+              <p>拖动画布移动 · 滚轮缩放</p>
+              <Button onClick={() => setForm({ kind: "branch", conversation })}>
+                <Plus size={16} />
+                新建分支
+              </Button>
+            </div>
           </>
         )}
         {form && (

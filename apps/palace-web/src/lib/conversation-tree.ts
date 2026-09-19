@@ -30,7 +30,7 @@ export function resolvePaths(detail: Detail): ResolvedPath[] {
 
 export interface UserNode {
   message: Message;
-  depth: number;
+  parentId: string | null;
   paths: ConversationPath[];
 }
 
@@ -75,15 +75,13 @@ export function userTree(paths: ResolvedPath[]): {
   const withoutUser: ConversationPath[] = [];
   for (const { path, messages } of paths) {
     let parent: string | null = null;
-    let depth = 0;
     for (const message of messages) {
       if (message.role !== "user") continue;
       if (!nodes.has(message.id)) {
-        nodes.set(message.id, { message, depth, paths: [] });
+        nodes.set(message.id, { message, parentId: parent, paths: [] });
         children.set(parent, [...(children.get(parent) ?? []), message.id]);
       }
       parent = message.id;
-      depth++;
     }
     if (parent) nodes.get(parent)!.paths.push(path);
     else withoutUser.push(path);

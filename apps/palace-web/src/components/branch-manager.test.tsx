@@ -6,6 +6,32 @@ import { expect, it, vi } from "vitest";
 import { BranchManager } from "./branch-manager";
 import { ConversationActions } from "./conversation-actions";
 import type { Detail } from "@/lib/api";
+import type { ComponentType, ReactNode } from "react";
+
+// Browser tests cover the measured canvas; these tests exercise real cards and form actions.
+vi.mock("@xyflow/react", () => ({
+  ReactFlow: ({
+    nodes,
+    nodeTypes,
+    children,
+  }: {
+    nodes: { id: string; data: unknown }[];
+    nodeTypes: { branch: ComponentType<{ data: unknown }> };
+    children: ReactNode;
+  }) => (
+    <div>
+      {nodes.map((node) => (
+        <nodeTypes.branch key={node.id} data={node.data} />
+      ))}
+      {children}
+    </div>
+  ),
+  Background: () => null,
+  Controls: () => null,
+  Handle: () => null,
+  Position: { Top: "top", Bottom: "bottom" },
+  BackgroundVariant: { Dots: "dots" },
+}));
 
 const detail: Detail = {
   conversation: { id: "tree", title: "一棵树", source: "chatgpt" },
