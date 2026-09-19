@@ -60,6 +60,55 @@ fn history(contents: &[&str]) -> Vec<u8> {
         serde_json::json!({"role":if i % 2 == 0 {"user"} else {"assistant"},"content":content})
     }).collect::<Vec<_>>()).unwrap()
 }
+
+/// Card chronology follows occurrence time while opening follows the most recently updated session.
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn library_separates_occurrence_order_from_default_path_selection() {
+    let (_container, db, _pool) = database().await;
+    let owner = db
+        .resolve_identity("https://idp", "library", "library@example.com")
+        .await
+        .unwrap();
+    let first = db
+        .import_path(owner.scope(), &create("s1", &["U1", "A1"]))
+        .await
+        .unwrap();
+    db.import_path(
+        owner.scope(),
+        &branch(first.conversation_id, "s2", &["U1", "A1", "U2", "A2"]),
+    )
+    .await
+    .unwrap();
+    db.import_path(
+        owner.scope(),
+        &change(
+            ImportTarget::Update {
+                conversation_id: first.conversation_id,
+                path_id: first.path_id,
+            },
+            "older-occurrence",
+            &["U1", "A1"],
+            /*occurred_at*/ 500,
+        ),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        db.list_conversations(owner.scope()).await.unwrap(),
+        vec![palace_db::ConversationSummary {
+            id: first.conversation_id,
+            title: "tree".into(),
+            source: Source::Chatgpt,
+            session_ids: vec!["s1".into(), "s2".into()],
+            path_count: 2,
+            path_id: first.path_id,
+            occurred_at: 2000,
+            head_message_id: first.head_message_id,
+            message_count: 4,
+        }]
+    );
+}
 /// Creates a root import without sharing identity between separate test conversations.
 fn create(session: &str, contents: &[&str]) -> ImportRequest {
     ImportRequest::parse(

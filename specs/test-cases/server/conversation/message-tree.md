@@ -16,7 +16,15 @@
 
 必须成立：共享祖先保留，两个短路径拥有独立 ID；删除不能影响其他 Owner；最后一个 Path 通过删除 Conversation 移除。禁止残留没有内容的卡片。
 
-证据：Covered — `paths::deletion_preserves_shared_messages_and_owner_boundaries`（真实 PostgreSQL）。树投影与页面操作证据随前端实现补充。
+证据：Covered — `paths::deletion_preserves_shared_messages_and_owner_boundaries`（真实 PostgreSQL）。`components/branch-manager.test.tsx` 验证内部节点和相同路径操作；`e2e/branches.spec.ts` 验证实际浏览器投影、移动端边界及文本省略。
+
+## Fork selection must resolve to one real source session
+
+风险：上下游选择拼接出不存在的路径，或“继续对话”跳转错误 Session。前置：两级分叉及相同内部末端；触发：切换上游、下游、内部末端并刷新深链接。
+
+必须成立：选择后续更新时间最新的匹配 Path，其消息与链接保持同一身份；相同末端的 Session 均可选择。禁止保留不匹配的下游选择。
+
+证据：Covered — `pages/conversation.test.tsx`（React 交互），`e2e/branches.spec.ts`（真实 Chromium）。卡片发生时间与默认路径独立：`paths::library_separates_occurrence_order_from_default_path_selection`（真实 PostgreSQL）。
 
 ## Migration must preserve existing linear conversation identities
 

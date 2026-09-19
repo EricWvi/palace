@@ -84,7 +84,13 @@ struct BusinessServer {
 
 /// Shares the complete business API between authenticated deployment and local single-user testing.
 fn business_router(server: BusinessServer) -> Router {
-    let limit = server.limits.bytes.saturating_add(64 * 1024);
+    // JSON requests wrap the original history text in another string; escaping can expand it sixfold.
+    // The shared parser and multipart reader still enforce the original history byte limit.
+    let limit = server
+        .limits
+        .bytes
+        .saturating_mul(6)
+        .saturating_add(64 * 1024);
     Router::new()
         .route("/api/me", get(business::me))
         .route("/api/sync", get(sync::pull).post(sync::upload))

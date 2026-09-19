@@ -65,6 +65,10 @@ docker run --publish 8080:8080 --env-file .env palace:local
 | `GET /api/conversations` | 当前用户的会话，按最新对话发生时间降序，含路径 head |
 | `GET /api/conversations/{id}` | 对话、消息树和受控来源链接 |
 | `GET /api/conversations/{id}/paths/{path_id}` | 来源 Path 对应的完整祖先路径 |
+| `POST /api/conversations/{id}/paths` | 在已有树中新建分支，JSON 不接受标题和来源 |
+| `PUT /api/conversations/{id}/paths/{path_id}` | 上传完整历史，只允许追加或修改发生时间 |
+| `DELETE /api/conversations/{id}/paths/{path_id}` | 删除分支并清理不再共享的消息 |
+| `DELETE /api/conversations/{id}` | 删除整张卡片及全部分支、消息 |
 
 所有写请求必须携带严格匹配 `PALACE_ORIGIN` 的 Origin。业务请求没有 ownerId 授权参数。安全 cookie 使用 `__Host-` 前缀、Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain，持久期 180 天并滚动续期。业务响应为 `application/json` 且禁止缓存；原始 Markdown 作为 JSON 字符串返回，server 不提供 HTML 渲染。展示端必须安全渲染，不能将字符串直接写入 innerHTML。
 

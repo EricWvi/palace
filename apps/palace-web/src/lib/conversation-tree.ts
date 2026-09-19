@@ -34,6 +34,37 @@ export interface UserNode {
   paths: ConversationPath[];
 }
 
+export interface BranchChoice {
+  key: string;
+  label: string;
+  pathId: string;
+}
+
+// A continuation selects the newest complete path in that subtree; each endpoint keeps its session.
+export function branchChoices(
+  paths: ResolvedPath[],
+  selected: ResolvedPath,
+  after: number,
+): BranchChoice[] {
+  const choices = new Map<string, BranchChoice>();
+  for (const candidate of paths) {
+    // A message has exactly one parent, so matching this node proves the entire prefix.
+    if (candidate.messages[after]?.id !== selected.messages[after]?.id)
+      continue;
+    const next = candidate.messages[after + 1];
+    const key = next ? `message:${next.id}` : `path:${candidate.path.id}`;
+    if (!choices.has(key))
+      choices.set(key, {
+        key,
+        label: next
+          ? `${next.role === "user" ? "你" : "回答"}：${next.content.slice(0, 60) || "（空消息）"}`
+          : `在此结束 · ${candidate.path.session_id}`,
+        pathId: candidate.path.id,
+      });
+  }
+  return [...choices.values()];
+}
+
 // Project each endpoint onto its last user ancestor, including endpoints inside longer paths.
 export function userTree(paths: ResolvedPath[]): {
   nodes: UserNode[];
