@@ -22,7 +22,7 @@ lint 与默认测试。容器集成测试默认忽略，显式运行时只使用
 
 `palace-db` 启动时执行 `migrations/`。Palace 新建的内部标识统一使用 UUIDv7；数据库仍使用原生 `uuid` 类型承载标识。Owner 的 email 保留原显示值，以 trim 后小写值检查活跃 Owner 冲突。未知 issuer/subject 不能凭相同 email 接管已有 Owner。所有业务查询显式传入服务端 Owner Scope；复合外键同时约束 Owner、Conversation 和父消息。
 
-导入在事务级 advisory lock 内完成来源定位、最长完全相同前缀复用和 Import 审计记录。幂等键在 Owner 内唯一，相同请求重试返回原结果，换内容复用键返回冲突。再次导入保留已有标题；标题编辑需走独立业务接口。消息结构在数据库中不可改写，父节点必须先存在，防止自引用、多节点环和跨对话引用。
+导入在事务级 advisory lock 内完成来源定位、最长完全相同前缀复用和 Import 审计记录。幂等键在 Owner 内唯一，相同请求重试返回原结果，换内容复用键返回冲突。再次导入保留已有可编辑元数据；标题和来源纠错需走独立业务接口。消息结构在数据库中不可改写，父节点必须先存在，防止自引用、多节点环和跨对话引用。
 
 `task test:integration` 显式执行默认 `#[ignore]` 的 testcontainers PostgreSQL 测试。测试先检查本地 `postgres:17-alpine`，不存在即失败，不主动调用镜像拉取。测试沿用 `DOCKER_HOST`，支持指向 Podman 的 Docker API socket；每次使用独立容器和数据库，不依赖开发数据。
 
@@ -90,7 +90,7 @@ SQLite 本地持久化由 Android 原生客户端实现；本仓库不再提供 
 
 Authelia 的 ID token 不必包含 email；Palace 在验证 ID token 后，通过 subject 匹配的 UserInfo 获取当前 email，登录和复核共用该边界。测试实际经过 offline_access 授权页面对应的 consent API，未依赖开发机已有登录或生产账号。
 
-`PUT /api/conversations/{id}/title` 接收 `{ "title": "新标题" }`，原位修改显示标题。校验与导入相同，Owner、source/session_id、消息父链和 Import head 保持不变；该元数据操作尚不参与跨端结构同步。
+`PUT /api/conversations/{id}` 接收 `{ "title": "新标题", "source": "gemini" }`，原子修改 Conversation 标题与来源。来源更新级联到全部 Path，并重新生成来源链接；若目标来源已存在任一相同 Session ID，整次更新返回 409。Owner、Palace 内部 ID、Session ID、消息父链、Import 凭据和时间保持不变；该元数据操作尚不参与跨端结构同步。
 
 Session 的内部 ID、Identity 绑定和创建时间不可更新，撤销时间一经写入不能清空。检测到轮换代次与 secret 摘要不一致，或已知旧 secret 在 30 秒宽限结束后再次使用，会持久撤销该 Session。未知随机 secret 只返回未认证。认证服务限流（429）和 5xx 均属于临时失败，不触发身份失败撤销。email 由独立语法校验器检查，再进行冲突规范化。
 

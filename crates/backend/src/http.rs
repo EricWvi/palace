@@ -15,7 +15,7 @@ use crate::{LoginRedirect, OidcProvider};
 use axum::{
     Router,
     extract::DefaultBodyLimit,
-    routing::{get, post, put},
+    routing::{get, post},
 };
 use error::ApiError;
 use handlers::*;
@@ -99,9 +99,10 @@ fn business_router(server: BusinessServer) -> Router {
         .route("/api/conversations", get(business::conversations))
         .route(
             "/api/conversations/{id}",
-            get(business::conversation).delete(path_management::delete_conversation),
+            get(business::conversation)
+                .put(business::update_conversation)
+                .delete(path_management::delete_conversation),
         )
-        .route("/api/conversations/{id}/title", put(business::rename))
         .route(
             "/api/conversations/{id}/paths",
             post(path_management::create),

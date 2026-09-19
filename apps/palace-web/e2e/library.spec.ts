@@ -16,6 +16,7 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
     head_message_id: "answer",
     message_count: 2,
   };
+  let current = { ...item };
   const messages = [
     {
       id: "question",
@@ -35,9 +36,17 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
   ];
   await page.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
+    if (
+      path === "/api/conversations/one" &&
+      route.request().method() === "PUT"
+    ) {
+      current = { ...current, ...route.request().postDataJSON() };
+      await route.fulfill({ json: current });
+      return;
+    }
     const data =
       path === "/api/conversations"
-        ? [item]
+        ? [current]
         : path === "/api/import/file"
           ? {
               conversation_id: "one",
@@ -47,7 +56,7 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
           : path.includes("/paths/")
             ? messages
             : {
-                conversation: item,
+                conversation: current,
                 messages,
                 paths: [
                   {
@@ -58,7 +67,10 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
                     created_at: item.occurred_at,
                     updated_at: item.occurred_at,
                     message_count: 2,
-                    original_link: "https://chatgpt.com/c/knowledge-notes",
+                    original_link:
+                      current.source === "gemini"
+                        ? "https://gemini.google.com/app/knowledge-notes"
+                        : "https://chatgpt.com/c/knowledge-notes",
                   },
                 ],
               };
@@ -68,6 +80,22 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
   await page.goto("/");
   await expect(page.getByText(item.title)).toBeVisible();
   await page.getByRole("button", { name: `会话菜单 ${item.title}` }).click();
+  await page.getByRole("menuitem", { name: "编辑会话" }).click();
+  const editor = page.getByRole("dialog", { name: "编辑会话" });
+  await editor.getByLabel("会话标题").fill("整理后的知识体系");
+  await editor.getByLabel("消息来源").selectOption("gemini");
+  const updated = page.waitForRequest(
+    (request) =>
+      request.method() === "PUT" &&
+      new URL(request.url()).pathname === "/api/conversations/one",
+  );
+  await editor.getByRole("button", { name: "保存更改" }).click();
+  expect((await updated).postDataJSON()).toEqual({
+    title: "整理后的知识体系",
+    source: "gemini",
+  });
+  await expect(page.getByText("整理后的知识体系")).toBeVisible();
+  await page.getByRole("button", { name: "会话菜单 整理后的知识体系" }).click();
   await page.getByRole("menuitem", { name: "分支管理" }).click();
   const manager = page.getByRole("dialog", { name: "分支管理" });
   await expect(manager.getByText(messages[0].content)).toBeVisible();
@@ -110,10 +138,20 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
   await page.reload();
   await expect(page.getByRole("link", { name: "继续对话" })).toHaveAttribute(
     "href",
-    "https://chatgpt.com/c/knowledge-notes",
+    "https://gemini.google.com/app/knowledge-notes",
   );
-  await expect(page.getByRole("heading", { name: item.title })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "整理后的知识体系" }),
+  ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("link", { name: "返回会话收藏" }).click();
+  await page.getByRole("button", { name: "会话菜单 整理后的知识体系" }).click();
+  await page.getByRole("menuitem", { name: "编辑会话" }).click();
+  const mobileEditor = page.getByRole("dialog", { name: "编辑会话" });
+  await mobileEditor.getByLabel("会话标题").fill("移动端修正标题");
+  await mobileEditor.getByLabel("消息来源").selectOption("grok");
+  await mobileEditor.getByRole("button", { name: "保存更改" }).click();
+  await expect(page.getByText("移动端修正标题")).toBeVisible();
   await page.screenshot({ path: "/tmp/palace-mobile.png", fullPage: true });
   expect(
     await page.evaluate(

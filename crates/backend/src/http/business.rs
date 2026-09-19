@@ -188,21 +188,27 @@ pub(super) async fn path(
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct Rename {
+pub(super) struct ConversationMetadata {
     title: String,
+    source: Source,
 }
-/// Updates a title without exposing source, parent or owner reassignment through the request body.
-pub(super) async fn rename(
+/// Replaces editable card metadata without exposing tree or owner reassignment.
+pub(super) async fn update_conversation(
     State(server): State<Arc<BusinessServer>>,
     axum::Extension(owner): axum::Extension<palace_db::Owner>,
     Path(id): Path<Uuid>,
-    Json(input): Json<Rename>,
+    body: Result<Json<ConversationMetadata>, JsonRejection>,
 ) -> Result<Response, ApiError> {
+    let Json(input) =
+        body.map_err(|error| InputError::new(InputErrorKind::Field, "request", error.body_text()))?;
     server
         .database
-        .rename_conversation(owner.scope(), id, &input.title)
+        .update_conversation_metadata(owner.scope(), id, &input.title, input.source)
         .await?;
-    Ok(Json(serde_json::json!({"id":id,"title":input.title})).into_response())
+    Ok(
+        Json(serde_json::json!({"id":id,"title":input.title,"source":input.source}))
+            .into_response(),
+    )
 }
 
 /// Lists each conversation once, ordered by its newest user-selected conversation occurrence time.

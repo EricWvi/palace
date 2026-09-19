@@ -138,9 +138,14 @@ async fn identity_and_database_constraints_isolate_owners() {
         .await
         .unwrap();
     renamed.title = "新标题".into();
-    db.rename_conversation(a.scope(), ar.conversation_id, &renamed.title)
-        .await
-        .unwrap();
+    db.update_conversation_metadata(
+        a.scope(),
+        ar.conversation_id,
+        &renamed.title,
+        renamed.source,
+    )
+    .await
+    .unwrap();
     assert_eq!(
         db.conversation(a.scope(), ar.conversation_id)
             .await
@@ -148,7 +153,7 @@ async fn identity_and_database_constraints_isolate_owners() {
         (renamed, messages)
     );
     assert!(
-        db.rename_conversation(b.scope(), ar.conversation_id, "foreign")
+        db.update_conversation_metadata(b.scope(), ar.conversation_id, "foreign", Source::Chatgpt,)
             .await
             .is_err()
     );

@@ -150,6 +150,127 @@ fn branch(id: Uuid, session: &str, contents: &[&str]) -> ImportRequest {
     )
 }
 
+/// Source correction cascades to every path without changing tree or receipt identity.
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn metadata_correction_is_atomic_and_preserves_tree_identities() {
+    let (_container, db, pool) = database().await;
+    let owner = db
+        .resolve_identity("https://idp", "metadata", "metadata@example.com")
+        .await
+        .unwrap();
+    let foreign = db
+        .resolve_identity("https://idp", "foreign", "foreign@example.com")
+        .await
+        .unwrap();
+    let first = db
+        .import_path(owner.scope(), &create("s1", &["U1", "A1"]))
+        .await
+        .unwrap();
+    db.import_path(
+        owner.scope(),
+        &branch(first.conversation_id, "s2", &["U1", "A1", "U2", "A2"]),
+    )
+    .await
+    .unwrap();
+    let blocker = ImportRequest::parse(
+        ImportInput {
+            title: "blocker".into(),
+            source: Source::Gemini,
+            session_id: "s2".into(),
+            history: history(&["other"]),
+            idempotency_key: "blocker".into(),
+            occurred_at: 3000,
+        },
+        ImportLimits::default(),
+    )
+    .unwrap();
+    db.import_path(owner.scope(), &blocker).await.unwrap();
+    let before = db
+        .conversation_detail(owner.scope(), first.conversation_id)
+        .await
+        .unwrap();
+    let receipts_before: Vec<(Uuid, Uuid, sqlx::types::Json<serde_json::Value>)> =
+        sqlx::query_as("SELECT id,path_id,result FROM conversation_import WHERE owner_id=$1 AND conversation_id=$2 ORDER BY id")
+            .bind(owner.id).bind(first.conversation_id).fetch_all(&pool).await.unwrap();
+
+    assert!(matches!(
+        db.update_conversation_metadata(
+            owner.scope(),
+            first.conversation_id,
+            "conflicting",
+            Source::Gemini,
+        )
+        .await,
+        Err(DbError::DuplicateSession)
+    ));
+    assert_eq!(
+        db.conversation_detail(owner.scope(), first.conversation_id)
+            .await
+            .unwrap(),
+        before
+    );
+    assert!(matches!(
+        db.update_conversation_metadata(
+            foreign.scope(),
+            first.conversation_id,
+            "foreign",
+            Source::Grok,
+        )
+        .await,
+        Err(DbError::NotFound)
+    ));
+    assert!(matches!(
+        db.update_conversation_metadata(owner.scope(), first.conversation_id, " ", Source::Grok,)
+            .await,
+        Err(DbError::Input(_))
+    ));
+
+    db.update_conversation_metadata(
+        owner.scope(),
+        first.conversation_id,
+        "corrected",
+        Source::Grok,
+    )
+    .await
+    .unwrap();
+    let after = db
+        .conversation_detail(owner.scope(), first.conversation_id)
+        .await
+        .unwrap();
+    let mut expected = before;
+    expected.conversation.title = "corrected".into();
+    expected.conversation.source = Source::Grok;
+    assert_eq!(after, expected);
+    let path_sources: Vec<String> = sqlx::query_scalar(
+        "SELECT source FROM conversation_path WHERE owner_id=$1 AND conversation_id=$2 ORDER BY id",
+    )
+    .bind(owner.id)
+    .bind(first.conversation_id)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(path_sources, vec!["grok", "grok"]);
+    let receipts_after: Vec<(Uuid, Uuid, sqlx::types::Json<serde_json::Value>)> =
+        sqlx::query_as("SELECT id,path_id,result FROM conversation_import WHERE owner_id=$1 AND conversation_id=$2 ORDER BY id")
+            .bind(owner.id).bind(first.conversation_id).fetch_all(&pool).await.unwrap();
+    assert_eq!(receipts_after, receipts_before);
+
+    let released = ImportRequest::parse(
+        ImportInput {
+            title: "released".into(),
+            source: Source::Chatgpt,
+            session_id: "s1".into(),
+            history: history(&["new"]),
+            idempotency_key: "released".into(),
+            occurred_at: 4000,
+        },
+        ImportLimits::default(),
+    )
+    .unwrap();
+    db.import_path(owner.scope(), &released).await.unwrap();
+}
+
 /// Concurrent branches share ancestors; failed receipts roll back all newly allocated state.
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]

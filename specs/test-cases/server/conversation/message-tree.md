@@ -20,10 +20,10 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 标题边界和 Owner Scope 拒绝非法更新 | Partial | `title_edits_share_import_validation`、`identity_and_database_constraints_isolate_owners` 只覆盖现有标题更新，尚未覆盖统一元数据接口 |
-| Conversation 与全部 Path 的来源原子更新，目标 Session 冲突时完整回滚 | Missing | 待真实 PostgreSQL 测试 |
-| 更新保留树内身份、时间及 Import 凭据，并按新来源生成全部 Path 链接 | Missing | 待真实 PostgreSQL 与 HTTP 集成测试 |
-| `PUT /api/conversations/{id}` 只接受完整合法元数据，旧标题专用接口移除 | Missing | 待 HTTP 集成测试 |
+| 标题边界和 Owner Scope 拒绝非法更新 | Covered | `title_edits_share_import_validation`、`paths::metadata_correction_is_atomic_and_preserves_tree_identities`、`http/paths.rs::exercise_path_lifecycle` |
+| Conversation 与全部 Path 的来源原子更新，目标 Session 冲突时完整回滚 | Covered | `paths::metadata_correction_is_atomic_and_preserves_tree_identities`（真实 PostgreSQL） |
+| 更新保留树内身份、时间及 Import 凭据，并按新来源生成全部 Path 链接 | Covered | `paths::metadata_correction_is_atomic_and_preserves_tree_identities`、`http/paths.rs::exercise_path_lifecycle`（真实 PostgreSQL/HTTP） |
+| `PUT /api/conversations/{id}` 只接受完整合法元数据，旧标题专用接口移除 | Covered | `http/paths.rs::exercise_path_lifecycle`（真实 HTTP/PG） |
 
 决策依据：[卡片菜单统一更新 Conversation 标题与来源](../../../decisions/server/conversation/20260919-menu-action-edits-conversation-metadata.md)。
 
@@ -37,9 +37,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 菜单入口、预填、取消、提交中禁用及失败重试符合对话框契约 | Missing | 待 `components/conversation-actions.test.tsx` 或等价组件测试 |
-| 成功更新列表、搜索、详情、来源图标和原始链接缓存，失败不残留新值 | Missing | 待 React Query 交互测试 |
-| 桌面与手机浏览器可完成编辑，刷新后仍显示服务端持久化值 | Missing | 待真实 Chromium 测试 |
+| 菜单入口、预填、取消、提交中禁用及失败重试符合对话框契约 | Covered | `components/branch-manager.test.tsx::edits complete conversation metadata from the card menu` |
+| 成功更新列表、搜索、详情、来源图标和原始链接缓存，失败不残留新值 | Covered | `components/branch-manager.test.tsx::edits complete conversation metadata from the card menu`、`e2e/library.spec.ts` |
+| 桌面与手机浏览器可完成编辑，刷新后仍显示服务端持久化值 | Covered | `e2e/library.spec.ts`（真实 Chromium，桌面与手机宽度） |
 
 决策依据：[卡片菜单统一更新 Conversation 标题与来源](../../../decisions/server/conversation/20260919-menu-action-edits-conversation-metadata.md)。
 

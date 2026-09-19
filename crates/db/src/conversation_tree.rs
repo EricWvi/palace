@@ -22,23 +22,47 @@ pub struct ConversationDetail {
     pub paths: Vec<ConversationPath>,
 }
 impl Database {
-    /// Changes display metadata in place; source identity, message tree and import heads remain stable.
-    pub async fn rename_conversation(
+    /// Replaces editable metadata while preserving every Palace-owned tree identity.
+    pub async fn update_conversation_metadata(
         &self,
         owner: OwnerScope,
         id: Uuid,
         title: &str,
+        source: Source,
     ) -> Result<(), DbError> {
         palace_domain::validate_title(title)?;
-        let changed = sqlx::query("UPDATE conversation SET title=$3 WHERE owner_id=$1 AND id=$2")
+        let mut tx = self.begin_write().await?;
+        let exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM conversation WHERE owner_id=$1 AND id=$2)",
+        )
+        .bind(owner.id())
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if !exists {
+            return Err(DbError::NotFound);
+        }
+        // The advisory write lock also covers imports, so this explicit check can return the
+        // domain conflict without racing a new path before the cascading update commits.
+        let duplicate: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM conversation_path owned JOIN conversation_path occupied ON occupied.owner_id=owned.owner_id AND occupied.source=$3 AND occupied.session_id=owned.session_id WHERE owned.owner_id=$1 AND owned.conversation_id=$2 AND occupied.conversation_id<>$2)",
+        )
+        .bind(owner.id())
+        .bind(id)
+        .bind(source.as_str())
+        .fetch_one(&mut *tx)
+        .await?;
+        if duplicate {
+            return Err(DbError::DuplicateSession);
+        }
+        sqlx::query("UPDATE conversation SET title=$3,source=$4 WHERE owner_id=$1 AND id=$2")
             .bind(owner.id())
             .bind(id)
             .bind(title)
-            .execute(&self.pool)
+            .bind(source.as_str())
+            .execute(&mut *tx)
             .await?;
-        if changed.rows_affected() != 1 {
-            return Err(DbError::NotFound);
-        }
+        tx.commit().await?;
         Ok(())
     }
     /// Reads metadata and a deterministic tree under one owner scope.

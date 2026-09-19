@@ -70,6 +70,66 @@ pub(super) async fn exercise_path_lifecycle(app: &Router, cookie: &str, foreign:
         call(app, cookie, "POST", "/api/import", duplicate).await.0,
         StatusCode::CONFLICT
     );
+    assert_eq!(
+        call(
+            app,
+            foreign,
+            "PUT",
+            &url,
+            json!({"title":"foreign","source":"grok"}),
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        call(
+            app,
+            cookie,
+            "PUT",
+            &url,
+            json!({"title":"invalid","source":"unknown"}),
+        )
+        .await
+        .0,
+        StatusCode::BAD_REQUEST
+    );
+    let legacy = app
+        .clone()
+        .oneshot(request(
+            "PUT",
+            &format!("{url}/title"),
+            cookie,
+            "https://palace.test",
+            "application/json",
+            json!({"title":"legacy"}).to_string(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(legacy.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        call(
+            app,
+            cookie,
+            "PUT",
+            &url,
+            json!({"title":"corrected","source":"gemini"}),
+        )
+        .await,
+        (
+            StatusCode::OK,
+            json!({"id":id,"title":"corrected","source":"gemini"})
+        )
+    );
+    let (_, corrected) = call(app, cookie, "GET", &url, json!({})).await;
+    assert_eq!(corrected["conversation"]["title"], "corrected");
+    assert_eq!(corrected["conversation"]["source"], "gemini");
+    assert!(corrected["paths"].as_array().unwrap().iter().all(|path| {
+        path["original_link"]
+            .as_str()
+            .unwrap()
+            .starts_with("https://gemini.google.com/app/")
+    }));
     let path_url = format!("{branch_url}/{}", second["path_id"].as_str().unwrap());
     let update = json!({"history":format!("{},{{\"role\":\"user\",\"content\":\"U2\"}}]",&history[..history.len()-1]),"occurred_at":3000,"idempotency_key":"http-update"});
     assert_eq!(

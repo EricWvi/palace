@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -96,6 +96,20 @@ function setup(menu = false) {
   const fetch = vi
     .spyOn(globalThis, "fetch")
     .mockImplementation(async (url, options) => {
+      if (
+        options?.method === "PUT" &&
+        String(url) === "/api/conversations/tree"
+      ) {
+        const metadata = JSON.parse(options.body as string) as {
+          title: string;
+          source: "chatgpt" | "gemini" | "grok";
+        };
+        current = {
+          ...current,
+          conversation: { ...current.conversation, ...metadata },
+        };
+        return Response.json(current.conversation);
+      }
       if (options?.method === "DELETE") {
         current = {
           ...current,
@@ -236,5 +250,81 @@ it("offers branch management and confirmed whole-conversation deletion from the 
   expect(fetch).toHaveBeenCalledWith(
     "/api/conversations/tree",
     expect.objectContaining({ method: "DELETE" }),
+  );
+});
+it("edits complete conversation metadata from the card menu", async () => {
+  const { fetch, user } = setup(true);
+  await user.tab();
+  await user.keyboard("{Enter}");
+  await user.click(screen.getByRole("menuitem", { name: "编辑会话" }));
+  const dialog = await screen.findByRole("dialog", { name: "编辑会话" });
+  const title = within(dialog).getByLabelText("会话标题");
+  const source = within(dialog).getByLabelText("消息来源");
+  expect(title).toHaveValue("一棵树");
+  expect(source).toHaveValue("chatgpt");
+  await user.click(within(dialog).getByRole("button", { name: "取消" }));
+  expect(screen.queryByRole("dialog", { name: "编辑会话" })).toBeNull();
+  expect(
+    fetch.mock.calls.some(
+      ([url, options]) =>
+        String(url) === "/api/conversations/tree" && options?.method === "PUT",
+    ),
+  ).toBe(false);
+  screen
+    .getByRole("button", { name: `会话菜单 ${detail.conversation.title}` })
+    .focus();
+  await user.keyboard("{Enter}");
+  await user.click(screen.getByRole("menuitem", { name: "编辑会话" }));
+  const reopened = await screen.findByRole("dialog", { name: "编辑会话" });
+  const reopenedTitle = within(reopened).getByLabelText("会话标题");
+  const reopenedSource = within(reopened).getByLabelText("消息来源");
+  await user.clear(reopenedTitle);
+  await user.type(reopenedTitle, "   ");
+  await user.click(within(reopened).getByRole("button", { name: "保存更改" }));
+  expect(await within(reopened).findByRole("alert")).toHaveTextContent(
+    "请填写会话标题",
+  );
+  await user.clear(reopenedTitle);
+  await user.type(reopenedTitle, "修正后的树");
+  await user.selectOptions(reopenedSource, "gemini");
+  const fallback = fetch.getMockImplementation()!;
+  let release: (() => void) | undefined;
+  fetch.mockImplementation(async (url, options) => {
+    if (
+      String(url) === "/api/conversations/tree" &&
+      options?.method === "PUT"
+    ) {
+      return new Promise<Response>((resolve) => {
+        release = () =>
+          resolve(
+            Response.json({
+              id: "tree",
+              title: "修正后的树",
+              source: "gemini",
+            }),
+          );
+      });
+    }
+    return fallback(url, options);
+  });
+  await user.click(within(reopened).getByRole("button", { name: "保存更改" }));
+  await waitFor(() =>
+    expect(
+      within(reopened).getByRole("button", { name: "正在保存…" }),
+    ).toBeDisabled(),
+  );
+  await act(async () => release!());
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("dialog", { name: "编辑会话" }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/conversations/tree",
+    expect.objectContaining({
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "修正后的树", source: "gemini" }),
+    }),
   );
 });

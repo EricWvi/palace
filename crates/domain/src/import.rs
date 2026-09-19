@@ -334,10 +334,10 @@ mod tests {
     #[test]
     fn accepts_all_source_export_samples() {
         for bytes in [
-            include_bytes!("../../../examples/chatgpt/conversation.json").as_slice(),
-            include_bytes!("../../../examples/chatgpt/conversation-2.json").as_slice(),
-            include_bytes!("../../../examples/gemini/conversation.json").as_slice(),
-            include_bytes!("../../../examples/grok/conversation.json").as_slice(),
+            include_bytes!("../../../automa/chatgpt/conversation.json").as_slice(),
+            include_bytes!("../../../automa/chatgpt/conversation-2.json").as_slice(),
+            include_bytes!("../../../automa/gemini/conversation.json").as_slice(),
+            include_bytes!("../../../automa/grok/conversation.json").as_slice(),
         ] {
             let raw: serde_json::Value = serde_json::from_slice(bytes).unwrap();
             let expected: Vec<MessageInput> = raw

@@ -72,7 +72,7 @@ export async function request<T>(
     throw new ApiError(
       response.status,
       body.error === "session_already_exists"
-        ? "该来源的 Session ID 已存在，请在对应会话的分支管理中更新。"
+        ? "该来源已有相同的 Session ID，请检查来源或对应会话。"
         : body.path
           ? `${body.path}：${body.message}`
           : (messages[response.status] ?? "服务暂时不可用，请稍后重试。"),
