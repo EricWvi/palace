@@ -108,6 +108,16 @@ function ImportForm({ onComplete }: { onComplete: () => void }) {
     <form onSubmit={submit}>
       <fieldset disabled={mutation.isPending} className="import-fields">
         <div>
+          <Label htmlFor="title">自定义标题</Label>
+          <Input
+            id="title"
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="这段对话，关于什么？"
+          />
+        </div>
+        <div>
           <Label htmlFor="source">会话来源</Label>
           <select
             id="source"
@@ -132,16 +142,6 @@ function ImportForm({ onComplete }: { onComplete: () => void }) {
             placeholder="例如：会话网址最后一段的 ID"
           />
           <p className="field-hint">相同来源与 ID 将合并消息，保留已有标题。</p>
-        </div>
-        <div>
-          <Label htmlFor="title">自定义标题</Label>
-          <Input
-            id="title"
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="这段对话，关于什么？"
-          />
         </div>
         <div>
           <Label>对话发生日期与时间</Label>
