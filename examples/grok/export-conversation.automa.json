@@ -1,661 +1,815 @@
 {
-    "extVersion": "1.30.02",
-    "name": "Grok",
-    "icon": "riGlobalLine",
-    "table": [],
-    "version": "1.30.02",
-    "drawflow": {
-        "edges": [
-            {
-                "id": "vueflow__edge-SlP0Dj43vUp4djSLQRZMpSlP0Dj43vUp4djSLQRZMp-output-1-fbyrzrcfbyrzrc-input-1",
-                "type": "custom",
-                "source": "SlP0Dj43vUp4djSLQRZMp",
-                "target": "fbyrzrc",
-                "sourceHandle": "SlP0Dj43vUp4djSLQRZMp-output-1",
-                "targetHandle": "fbyrzrc-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 311.9999008549755,
-                "sourceY": 138.5000240986374,
-                "targetX": 364.00010784420084,
-                "targetY": 138.5000240986374
+  "extVersion": "1.30.02",
+  "name": "Grok",
+  "icon": "riGlobalLine",
+  "table": [],
+  "version": "1.30.02",
+  "drawflow": {
+    "edges": [
+      {
+        "data": {},
+        "id": "vueflow__edge-SlP0Dj43vUp4djSLQRZMpSlP0Dj43vUp4djSLQRZMp-output-1-fbyrzrcfbyrzrc-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "SlP0Dj43vUp4djSLQRZMp",
+        "sourceHandle": "SlP0Dj43vUp4djSLQRZMp-output-1",
+        "sourceX": 312,
+        "sourceY": 350.000005086263,
+        "target": "fbyrzrc",
+        "targetHandle": "fbyrzrc-input-1",
+        "targetX": 363.9999593098958,
+        "targetY": 350.000005086263,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-fbyrzrcfbyrzrc-output-1-uu3mmo8uu3mmo8-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "fbyrzrc",
+        "sourceHandle": "fbyrzrc-output-1",
+        "sourceX": 604,
+        "sourceY": 350.000005086263,
+        "target": "uu3mmo8",
+        "targetHandle": "uu3mmo8-input-1",
+        "targetX": 655.9999593098959,
+        "targetY": 350.000005086263,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "class": "connected-edges",
+        "data": {},
+        "id": "vueflow__edge-uu3mmo8uu3mmo8-output-1-xxep41uxxep41u-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "uu3mmo8",
+        "sourceHandle": "uu3mmo8-output-1",
+        "sourceX": 896,
+        "sourceY": 350.000005086263,
+        "target": "xxep41u",
+        "targetHandle": "xxep41u-input-1",
+        "targetX": 948.0001627604166,
+        "targetY": 350.000005086263,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-jiglnitjiglnit-output-1-7qbifjr7qbifjr-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "jiglnit",
+        "sourceHandle": "jiglnit-output-1",
+        "sourceX": 1480,
+        "sourceY": 350.000005086263,
+        "target": "7qbifjr",
+        "targetHandle": "7qbifjr-input-1",
+        "targetX": 1532.0000375600962,
+        "targetY": 362,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "class": "connected-edges",
+        "data": {},
+        "id": "vueflow__edge-xxep41uxxep41u-output-1-jiglnitjiglnit-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "xxep41u",
+        "sourceHandle": "xxep41u-output-1",
+        "sourceX": 1188,
+        "sourceY": 350.000005086263,
+        "target": "jiglnit",
+        "targetHandle": "jiglnit-input-1",
+        "targetX": 1239.9999593098958,
+        "targetY": 350.000005086263,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-7qbifjr7qbifjr-output-1-4xsplhe4xsplhe-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "7qbifjr",
+        "sourceHandle": "7qbifjr-output-1",
+        "sourceX": 1772.0000939002405,
+        "sourceY": 362,
+        "target": "4xsplhe",
+        "targetHandle": "4xsplhe-input-1",
+        "targetX": 1824.0000027527446,
+        "targetY": 114.49999678846467,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-4xsplhe4xsplhe-output-1-yzpfoblyzpfobl-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "4xsplhe",
+        "sourceHandle": "4xsplhe-output-1",
+        "sourceX": 2063.9998122649304,
+        "sourceY": 114.49999678846467,
+        "target": "yzpfobl",
+        "targetHandle": "yzpfobl-input-1",
+        "targetX": 2148.0000617998926,
+        "targetY": 157.08590585333468,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-yzpfoblyzpfobl-output-wWftmAbX2VNmBFogQArJW-itnk3lcitnk3lc-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "yzpfobl",
+        "sourceHandle": "yzpfobl-output-wWftmAbX2VNmBFogQArJW",
+        "sourceX": 2452.999866606512,
+        "sourceY": 167.6796651593846,
+        "target": "itnk3lc",
+        "targetHandle": "itnk3lc-input-1",
+        "targetX": 2472.0000027527444,
+        "targetY": 478.99999678846467,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-itnk3lcitnk3lc-output-1-syv0piksyv0pik-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "itnk3lc",
+        "sourceHandle": "itnk3lc-output-1",
+        "sourceX": 2711.9998122649304,
+        "sourceY": 478.99999678846467,
+        "target": "syv0pik",
+        "targetHandle": "syv0pik-input-1",
+        "targetX": 2763.999837957213,
+        "targetY": 501.58588357890204,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-1h4zphk1h4zphk-output-1-igknuosigknuos-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "1h4zphk",
+        "sourceHandle": "1h4zphk-output-1",
+        "sourceX": 3651.9999729299284,
+        "sourceY": 469.00000104413135,
+        "target": "igknuos",
+        "targetHandle": "igknuos-input-1",
+        "targetX": 3703.9999645768776,
+        "targetY": 491.5858971365897,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-igknuosigknuos-output-1-b0vvwkbb0vvwkb-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "igknuos",
+        "sourceHandle": "igknuos-output-1",
+        "sourceX": 3943.9997312328605,
+        "sourceY": 491.5858971365897,
+        "target": "b0vvwkb",
+        "targetHandle": "b0vvwkb-input-1",
+        "targetX": 3995.9998700298875,
+        "targetY": 571.2500310747776,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-oo4xuuwoo4xuuw-output-1-i320acji320acj-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "oo4xuuw",
+        "sourceHandle": "oo4xuuw-output-1",
+        "sourceX": 2711.999893464654,
+        "sourceY": 114.4999662149246,
+        "target": "i320acj",
+        "targetHandle": "i320acj-input-1",
+        "targetX": 2763.9998941720146,
+        "targetY": 137.0858908099143,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-i320acji320acj-output-1-m4xgctsm4xgcts-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "i320acj",
+        "sourceHandle": "i320acj-output-1",
+        "sourceX": 3003.999893464654,
+        "sourceY": 137.0858908099143,
+        "target": "m4xgcts",
+        "targetHandle": "m4xgcts-input-1",
+        "targetX": 3087.9998941720146,
+        "targetY": 232.2499662149246,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-b0vvwkbb0vvwkb-output-1-7qbifjr7qbifjr-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "b0vvwkb",
+        "sourceHandle": "b0vvwkb-output-1",
+        "sourceX": 4236.000118628108,
+        "sourceY": 571.2500310747776,
+        "target": "7qbifjr",
+        "targetHandle": "7qbifjr-input-1",
+        "targetX": 1532.0000375600962,
+        "targetY": 362,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-m4xgctsm4xgcts-output-1-7qbifjr7qbifjr-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "m4xgcts",
+        "sourceHandle": "m4xgcts-output-1",
+        "sourceX": 3327.999893464654,
+        "sourceY": 232.2499662149246,
+        "target": "7qbifjr",
+        "targetHandle": "7qbifjr-input-1",
+        "targetX": 1532.0000375600962,
+        "targetY": 362,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-yzpfoblyzpfobl-output-fallback-oo4xuuwoo4xuuw-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "yzpfobl",
+        "sourceHandle": "yzpfobl-output-fallback",
+        "sourceX": 2451.9999551663777,
+        "sourceY": 209.67967606554677,
+        "target": "oo4xuuw",
+        "targetHandle": "oo4xuuw-input-1",
+        "targetX": 2471.9998941720146,
+        "targetY": 114.4999662149246,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-7qbifjr7qbifjr-output-fallback-3cnis153cnis15-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "7qbifjr",
+        "sourceHandle": "7qbifjr-output-fallback",
+        "sourceX": 1772.0000939002405,
+        "sourceY": 383.9999812199519,
+        "target": "3cnis15",
+        "targetHandle": "3cnis15-input-1",
+        "targetX": 1824.0000375600962,
+        "targetY": 278.999995304988,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-3cnis153cnis15-output-1-ddyc51wddyc51w-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "3cnis15",
+        "sourceHandle": "3cnis15-output-1",
+        "sourceX": 2064.000187800481,
+        "sourceY": 278.999995304988,
+        "target": "ddyc51w",
+        "targetHandle": "ddyc51w-input-1",
+        "targetX": 2147.9998941720146,
+        "targetY": 278.9999662149246,
+        "type": "custom",
+        "updatable": true
+      },
+      {
+        "data": {},
+        "id": "vueflow__edge-syv0piksyv0pik-output-1-1h4zphk1h4zphk-input-1",
+        "label": "",
+        "markerEnd": "arrowclosed",
+        "selectable": true,
+        "source": "syv0pik",
+        "sourceHandle": "syv0pik-output-1",
+        "target": "1h4zphk",
+        "targetHandle": "1h4zphk-input-1",
+        "type": "custom",
+        "updatable": true
+      }
+    ],
+    "nodes": [
+      {
+        "data": {
+          "activeInInput": false,
+          "contextMenuName": "",
+          "contextTypes": [],
+          "date": "",
+          "days": [],
+          "delay": 5,
+          "description": "",
+          "disableBlock": false,
+          "interval": 60,
+          "isUrlRegex": false,
+          "observeElement": {
+            "baseElOptions": {
+              "attributeFilter": [],
+              "attributes": false,
+              "characterData": false,
+              "childList": true,
+              "subtree": false
             },
-            {
-                "id": "vueflow__edge-fbyrzrcfbyrzrc-output-1-uu3mmo8uu3mmo8-input-1",
-                "type": "custom",
-                "source": "fbyrzrc",
-                "target": "uu3mmo8",
-                "sourceHandle": "fbyrzrc-output-1",
-                "targetHandle": "uu3mmo8-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 603.9999008549755,
-                "sourceY": 138.5000240986374,
-                "targetX": 656.0000078996197,
-                "targetY": 138.5000240986374
-            },
-            {
-                "id": "vueflow__edge-zzmi7ilzzmi7il-output-1-j5a7mlmj5a7mlm-input-1",
-                "type": "custom",
-                "source": "zzmi7il",
-                "target": "j5a7mlm",
-                "sourceHandle": "zzmi7il-output-1",
-                "targetHandle": "j5a7mlm-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 1771.9999008549755,
-                "sourceY": 138.5000240986374,
-                "targetX": 1823.9999079550385,
-                "targetY": 138.5000240986374
-            },
-            {
-                "id": "vueflow__edge-j5a7mlmj5a7mlm-output-1-xvm5a4fxvm5a4f-input-1",
-                "type": "custom",
-                "source": "j5a7mlm",
-                "target": "xvm5a4f",
-                "sourceHandle": "j5a7mlm-output-1",
-                "targetHandle": "xvm5a4f-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 2063.9999008549757,
-                "sourceY": 138.5000240986374,
-                "targetX": 2147.9999079550385,
-                "targetY": 205.08590249540993
-            },
-            {
-                "id": "vueflow__edge-xvm5a4fxvm5a4f-output-DtYSONkWtMbIm0RG8YIIS-rxdvjyjrxdvjyj-input-1",
-                "type": "custom",
-                "source": "xvm5a4f",
-                "target": "rxdvjyj",
-                "sourceHandle": "xvm5a4f-output-DtYSONkWtMbIm0RG8YIIS",
-                "targetHandle": "rxdvjyj-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 2452.9998586383845,
-                "sourceY": 191.6796861887271,
-                "targetX": 2472.000107844201,
-                "targetY": 77.5000240986374
-            },
-            {
-                "id": "vueflow__edge-uu3mmo8uu3mmo8-output-1-xxep41uxxep41u-input-1",
-                "type": "custom",
-                "source": "uu3mmo8",
-                "target": "xxep41u",
-                "sourceHandle": "uu3mmo8-output-1",
-                "targetHandle": "xxep41u-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 895.9999008549755,
-                "sourceY": 138.5000240986374,
-                "targetX": 948.0000078996197,
-                "targetY": 138.5000240986374
-            },
-            {
-                "id": "vueflow__edge-xxep41uxxep41u-output-1-jiglnitjiglnit-input-1",
-                "type": "custom",
-                "source": "xxep41u",
-                "target": "jiglnit",
-                "sourceHandle": "xxep41u-output-1",
-                "targetHandle": "jiglnit-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 1187.9999008549755,
-                "sourceY": 138.5000240986374,
-                "targetX": 1240.0000078996197,
-                "targetY": 138.5000240986374
-            },
-            {
-                "id": "vueflow__edge-jiglnitjiglnit-output-1-zzmi7ilzzmi7il-input-1",
-                "type": "custom",
-                "source": "jiglnit",
-                "target": "zzmi7il",
-                "sourceHandle": "jiglnit-output-1",
-                "targetHandle": "zzmi7il-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 1479.9999008549755,
-                "sourceY": 138.5000240986374,
-                "targetX": 1532.0000078996197,
-                "targetY": 138.5000240986374
-            },
-            {
-                "id": "vueflow__edge-i6mlj2ri6mlj2r-output-1-cqwhcdlcqwhcdl-input-1",
-                "type": "custom",
-                "source": "i6mlj2r",
-                "target": "cqwhcdl",
-                "sourceHandle": "i6mlj2r-output-1",
-                "targetHandle": "cqwhcdl-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 3295.9999008549757,
-                "sourceY": 138.5000240986374,
-                "targetX": 3348.000107844201,
-                "targetY": 178.08592387555473
-            },
-            {
-                "id": "vueflow__edge-xvm5a4fxvm5a4f-output-Q4sSC2DgGKfaL882OTlbN-0wxah8h0wxah8h-input-1",
-                "type": "custom",
-                "source": "xvm5a4f",
-                "target": "0wxah8h",
-                "sourceHandle": "xvm5a4f-output-Q4sSC2DgGKfaL882OTlbN",
-                "targetHandle": "0wxah8h-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 2452.9998586383845,
-                "sourceY": 239.6796703894877,
-                "targetX": 2472.000107844201,
-                "targetY": 199.49997412634684
-            },
-            {
-                "id": "vueflow__edge-rxdvjyjrxdvjyj-output-1-mvrr91umvrr91u-input-1",
-                "type": "custom",
-                "source": "rxdvjyj",
-                "target": "mvrr91u",
-                "sourceHandle": "rxdvjyj-output-1",
-                "targetHandle": "mvrr91u-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 2711.9999008549757,
-                "sourceY": 77.5000240986374,
-                "targetX": 2764.000107844201,
-                "targetY": 161.08590032061582
-            },
-            {
-                "id": "vueflow__edge-0wxah8h0wxah8h-output-1-mvrr91umvrr91u-input-1",
-                "type": "custom",
-                "source": "0wxah8h",
-                "target": "mvrr91u",
-                "sourceHandle": "0wxah8h-output-1",
-                "targetHandle": "mvrr91u-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 2711.9999008549757,
-                "sourceY": 199.49997412634684,
-                "targetX": 2764.000107844201,
-                "targetY": 161.08590032061582
-            },
-            {
-                "id": "vueflow__edge-mvrr91umvrr91u-output-1-i6mlj2ri6mlj2r-input-1",
-                "type": "custom",
-                "source": "mvrr91u",
-                "target": "i6mlj2r",
-                "sourceHandle": "mvrr91u-output-1",
-                "targetHandle": "i6mlj2r-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 3003.9999008549757,
-                "sourceY": 161.08590032061582,
-                "targetX": 3055.9999079550385,
-                "targetY": 138.5000240986374
-            },
-            {
-                "id": "vueflow__edge-cqwhcdlcqwhcdl-output-1-qrwsswrqrwsswr-input-1",
-                "type": "custom",
-                "source": "cqwhcdl",
-                "target": "qrwsswr",
-                "sourceHandle": "cqwhcdl-output-1",
-                "targetHandle": "qrwsswr-input-1",
-                "updatable": true,
-                "selectable": true,
-                "data": {},
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "sourceX": 3587.9999008549757,
-                "sourceY": 178.08592387555473,
-                "targetX": 3640.000017109746,
-                "targetY": 138.49998003863
+            "baseSelector": "",
+            "matchPattern": "",
+            "selector": "",
+            "targetOptions": {
+              "attributeFilter": [],
+              "attributes": false,
+              "characterData": false,
+              "childList": true,
+              "subtree": false
             }
-        ],
-        "zoom": 0.3,
-        "nodes": [
+          },
+          "parameters": [],
+          "preferParamsInTab": false,
+          "settings": {
+            "blockTimeout": 0,
+            "debugMode": false
+          },
+          "shortcut": "",
+          "time": "00:00",
+          "type": "manual",
+          "url": ""
+        },
+        "id": "SlP0Dj43vUp4djSLQRZMp",
+        "initialized": false,
+        "label": "trigger",
+        "position": {
+          "x": 96,
+          "y": 314
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "disableBlock": false,
+          "onError": {
+            "dataToInsert": [],
+            "enable": false,
+            "errorMessage": "",
+            "insertData": false,
+            "retry": false,
+            "retryInterval": 2,
+            "retryTimes": 1,
+            "toDo": "error"
+          },
+          "settings": {
+            "blockTimeout": 0,
+            "debugMode": false
+          }
+        },
+        "id": "fbyrzrc",
+        "initialized": false,
+        "label": "active-tab",
+        "position": {
+          "x": 388,
+          "y": 314
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "code": "const messages = document.querySelectorAll(\n  '[data-scroll-anchor-root=\"true\"][id^=\"response-\"]'\n);\n\nconst users = document.querySelectorAll(\n  '[data-testid=\"user-message\"]'\n).length;\n\nconst assistants = document.querySelectorAll(\n  '[data-testid=\"assistant-message\"]'\n).length;\n\nif (messages.length === 0) {\n  throw new Error(\n    \"未找到 Grok 对话，请确认当前页面是聊天页面\"\n  );\n}\n\nautomaSetVariable(\"grokPageCheck\", {\n  mountedMessages: messages.length,\n  users,\n  assistants,\n  url: location.href\n});\n\nconsole.log(\n  \"[Grok export] page check\",\n  {\n    mountedMessages: messages.length,\n    users,\n    assistants\n  }\n);",
+          "context": "website",
+          "description": "校验页面",
+          "disableBlock": false,
+          "everyNewTab": false,
+          "onError": {
+            "dataToInsert": [],
+            "enable": false,
+            "errorMessage": "",
+            "insertData": false,
+            "retry": false,
+            "retryInterval": 2,
+            "retryTimes": 1,
+            "toDo": "error"
+          },
+          "preloadScripts": [],
+          "runBeforeLoad": false,
+          "settings": {
+            "blockTimeout": 0,
+            "debugMode": false
+          },
+          "timeout": 20000
+        },
+        "id": "uu3mmo8",
+        "initialized": false,
+        "label": "javascript-code",
+        "position": {
+          "x": 680,
+          "y": 314
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "code": "const preview = text =>\n  text.length > 30\n    ? text.slice(0, 30) + \"…\"\n    : text;\n\nwindow.__grokCopiedText = null;\nwindow.__grokCopySeq = 0;\nwindow.__grokLastReadSeq = 0;\n\nif (!window.__grokClipboardInstalled) {\n  window.__grokClipboardInstalled = true;\n\n  const clipboard = navigator.clipboard;\n  window.__grokOriginalClipboardWriteText =\n    clipboard?.writeText;\n  \n  window.__grokOriginalClipboardWrite =\n    clipboard?.write;\n\n  if (clipboard?.writeText) {\n    clipboard.writeText = async function (text) {\n      window.__grokCopiedText = text;\n      window.__grokCopySeq++;\n\n      console.log(\n        \"[Grok export] writeText:\",\n        window.__grokCopySeq,\n        preview(text)\n      );\n\n      // 不真正写入系统剪贴板\n      return;\n    };\n  }\n\n  if (clipboard?.write) {\n    clipboard.write = async function (items) {\n      console.log(\n        \"[Grok export] write() called\",\n        items.length\n      );\n\n      for (const item of items) {\n        if (!item.types?.includes(\"text/plain\")) {\n          continue;\n        }\n\n        const blob =\n          await item.getType(\"text/plain\");\n\n        const text =\n          await blob.text();\n\n        window.__grokCopiedText = text;\n        window.__grokCopySeq++;\n\n        console.log(\n          \"[Grok export] write:\",\n          window.__grokCopySeq,\n          preview(text)\n        );\n\n        return;\n      }\n\n      console.warn(\n        \"[Grok export] write() 中没有 text/plain\"\n      );\n    };\n  }\n}\n\nconsole.log(\n  \"[Grok export] clipboard interceptor ready\"\n);",
+          "context": "website",
+          "description": "拦截剪切板",
+          "disableBlock": false,
+          "everyNewTab": false,
+          "preloadScripts": [],
+          "runBeforeLoad": false,
+          "timeout": 20000
+        },
+        "id": "xxep41u",
+        "initialized": false,
+        "label": "javascript-code",
+        "position": {
+          "x": 972,
+          "y": 314
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "code": "automaSetVariable(\"conversation\", []);\nautomaSetVariable(\"currentMessageSelector\", \"\");\nautomaSetVariable(\"currentMessageId\", \"\");\nautomaSetVariable(\"currentMessageRole\", \"\");\nautomaSetVariable(\"currentMessageFound\", \"no\");\nautomaSetVariable(\"grokDone\", false);\n\nwindow.__grokSeen = new Set();\nwindow.__grokIdleRounds = 0;\nwindow.__grokElementKeys = new WeakMap();\nwindow.__grokMountedKeySeq = 0;\n\nconsole.log(\n  \"[Grok export] state initialized\"\n);",
+          "context": "website",
+          "description": "初始化数组",
+          "disableBlock": false,
+          "everyNewTab": false,
+          "preloadScripts": [],
+          "runBeforeLoad": false,
+          "timeout": 20000
+        },
+        "id": "jiglnit",
+        "initialized": false,
+        "label": "javascript-code",
+        "position": {
+          "x": 1264,
+          "y": 314
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "conditions": [
             {
-                "id": "SlP0Dj43vUp4djSLQRZMp",
-                "type": "BlockBasic",
-                "initialized": false,
-                "position": {
-                    "x": 96,
-                    "y": 102.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "description": "",
-                    "type": "manual",
-                    "interval": 60,
-                    "delay": 5,
-                    "date": "",
-                    "time": "00:00",
-                    "url": "",
-                    "shortcut": "",
-                    "activeInInput": false,
-                    "isUrlRegex": false,
-                    "days": [],
-                    "contextMenuName": "",
-                    "contextTypes": [],
-                    "parameters": [],
-                    "preferParamsInTab": false,
-                    "observeElement": {
-                        "selector": "",
-                        "baseSelector": "",
-                        "matchPattern": "",
-                        "targetOptions": {
-                            "subtree": false,
-                            "childList": true,
-                            "attributes": false,
-                            "attributeFilter": [],
-                            "characterData": false
-                        },
-                        "baseElOptions": {
-                            "subtree": false,
-                            "childList": true,
-                            "attributes": false,
-                            "attributeFilter": [],
-                            "characterData": false
-                        }
+              "conditions": [
+                {
+                  "id": "Cwttq56LuAJFFTrOXQIi4",
+                  "items": [
+                    {
+                      "category": "value",
+                      "data": {
+                        "value": "{{variables.grokDone}}"
+                      },
+                      "id": "XUwNhsWy0UAJG9muuOICA",
+                      "type": "value"
                     },
-                    "settings": {
-                        "blockTimeout": 0,
-                        "debugMode": false
+                    {
+                      "category": "compare",
+                      "id": "28X6tqEfipOP16cd_7eqs",
+                      "type": "ifl"
                     }
-                },
-                "label": "trigger"
-            },
-            {
-                "id": "fbyrzrc",
-                "type": "BlockBasic",
-                "initialized": false,
-                "position": {
-                    "x": 388,
-                    "y": 102.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "settings": {
-                        "blockTimeout": 0,
-                        "debugMode": false
-                    },
-                    "onError": {
-                        "retry": false,
-                        "enable": false,
-                        "retryTimes": 1,
-                        "retryInterval": 2,
-                        "toDo": "error",
-                        "errorMessage": "",
-                        "insertData": false,
-                        "dataToInsert": []
-                    }
-                },
-                "label": "active-tab"
-            },
-            {
-                "id": "uu3mmo8",
-                "type": "BlockBasic",
-                "initialized": false,
-                "position": {
-                    "x": 680,
-                    "y": 102.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "description": "校验页面",
-                    "timeout": 20000,
-                    "context": "website",
-                    "code": "const users =\n  document.querySelectorAll('[data-testid=\"user-message\"]').length;\n\nconst assistants =\n  document.querySelectorAll('[data-testid=\"assistant-message\"]').length;\n\nconst total = users + assistants;\n\nif (total === 0) {\n  throw new Error(\n    \"未找到 Grok 对话，请确认当前页面是 Grok 聊天页面\"\n  );\n}\n\nautomaSetVariable(\"grokPageCheck\", {\n  users,\n  assistants,\n  total,\n  url: location.href\n});\n\nconsole.log(\"[Grok export] page check\", {\n  users,\n  assistants,\n  total\n});",
-                    "preloadScripts": [],
-                    "everyNewTab": false,
-                    "runBeforeLoad": false,
-                    "settings": {
-                        "blockTimeout": 0,
-                        "debugMode": false
-                    },
-                    "onError": {
-                        "retry": false,
-                        "enable": false,
-                        "retryTimes": 1,
-                        "retryInterval": 2,
-                        "toDo": "error",
-                        "errorMessage": "",
-                        "insertData": false,
-                        "dataToInsert": []
-                    }
-                },
-                "label": "javascript-code"
-            },
-            {
-                "id": "zzmi7il",
-                "type": "BlockBasic",
-                "initialized": false,
-                "position": {
-                    "x": 1556,
-                    "y": 102.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "loopId": "PZypES",
-                    "selector": "[data-scroll-anchor-root=\"true\"][id^=\"response-\"]",
-                    "maxLoop": "0",
-                    "description": "",
-                    "reverseLoop": false,
-                    "actionElSelector": "",
-                    "findBy": "cssSelector",
-                    "actionElMaxWaitTime": 5,
-                    "actionPageMaxWaitTime": 10,
-                    "loadMoreAction": "none",
-                    "scrollToBottom": true,
-                    "waitForSelector": false,
-                    "waitSelectorTimeout": 5000
-                },
-                "label": "loop-elements"
-            },
-            {
-                "id": "j5a7mlm",
-                "type": "BlockBasic",
-                "initialized": false,
-                "position": {
-                    "x": 1848,
-                    "y": 102.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "description": "",
-                    "findBy": "cssSelector",
-                    "waitForSelector": false,
-                    "waitSelectorTimeout": 5000,
-                    "selector": "{{loopData@PZypES}}",
-                    "markEl": false,
-                    "multiple": false
-                },
-                "label": "hover-element"
-            },
-            {
-                "id": "xvm5a4f",
-                "type": "BlockConditions",
-                "initialized": false,
-                "position": {
-                    "x": 2172,
-                    "y": 102.5
-                },
-                "data": {
-                    "description": "",
-                    "disableBlock": false,
-                    "conditions": [
-                        {
-                            "id": "DtYSONkWtMbIm0RG8YIIS",
-                            "name": "User",
-                            "conditions": [
-                                {
-                                    "id": "ndwxgwbiPUTInAn-Hk2sl",
-                                    "conditions": [
-                                        {
-                                            "id": "PsCl_r_DguNXFsPTPIc6q",
-                                            "items": [
-                                                {
-                                                    "type": "element#exists",
-                                                    "category": "value",
-                                                    "data": {
-                                                        "selector": "{{loopData@PZypES}} [data-testid=\"user-message\"]"
-                                                    },
-                                                    "id": "3UDHn0i2qRPVc6TOQInhb"
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            "id": "Q4sSC2DgGKfaL882OTlbN",
-                            "name": "Assistant",
-                            "conditions": [
-                                {
-                                    "id": "1XDJ5_tkENnHaD9p93JVQ",
-                                    "conditions": [
-                                        {
-                                            "id": "40D2BE1Q1fsWMknTEr83M",
-                                            "items": [
-                                                {
-                                                    "type": "element#exists",
-                                                    "category": "value",
-                                                    "data": {
-                                                        "selector": "{{loopData@PZypES}} [data-testid=\"assistant-message\"]"
-                                                    },
-                                                    "id": "j2niuvhg5KsUsCe3eH8Dy"
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ],
-                    "retryConditions": false,
-                    "retryCount": 10,
-                    "retryTimeout": 1000,
-                    "settings": {
-                        "blockTimeout": 0,
-                        "debugMode": false
-                    }
-                },
-                "label": "conditions"
-            },
-            {
-                "id": "rxdvjyj",
-                "type": "BlockBasic",
-                "initialized": false,
-                "position": {
-                    "x": 2496,
-                    "y": 41.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "description": "",
-                    "findBy": "cssSelector",
-                    "waitForSelector": true,
-                    "waitSelectorTimeout": 5000,
-                    "selector": "{{loopData@PZypES}} button[aria-label=\"Copy\"]",
-                    "markEl": false,
-                    "multiple": false
-                },
-                "label": "event-click"
-            },
-            {
-                "id": "cqwhcdl",
-                "type": "BlockLoopBreakpoint",
-                "initialized": false,
-                "position": {
-                    "x": 3372,
-                    "y": 102.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "loopId": "PZypES",
-                    "clearLoop": false
-                },
-                "label": "loop-breakpoint"
-            },
-            {
-                "id": "xxep41u",
-                "type": "BlockBasic",
-                "initialized": false,
-                "position": {
-                    "x": 972,
-                    "y": 102.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "description": "拦截剪切板",
-                    "timeout": 20000,
-                    "context": "website",
-                    "code": "const preview = text =>\n  text.length > 30 ? text.slice(0, 30) + \"…\" : text;\n\nwindow.__grokCopiedText = null;\nwindow.__grokCopySeq = 0;\nwindow.__grokLastReadSeq = 0;\n\n// 避免重复安装\nif (!window.__grokClipboardInstalled) {\n  window.__grokClipboardInstalled = true;\n\n  const clipboard = navigator.clipboard;\n\n  // Prompt 通常走 writeText\n  if (clipboard?.writeText) {\n    clipboard.writeText = async function (text) {\n      window.__grokCopiedText = text;\n      window.__grokCopySeq++;\n\n      console.log(\n        \"[Grok export] writeText:\",\n        window.__grokCopySeq,\n        preview(text)\n      );\n\n      // 不真正写入系统剪贴板\n      return;\n    };\n  }\n\n  // Response 可能走 write\n  if (clipboard?.write) {\n    clipboard.write = async function (items) {\n      console.log(\n        \"[Grok export] write() called\",\n        items.length\n      );\n\n      for (const item of items) {\n        if (!item.types?.includes(\"text/plain\")) {\n          continue;\n        }\n\n        const blob =\n          await item.getType(\"text/plain\");\n\n        const text =\n          await blob.text();\n\n        window.__grokCopiedText = text;\n        window.__grokCopySeq++;\n\n        console.log(\n          \"[Grok export] write:\",\n          window.__grokCopySeq,\n          preview(text)\n        );\n\n        return;\n      }\n\n      console.warn(\n        \"[Grok export] write() 中没有 text/plain\"\n      );\n    };\n  }\n}\n\nconsole.log(\n  \"[Grok export] clipboard interceptor ready\"\n);",
-                    "preloadScripts": [],
-                    "everyNewTab": false,
-                    "runBeforeLoad": false
-                },
-                "label": "javascript-code"
-            },
-            {
-                "id": "i6mlj2r",
-                "type": "BlockBasic",
-                "initialized": false,
-                "position": {
-                    "x": 3080,
-                    "y": 102.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "description": "",
-                    "timeout": 20000,
-                    "context": "website",
-                    "code": "const seq =\n  window.__grokCopySeq || 0;\n\nconst lastSeq =\n  window.__grokLastReadSeq || 0;\n\nconst text =\n  window.__grokCopiedText;\n\nif (seq <= lastSeq) {\n  throw new Error(\n    `本轮没有捕获到新的复制内容: seq=${seq}, lastSeq=${lastSeq}`\n  );\n}\n\nif (typeof text !== \"string\") {\n  throw new Error(\"捕获到的复制内容不是字符串\");\n}\n\nconst loopData =\n  automaRefData(\"loopData\", \"PZypES\");\n\nconst selector = loopData?.data;\n\nif (!selector) {\n  throw new Error(\"无法获取当前 loop selector\");\n}\n\nconst element =\n  document.querySelector(selector);\n\nif (!element) {\n  throw new Error(\n    `找不到当前 loop 元素: ${selector}`\n  );\n}\n\nlet role;\n\nif (\n  element.matches('[data-testid=\"user-message\"]') ||\n  element.querySelector('[data-testid=\"user-message\"]')\n) {\n  role = \"user\";\n} else if (\n  element.matches('[data-testid=\"assistant-message\"]') ||\n  element.querySelector('[data-testid=\"assistant-message\"]')\n) {\n  role = \"assistant\";\n} else {\n  throw new Error(\n    `无法识别消息类型: ${element.tagName}`\n  );\n}\n\nwindow.__grokLastReadSeq = seq;\n\nconst conversation =\n  automaRefData(\n    \"variables\",\n    \"conversation\"\n  ) || [];\n\nconversation.push({\n  role,\n  content: text\n});\n\nautomaSetVariable(\n  \"conversation\",\n  conversation\n);\n\nautomaSetVariable(\n  \"currentMessage\",\n  {\n    role,\n    content: text\n  }\n);\n\nconsole.log(\n  \"[Grok export] consumed\",\n  {\n    index: conversation.length - 1,\n    role,\n    seq\n  }\n);",
-                    "preloadScripts": [],
-                    "everyNewTab": false,
-                    "runBeforeLoad": false
-                },
-                "label": "javascript-code"
-            },
-            {
-                "id": "jiglnit",
-                "type": "BlockBasic",
-                "initialized": false,
-                "position": {
-                    "x": 1264,
-                    "y": 102.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "description": "初始化数组",
-                    "timeout": 20000,
-                    "context": "website",
-                    "code": "automaSetVariable(\"conversation\", []);\nautomaSetVariable(\"currentMessage\", null);\n\nconsole.log(\n  \"[Grok export] conversation initialized\"\n);",
-                    "preloadScripts": [],
-                    "everyNewTab": false,
-                    "runBeforeLoad": false
-                },
-                "label": "javascript-code"
-            },
-            {
-                "id": "mvrr91u",
-                "type": "BlockDelay",
-                "initialized": false,
-                "position": {
-                    "x": 2788,
-                    "y": 102.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "time": "300"
-                },
-                "label": "delay"
-            },
-            {
-                "id": "0wxah8h",
-                "type": "BlockBasic",
-                "initialized": false,
-                "position": {
-                    "x": 2496,
-                    "y": 163.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "description": "",
-                    "timeout": 20000,
-                    "context": "website",
-                    "code": "const loopData =\n  automaRefData(\"loopData\", \"PZypES\");\n\nif (!loopData) {\n  throw new Error(\"无法获取当前 loopData\");\n}\n\nconst selector = loopData.data;\n\nif (!selector) {\n  throw new Error(\n    \"当前 loopData 中没有 data selector\"\n  );\n}\n\nconsole.log(\n  \"[Grok export] assistant selector:\",\n  selector\n);\n\nconst button = document.querySelector(\n  `${selector} button[aria-label=\"Copy response\"]`\n);\n\nif (!button) {\n  throw new Error(\n    `找不到 Assistant Copy response 按钮: ${selector}`\n  );\n}\n\nconsole.log(\n  \"[Grok export] assistant click\",\n  {\n    focused: document.hasFocus(),\n    selector\n  }\n);\n\nbutton.click();",
-                    "preloadScripts": [],
-                    "everyNewTab": false,
-                    "runBeforeLoad": false
-                },
-                "label": "javascript-code"
-            },
-            {
-                "id": "qrwsswr",
-                "type": "BlockBasic",
-                "initialized": false,
-                "position": {
-                    "x": 3664,
-                    "y": 102.5
-                },
-                "data": {
-                    "disableBlock": false,
-                    "name": "grok-conversation",
-                    "refKey": "",
-                    "type": "json",
-                    "description": "",
-                    "variableName": "conversation",
-                    "csvDelimiter": ",",
-                    "addBOMHeader": true,
-                    "onConflict": "uniquify",
-                    "dataToExport": "variable"
-                },
-                "label": "export-data"
+                  ]
+                }
+              ],
+              "id": "rIRD24tCBcpoh_X-H6WCo"
             }
-        ],
-        "position": [
-            -118.50157495103338,
-            390.65
-        ],
-        "viewport": {
-            "x": -118.50157495103338,
-            "y": 390.65,
-            "zoom": 0.3
-        }
+          ],
+          "description": "",
+          "disableBlock": false
+        },
+        "id": "7qbifjr",
+        "initialized": false,
+        "label": "while-loop",
+        "position": {
+          "x": 1556,
+          "y": 314
+        },
+        "type": "BlockBasicWithFallback"
+      },
+      {
+        "data": {
+          "code": "const messages = [\n  ...document.querySelectorAll(\n    '[data-scroll-anchor-root=\"true\"][id^=\"response-\"]'\n  )\n];\n\nconst getRole = element => {\n  if (element.matches('[data-testid=\"user-message\"]') ||\n      element.querySelector('[data-testid=\"user-message\"]')) {\n    return \"user\";\n  }\n\n  if (element.matches('[data-testid=\"assistant-message\"]') ||\n      element.querySelector('[data-testid=\"assistant-message\"]')) {\n    return \"assistant\";\n  }\n\n  return null;\n};\n\nconst getMessageKey = (element, role) => {\n  const keyedDescendant = element.querySelector(\n    '[data-message-id], [data-turn-id]'\n  );\n\n  const stablePart =\n    element.getAttribute(\"data-message-id\") ||\n    element.getAttribute(\"data-turn-id\") ||\n    element.getAttribute(\"data-message-index\") ||\n    element.getAttribute(\"data-turn-index\") ||\n    element.getAttribute(\"aria-posinset\") ||\n    element.id ||\n    keyedDescendant?.getAttribute(\"data-message-id\") ||\n    keyedDescendant?.getAttribute(\"data-turn-id\");\n\n  const fingerprint =\n    role + \"\\u0000\" + element.innerText.trim();\n\n  const previous =\n    window.__grokElementKeys.get(element);\n\n  if (previous?.fingerprint === fingerprint) {\n    element.setAttribute(\n      \"data-palace-export-key\",\n      previous.key\n    );\n\n    return previous.key;\n  }\n\n  const key = stablePart\n    ? role + \":\" + stablePart\n    : role + \":mounted:\" +\n      ++window.__grokMountedKeySeq;\n\n  window.__grokElementKeys.set(\n    element,\n    { fingerprint, key }\n  );\n\n  element.setAttribute(\n    \"data-palace-export-key\",\n    key\n  );\n\n  return key;\n};\n\nlet found = null;\n\nfor (const element of messages) {\n  const role = getRole(element);\n\n  if (!role) {\n    continue;\n  }\n\n  const id = getMessageKey(element, role);\n\n  if (!window.__grokSeen.has(id)) {\n    found = { element, id, role };\n    break;\n  }\n}\n\nif (!found) {\n  automaSetVariable(\"currentMessageFound\", \"no\");\n  automaSetVariable(\"currentMessageSelector\", \"\");\n  automaSetVariable(\"currentMessageId\", \"\");\n  automaSetVariable(\"currentMessageRole\", \"\");\n\n  console.log(\n    \"[Grok export] no new mounted message\"\n  );\n} else {\n  const selector =\n    '[data-palace-export-key=\"' +\n    CSS.escape(found.id) +\n    '\"]';\n\n  automaSetVariable(\"currentMessageFound\", \"yes\");\n  automaSetVariable(\"currentMessageSelector\", selector);\n  automaSetVariable(\"currentMessageId\", found.id);\n  automaSetVariable(\"currentMessageRole\", found.role);\n\n  console.log(\n    \"[Grok export] next message\",\n    {\n      id: found.id,\n      role: found.role,\n      selector\n    }\n  );\n}",
+          "context": "website",
+          "description": "Find Next Message",
+          "disableBlock": false,
+          "everyNewTab": false,
+          "preloadScripts": [],
+          "runBeforeLoad": false,
+          "timeout": 20000
+        },
+        "id": "4xsplhe",
+        "initialized": false,
+        "label": "javascript-code",
+        "position": {
+          "x": 1848,
+          "y": 78.5
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "conditions": [
+            {
+              "conditions": [
+                {
+                  "conditions": [
+                    {
+                      "id": "KqQjP2l5jpQG7VYdldT1J",
+                      "items": [
+                        {
+                          "category": "value",
+                          "data": {
+                            "value": "{{variables.currentMessageFound}}"
+                          },
+                          "id": "jAU7YshTUUUvuIl9KPfkA",
+                          "type": "value"
+                        },
+                        {
+                          "category": "compare",
+                          "id": "kkgKI-N5JguI2WUtZCAEb",
+                          "type": "eq"
+                        },
+                        {
+                          "category": "value",
+                          "data": {
+                            "value": "yes"
+                          },
+                          "id": "mqz3FPhLQ1ThTasOeUmAR",
+                          "type": "value"
+                        }
+                      ]
+                    }
+                  ],
+                  "id": "aBfgbLX7G55mzARnLErCK"
+                }
+              ],
+              "id": "wWftmAbX2VNmBFogQArJW",
+              "name": "Has Turn"
+            }
+          ],
+          "description": "",
+          "disableBlock": false,
+          "retryConditions": false,
+          "retryCount": 10,
+          "retryTimeout": 1000
+        },
+        "id": "yzpfobl",
+        "initialized": false,
+        "label": "conditions",
+        "position": {
+          "x": 2172,
+          "y": 78.5
+        },
+        "type": "BlockConditions"
+      },
+      {
+        "data": {
+          "description": "",
+          "disableBlock": false,
+          "findBy": "cssSelector",
+          "markEl": false,
+          "multiple": false,
+          "selector": "{{variables.currentMessageSelector}}",
+          "waitForSelector": false,
+          "waitSelectorTimeout": 5000
+        },
+        "id": "itnk3lc",
+        "initialized": false,
+        "label": "hover-element",
+        "position": {
+          "x": 2496,
+          "y": 443
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "disableBlock": false,
+          "time": "200"
+        },
+        "id": "syv0pik",
+        "initialized": false,
+        "label": "delay",
+        "position": {
+          "x": 2788,
+          "y": 443
+        },
+        "type": "BlockDelay"
+      },
+      {
+        "data": {
+          "code": "const selector = automaRefData(\n  \"variables\",\n  \"currentMessageSelector\"\n);\n\nconst role = automaRefData(\n  \"variables\",\n  \"currentMessageRole\"\n);\n\nconst element = document.querySelector(selector);\n\nif (!element) {\n  throw new Error(\n    `找不到当前消息: ${selector}`\n  );\n}\n\nlet buttonSelector;\n\nif (role === \"user\") {\n  buttonSelector = 'button[aria-label=\"Copy\"]';\n} else if (role === \"assistant\") {\n  buttonSelector = 'button[aria-label=\"Copy response\"]';\n} else {\n  throw new Error(\n    `无法识别消息角色: ${role}`\n  );\n}\n\nconst button = element.querySelector(buttonSelector);\n\nif (!button) {\n  throw new Error(\n    `找不到 ${role} 消息的复制按钮: ${selector}`\n  );\n}\n\nbutton.click();\n\nconsole.log(\n  \"[Grok export] copy clicked\",\n  { role, selector }\n);",
+          "context": "website",
+          "description": "Click Copy",
+          "disableBlock": false,
+          "everyNewTab": false,
+          "preloadScripts": [],
+          "runBeforeLoad": false,
+          "timeout": 20000
+        },
+        "id": "1h4zphk",
+        "initialized": false,
+        "label": "javascript-code",
+        "position": {
+          "x": 3436,
+          "y": 433
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "disableBlock": false,
+          "time": "300"
+        },
+        "id": "igknuos",
+        "initialized": false,
+        "label": "delay",
+        "position": {
+          "x": 3728,
+          "y": 433
+        },
+        "type": "BlockDelay"
+      },
+      {
+        "data": {
+          "code": "const seq = window.__grokCopySeq || 0;\nconst lastSeq = window.__grokLastReadSeq || 0;\nconst text = window.__grokCopiedText;\n\nif (seq <= lastSeq) {\n  throw new Error(\n    `本轮没有捕获到新的复制内容: seq=${seq}, last=${lastSeq}`\n  );\n}\n\nif (typeof text !== \"string\") {\n  throw new Error(\"捕获到的复制内容不是字符串\");\n}\n\nconst id = automaRefData(\n  \"variables\",\n  \"currentMessageId\"\n);\n\nconst role = automaRefData(\n  \"variables\",\n  \"currentMessageRole\"\n);\n\nif (!id) {\n  throw new Error(\"缺少 currentMessageId\");\n}\n\nif (role !== \"user\" && role !== \"assistant\") {\n  throw new Error(\n    `无法识别 role: ${role}`\n  );\n}\n\nconst conversation = automaRefData(\n  \"variables\",\n  \"conversation\"\n) || [];\n\nconversation.push({\n  role,\n  content: text,\n  messageId: id\n});\n\nwindow.__grokSeen.add(id);\nwindow.__grokLastReadSeq = seq;\n\nautomaSetVariable(\"conversation\", conversation);\n\nconsole.log(\n  \"[Grok export] consumed\",\n  {\n    id,\n    role,\n    total: conversation.length\n  }\n);",
+          "context": "website",
+          "description": "Consume clipboard",
+          "disableBlock": false,
+          "everyNewTab": false,
+          "preloadScripts": [],
+          "runBeforeLoad": false,
+          "timeout": 20000
+        },
+        "id": "b0vvwkb",
+        "initialized": false,
+        "label": "javascript-code",
+        "position": {
+          "x": 4020,
+          "y": 535.25
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "code": "const findScrollRoot = () => {\n  const message = document.querySelector(\n    '[data-scroll-anchor-root=\"true\"][id^=\"response-\"]'\n  );\n\n  for (\n    let element = message?.parentElement;\n    element;\n    element = element.parentElement\n  ) {\n    const overflowY =\n      getComputedStyle(element).overflowY;\n\n    if (\n      /(auto|scroll)/.test(overflowY) &&\n      element.scrollHeight > element.clientHeight\n    ) {\n      return element;\n    }\n  }\n\n  return document.scrollingElement;\n};\n\nconst element = findScrollRoot();\n\nif (!element) {\n  throw new Error(\n    \"无法找到 Grok 对话滚动容器\"\n  );\n}\n\nconst before = element.scrollTop;\nconst distance = Math.max(\n  element.clientHeight * 0.75,\n  500\n);\n\nelement.scrollBy({\n  top: distance,\n  behavior: \"instant\"\n});\n\nconst after = element.scrollTop;\n\nconsole.log(\n  \"[Grok export] scroll down\",\n  {\n    before,\n    after,\n    moved: after - before,\n    distance,\n    scrollHeight: element.scrollHeight,\n    clientHeight: element.clientHeight,\n    remaining:\n      element.scrollHeight -\n      element.clientHeight -\n      after\n  }\n);",
+          "context": "website",
+          "description": "Scroll Down",
+          "disableBlock": false,
+          "everyNewTab": false,
+          "preloadScripts": [],
+          "runBeforeLoad": false,
+          "timeout": 20000
+        },
+        "id": "oo4xuuw",
+        "initialized": false,
+        "label": "javascript-code",
+        "position": {
+          "x": 2496,
+          "y": 78.5
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "disableBlock": false,
+          "time": 500
+        },
+        "id": "i320acj",
+        "initialized": false,
+        "label": "delay",
+        "position": {
+          "x": 2788,
+          "y": 78.5
+        },
+        "type": "BlockDelay"
+      },
+      {
+        "data": {
+          "code": "const findScrollRoot = () => {\n  const message = document.querySelector(\n    '[data-scroll-anchor-root=\"true\"][id^=\"response-\"]'\n  );\n\n  for (\n    let element = message?.parentElement;\n    element;\n    element = element.parentElement\n  ) {\n    const overflowY =\n      getComputedStyle(element).overflowY;\n\n    if (\n      /(auto|scroll)/.test(overflowY) &&\n      element.scrollHeight > element.clientHeight\n    ) {\n      return element;\n    }\n  }\n\n  return document.scrollingElement;\n};\n\nconst getRole = element => {\n  if (element.matches('[data-testid=\"user-message\"]') ||\n      element.querySelector('[data-testid=\"user-message\"]')) {\n    return \"user\";\n  }\n\n  if (element.matches('[data-testid=\"assistant-message\"]') ||\n      element.querySelector('[data-testid=\"assistant-message\"]')) {\n    return \"assistant\";\n  }\n\n  return null;\n};\n\nconst getMessageKey = (element, role) => {\n  const keyedDescendant = element.querySelector(\n    '[data-message-id], [data-turn-id]'\n  );\n\n  const stablePart =\n    element.getAttribute(\"data-message-id\") ||\n    element.getAttribute(\"data-turn-id\") ||\n    element.getAttribute(\"data-message-index\") ||\n    element.getAttribute(\"data-turn-index\") ||\n    element.getAttribute(\"aria-posinset\") ||\n    element.id ||\n    keyedDescendant?.getAttribute(\"data-message-id\") ||\n    keyedDescendant?.getAttribute(\"data-turn-id\");\n\n  const fingerprint =\n    role + \"\\u0000\" + element.innerText.trim();\n\n  const previous =\n    window.__grokElementKeys.get(element);\n\n  if (previous?.fingerprint === fingerprint) {\n    element.setAttribute(\n      \"data-palace-export-key\",\n      previous.key\n    );\n\n    return previous.key;\n  }\n\n  const key = stablePart\n    ? role + \":\" + stablePart\n    : role + \":mounted:\" +\n      ++window.__grokMountedKeySeq;\n\n  window.__grokElementKeys.set(\n    element,\n    { fingerprint, key }\n  );\n\n  element.setAttribute(\n    \"data-palace-export-key\",\n    key\n  );\n\n  return key;\n};\n\nconst element = findScrollRoot();\n\nif (!element) {\n  throw new Error(\n    \"无法找到 Grok 对话滚动容器\"\n  );\n}\n\nconst nearBottom =\n  element.scrollTop + element.clientHeight >=\n  element.scrollHeight - 120;\n\nconst mountedMessages = [\n  ...document.querySelectorAll(\n    '[data-scroll-anchor-root=\"true\"][id^=\"response-\"]'\n  )\n];\n\nconst hasUnseen = mountedMessages.some(message => {\n  const role = getRole(message);\n  if (!role) return false;\n\n  const id = getMessageKey(message, role);\n  return !window.__grokSeen.has(id);\n});\n\nif (hasUnseen) {\n  window.__grokIdleRounds = 0;\n} else {\n  window.__grokIdleRounds =\n    (window.__grokIdleRounds || 0) + 1;\n}\n\nconst done =\n  nearBottom &&\n  !hasUnseen &&\n  window.__grokIdleRounds >= 3;\n\nautomaSetVariable(\"grokDone\", done);\n\nconsole.log(\n  \"[Grok export] check done\",\n  {\n    nearBottom,\n    hasUnseen,\n    idleRounds: window.__grokIdleRounds,\n    done,\n    scrollTop: element.scrollTop,\n    scrollHeight: element.scrollHeight,\n    clientHeight: element.clientHeight\n  }\n);",
+          "context": "website",
+          "description": "Check Done",
+          "disableBlock": false,
+          "everyNewTab": false,
+          "preloadScripts": [],
+          "runBeforeLoad": false,
+          "timeout": 20000
+        },
+        "id": "m4xgcts",
+        "initialized": false,
+        "label": "javascript-code",
+        "position": {
+          "x": 3112,
+          "y": 196.25
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "addBOMHeader": true,
+          "csvDelimiter": ",",
+          "dataToExport": "variable",
+          "description": "",
+          "disableBlock": false,
+          "name": "grok-conversation",
+          "onConflict": "uniquify",
+          "refKey": "",
+          "type": "json",
+          "variableName": "conversation"
+        },
+        "id": "ddyc51w",
+        "initialized": false,
+        "label": "export-data",
+        "position": {
+          "x": 2172,
+          "y": 243
+        },
+        "type": "BlockBasic"
+      },
+      {
+        "data": {
+          "code": "const clipboard = navigator.clipboard;\n\nif (clipboard) {\n  if (window.__grokOriginalClipboardWriteText) {\n    clipboard.writeText =\n      window.__grokOriginalClipboardWriteText;\n  }\n\n  if (window.__grokOriginalClipboardWrite) {\n    clipboard.write =\n      window.__grokOriginalClipboardWrite;\n  }\n}\n\nwindow.__grokClipboardInstalled = false;\n\nconsole.log(\n  \"[Grok export] clipboard interceptor restored\"\n);",
+          "context": "website",
+          "description": "恢复剪切板",
+          "disableBlock": false,
+          "everyNewTab": false,
+          "preloadScripts": [],
+          "runBeforeLoad": false,
+          "timeout": 20000
+        },
+        "id": "3cnis15",
+        "initialized": false,
+        "label": "javascript-code",
+        "position": {
+          "x": 1848,
+          "y": 243
+        },
+        "type": "BlockBasic"
+      }
+    ],
+    "position": [
+      -164.19999999999993,
+      342.6875
+    ],
+    "viewport": {
+      "x": -164.19999999999993,
+      "y": 342.6875,
+      "zoom": 0.3
     },
-    "settings": {
-        "publicId": "",
-        "aipowerToken": "",
-        "blockDelay": 0,
-        "saveLog": true,
-        "debugMode": false,
-        "restartTimes": 3,
-        "notification": true,
-        "execContext": "popup",
-        "reuseLastState": false,
-        "inputAutocomplete": true,
-        "onError": "stop-workflow",
-        "executedBlockOnWeb": false,
-        "insertDefaultColumn": false,
-        "defaultColumnName": "column",
-        "tabLoadTimeout": 30000
-    },
-    "globalData": "{\n\t\"key\": \"value\"\n}",
-    "description": "",
-    "includedWorkflows": {}
+    "zoom": 0.3
+  },
+  "settings": {
+    "aipowerToken": "",
+    "blockDelay": 0,
+    "debugMode": false,
+    "defaultColumnName": "column",
+    "execContext": "popup",
+    "executedBlockOnWeb": false,
+    "inputAutocomplete": true,
+    "insertDefaultColumn": false,
+    "notification": true,
+    "onError": "stop-workflow",
+    "publicId": "",
+    "restartTimes": 3,
+    "reuseLastState": false,
+    "saveLog": true,
+    "tabLoadTimeout": 30000
+  },
+  "globalData": "{\n\t\"key\": \"value\"\n}",
+  "description": "",
+  "includedWorkflows": {}
 }
