@@ -65,7 +65,7 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
     return date.toLocaleDateString();
   });
   await page.locator(`[data-day="${day}"]`).click();
-  await page.keyboard.press("Escape");
+  await expect(page.getByRole("grid")).not.toBeVisible();
   await page.getByLabel("对话发生时间", { exact: true }).fill("09:30");
   await page.getByLabel("选择会话 JSON 文件").setInputFiles({
     name: "conversation.json",

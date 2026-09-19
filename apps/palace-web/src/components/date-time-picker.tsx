@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { CalendarIcon } from "lucide-react";
 import { zhCN } from "date-fns/locale";
 import { format } from "date-fns";
@@ -16,9 +17,10 @@ export function DateTimePicker({
   value: Date;
   onChange: (date: Date) => void;
 }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="date-time">
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" aria-label="选择对话发生日期">
             <CalendarIcon size={16} />
@@ -29,6 +31,7 @@ export function DateTimePicker({
           <Calendar
             locale={zhCN}
             mode="single"
+            required
             selected={value}
             defaultMonth={value}
             captionLayout="dropdown"
@@ -38,6 +41,7 @@ export function DateTimePicker({
               if (date) {
                 date.setHours(value.getHours(), value.getMinutes(), 0, 0);
                 onChange(date);
+                setOpen(false);
               }
             }}
           />
