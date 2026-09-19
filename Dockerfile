@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS frontend
+FROM node:24-alpine AS frontend
 
 WORKDIR /build
 COPY package.json package-lock.json ./
@@ -7,20 +7,19 @@ RUN npm ci
 COPY apps/palace-web apps/palace-web
 RUN npm run build -w apps/palace-web
 
-FROM rust:1.95-bookworm AS server
+FROM rust:1.95-alpine AS server
 
 WORKDIR /build
+RUN apk add --no-cache build-base perl
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates crates
 COPY apps/palace-server apps/palace-server
 RUN cargo build --release --locked -p palace-server
 
-FROM debian:bookworm-slim AS runtime
+FROM alpine:latest AS runtime
 
-RUN apt-get update \
-    && apt-get install --no-install-recommends --yes ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd --create-home --uid 10001 palace
+RUN apk add --no-cache ca-certificates \
+    && adduser -D --uid 10001 palace
 
 WORKDIR /app
 COPY --from=server /build/target/release/palace-server /usr/local/bin/palace-server
