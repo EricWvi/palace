@@ -13,7 +13,7 @@ export function LibraryPage() {
   const [open, setOpen] = useState(false);
   const { search, setSearch } = useLibrary();
   const entries = [...(query.data ?? [])]
-    .sort((a, b) => b.imported_at - a.imported_at || b.id.localeCompare(a.id))
+    .sort((a, b) => b.occurred_at - a.occurred_at || b.id.localeCompare(a.id))
     .filter((item) =>
       `${item.title} ${item.session_id} ${sources[item.source]}`
         .toLowerCase()
@@ -58,7 +58,7 @@ export function LibraryPage() {
         </div>
         <div className="list-caption">
           <span>会话</span>
-          <span>导入时间 ↓</span>
+          <span>对话发生时间 ↓</span>
         </div>
         {query.isPending ? (
           <p role="status" className="empty">
@@ -103,8 +103,8 @@ export function LibraryPage() {
                     <span className="session-id">{item.session_id}</span>
                   </p>
                 </div>
-                <time dateTime={new Date(item.imported_at).toISOString()}>
-                  {formatTime(item.imported_at)}
+                <time dateTime={new Date(item.occurred_at).toISOString()}>
+                  {formatTime(item.occurred_at)}
                 </time>
                 <ArrowUpRight size={18} />
               </Link>

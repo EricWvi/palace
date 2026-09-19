@@ -10,7 +10,7 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
     title: "把零散的灵感，整理成自己的知识体系",
     source: "chatgpt",
     session_id: "knowledge-notes",
-    imported_at: 1789648800000,
+    occurred_at: 1789648800000,
     head_message_id: "answer",
     message_count: 2,
   };
@@ -54,7 +54,7 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
   await page.getByRole("button", { name: "导入会话", exact: true }).click();
   await page.getByLabel("来源网站 Session ID").fill("knowledge-notes");
   await page.getByLabel("自定义标题").fill("思考的下一步");
-  await page.getByRole("button", { name: "选择导入日期" }).click();
+  await page.getByRole("button", { name: "选择对话发生日期" }).click();
   await expect(page.getByRole("grid")).toBeVisible();
   await page.screenshot({ path: "/tmp/palace-calendar.png" });
   const chosen = new Date();
@@ -66,7 +66,7 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
   });
   await page.locator(`[data-day="${day}"]`).click();
   await page.keyboard.press("Escape");
-  await page.getByLabel("导入时间", { exact: true }).fill("09:30");
+  await page.getByLabel("对话发生时间", { exact: true }).fill("09:30");
   await page.getByLabel("选择会话 JSON 文件").setInputFiles({
     name: "conversation.json",
     mimeType: "application/json",

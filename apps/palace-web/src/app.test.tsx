@@ -11,7 +11,7 @@ const old = {
   title: "较早的思考",
   source: "chatgpt",
   session_id: "session-old",
-  imported_at: 1000,
+  occurred_at: 1000,
   head_message_id: "head-old",
   message_count: 2,
 };
@@ -19,7 +19,7 @@ const latest = {
   ...old,
   id: "new",
   title: "新的灵感",
-  imported_at: 3000,
+  occurred_at: 3000,
   head_message_id: "head-new",
 };
 const messages = [
@@ -71,7 +71,7 @@ function mockApi() {
     });
   });
 }
-it("sorts by import time, searches, navigates, and safely renders Markdown", async () => {
+it("sorts by conversation occurrence time, searches, navigates, and safely renders Markdown", async () => {
   mockApi();
   mount();
   const user = userEvent.setup();
@@ -122,11 +122,11 @@ it("imports the selected source, ID, title, local date/time and JSON as multipar
   await user.type(within(dialog).getByLabelText("自定义标题"), "我的收藏");
   const now = new Date();
   expect(
-    within(dialog).getByRole("button", { name: "选择导入日期" }),
+    within(dialog).getByRole("button", { name: "选择对话发生日期" }),
   ).toHaveTextContent(`${now.getFullYear()} 年`);
   // A real calendar selection keeps the time in the browser's local timezone.
   await user.click(
-    within(dialog).getByRole("button", { name: "选择导入日期" }),
+    within(dialog).getByRole("button", { name: "选择对话发生日期" }),
   );
   expect(screen.getByRole("grid")).toBeInTheDocument();
   await user.keyboard("{Escape}");
@@ -143,13 +143,13 @@ it("imports the selected source, ID, title, local date/time and JSON as multipar
   expect(
     Object.fromEntries(
       [...body.entries()].filter(
-        ([key]) => !["history", "idempotency_key", "imported_at"].includes(key),
+        ([key]) => !["history", "idempotency_key", "occurred_at"].includes(key),
       ),
     ),
   ).toEqual({ source: "gemini", title: "我的收藏", session_id: "my-session" });
   expect(body.get("history")).toBe(file);
   expect(
-    Math.abs(Number(body.get("imported_at")) - now.getTime()),
+    Math.abs(Number(body.get("occurred_at")) - now.getTime()),
   ).toBeLessThan(10_000);
   expect(body.get("idempotency_key")).toEqual(expect.any(String));
 });

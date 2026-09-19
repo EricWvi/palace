@@ -19,7 +19,7 @@ pub(super) async fn me(
 #[serde(deny_unknown_fields)]
 pub(super) struct TextImport {
     title: String,
-    imported_at: i64,
+    occurred_at: i64,
     source: Source,
     session_id: String,
     history: String,
@@ -44,7 +44,7 @@ pub(super) async fn import_text(
     })?;
     let request = ImportRequest::parse(
         ImportInput {
-            imported_at: body.imported_at,
+            occurred_at: body.occurred_at,
             title: body.title,
             source: body.source,
             session_id: body.session_id,
@@ -73,7 +73,7 @@ pub(super) async fn import_file(
             .ok_or_else(|| InputError::new(InputErrorKind::Field, "multipart", "unnamed field"))?
             .to_owned();
         if ![
-            "imported_at",
+            "occurred_at",
             "title",
             "source",
             "session_id",
@@ -122,10 +122,10 @@ pub(super) async fn import_file(
         .map_err(|_| InputError::new(InputErrorKind::Field, "source", "unsupported source"))?;
     let request = ImportRequest::parse(
         ImportInput {
-            imported_at: text("imported_at")?.parse().map_err(|_| {
+            occurred_at: text("occurred_at")?.parse().map_err(|_| {
                 InputError::new(
                     InputErrorKind::Field,
-                    "imported_at",
+                    "occurred_at",
                     "expected epoch milliseconds",
                 )
             })?,
@@ -183,7 +183,7 @@ pub(super) async fn rename(
     Ok(Json(serde_json::json!({"id":id,"title":input.title})).into_response())
 }
 
-/// Lists each conversation once, ordered by its newest user-selected import time.
+/// Lists each conversation once, ordered by its newest user-selected conversation occurrence time.
 pub(super) async fn conversations(
     State(server): State<Arc<BusinessServer>>,
     axum::Extension(owner): axum::Extension<palace_db::Owner>,

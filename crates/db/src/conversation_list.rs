@@ -11,17 +11,17 @@ pub struct ConversationSummary {
     pub title: String,
     pub source: Source,
     pub session_id: String,
-    pub imported_at: i64,
+    pub occurred_at: i64,
     pub head_message_id: Uuid,
     pub message_count: i64,
 }
 impl Database {
-    /// Selects the latest dated import per conversation inside the authenticated owner scope.
+    /// Selects the most recent occurrence per conversation inside the authenticated owner scope.
     pub async fn list_conversations(
         &self,
         owner: OwnerScope,
     ) -> Result<Vec<ConversationSummary>, DbError> {
-        let rows = sqlx::query("SELECT c.id,c.title,c.source,c.session_id,i.head_message_id,i.message_count,(extract(epoch FROM i.imported_at)*1000)::bigint AS imported_at FROM conversation c JOIN LATERAL (SELECT imported_at,head_message_id,message_count FROM conversation_import WHERE owner_id=c.owner_id AND conversation_id=c.id ORDER BY imported_at DESC,id DESC LIMIT 1) i ON true WHERE c.owner_id=$1 ORDER BY i.imported_at DESC,c.id DESC")
+        let rows = sqlx::query("SELECT c.id,c.title,c.source,c.session_id,i.head_message_id,i.message_count,(extract(epoch FROM i.occurred_at)*1000)::bigint AS occurred_at FROM conversation c JOIN LATERAL (SELECT occurred_at,head_message_id,message_count FROM conversation_import WHERE owner_id=c.owner_id AND conversation_id=c.id ORDER BY occurred_at DESC,id DESC LIMIT 1) i ON true WHERE c.owner_id=$1 ORDER BY i.occurred_at DESC,c.id DESC")
             .bind(owner.id()).fetch_all(&self.pool).await?;
         rows.into_iter()
             .map(|row| {
@@ -33,7 +33,7 @@ impl Database {
                     ))
                     .map_err(|_| DbError::Conflict)?,
                     session_id: row.try_get("session_id")?,
-                    imported_at: row.try_get("imported_at")?,
+                    occurred_at: row.try_get("occurred_at")?,
                     head_message_id: row.try_get("head_message_id")?,
                     message_count: row.try_get("message_count")?,
                 })

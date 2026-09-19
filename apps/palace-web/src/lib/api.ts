@@ -11,7 +11,7 @@ export interface Conversation {
   session_id: string;
 }
 export interface Summary extends Conversation {
-  imported_at: number;
+  occurred_at: number;
   head_message_id: string;
   message_count: number;
 }

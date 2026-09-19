@@ -9,6 +9,9 @@ use testcontainers::{
 };
 use uuid::Uuid;
 
+#[path = "postgres/import_times.rs"]
+mod import_times;
+
 /// Requires the prepared image before testcontainers can attempt its pull-on-missing fallback.
 async fn database() -> (ContainerAsync<GenericImage>, Database, PgPool) {
     let present = std::process::Command::new("docker")
@@ -50,7 +53,7 @@ fn request(key: &str, messages: &[&str]) -> ImportRequest {
     .unwrap();
     ImportRequest::parse(
         ImportInput {
-            imported_at: 1_700_000_000_000,
+            occurred_at: 1_700_000_000_000,
             title: key.into(),
             source: Source::Chatgpt,
             session_id: "same".into(),
@@ -270,7 +273,7 @@ async fn concurrent_imports_reuse_prefix_and_failures_roll_back() {
     assert_eq!(counts, (1, 6, 4));
     let fresh = ImportRequest::parse(
         ImportInput {
-            imported_at: 1_700_000_000_000,
+            occurred_at: 1_700_000_000_000,
             title: "fresh".into(),
             source: Source::Gemini,
             session_id: "fresh".into(),
@@ -902,7 +905,7 @@ async fn library_lists_latest_import_per_owned_conversation() {
         .await
         .unwrap();
     let mut expected = Vec::new();
-    for (key, session, imported_at) in [
+    for (key, session, occurred_at) in [
         ("first", "a", 1000),
         ("second", "b", 3000),
         ("third", "a", 2000),
@@ -914,7 +917,7 @@ async fn library_lists_latest_import_per_owned_conversation() {
                 session_id: session.into(),
                 history: br#"[{"role":"user","content":"hello"}]"#.to_vec(),
                 idempotency_key: key.into(),
-                imported_at,
+                occurred_at,
             },
             ImportLimits::default(),
         )
@@ -930,7 +933,7 @@ async fn library_lists_latest_import_per_owned_conversation() {
                 title: if session == "a" { "first" } else { key }.into(),
                 source: Source::Chatgpt,
                 session_id: session.into(),
-                imported_at,
+                occurred_at,
                 head_message_id: result.head_message_id,
                 message_count: 1,
             });

@@ -81,7 +81,7 @@ function ImportForm({ onComplete }: { onComplete: () => void }) {
       body.set("source", source);
       body.set("title", title);
       body.set("session_id", session);
-      body.set("imported_at", String(date.getTime()));
+      body.set("occurred_at", String(date.getTime()));
       body.set("idempotency_key", key);
       body.set("history", file);
       return request<ImportResult>("/api/import/file", {
@@ -144,7 +144,7 @@ function ImportForm({ onComplete }: { onComplete: () => void }) {
           />
         </div>
         <div>
-          <Label>导入日期与时间</Label>
+          <Label>对话发生日期与时间</Label>
           <DateTimePicker value={date} onChange={setDate} />
           <p className="field-hint">
             使用本地时区 · {Intl.DateTimeFormat().resolvedOptions().timeZone}

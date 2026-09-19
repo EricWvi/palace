@@ -144,7 +144,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         now,
     });
     let history = r#"[{"role":"user","content":"<script>alert(1)</script>\r\n","extra":123}]"#;
-    let input = serde_json::json!({"imported_at":1700000000000_i64,"title":"t","source":"chatgpt","session_id":"s","history":history,"idempotency_key":"key"});
+    let input = serde_json::json!({"occurred_at":1700000000000_i64,"title":"t","source":"chatgpt","session_id":"s","history":history,"idempotency_key":"key"});
     let response = app
         .clone()
         .oneshot(request(
@@ -172,7 +172,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         ("session_id", "s"),
         ("history", history),
         ("idempotency_key", "key"),
-        ("imported_at", "1700000000000"),
+        ("occurred_at", "1700000000000"),
     ];
     let mut body = String::new();
     for (name, value) in fields {
@@ -200,7 +200,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     for (credential, expected) in [
         (
             &cookie,
-            serde_json::json!([{"id":result["conversation_id"],"title":"t","source":"chatgpt","session_id":"s","imported_at":1700000000000_i64,"head_message_id":result["head_message_id"],"message_count":1}]),
+            serde_json::json!([{"id":result["conversation_id"],"title":"t","source":"chatgpt","session_id":"s","occurred_at":1700000000000_i64,"head_message_id":result["head_message_id"],"message_count":1}]),
         ),
         (&foreign, serde_json::json!([])),
     ] {
@@ -298,7 +298,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
             ("session_id", "invalid"),
             ("history", history.as_str()),
             ("idempotency_key", "invalid"),
-            ("imported_at", "1700000000000"),
+            ("occurred_at", "1700000000000"),
         ] {
             file.push_str(&format!(
                 "--boundary\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n"

@@ -20,7 +20,7 @@ export function DateTimePicker({
     <div className="date-time">
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" aria-label="选择导入日期">
+          <Button variant="outline" aria-label="选择对话发生日期">
             <CalendarIcon size={16} />
             {format(value, "yyyy 年 MM 月 dd 日")}
           </Button>
@@ -44,7 +44,7 @@ export function DateTimePicker({
         </PopoverContent>
       </Popover>
       <Input
-        aria-label="导入时间"
+        aria-label="对话发生时间"
         type="time"
         required
         value={format(value, "HH:mm")}
