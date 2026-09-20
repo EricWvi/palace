@@ -73,6 +73,7 @@ tasks:
       - task: lint:frontend
       - task: test:frontend
       - task: test:crates
+      - task: test:api
 
   test:integration:
     desc: Run ignored PostgreSQL tests using locally prepared images
@@ -101,6 +102,20 @@ tasks:
     desc: Run ignored Authelia protocol tests using locally prepared images
     cmds:
       - cargo test -p palace-backend authelia_authorization -- --ignored
+
+  api:check:
+    desc: Check generated OpenAPI and browser types without writing files
+    cmds:
+      - node scripts/check-api-generated.mjs
+
+  test:api:
+    desc: Run offline API generation, schema, route and validation-tool checks
+    cmds:
+      - task: api:check
+      - task: test:api-schema
+      - task: test:api-toolchain
+      - node --test scripts/api-checks.test.mjs
+      - cargo test -p palace-backend contract_covers_operations --lib
 
   test:api-toolchain:
     desc: Verify OpenAPI generation, schema validation and typed multipart without services
