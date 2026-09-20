@@ -24,6 +24,7 @@ url = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+utoipa = { workspace = true }
 palace-logging = { workspace = true }
 tokio = { workspace = true }
 testcontainers = { workspace = true }

@@ -56,6 +56,7 @@ tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["fmt", "registry"] }
 url = "2"
 uuid = { version = "1", features = ["serde", "v7"] }
+utoipa = { version = "=5.5.0", features = ["uuid"] }
 
 [workspace.lints]
 rust = {}

@@ -4,6 +4,7 @@
 
 现有接口、媒体类型、错误分支与传输语义见 [HTTP 接口盘点](api/inventory.md)。
 CI 入口统一放在 `Taskfile.yml`；GitHub Actions 只做构建。
+工具版本、生成产物路径及验证边界见 [契约工具链](api/toolchain.md)，运行 `task test:api-toolchain` 验证第一阶段工具组合。
 
 ## 产品设计
 

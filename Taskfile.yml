@@ -102,6 +102,11 @@ tasks:
     cmds:
       - cargo test -p palace-backend authelia_authorization -- --ignored
 
+  test:api-toolchain:
+    desc: Verify OpenAPI generation, schema validation and typed multipart without services
+    cmds:
+      - node scripts/check-contract-toolchain.mjs
+
   install:frontend:
     desc: Install locked frontend dependencies (Node 24+)
     cmds:
