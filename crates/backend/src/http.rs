@@ -1,4 +1,8 @@
 mod business;
+mod contract;
+mod dto;
+mod routes;
+pub use contract::api_contract;
 mod error;
 #[cfg(feature = "test-server")]
 mod fixed_user;
@@ -67,10 +71,10 @@ pub fn router<P: LoginProvider + 'static>(server: Server<P>) -> Router {
         authenticate_request::<P>,
     ));
     Router::new()
-        .route("/auth/login", get(login::<P>))
-        .route("/auth/callback", get(callback::<P>))
-        .route("/auth/logout", post(logout::<P>))
-        .route("/auth/logout-all", post(logout_all::<P>))
+        .route(routes::LOGIN, get(login::<P>))
+        .route(routes::CALLBACK, get(callback::<P>))
+        .route(routes::LOGOUT, post(logout::<P>))
+        .route(routes::LOGOUT_ALL, post(logout_all::<P>))
         .with_state(server)
         .merge(business)
 }
@@ -92,23 +96,20 @@ fn business_router(server: BusinessServer) -> Router {
         .saturating_mul(6)
         .saturating_add(64 * 1024);
     Router::new()
-        .route("/api/me", get(business::me))
-        .route("/api/sync", get(sync::pull).post(sync::upload))
-        .route("/api/import", post(business::import_text))
-        .route("/api/import/file", post(business::import_file))
-        .route("/api/conversations", get(business::conversations))
+        .route(routes::ME, get(business::me))
+        .route(routes::SYNC, get(sync::pull).post(sync::upload))
+        .route(routes::IMPORT, post(business::import_text))
+        .route(routes::IMPORT_FILE, post(business::import_file))
+        .route(routes::CONVERSATIONS, get(business::conversations))
         .route(
-            "/api/conversations/{id}",
+            routes::CONVERSATION,
             get(business::conversation)
                 .put(business::update_conversation)
                 .delete(path_management::delete_conversation),
         )
+        .route(routes::PATHS, post(path_management::create))
         .route(
-            "/api/conversations/{id}/paths",
-            post(path_management::create),
-        )
-        .route(
-            "/api/conversations/{id}/paths/{path_id}",
+            routes::PATH,
             get(business::path)
                 .put(path_management::update)
                 .delete(path_management::delete),

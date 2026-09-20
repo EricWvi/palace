@@ -23,8 +23,9 @@ serde_json = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
 
-[dev-dependencies]
 utoipa = { workspace = true }
+
+[dev-dependencies]
 palace-logging = { workspace = true }
 tokio = { workspace = true }
 testcontainers = { workspace = true }

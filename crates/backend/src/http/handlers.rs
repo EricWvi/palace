@@ -1,5 +1,5 @@
 use super::{
-    ApiError, LoginProvider, Server,
+    ApiError, LoginProvider, Server, dto, routes,
     security::{LOGIN_COOKIE, SESSION_COOKIE, check_origin, cookie, set_cookie},
 };
 use axum::{
@@ -9,7 +9,6 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use palace_db::{AuthenticatedSession, RevokeScope};
-use serde::Deserialize;
 use std::sync::Arc;
 
 /// Reads the persisted session before a handler can establish its owner scope.
@@ -45,6 +44,17 @@ pub(super) fn authenticated_response(
     Ok(response)
 }
 /// Starts a persisted, browser-bound Authorization Code Flow.
+#[utoipa::path(
+    get, path = routes::LOGIN, operation_id = "login",
+    security(),
+    responses(
+        (status = 303, description = "Browser redirect; empty body", headers(("Location" = String, description = "Identity provider authorization URL"), ("Set-Cookie" = String, description = "Secure HttpOnly browser credential"))),
+        (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 409, description = "Identity, source session or idempotency conflict", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 503, description = "Identity provider temporarily unavailable", body = dto::ErrorResponse, content_type = "application/json"),
+    )
+)]
 pub(super) async fn login<P: LoginProvider>(
     State(server): State<Arc<Server<P>>>,
 ) -> Result<Response, ApiError> {
@@ -67,16 +77,24 @@ pub(super) async fn login<P: LoginProvider>(
     );
     Ok(response)
 }
-#[derive(Deserialize)]
-pub(super) struct Callback {
-    code: String,
-    state: String,
-}
 /// Consumes state before exchanging the code; successful login replaces any previous browser session.
+#[utoipa::path(
+    get, path = routes::CALLBACK, operation_id = "callback",
+    params(dto::Callback),
+    security(("login_flow" = [])),
+    responses(
+        (status = 303, description = "Login completed; empty body", headers(("Location" = String, description = "/"), ("Set-Cookie" = String, description = "Sets session cookie and clears login cookie"), ("Cache-Control" = String, description = "no-store"))),
+        (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", body = String, content_type = "text/plain"),
+        (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 409, description = "Identity, source session or idempotency conflict", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 503, description = "Identity provider temporarily unavailable", body = dto::ErrorResponse, content_type = "application/json"),
+    )
+)]
 pub(super) async fn callback<P: LoginProvider>(
     State(server): State<Arc<Server<P>>>,
     headers: HeaderMap,
-    Query(query): Query<Callback>,
+    Query(query): Query<dto::Callback>,
 ) -> Result<Response, ApiError> {
     let browser = cookie(&headers, LOGIN_COOKIE)?.ok_or(ApiError::Unauthorized)?;
     let proof = server
@@ -107,6 +125,17 @@ pub(super) async fn callback<P: LoginProvider>(
     Ok(response)
 }
 /// Persists current-device logout before attempting external provider revocation.
+#[utoipa::path(
+    post, path = routes::LOGOUT, operation_id = "logout",
+    params(("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
+    security(("session" = [])),
+    responses(
+        (status = 200, description = "Successful operation", body = dto::LogoutResponse, headers(("Set-Cookie" = String, description = "Clears the browser session cookie"))),
+        (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 403, description = "Origin rejected", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
+    )
+)]
 pub(super) async fn logout<P: LoginProvider>(
     State(server): State<Arc<Server<P>>>,
     headers: HeaderMap,
@@ -114,6 +143,17 @@ pub(super) async fn logout<P: LoginProvider>(
     revoke(&server, headers, RevokeScope::Current).await
 }
 /// Uses the same authenticated boundary to revoke all devices owned by this user.
+#[utoipa::path(
+    post, path = routes::LOGOUT_ALL, operation_id = "logout_all",
+    params(("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
+    security(("session" = [])),
+    responses(
+        (status = 200, description = "Successful operation", body = dto::LogoutResponse, headers(("Set-Cookie" = String, description = "Clears the browser session cookie"))),
+        (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 403, description = "Origin rejected", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
+    )
+)]
 pub(super) async fn logout_all<P: LoginProvider>(
     State(server): State<Arc<Server<P>>>,
     headers: HeaderMap,
@@ -136,7 +176,7 @@ async fn revoke<P: LoginProvider>(
         .database
         .retry_revocations(&server.credential_key, &server.provider)
         .await;
-    let mut response = Json(serde_json::json!({"logged_out":true})).into_response();
+    let mut response = Json(dto::LogoutResponse { logged_out: true }).into_response();
     response.headers_mut().append(
         header::SET_COOKIE,
         set_cookie(SESSION_COOKIE, "", /*max_age*/ 0)?,

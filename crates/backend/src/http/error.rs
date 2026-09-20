@@ -1,3 +1,4 @@
+use super::dto::{ErrorCode, ErrorResponse, InputErrorResponse};
 use axum::{
     Json,
     http::StatusCode,
@@ -63,23 +64,38 @@ impl IntoResponse for ApiError {
                     InputErrorKind::Limit => StatusCode::PAYLOAD_TOO_LARGE,
                     InputErrorKind::Syntax | InputErrorKind::Field => StatusCode::BAD_REQUEST,
                 };
-                return (status, Json(error)).into_response();
+                return (status, Json(InputErrorResponse::from(error))).into_response();
             }
             Self::Unauthorized => (
                 StatusCode::UNAUTHORIZED,
-                "authentication_required",
+                ErrorCode::AuthenticationRequired,
                 "/auth/login",
             ),
-            Self::Forbidden => (StatusCode::FORBIDDEN, "origin_rejected", ""),
-            Self::Conflict => (StatusCode::CONFLICT, "identity_or_request_conflict", ""),
-            Self::DuplicateSession => (StatusCode::CONFLICT, "session_already_exists", ""),
-            Self::NotFound => (StatusCode::NOT_FOUND, "not_found", ""),
-            Self::Unavailable => (StatusCode::SERVICE_UNAVAILABLE, "identity_unavailable", ""),
-            Self::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "persistence_failed", ""),
+            Self::Forbidden => (StatusCode::FORBIDDEN, ErrorCode::OriginRejected, ""),
+            Self::Conflict => (
+                StatusCode::CONFLICT,
+                ErrorCode::IdentityOrRequestConflict,
+                "",
+            ),
+            Self::DuplicateSession => (StatusCode::CONFLICT, ErrorCode::SessionAlreadyExists, ""),
+            Self::NotFound => (StatusCode::NOT_FOUND, ErrorCode::NotFound, ""),
+            Self::Unavailable => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                ErrorCode::IdentityUnavailable,
+                "",
+            ),
+            Self::Internal => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ErrorCode::PersistenceFailed,
+                "",
+            ),
         };
         (
             status,
-            Json(serde_json::json!({"error":code,"login":detail})),
+            Json(ErrorResponse {
+                error: code,
+                login: detail,
+            }),
         )
             .into_response()
     }
