@@ -5,6 +5,8 @@ import { MemoryRouter } from "react-router-dom";
 import { expect, it, vi } from "vitest";
 import { BranchManager } from "./branch-manager";
 import { ConversationActions } from "./conversation-actions";
+import { testRequest, requestPath } from "@/lib/test-request";
+import type { components } from "@/lib/generated/api";
 import type { Detail } from "@/lib/api";
 import type { ComponentType, ReactNode } from "react";
 
@@ -34,10 +36,17 @@ vi.mock("@xyflow/react", () => ({
 }));
 
 const detail: Detail = {
-  conversation: { id: "tree", title: "一棵树", source: "chatgpt" },
+  conversation: {
+    owner_id: "owner",
+    id: "tree",
+    title: "一棵树",
+    source: "chatgpt",
+  },
   messages: [
     {
       id: "u1",
+      owner_id: "owner",
+      conversation_id: "tree",
       parent_message_id: null,
       role: "user",
       content: "Shared 共同问题很长的标题 mixed English 中文".repeat(4),
@@ -45,6 +54,8 @@ const detail: Detail = {
     },
     {
       id: "a1",
+      owner_id: "owner",
+      conversation_id: "tree",
       parent_message_id: "u1",
       role: "assistant",
       content: "隐藏的回答",
@@ -52,6 +63,8 @@ const detail: Detail = {
     },
     {
       id: "u2",
+      owner_id: "owner",
+      conversation_id: "tree",
       parent_message_id: "a1",
       role: "user",
       content: "后续问题",
@@ -95,32 +108,37 @@ function setup(menu = false) {
   let current = structuredClone(detail);
   const fetch = vi
     .spyOn(globalThis, "fetch")
-    .mockImplementation(async (url, options) => {
+    .mockImplementation(async (url) => {
+      const request = testRequest(url);
       if (
-        options?.method === "PUT" &&
-        String(url) === "/api/conversations/tree"
+        testRequest(url).method === "PUT" &&
+        requestPath(url) === "/api/conversations/tree"
       ) {
-        const metadata = JSON.parse(options.body as string) as {
-          title: string;
-          source: "chatgpt" | "gemini" | "grok";
-        };
+        const metadata: components["schemas"]["ConversationMetadata"] =
+          await request.clone().json();
         current = {
           ...current,
           conversation: { ...current.conversation, ...metadata },
         };
         return Response.json(current.conversation);
       }
-      if (options?.method === "DELETE") {
+      if (testRequest(url).method === "DELETE") {
         current = {
           ...current,
           paths: current.paths.filter(
-            (path) => !String(url).endsWith(`/${path.id}`),
+            (path) => !requestPath(url).endsWith(`/${path.id}`),
           ),
         };
         return Response.json({ id: "deleted" });
       }
-      if (options?.method === "POST" || options?.method === "PUT")
+      if (
+        testRequest(url).method === "POST" ||
+        testRequest(url).method === "PUT"
+      )
         return Response.json({
+          import_id: "import",
+          created: 1,
+          reused: 0,
           conversation_id: "tree",
           path_id: "long",
           head_message_id: "u2",
@@ -178,9 +196,12 @@ it("creates branches with disabled metadata and sends only the conversation targ
     ).not.toBeInTheDocument(),
   );
   const call = fetch.mock.calls.find(
-    ([, options]) => options?.method === "POST",
+    ([url]) => testRequest(url).method === "POST",
   )!;
-  expect([call[0], JSON.parse(call[1]!.body as string)]).toEqual([
+  expect([
+    requestPath(call[0]),
+    await testRequest(call[0]).clone().json(),
+  ]).toEqual([
     "/api/conversations/tree/paths",
     {
       session_id: "s4",
@@ -211,9 +232,12 @@ it("updates using the original occurrence time without sending disabled identity
     ).not.toBeInTheDocument(),
   );
   const call = fetch.mock.calls.find(
-    ([, options]) => options?.method === "PUT",
+    ([url]) => testRequest(url).method === "PUT",
   )!;
-  expect([call[0], JSON.parse(call[1]!.body as string)]).toEqual([
+  expect([
+    requestPath(call[0]),
+    await testRequest(call[0]).clone().json(),
+  ]).toEqual([
     "/api/conversations/tree/paths/long",
     {
       history,
@@ -227,7 +251,7 @@ it("confirms path deletion then refreshes the tree", async () => {
   const { fetch, user } = setup();
   await user.click(await screen.findByRole("button", { name: "删除分支 s2" }));
   expect(
-    fetch.mock.calls.some(([, options]) => options?.method === "DELETE"),
+    fetch.mock.calls.some(([url]) => testRequest(url).method === "DELETE"),
   ).toBe(false);
   await user.click(screen.getByRole("button", { name: "确认删除分支" }));
   await waitFor(() =>
@@ -250,8 +274,10 @@ it("offers branch management and confirmed whole-conversation deletion from the 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
   expect(fetch).toHaveBeenCalledWith(
-    "/api/conversations/tree",
-    expect.objectContaining({ method: "DELETE" }),
+    expect.objectContaining({
+      url: new URL("/api/conversations/tree", window.location.origin).href,
+      method: "DELETE",
+    }),
   );
 });
 // Core test case: `specs/test-cases/server/conversation/message-tree.md#card-menu-metadata-editing-must-refresh-every-visible-projection`
@@ -269,8 +295,9 @@ it("edits complete conversation metadata from the card menu", async () => {
   expect(screen.queryByRole("dialog", { name: "编辑会话" })).toBeNull();
   expect(
     fetch.mock.calls.some(
-      ([url, options]) =>
-        String(url) === "/api/conversations/tree" && options?.method === "PUT",
+      ([url]) =>
+        requestPath(url) === "/api/conversations/tree" &&
+        testRequest(url).method === "PUT",
     ),
   ).toBe(false);
   screen
@@ -292,10 +319,10 @@ it("edits complete conversation metadata from the card menu", async () => {
   await user.selectOptions(reopenedSource, "gemini");
   const fallback = fetch.getMockImplementation()!;
   let release: (() => void) | undefined;
-  fetch.mockImplementation(async (url, options) => {
+  fetch.mockImplementation(async (url) => {
     if (
-      String(url) === "/api/conversations/tree" &&
-      options?.method === "PUT"
+      requestPath(url) === "/api/conversations/tree" &&
+      testRequest(url).method === "PUT"
     ) {
       return new Promise<Response>((resolve) => {
         release = () =>
@@ -308,7 +335,7 @@ it("edits complete conversation metadata from the card menu", async () => {
           );
       });
     }
-    return fallback(url, options);
+    return fallback(url);
   });
   await user.click(within(reopened).getByRole("button", { name: "保存更改" }));
   await waitFor(() =>
@@ -322,12 +349,16 @@ it("edits complete conversation metadata from the card menu", async () => {
       screen.queryByRole("dialog", { name: "编辑会话" }),
     ).not.toBeInTheDocument(),
   );
-  expect(fetch).toHaveBeenCalledWith(
-    "/api/conversations/tree",
-    expect.objectContaining({
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: "修正后的树", source: "gemini" }),
-    }),
+  const saved = testRequest(
+    fetch.mock.calls.find(([url]) => testRequest(url).method === "PUT")![0],
   );
+  expect([
+    requestPath(saved),
+    saved.headers.get("Content-Type"),
+    await saved.clone().json(),
+  ]).toEqual([
+    "/api/conversations/tree",
+    "application/json",
+    { title: "修正后的树", source: "gemini" },
+  ]);
 });

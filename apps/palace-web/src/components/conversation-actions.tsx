@@ -2,7 +2,13 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DropdownMenu } from "radix-ui";
 import { MoreHorizontal } from "lucide-react";
-import { request, sources, type Conversation, type Source } from "@/lib/api";
+import {
+  api,
+  apiData,
+  sources,
+  type ConversationMetadata,
+  type Source,
+} from "@/lib/api";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -20,7 +26,7 @@ import { ErrorState } from "./error-state";
 export function ConversationActions({
   conversation,
 }: {
-  conversation: Conversation;
+  conversation: ConversationMetadata;
 }) {
   const [action, setAction] = useState<"branches" | "edit" | "delete" | null>(
     null,
@@ -33,13 +39,11 @@ export function ConversationActions({
       if (!title.trim()) throw new Error("请填写会话标题。");
       if (new TextEncoder().encode(title).length > 1024)
         throw new Error("会话标题不能超过 1024 字节。");
-      return request<Conversation>(
-        `/api/conversations/${encodeURIComponent(conversation.id)}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, source }),
-        },
+      return apiData(
+        api.PUT("/api/conversations/{id}", {
+          params: { path: { id: conversation.id } },
+          body: { title, source },
+        }),
       );
     },
     onSuccess: async () => {
@@ -54,9 +58,11 @@ export function ConversationActions({
   });
   const deletion = useMutation({
     mutationFn: () =>
-      request(`/api/conversations/${encodeURIComponent(conversation.id)}`, {
-        method: "DELETE",
-      }),
+      apiData(
+        api.DELETE("/api/conversations/{id}", {
+          params: { path: { id: conversation.id } },
+        }),
+      ),
     onSuccess: async () => {
       client.removeQueries({ queryKey: ["conversation", conversation.id] });
       await client.invalidateQueries({ queryKey: ["conversations"] });

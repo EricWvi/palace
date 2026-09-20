@@ -16,7 +16,15 @@ function path(id: string): ConversationPath {
   };
 }
 function message(id: string, role: Message["role"]): Message {
-  return { id, role, content: id, parent_message_id: null, created_order: 0 };
+  return {
+    owner_id: "owner",
+    conversation_id: "tree",
+    id,
+    role,
+    content: id,
+    parent_message_id: null,
+    created_order: 0,
+  };
 }
 
 it("projects through assistant nodes and lays out parents above non-overlapping siblings", () => {

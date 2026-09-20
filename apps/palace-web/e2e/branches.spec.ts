@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import type { Message, Detail } from "../src/lib/api";
 
 // Core test cases:
 // - `specs/test-cases/server/conversation/message-tree.md#shared-and-internal-endpoint-paths-must-remain-independently-manageable`
@@ -13,7 +14,7 @@ test("nested forks, internal endpoints, branch forms and mixed-language tree lab
     ["U1", "A1"],
     ["U1", "A1"],
   ];
-  const messages = [
+  const messages: Message[] = [
     ...new Map(
       chains.flatMap((chain) =>
         chain.map(
@@ -29,6 +30,8 @@ test("nested forks, internal endpoints, branch forms and mixed-language tree lab
                         8,
                       )
                     : id,
+                owner_id: "owner",
+                conversation_id: "tree",
                 parent_message_id: chain[index - 1] ?? null,
                 created_order: index,
               },
@@ -38,13 +41,18 @@ test("nested forks, internal endpoints, branch forms and mixed-language tree lab
     ).values(),
   ];
   const occurred = new Date(2024, 2, 5, 9, 30).getTime();
-  const detail = {
-    conversation: { id: "tree", title: "一棵讨论树", source: "chatgpt" },
+  const detail: Detail = {
+    conversation: {
+      owner_id: "owner",
+      id: "tree",
+      title: "一棵讨论树",
+      source: "chatgpt",
+    },
     messages,
     paths: chains.map((chain, index) => ({
       id: `p${index + 1}`,
       session_id: `s${index + 1}`,
-      head_message_id: chain.at(-1),
+      head_message_id: chain.at(-1)!,
       message_count: chain.length,
       occurred_at: occurred,
       created_at: 1000,

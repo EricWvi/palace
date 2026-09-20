@@ -85,14 +85,24 @@ Rust API DTO + 路由声明
 
 ## 第三阶段：迁移前端调用并建立接口文档
 
-- [ ] 从 OpenAPI 生成 TypeScript 类型，标记生成文件禁止手工修改。
-- [ ] 接入 `openapi-fetch`，由方法、路径和参数推导请求与响应类型。
-- [ ] 迁移 `api.ts` 及所有调用点，保留 cookie 携带、错误文案、React Query 行为和文件上传流程。
-- [ ] 删除重复的手写 API DTO 与任意返回类型断言；UI 专用状态模型仍由前端维护。
-- [ ] 验证 multipart 的浏览器编码与请求封装，不以 JSON 请求的默认行为替代文件上传语义。
-- [ ] 在 `docs/` 更新接口参考文档入口、生成方式、字段语义和错误处理说明；字段表由契约提供，业务约束由说明文档解释。
+- [x] 从 OpenAPI 生成 TypeScript 类型，标记生成文件禁止手工修改。
+- [x] 接入 `openapi-fetch`，由方法、路径和参数推导请求与响应类型。
+- [x] 迁移 `api.ts` 及所有调用点，保留 cookie 携带、错误文案、React Query 行为和文件上传流程。
+- [x] 删除重复的手写 API DTO 与任意返回类型断言；UI 专用状态模型仍由前端维护。
+- [x] 验证 multipart 的浏览器编码与请求封装，不以 JSON 请求的默认行为替代文件上传语义。
+- [x] 在 `docs/` 更新接口参考文档入口、生成方式、字段语义和错误处理说明；字段表由契约提供，业务约束由说明文档解释。
 
 验收：所有范围内的前端调用来自生成类型；错误字段或参数能够被 TypeScript 检出；列表、详情、导入、编辑、删除及认证相关行为通过对应回归验证。
+
+第三阶段交付与证据：
+
+- `task api:generate` 离线导出契约并生成 `apps/palace-web/src/lib/generated/api.ts`；连续生成逐字节一致。
+- Web 将 `openapi-fetch 0.17.0` 作为运行依赖；所有数据调用使用方法、路径和参数推导类型，删除手写 wire DTO 与 `request<T>`。
+- 浏览器类型视图移除自动发送的 Origin 参数，将 binary 映射为 Blob/File；正式 OpenAPI 保留服务端完整要求。
+- `task test` 通过：包含 34 个前端测试、TypeScript 正反例、Rust workspace lint 和默认测试；`task build:frontend` 通过。
+- `task test:browser` 的 2 个 Chromium 回归用例通过，覆盖真实 multipart boundary、同源 Origin、文件内容、编辑刷新和分支流程；API 响应使用 mock。
+- `task test:api-schema`、`task test:api-toolchain` 通过；文档同步至 [工具链](../../docs/api/toolchain.md) 与 [会话前端](../../docs/会话前端.md)。
+- 本阶段没有变更后端协议或重跑 PostgreSQL/Authelia 集成测试；生成漂移门禁及真实 HTTP schema 验证留在第四阶段。GitHub Actions 未修改。
 
 ## 第四阶段：建立 CI 契约验证和验收闭环
 

@@ -4,7 +4,7 @@
 
 现有接口、媒体类型、错误分支与传输语义见 [HTTP 接口盘点](api/inventory.md)。
 CI 入口统一放在 `Taskfile.yml`；GitHub Actions 只做构建。
-正式接口契约见 [OpenAPI](../contracts/openapi.json)，运行 `task api:export` 离线导出，`task test:api-schema` 校验。工具版本、路径与验证边界见 [契约工具链](api/toolchain.md)；`task test:api-toolchain` 保留为工具组合验证。
+正式接口契约见 [OpenAPI](../contracts/openapi.json)，运行 `task api:generate` 离线生成契约和前端类型，`task test:api-schema` 校验。Web 使用 openapi-fetch 从生成类型推导调用；`task api:export` 可单独导出契约。工具版本、路径与验证边界见 [契约工具链](api/toolchain.md)；`task test:api-toolchain` 保留为工具组合验证。
 
 ## 产品设计
 

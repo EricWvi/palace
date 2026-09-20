@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import type { Summary, Message, Detail } from "../src/lib/api";
+import type { components } from "../src/lib/generated/api";
 
 // Core test case: `specs/test-cases/server/conversation/message-tree.md#card-menu-metadata-editing-must-refresh-every-visible-projection`
 test("desktop and mobile library, calendar import, and routed chat", async ({
@@ -6,7 +8,7 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const item = {
+  const item: Summary = {
     id: "one",
     title: "把零散的灵感，整理成自己的知识体系",
     source: "chatgpt",
@@ -18,9 +20,11 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
     message_count: 2,
   };
   let current = { ...item };
-  const messages = [
+  const messages: Message[] = [
     {
       id: "question",
+      owner_id: "owner",
+      conversation_id: "one",
       parent_message_id: null,
       role: "user",
       content: "如何建立一个可以持续积累的知识库？",
@@ -28,6 +32,8 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
     },
     {
       id: "answer",
+      owner_id: "owner",
+      conversation_id: "one",
       parent_message_id: "question",
       role: "assistant",
       content:
@@ -45,11 +51,15 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
       await route.fulfill({ json: current });
       return;
     }
-    const data =
+    const data:
+      Summary[] | Message[] | Detail | components["schemas"]["ImportResult"] =
       path === "/api/conversations"
         ? [current]
         : path === "/api/import/file"
           ? {
+              import_id: "import",
+              created: 2,
+              reused: 0,
               conversation_id: "one",
               path_id: "path-one",
               head_message_id: "answer",
@@ -57,7 +67,12 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
           : path.includes("/paths/")
             ? messages
             : {
-                conversation: current,
+                conversation: {
+                  id: current.id,
+                  title: current.title,
+                  source: current.source,
+                  owner_id: "owner",
+                },
                 messages,
                 paths: [
                   {
@@ -128,7 +143,21 @@ test("desktop and mobile library, calendar import, and routed chat", async ({
   });
   const uploaded = page.waitForRequest("**/api/import/file");
   await page.getByRole("button", { name: "导入并查看会话" }).click();
-  const body = (await uploaded).postData()!;
+  const upload = await uploaded;
+  const contentType = upload.headers()["content-type"];
+  expect(contentType).toMatch(/^multipart\/form-data; boundary=.+/);
+  expect(upload.headers()["origin"]).toBe(new URL(page.url()).origin);
+  const form = await new Response(new Uint8Array(upload.postDataBuffer()!), {
+    headers: { "Content-Type": contentType },
+  }).formData();
+  const file = form.get("history") as File;
+  expect([file.name, file.type, await file.text()]).toEqual([
+    "conversation.json",
+    "application/json",
+    JSON.stringify([{ role: "user", content: "你好" }]),
+  ]);
+  expect(form.get("idempotency_key")).toMatch(/^[0-9a-f-]{36}$/);
+  const body = upload.postData()!;
   expect(body).toContain("knowledge-notes");
   chosen.setHours(9, 30, 0, 0);
   expect(body).toContain(String(chosen.getTime()));

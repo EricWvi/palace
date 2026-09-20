@@ -6,7 +6,10 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { App } from "./app";
 import { useLibrary } from "./lib/store";
 
-const old = {
+import type { Summary, Message, Detail } from "./lib/api";
+import { testRequest, requestPath } from "./lib/test-request";
+
+const old: Summary = {
   id: "old",
   title: "较早的思考",
   source: "chatgpt",
@@ -25,11 +28,13 @@ const latest = {
   occurred_at: 3000,
   head_message_id: "head-new",
 };
-const messages = [
+const messages: Message[] = [
   {
     id: "a",
     role: "user",
     content: "你好",
+    owner_id: "owner",
+    conversation_id: "new",
     parent_message_id: null,
     created_order: 1,
   },
@@ -38,6 +43,8 @@ const messages = [
     role: "assistant",
     content:
       "**回答**\n\n| A | B |\n|---|---|\n|1|2|\n\n<script>alert(1)</script>\n\n[危险](javascript:alert(1))",
+    owner_id: "owner",
+    conversation_id: "new",
     parent_message_id: "a",
     created_order: 2,
   },
@@ -59,17 +66,25 @@ beforeEach(() => {
 });
 function mockApi() {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
-    const path = String(url);
+    const path = requestPath(url);
     if (path === "/api/conversations") return Response.json([old, latest]);
     if (path === "/api/import/file")
       return Response.json({
+        import_id: "import",
+        created: 2,
+        reused: 0,
         conversation_id: "new",
         path_id: "path-new",
         head_message_id: "head-new",
       });
     if (path.includes("/paths/")) return Response.json(messages);
     return Response.json({
-      conversation: latest,
+      conversation: {
+        id: latest.id,
+        title: latest.title,
+        source: latest.source,
+        owner_id: "owner",
+      },
       messages,
       paths: [
         {
@@ -83,7 +98,7 @@ function mockApi() {
           original_link: "https://chatgpt.com/c/session-old",
         },
       ],
-    });
+    } satisfies Detail);
   });
 }
 it("sorts by conversation occurrence time, searches, navigates, and safely renders Markdown", async () => {
@@ -153,8 +168,10 @@ it("imports the selected source, ID, title, local date/time and JSON as multipar
     within(dialog).getByRole("button", { name: "导入并查看会话" }),
   );
   await screen.findByText("回答");
-  const call = fetch.mock.calls.find(([url]) => url === "/api/import/file")!;
-  const body = call[1]!.body as FormData;
+  const call = fetch.mock.calls.find(
+    ([url]) => requestPath(url) === "/api/import/file",
+  )!;
+  const body = await testRequest(call[0]).clone().formData();
   expect(
     Object.fromEntries(
       [...body.entries()].filter(
@@ -162,7 +179,13 @@ it("imports the selected source, ID, title, local date/time and JSON as multipar
       ),
     ),
   ).toEqual({ source: "gemini", title: "我的收藏", session_id: "my-session" });
-  expect(body.get("history")).toBe(file);
+  expect(body.get("history")).toMatchObject({
+    name: file.name,
+    type: file.type,
+  });
+  expect(await (body.get("history") as File).text()).toBe(
+    '[{"role":"user","content":"hello"}]',
+  );
   expect(
     Math.abs(Number(body.get("occurred_at")) - now.getTime()),
   ).toBeLessThan(10_000);
@@ -186,9 +209,9 @@ it("rejects malformed JSON before sending and preserves the form for correction"
     "文件不是有效的 JSON",
   );
   expect(screen.getByLabelText("自定义标题")).toHaveValue("保留标题");
-  expect(fetch.mock.calls.some(([url]) => url === "/api/import/file")).toBe(
-    false,
-  );
+  expect(
+    fetch.mock.calls.some(([url]) => requestPath(url) === "/api/import/file"),
+  ).toBe(false);
 });
 it("reuses an idempotency key on retry after an ambiguous failure", async () => {
   const keys: FormDataEntryValue[] = [];
@@ -196,8 +219,10 @@ it("reuses an idempotency key on retry after an ambiguous failure", async () => 
   const fetch = mockApi();
   const fallback = fetch.getMockImplementation()!;
   fetch.mockImplementation(async (url, options) => {
-    if (url === "/api/import/file") {
-      keys.push((options!.body as FormData).get("idempotency_key")!);
+    if (requestPath(url) === "/api/import/file") {
+      keys.push(
+        (await testRequest(url).clone().formData()).get("idempotency_key")!,
+      );
       if (fail) {
         fail = false;
         throw new Error("网络中断");

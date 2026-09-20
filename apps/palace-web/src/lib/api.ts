@@ -1,49 +1,26 @@
-export type Source = "chatgpt" | "gemini" | "grok";
+import createClient from "openapi-fetch";
+import type { components, paths } from "./generated/api";
+
+export type Source = components["schemas"]["Source"];
+export type ConversationMetadata =
+  components["schemas"]["ConversationMetadataResponse"];
+export type Summary = components["schemas"]["ConversationSummary"];
+export type Message = components["schemas"]["Message"];
+export type Detail = components["schemas"]["ConversationDetail"];
+export type ConversationPath = components["schemas"]["ConversationPath"];
 export const sources: Record<Source, string> = {
   chatgpt: "ChatGPT",
   gemini: "Gemini",
   grok: "Grok",
 };
-export interface Conversation {
-  id: string;
-  title: string;
-  source: Source;
-}
-export interface Summary extends Conversation {
-  session_ids: string[];
-  path_count: number;
-  path_id: string;
-  occurred_at: number;
-  head_message_id: string;
-  message_count: number;
-}
-export interface Message {
-  id: string;
-  parent_message_id: string | null;
-  role: "user" | "assistant";
-  content: string;
-  created_order: number;
-}
-export interface Detail {
-  conversation: Conversation;
-  messages: Message[];
-  paths: ConversationPath[];
-}
-export interface ConversationPath {
-  id: string;
-  session_id: string;
-  head_message_id: string;
-  message_count: number;
-  occurred_at: number;
-  created_at: number;
-  updated_at: number;
-  original_link: string;
-}
-export interface ImportResult {
-  conversation_id: string;
-  path_id: string;
-  head_message_id: string;
-}
+
+export const api = createClient<paths>({
+  baseUrl: window.location.origin,
+  credentials: "same-origin",
+  // Resolve fetch at call time so tests and platform instrumentation can replace the transport.
+  fetch: (request) => globalThis.fetch(request),
+});
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -52,16 +29,13 @@ export class ApiError extends Error {
     super(message);
   }
 }
-export async function request<T>(
-  path: string,
-  options?: RequestInit,
+
+// The caller's operation infers T; this unwraps its result without inventing a response type.
+export async function apiData<T>(
+  operation: Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<T> {
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    ...options,
-  });
+  const { data, error, response } = await operation;
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
     const messages: Record<number, string> = {
       401: "请先登录后再继续。",
       403: "请求来源未被允许，请检查开发环境配置。",
@@ -69,20 +43,40 @@ export async function request<T>(
       409: "导入请求冲突，请重新打开导入窗口。",
       413: "文件或消息超过大小限制。",
     };
-    throw new ApiError(
-      response.status,
-      body.error === "session_already_exists"
-        ? "该来源已有相同的 Session ID，请检查来源或对应会话。"
-        : body.path
-          ? `${body.path}：${body.message}`
-          : (messages[response.status] ?? "服务暂时不可用，请稍后重试。"),
-    );
+    let message = messages[response.status] ?? "服务暂时不可用，请稍后重试。";
+    // Native extractor text and proxy errors do not have the JSON domain-error shape.
+    if (typeof error === "object" && error !== null) {
+      if ("error" in error && error.error === "session_already_exists") {
+        message = "该来源已有相同的 Session ID，请检查来源或对应会话。";
+      } else if (
+        "path" in error &&
+        typeof error.path === "string" &&
+        error.path &&
+        "message" in error &&
+        typeof error.message === "string"
+      ) {
+        message = `${error.path}：${error.message}`;
+      }
+    }
+    throw new ApiError(response.status, message);
   }
-  return response.json() as Promise<T>;
+  if (data === undefined)
+    throw new ApiError(response.status, "服务暂时不可用，请稍后重试。");
+  return data;
 }
+
+// Keep the complete body typed before serialization; the browser owns Content-Type and boundary.
+export function serializeImport(
+  body: components["schemas"]["FileImport"],
+): FormData {
+  const form = new FormData();
+  for (const [name, value] of Object.entries(body)) form.set(name, value);
+  return form;
+}
+
 export const libraryOptions = {
   queryKey: ["conversations"],
-  queryFn: () => request<Summary[]>("/api/conversations"),
+  queryFn: () => apiData(api.GET("/api/conversations")),
 };
 export function formatTime(value: number) {
   return new Intl.DateTimeFormat("zh-CN", {

@@ -21,12 +21,19 @@ function setup(route = "/conversations/tree") {
         id,
         content: id,
         role: id.startsWith("U") ? "user" : "assistant",
+        owner_id: "owner",
+        conversation_id: "tree",
         parent_message_id: chain[index - 1] ?? null,
         created_order: index,
       }),
     );
   const detail: Detail = {
-    conversation: { id: "tree", title: "嵌套分支", source: "chatgpt" },
+    conversation: {
+      owner_id: "owner",
+      id: "tree",
+      title: "嵌套分支",
+      source: "chatgpt",
+    },
     messages: [...messages.values()],
     paths: chains.map((chain, i) => ({
       id: `p${i + 1}`,
@@ -39,7 +46,9 @@ function setup(route = "/conversations/tree") {
       original_link: `https://chatgpt.com/c/s${i + 1}`,
     })),
   };
-  vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json(detail));
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+    Response.json(detail),
+  );
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });

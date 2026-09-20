@@ -41,14 +41,14 @@ CI 检查由根 `Taskfile.yml` 提供统一入口；GitHub Actions 只做构建�
 - UUID 在线上为字符串；新生成的内部 ID 为 UUIDv7，但入口解析不限定版本。
 - `Source` 严格取 `chatgpt/gemini/grok`，`Role` 严格取 `user/assistant`。
 - Message 的 `parent_message_id` 总是出现，根消息为 null；Record 的 body 必填且允许任意 JSON，包括 null。
-- ImportResult 包含 `import_id`、`created`、`reused` 等字段；created/reused 是新建和复用的消息数量。前端目前只声明三个会话/路径/head 标识，尚待第三阶段迁移。
+- ImportResult 包含 `import_id`、`created`、`reused` 等字段；created/reused 是新建和复用的消息数量。前端已从正式契约生成完整类型，不再只手写三个会话/路径/head 标识。
 - `TextImport`、`NewPath`、`UpdatePath`、会话元数据与 Record 外壳拒绝未知字段；同步 pull 和认证 callback 的额外 query 参数被忽略。
 - history 内的 MessageInput 只读取 `role/content`，忽略其他字段，不能误标为拒绝额外字段。
 
 ## 时间、游标和开放 JSON
 
 - `occurred_at`、路径 `created_at/updated_at`、同步 `updatedAt` 均为 Unix epoch 毫秒。`created_order`、`message_count`、`path_count` 是顺序或数量，不是时间。
-- 导入 `occurred_at` 接受 `-62135596800000..=253402300799999`，在 JS 安全整数范围内。同步 `updatedAt` 接受整个有符号 i64 范围，当前没有安全整数限制；同样不能宣称所有 i64 计数都保证 JS 无损。阶段二应记录风险，不能擅自把现有 number 改成 string。
+- 导入 `occurred_at` 接受 `-62135596800000..=253402300799999`，在 JS 安全整数范围内。同步 `updatedAt` 接受整个有符号 i64 范围，当前没有安全整数限制；同样不能宣称所有 i64 计数都保证 JS 无损。契约记录此风险，不擅自把现有 number 改成 string。
 - `ServerVersion` 接受 `0..=9223372036854775807`，以规范十进制字符串传输；禁止负号、正号、前导零、空串、小数和溢出。query 的初始 cursor 为 `0`，JSON 中为 `"0"`。schema 使用 string 和数字模式，i64 上界继续由 Rust 解析检查；普通 pattern 不代表已验证数值上界。
 - `limit` 先解析为 u32，再由数据库入口检查 `1..=1000`。没有省略默认值。
 - `Record.body` 按现有独立记录协议保持开放，允许对象、数组、标量和 null。数据库保存 jsonb，未读取业务字段或要求对象。此接口不负责修改导入会话树；收紧结构或新增业务类型需另行设计。JSONB 和 serde_json 对深度、数值等仍有实现限制，“开放”不表示无限容量或任意精度。
@@ -91,6 +91,6 @@ CI 检查由根 `Taskfile.yml` 提供统一入口；GitHub Actions 只做构建�
 
 ## 保留的行为边界
 
-详情当前输出前端未声明的 `owner_id`、`conversation_id`，`/api/me` 输出 `identity_id`；这些是现有协议字段，不属于凭证，但应在整理 DTO 时逐项确认是否保留。第二阶段的 DTO 显式保留这些字段。前端当前能够读取 JSON 错误中的 path/message 或 error，却丢弃原生纯文本错误；这也是迁移时需要显式处理的行为。
+详情输出 `owner_id`、`conversation_id`，`/api/me` 输出 `identity_id`；这些是现有协议字段，不属于凭证。Rust DTO 与生成的前端类型均完整保留。前端读取 JSON 错误中的 path/message 或 error；原生纯文本错误使用既有的状态码中文提示，不直接显示服务端文本。
 
 本文件是实现盘点，不新增领域决策或承诺。schema 中的描述不是新的校验路径；字节限制、数据库约束和授权仍由原实现保障。

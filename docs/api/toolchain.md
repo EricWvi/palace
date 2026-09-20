@@ -1,6 +1,6 @@
 # API 契约工具链与导出流程
 
-Rust HTTP DTO 及实际 handler 的声明生成 OpenAPI 3.1。第二阶段已覆盖 17 个显式路由操作；前端类型生成与调用迁移留在第三阶段。`task test:api-toolchain` 仍验证独立最小样例，`task test:api-schema` 验证正式契约；两者都不替代真实 HTTP/PostgreSQL 契约测试。
+Rust HTTP DTO 及实际 handler 的声明生成 OpenAPI 3.1。已覆盖 17 个显式路由操作，前端通过生成类型与 openapi-fetch 调用这些接口。`task test:api-toolchain` 仍验证独立最小样例，`task test:api-schema` 验证正式契约；两者都不替代真实 HTTP/PostgreSQL 契约测试。
 
 ## 固定版本与职责
 
@@ -10,7 +10,7 @@ Rust HTTP DTO 及实际 handler 的声明生成 OpenAPI 3.1。第二阶段已覆
 | openapi-typescript | 7.13.0 | 根开发依赖，生成 TS 类型 |
 | TypeScript（生成工具） | 5.9.3 | 根开发依赖，满足生成器声明的 `^5.x` peer dependency |
 | TypeScript（Web） | 6.0.3（当前 lock） | 保留 Web 的 `^6.0.3` 声明；验证生成结果兼容应用编译器 |
-| openapi-fetch | 0.17.0 | 根开发依赖，用于 multipart 客户端验证；第三阶段接入应用时移入 Web 运行依赖 |
+| openapi-fetch | 0.17.0 | Web 运行依赖，提供按方法、路径和参数推导类型的客户端 |
 | Ajv | 8.20.0 | 使用 `ajv/dist/2020.js`，验证提取后的 JSON Schema 2020-12 |
 | ajv-formats | 3.0.1 | UUID 等格式验证 |
 
@@ -66,12 +66,33 @@ DTO 仅公开明确列举的字段。DB/domain 到 DTO 的转换按完整 JSON �
 | Rust HTTP DTO 与契约组装 | `crates/backend/src/http/` 下独立私有模块，模块根使用 `name.rs`；由 backend 显式导出 `api_contract()` |
 | 离线导出入口 | `crates/backend/examples/export_openapi.rs`；`cargo run --locked -p palace-backend --example export_openapi` 输出 JSON 到 stdout |
 | 正式契约 | `contracts/openapi.json`，提交版本管理 |
-| TS 生成类型（第三阶段） | `apps/palace-web/src/lib/generated/api.ts`，提交版本管理，禁止手改 |
+| TS 生成类型 | `apps/palace-web/src/lib/generated/api.ts`，提交版本管理，禁止手改 |
 | 调用封装 | `apps/palace-web/src/lib/api.ts`，保留业务错误文案及凭证策略 |
 | 接口说明 | `docs/api/`，文档导航由 `docs/README.md` 提供 |
-| Taskfile 入口 | `api:export` 已实现；`api:generate`、`api:check` 分别留给完整生成和不覆盖本地文件的漂移检查 |
+| Taskfile 入口 | `api:export` 导出；`api:generate` 完整生成；不覆盖本地文件的 `api:check` 留在第四阶段 |
 
 离线导出不创建 Server、不连接 PostgreSQL 或联系 OIDC；契约信息采用固定 metadata，不包含时间戳、环境路径或部署配置。当前 `contract_probe` 只服务于第一阶段验证，不能作为实际 API 的导出入口。
+
+## 前端生成与调用
+
+```bash
+task api:generate
+task lint:frontend
+task test:frontend
+PALACE_BROWSER_TEST_PORT=5174 task test:browser
+```
+
+`api:generate` 先离线导出正式 OpenAPI，再由 [生成脚本](../../scripts/generate-api-types.mjs) 写入 [前端类型](../../apps/palace-web/src/lib/generated/api.ts)。两份产物都提交版本管理；生成文件有禁止手改标记。修改接口时先修改 Rust DTO/handler 声明，再重新生成并迁移调用方；字段、方法或参数不匹配由前端 TypeScript 检出。
+
+生成器只对浏览器类型视图做两项适配，原始契约保持完整：移除浏览器自动发送、应用不能手工设置的 `Origin` 请求头参数；将 `string/binary` 映射为 `Blob`，因此接受 `File`。服务端仍校验写操作的 Origin，浏览器回归验证实际上传请求携带同源 Origin。
+
+调用使用 `apiData(api.GET("/api/conversations"))` 一类表达式。路径参数通过 `params.path` 传入并编码；JSON body 由客户端序列化。组件需要的 DTO 别名直接引用 `components["schemas"]`，不再维护手写字段表或 `request<T>` 返回断言。客户端显式使用 `credentials: "same-origin"`，React Query 的 query key、失效刷新和重试逻辑保留。
+
+文件导入传入完整的类型化 body，再由 `serializeImport` 转为 FormData；客户端不预设 Content-Type，浏览器生成 multipart boundary。发生时间在 multipart 中为字符串，在 JSON 分支请求中为数字；重试复用原有幂等 key。
+
+`apiData` 统一解包成功响应并抛出 `ApiError`：保留 401/403/404/409/413 的中文提示、Session ID 冲突提示及结构化字段错误。原生纯文本、代理 HTML、缺失错误字段走状态码或通用提示；网络异常原样交给 UI。空的成功响应视为不可用；当前 Web 调用均要求 JSON 成功体。登录仍通过 `/auth/login` 页面跳转。
+
+生成类型不执行响应运行时校验，也不会强制 UUID 格式、字节限制、整数范围或数据库约束。字段及媒体类型以 [OpenAPI](../../contracts/openapi.json) 为准，特殊语义见 [接口盘点](inventory.md)。`test:browser` 使用真实 Chromium 和 mock HTTP 响应，验证实际浏览器编码与 UI 行为；它不是后端 HTTP schema 测试。
 
 ## CI 与后续工作
 
@@ -80,5 +101,7 @@ DTO 仅公开明确列举的字段。DB/domain 到 DTO 的转换按完整 JSON �
 本次是保持生产接口行为的 HTTP DTO 重构，没有创建新领域 ADR。原生纯文本错误、元数据超限映射为 400、详情额外字段等现状见 [接口盘点](inventory.md)；需要改变这些行为时显式设计并同步相应证据，不能通过修改 schema 隐藏差异。
 
 2026-09-20 第二阶段验证：`task format`、`task test`、`task test:api-schema`、`task test:api-toolchain` 和 `task test:integration` 通过。集成任务显式执行 18 个真实 PostgreSQL 用例及 2 个真实 HTTP 用例，使用本地已有镜像；两次离线导出逐字节一致且匹配版本化产物。本阶段未运行真实 Authelia 协议测试；没有修改 OIDC 交互逻辑。全量 HTTP 响应按 schema 验证以及漂移门禁仍属于第四阶段。
+
+2026-09-20 第三阶段验证：`task format`、`task test`（34 个前端测试）、`task build:frontend`、`task test:api-schema`、`task test:api-toolchain` 和 `task test:browser`（2 个 Chromium 用例）通过；两次完整生成逐字节一致。前端构建保留 Vite 的大于 500 kB chunk 提示。未变更后端协议，本阶段未重跑 PostgreSQL 或 Authelia 集成测试。
 
 官方依据：[utoipa ToSchema](https://docs.rs/utoipa/5.5.0/utoipa/derive.ToSchema.html)、[openapi-typescript Node API](https://openapi-ts.dev/node)、[openapi-fetch](https://openapi-ts.dev/openapi-fetch/)、[Ajv JSON Schema 方言](https://ajv.js.org/json-schema.html)。具体版本及适配选择以本仓库锁文件和可执行样例为证据。

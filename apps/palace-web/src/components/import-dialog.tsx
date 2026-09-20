@@ -16,18 +16,23 @@ import { Label } from "@/components/ui/label";
 import { DateTimePicker } from "./date-time-picker";
 import { ErrorState } from "./error-state";
 import {
-  request,
+  api,
+  apiData,
+  serializeImport,
   sources,
   type Source,
-  type ImportResult,
-  type Conversation,
+  type ConversationMetadata,
   type ConversationPath,
 } from "@/lib/api";
 import { validateFile } from "@/lib/import-file";
 export type ImportMode =
   | { kind: "conversation" }
-  | { kind: "branch"; conversation: Conversation }
-  | { kind: "update"; conversation: Conversation; path: ConversationPath };
+  | { kind: "branch"; conversation: ConversationMetadata }
+  | {
+      kind: "update";
+      conversation: ConversationMetadata;
+      path: ConversationPath;
+    };
 const newConversation: ImportMode = { kind: "conversation" };
 export function ImportDialog({
   open,
@@ -127,35 +132,42 @@ function ImportForm({
       ]);
       const key = attempt?.fingerprint === fingerprint ? attempt.key : uuidv7();
       setAttempt({ fingerprint, key });
-      if (mode.kind !== "conversation") {
-        const base = `/api/conversations/${encodeURIComponent(mode.conversation.id)}/paths`;
-        return request<ImportResult>(
-          mode.kind === "branch"
-            ? base
-            : `${base}/${encodeURIComponent(mode.path.id)}`,
-          {
-            method: mode.kind === "branch" ? "POST" : "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...(mode.kind === "branch" ? { session_id: session } : {}),
-              history,
-              occurred_at: date.getTime(),
-              idempotency_key: key,
-            }),
-          },
+      const input = {
+        history,
+        occurred_at: date.getTime(),
+        idempotency_key: key,
+      };
+      if (mode.kind === "branch") {
+        return apiData(
+          api.POST("/api/conversations/{id}/paths", {
+            params: { path: { id: mode.conversation.id } },
+            body: { ...input, session_id: session },
+          }),
         );
       }
-      const body = new FormData();
-      body.set("source", source);
-      body.set("title", title);
-      body.set("session_id", session);
-      body.set("occurred_at", String(date.getTime()));
-      body.set("idempotency_key", key);
-      body.set("history", file);
-      return request<ImportResult>("/api/import/file", {
-        method: "POST",
-        body,
-      });
+      if (mode.kind === "update") {
+        return apiData(
+          api.PUT("/api/conversations/{id}/paths/{path_id}", {
+            params: {
+              path: { id: mode.conversation.id, path_id: mode.path.id },
+            },
+            body: input,
+          }),
+        );
+      }
+      return apiData(
+        api.POST("/api/import/file", {
+          body: {
+            source,
+            title,
+            session_id: session,
+            occurred_at: String(date.getTime()),
+            idempotency_key: key,
+            history: file,
+          },
+          bodySerializer: serializeImport,
+        }),
+      );
     },
     onSuccess: async (result) => {
       await Promise.all([

@@ -12,10 +12,10 @@ import { Button } from "./ui/button";
 import { ImportDialog, type ImportMode } from "./import-dialog";
 import { ErrorState } from "./error-state";
 import {
-  request,
-  type Conversation,
+  api,
+  apiData,
+  type ConversationMetadata,
   type ConversationPath,
-  type Detail,
 } from "@/lib/api";
 import { resolvePaths, userTree } from "@/lib/conversation-tree";
 
@@ -27,7 +27,7 @@ export function BranchManager({
   conversation,
   onClose,
 }: {
-  conversation: Conversation;
+  conversation: ConversationMetadata;
   onClose: () => void;
 }) {
   const [form, setForm] = useState<ImportMode | null>(null);
@@ -36,15 +36,18 @@ export function BranchManager({
   const detail = useQuery({
     queryKey: ["conversation", conversation.id],
     queryFn: () =>
-      request<Detail>(
-        `/api/conversations/${encodeURIComponent(conversation.id)}`,
+      apiData(
+        api.GET("/api/conversations/{id}", {
+          params: { path: { id: conversation.id } },
+        }),
       ),
   });
   const deletion = useMutation({
     mutationFn: (path: ConversationPath) =>
-      request(
-        `/api/conversations/${encodeURIComponent(conversation.id)}/paths/${encodeURIComponent(path.id)}`,
-        { method: "DELETE" },
+      apiData(
+        api.DELETE("/api/conversations/{id}/paths/{path_id}", {
+          params: { path: { id: conversation.id, path_id: path.id } },
+        }),
       ),
     onSuccess: async () => {
       await Promise.all([

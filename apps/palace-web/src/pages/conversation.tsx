@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ArrowLeft, ExternalLink, Sparkles } from "lucide-react";
-import { request, sources, type Detail } from "@/lib/api";
+import { api, apiData, sources } from "@/lib/api";
 import { resolvePaths } from "@/lib/conversation-tree";
 import { PathFork } from "@/components/path-fork";
 import { Fragment } from "react";
@@ -14,7 +14,9 @@ export function ConversationPage() {
   const detail = useQuery({
     queryKey: ["conversation", id],
     queryFn: () =>
-      request<Detail>(`/api/conversations/${encodeURIComponent(id!)}`),
+      apiData(
+        api.GET("/api/conversations/{id}", { params: { path: { id: id! } } }),
+      ),
   });
   const paths = detail.data ? resolvePaths(detail.data) : [];
   const selected =
