@@ -1,5 +1,10 @@
 # Palace 开发文档
 
+## API 契约建设
+
+现有接口、媒体类型、错误分支与传输语义见 [HTTP 接口盘点](api/inventory.md)。
+CI 入口统一放在 `Taskfile.yml`；GitHub Actions 只做构建。
+
 ## 产品设计
 
 产品功能设计与领域模型见[产品设计文档](product/README.md)。
