@@ -16,7 +16,7 @@ CI 检查由根 `Taskfile.yml` 提供统一入口；GitHub Actions 只做构建�
 | --- | --- | --- | --- | --- | --- |
 | GET `/api/me` | 无 | 200 J `Owner` | 无业务错误分支 | S | 未使用 |
 | GET `/api/sync` | query `cursor`、`limit` 均必填 | 200 J `SyncPage` | 400 J（limit 值域）/T（query 解析），500 J | S | 未使用 |
-| POST `/api/sync` | J `Record[]` | 200 J `UploadResult[]` | 400/413/415/422 T；404/409/500 J | S+O | 未使用 |
+| POST `/api/sync` | J `Record[]` | 200 J `UploadResult[]` | 400/415/422 T；413 J/T；404/409/500 J | S+O | 未使用 |
 | POST `/api/import` | J `TextImport` | 200 J `ImportResult` | 400/413/404/409/500 J | S+O | 未使用 |
 | POST `/api/import/file` | multipart 六字段，见下文 | 200 J `ImportResult` | 400 T（boundary）；400/413/404/409/500 J | S+O | `import-dialog.tsx`：新会话，粘贴和文件都走此入口 |
 | GET `/api/conversations` | 无 | 200 J `Summary[]` | 409/500 J | S | `lib/api.ts` → library |

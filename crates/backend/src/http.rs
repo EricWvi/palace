@@ -16,11 +16,7 @@ mod sync;
 mod tests;
 
 use crate::{LoginRedirect, OidcProvider};
-use axum::{
-    Router,
-    extract::DefaultBodyLimit,
-    routing::{get, post},
-};
+use axum::{Router, extract::DefaultBodyLimit};
 use error::ApiError;
 use handlers::*;
 use palace_db::{CredentialKey, Database, IdentityProvider, IdentityTokens, ProviderError};
@@ -70,11 +66,12 @@ pub fn router<P: LoginProvider + 'static>(server: Server<P>) -> Router {
         server.clone(),
         authenticate_request::<P>,
     ));
-    Router::new()
-        .route(routes::LOGIN, get(login::<P>))
-        .route(routes::CALLBACK, get(callback::<P>))
-        .route(routes::LOGOUT, post(logout::<P>))
-        .route(routes::LOGOUT_ALL, post(logout_all::<P>))
+    macro_rules! mount {
+        ($( $method:ident $path:ident => $module:ident::$handler:ident, )*) => {
+            Router::new()$(.route(routes::$path, axum::routing::$method($module::$handler::<P>)))*
+        };
+    }
+    routes::auth_routes!(mount)
         .with_state(server)
         .merge(business)
 }
@@ -95,25 +92,12 @@ fn business_router(server: BusinessServer) -> Router {
         .bytes
         .saturating_mul(6)
         .saturating_add(64 * 1024);
-    Router::new()
-        .route(routes::ME, get(business::me))
-        .route(routes::SYNC, get(sync::pull).post(sync::upload))
-        .route(routes::IMPORT, post(business::import_text))
-        .route(routes::IMPORT_FILE, post(business::import_file))
-        .route(routes::CONVERSATIONS, get(business::conversations))
-        .route(
-            routes::CONVERSATION,
-            get(business::conversation)
-                .put(business::update_conversation)
-                .delete(path_management::delete_conversation),
-        )
-        .route(routes::PATHS, post(path_management::create))
-        .route(
-            routes::PATH,
-            get(business::path)
-                .put(path_management::update)
-                .delete(path_management::delete),
-        )
+    macro_rules! mount {
+        ($( $method:ident $path:ident => $module:ident::$handler:ident, )*) => {
+            Router::new()$(.route(routes::$path, axum::routing::$method($module::$handler)))*
+        };
+    }
+    routes::business_routes!(mount)
         .layer(DefaultBodyLimit::max(limit))
         .with_state(Arc::new(server))
 }

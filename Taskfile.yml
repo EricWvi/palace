@@ -79,7 +79,7 @@ tasks:
     desc: Run ignored PostgreSQL tests using locally prepared images
     cmds:
       - cargo test -p palace-db --test postgres -- --ignored
-      - cargo test -p palace-backend --test http -- --ignored
+      - task: test:api-http
 
   run:server:
     desc: Run the Palace HTTP server with deployment environment configuration
@@ -116,6 +116,11 @@ tasks:
       - task: test:api-toolchain
       - node --test scripts/api-checks.test.mjs
       - cargo test -p palace-backend contract_covers_operations --lib
+
+  test:api-http:
+    desc: Validate real Router responses against OpenAPI using existing PostgreSQL image
+    cmds:
+      - cargo test -p palace-backend --test http -- --ignored
 
   test:api-toolchain:
     desc: Verify OpenAPI generation, schema validation and typed multipart without services

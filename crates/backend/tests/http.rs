@@ -14,6 +14,11 @@ use testcontainers::{
 };
 use tower::ServiceExt;
 
+#[path = "http/contract.rs"]
+mod contract;
+#[path = "http/inputs.rs"]
+mod inputs;
+
 #[path = "http/paths.rs"]
 mod paths;
 
@@ -141,7 +146,8 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     });
     let mut links = SourceLinks::standard().unwrap();
     links.chatgpt = url::Url::parse(&source_url).unwrap();
-    let app = router(Server {
+    let capture = contract::Capture::default();
+    let app = capture.attach(router(Server {
         database: db,
         provider: Provider,
         credential_key: key,
@@ -152,7 +158,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
             ..Default::default()
         },
         now,
-    });
+    }));
     let history = r#"[{"role":"user","content":"<script>alert(1)</script>\r\n","extra":123}]"#;
     let input = serde_json::json!({"occurred_at":1700000000000_i64,"title":"t","source":"chatgpt","session_id":"s","history":history,"idempotency_key":"key"});
     let response = app
@@ -343,6 +349,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     let counts:(i64,i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
     assert_eq!(counts, (1, 1, 1));
     paths::exercise_path_lifecycle(&app, &cookie, &foreign).await;
+    inputs::exercise_contract_boundaries(&app, &cookie, &foreign, &pool, &sessions[0].owner).await;
     let anonymous = app
         .clone()
         .oneshot(request(
@@ -417,6 +424,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    capture.verify(contract::Coverage::AllOperations);
 }
 
 /// Verifies authenticated uploads and incremental pulls through the real HTTP/PostgreSQL boundary.
@@ -468,7 +476,8 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         .unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let origin = format!("http://{}", listener.local_addr().unwrap());
-    let app = router(Server {
+    let capture = contract::Capture::default();
+    let app = capture.attach(router(Server {
         database: db,
         provider: Provider,
         credential_key: key,
@@ -476,7 +485,7 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         links: SourceLinks::standard().unwrap(),
         limits: ImportLimits::default(),
         now,
-    });
+    }));
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
@@ -554,4 +563,5 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         serde_json::json!({"records":[{"ownerId":session.owner.id,"serverVersion":"2","record":tombstone}],"cursor":"2"})
     );
     server.abort();
+    capture.verify(contract::Coverage::ObservedOperations);
 }

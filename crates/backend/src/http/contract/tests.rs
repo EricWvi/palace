@@ -1,5 +1,5 @@
 use super::api_contract;
-use crate::http::{dto, error::ApiError};
+use crate::http::{dto, error::ApiError, routes};
 use axum::{http::StatusCode, response::IntoResponse};
 use http_body_util::BodyExt;
 use palace_domain::{InputError, InputErrorKind, ServerVersion};
@@ -23,25 +23,13 @@ fn contract_covers_operations_and_special_wire_types() {
         })
         .collect::<Vec<_>>();
     operations.sort();
-    let mut expected = vec![
-        "get /api/me",
-        "get /api/sync",
-        "post /api/sync",
-        "post /api/import",
-        "post /api/import/file",
-        "get /api/conversations",
-        "get /api/conversations/{id}",
-        "put /api/conversations/{id}",
-        "delete /api/conversations/{id}",
-        "post /api/conversations/{id}/paths",
-        "get /api/conversations/{id}/paths/{path_id}",
-        "put /api/conversations/{id}/paths/{path_id}",
-        "delete /api/conversations/{id}/paths/{path_id}",
-        "get /auth/login",
-        "get /auth/callback",
-        "post /auth/logout",
-        "post /auth/logout-all",
-    ];
+    macro_rules! inventory {
+        ($( $method:ident $path:ident => $module:ident::$handler:ident, )*) => {
+            vec![$(format!("{} {}", stringify!($method), routes::$path)),*]
+        };
+    }
+    let mut expected = routes::auth_routes!(inventory);
+    expected.extend(routes::business_routes!(inventory));
     expected.sort();
     assert_eq!(operations, expected);
     let schemas = &document["components"]["schemas"];

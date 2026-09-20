@@ -1,6 +1,6 @@
 # API 契约工具链与导出流程
 
-Rust HTTP DTO 及实际 handler 的声明生成 OpenAPI 3.1。已覆盖 17 个显式路由操作，前端通过生成类型与 openapi-fetch 调用这些接口。`task test:api-toolchain` 仍验证独立最小样例，`task test:api-schema` 验证正式契约；两者都不替代真实 HTTP/PostgreSQL 契约测试。
+Rust HTTP DTO 及实际 handler 的声明生成 OpenAPI 3.1。已覆盖 17 个显式路由操作，前端通过生成类型与 openapi-fetch 调用这些接口。`task test:api-toolchain` 仍验证独立最小样例，`task test:api-schema` 验证正式契约；真实 HTTP/PostgreSQL 响应由 `task test:api-http` 单独验证。
 
 ## 固定版本与职责
 
@@ -46,7 +46,7 @@ task test:api-toolchain
 | binary format | Ajv 将其注册为非校验注解，文件编码由 multipart Request 测试验证；不声称 Ajv 校验了二进制传输 |
 | 非标准业务限制 | UTF-8 字节数、trim 后非空、游标数值上界、资源归属与事务约束仍由服务端执行 |
 
-当前两个 schema 验证脚本只处理本地 components 引用，不是支持外部引用和所有 OpenAPI 方言的通用验证框架；第四阶段验证真实 HTTP 响应时需要选择正确操作、状态码和媒体类型，并继续覆盖这些解析边界。schema 标注不会自动增加运行时约束。
+schema 验证只支持当前契约的本地 components schema 引用；HTTP 响应验证按操作、精确状态码与媒体类型选择 schema，不支持外部引用、response-level 引用或媒体类型通配回退，遇到这些结构会失败而非跳过。schema 标注不会自动增加运行时约束。
 
 ## 第二阶段导出与校验
 
@@ -55,9 +55,9 @@ task api:export
 task test:api-schema
 ```
 
-`api:export` 编译并运行离线 example，成功拿到完整 JSON 后才写入 `contracts/openapi.json`。`test:api-schema` 验证导出的 26 个 schema、所有本地引用及关键正反例，并确认选定的 TS 生成器能读取正式契约。它不会偷偷重写契约，检查生成漂移的默认门禁留在第四阶段。
+`api:export` 编译并运行离线 example，成功拿到完整 JSON 后才写入 `contracts/openapi.json`。`test:api-schema` 验证导出的 26 个 schema、所有本地引用及关键正反例，并确认选定的 TS 生成器能读取正式契约。它不会重写契约；默认生成漂移门禁由 `api:check` 承担。
 
-声明位于实际 handler 的 `#[utoipa::path]`；路径常量同时供 Router 使用。方法注册和 OpenAPI 的操作列表仍需分别维护，目前有 17 操作清单测试，尚不宣称已具备自动路由覆盖检查。
+声明位于实际 handler 的 `#[utoipa::path]`；路径常量同时供 Router 使用。`http/routes.rs` 的 auth/business 清单是路由挂载入口，列出方法、路径和 handler。默认 Rust 测试从同一清单生成期望集合，与 OpenAPI 的操作集合精确比较；新增或改动注册而遗漏契约会失败。新增路由必须通过该清单注册；Axum 自动派生的 HEAD、框架 404/405 不属于 17 个显式操作。
 
 DTO 仅公开明确列举的字段。DB/domain 到 DTO 的转换按完整 JSON 对象比较，检验 null、字符串游标、开放 body 与所有公开标识保持一致；错误 responder 测试检查状态码、媒体类型和整个 JSON 对象。业务校验仍在原 parser、domain 和数据库事务中执行。
 
@@ -69,7 +69,7 @@ DTO 仅公开明确列举的字段。DB/domain 到 DTO 的转换按完整 JSON �
 | TS 生成类型 | `apps/palace-web/src/lib/generated/api.ts`，提交版本管理，禁止手改 |
 | 调用封装 | `apps/palace-web/src/lib/api.ts`，保留业务错误文案及凭证策略 |
 | 接口说明 | `docs/api/`，文档导航由 `docs/README.md` 提供 |
-| Taskfile 入口 | `api:export` 导出；`api:generate` 完整生成；不覆盖本地文件的 `api:check` 留在第四阶段 |
+| Taskfile 入口 | `api:export` 导出；`api:generate` 完整生成；`api:check` 在内存中重建并比较，不覆盖本地文件 |
 
 离线导出不创建 Server、不连接 PostgreSQL 或联系 OIDC；契约信息采用固定 metadata，不包含时间戳、环境路径或部署配置。当前 `contract_probe` 只服务于第一阶段验证，不能作为实际 API 的导出入口。
 
@@ -94,14 +94,35 @@ PALACE_BROWSER_TEST_PORT=5174 task test:browser
 
 生成类型不执行响应运行时校验，也不会强制 UUID 格式、字节限制、整数范围或数据库约束。字段及媒体类型以 [OpenAPI](../../contracts/openapi.json) 为准，特殊语义见 [接口盘点](inventory.md)。`test:browser` 使用真实 Chromium 和 mock HTTP 响应，验证实际浏览器编码与 UI 行为；它不是后端 HTTP schema 测试。
 
-## CI 与后续工作
+## CI 与真实 HTTP 验证
 
-遵循 Eric 的备注：GitHub Actions 只做构建，CI 放在 Taskfile。`api:export`、`test:api-schema`、`test:api-toolchain` 均为独立任务；默认 `task test` 尚未纳入契约导出或 Node schema 校验，但包含新增的 Rust DTO/契约测试。第四阶段将生产契约生成检查和无容器测试接入默认任务，需要 PostgreSQL 的测试接入显式集成任务；不添加 GitHub Actions 测试作业，不改变现有 `test:contract` 的 Authelia 用途。
+GitHub Actions 只做构建，所有检查由 Taskfile 编排，`test:contract` 保留原来的 Authelia 协议测试用途。
 
-本次是保持生产接口行为的 HTTP DTO 重构，没有创建新领域 ADR。原生纯文本错误、元数据超限映射为 400、详情额外字段等现状见 [接口盘点](inventory.md)；需要改变这些行为时显式设计并同步相应证据，不能通过修改 schema 隐藏差异。
+| 入口 | 验证范围 | 外部依赖 |
+| --- | --- | --- |
+| `task test` | 前端与 Rust lint/测试，加 `test:api` | Node 24+、npm ci、Cargo 依赖；无需服务或容器 |
+| `task test:api` | 生成漂移、正式 schema、工具组合、检查器正反例、注册清单与契约覆盖 | 同上 |
+| `task api:check` | 重新运行 Rust 导出和 TS 生成，比较两份完整产物；缺失或过期即失败 | 同上；只读产物，不修复本地改动 |
+| `task test:api-http` | 真实 Router/中间件/extractor/handler/数据库响应的 schema 校验 | Node/npm、已有 postgres:17-alpine、Docker/Podman socket |
+| `task test:integration` | 18 个 PostgreSQL 集成用例，再执行 `test:api-http` | 同上 |
+| `task test:contract` | 真实 Authelia 协议 | 既有 Authelia 测试环境 |
 
-2026-09-20 第二阶段验证：`task format`、`task test`、`task test:api-schema`、`task test:api-toolchain` 和 `task test:integration` 通过。集成任务显式执行 18 个真实 PostgreSQL 用例及 2 个真实 HTTP 用例，使用本地已有镜像；两次离线导出逐字节一致且匹配版本化产物。本阶段未运行真实 Authelia 协议测试；没有修改 OIDC 交互逻辑。全量 HTTP 响应按 schema 验证以及漂移门禁仍属于第四阶段。
+`api:check` 从 Rust 源码重新导出，再从此次导出生成 TS，全部在内存中完成。不会从可能已经过期的提交契约生成期望类型，也不会调用写入模式或 Git reset。检查文件缺失、手工修改、声明变更后忘记生成等情形；执行 `task api:generate` 后应把两份产物一起提交。
+
+[HTTP 捕获层](../../crates/backend/tests/http/contract.rs) 包裹生产 Router，按实际 MatchedPath 和请求方法记录状态码、Content-Type 与原始响应体，再将完整响应恢复给原测试。结束时由 [AJV 验证器](../../scripts/api-responses.mjs) 对照当前 Rust 契约验证；不是把手写 JSON 当作服务端响应。测试刻意访问已删除 URL 得到的空 404 只验证框架回退，不混入操作覆盖统计。
+
+主 HTTP 用例要求每个显式操作至少有一个真实响应样本。当前两个用例共验证 82 个响应，其中主用例覆盖全部 17 个操作，另一用例通过真实 TCP 测试同步。覆盖列表、详情、路径生命周期、JSON/multipart 导入、登录跳转、callback 输入/认证错误、当前设备及全部设备退出，以及同步 accepted/retained/tombstone。成功详情保留必填 null；输入覆盖缺失/null、未知字段、非法枚举、数字/字符串混用、原生 400/413/415/422 和认证 401/403。PostgreSQL sequence 设置到 9007199254740993 后验证实际上传与拉取的游标仍为字符串。
+
+第四阶段检查发现并修正了同步上传 413 的媒体类型声明：HTTP body 过大返回 text/plain，业务批量/记录超限返回 JSON InputErrorResponse，契约现在同时声明两者。仅修正文档化契约，没有修改生产响应行为。
+
+覆盖边界：操作覆盖不等同于每个状态码分支全覆盖；未故障注入所有 500/503 分支，也不替代真实 Authelia 的成功 callback、refresh/revoke 协议测试。当前测试检查响应体与媒体类型，不做通用响应头 schema 验证；cookie/Origin 等仍由既有行为断言负责。OpenAPI、TS 与 AJV 不能表达的事务、字节限制等约束仍由业务测试承担。
+
+对照现有 Owner、导入、消息树、同步 ADR，本阶段没有改变系统承诺、数据库规则或 OIDC 协议；既有核心测试函数名称与引用保持不变，增加响应捕获与输入边界证据，不创建新领域 ADR，也不改变 specs 中客户端尚未覆盖的义务状态。
+
+2026-09-20 第二阶段验证：`task format`、`task test`、`task test:api-schema`、`task test:api-toolchain` 和 `task test:integration` 通过。集成任务显式执行 18 个真实 PostgreSQL 用例及 2 个真实 HTTP 用例，使用本地已有镜像；两次离线导出逐字节一致且匹配版本化产物。本阶段未运行真实 Authelia 协议测试；没有修改 OIDC 交互逻辑。此处记录的是第二阶段的历史验证范围。
 
 2026-09-20 第三阶段验证：`task format`、`task test`（34 个前端测试）、`task build:frontend`、`task test:api-schema`、`task test:api-toolchain` 和 `task test:browser`（2 个 Chromium 用例）通过；两次完整生成逐字节一致。前端构建保留 Vite 的大于 500 kB chunk 提示。未变更后端协议，本阶段未重跑 PostgreSQL 或 Authelia 集成测试。
+
+2026-09-20 第四阶段验证：`task format`、`task test`（含新增离线契约门禁）及 `task test:integration` 通过；真实 HTTP 验证覆盖 17 操作、82 响应。使用本地已有 PostgreSQL 镜像，没有构建或拉取镜像，也没有重跑 Authelia 协议测试。额外尝试的 `clippy --all-targets -D warnings` 因测试代码普遍使用 unwrap/expect 而失败；仓库规定的 `task lint:crates` 已通过，未为此更改测试 lint 策略。
 
 官方依据：[utoipa ToSchema](https://docs.rs/utoipa/5.5.0/utoipa/derive.ToSchema.html)、[openapi-typescript Node API](https://openapi-ts.dev/node)、[openapi-fetch](https://openapi-ts.dev/openapi-fetch/)、[Ajv JSON Schema 方言](https://ajv.js.org/json-schema.html)。具体版本及适配选择以本仓库锁文件和可执行样例为证据。

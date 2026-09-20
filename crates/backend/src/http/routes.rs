@@ -12,3 +12,35 @@ pub(super) const LOGIN: &str = "/auth/login";
 pub(super) const CALLBACK: &str = "/auth/callback";
 pub(super) const LOGOUT: &str = "/auth/logout";
 pub(super) const LOGOUT_ALL: &str = "/auth/logout-all";
+
+// Consumers receive method, path and handler together; tests compare this exact mounted inventory.
+macro_rules! auth_routes {
+    ($consumer:ident) => {
+        $consumer! {
+            get LOGIN => handlers::login,
+            get CALLBACK => handlers::callback,
+            post LOGOUT => handlers::logout,
+            post LOGOUT_ALL => handlers::logout_all,
+        }
+    };
+}
+macro_rules! business_routes {
+    ($consumer:ident) => {
+        $consumer! {
+            get ME => business::me,
+            get SYNC => sync::pull,
+            post SYNC => sync::upload,
+            post IMPORT => business::import_text,
+            post IMPORT_FILE => business::import_file,
+            get CONVERSATIONS => business::conversations,
+            get CONVERSATION => business::conversation,
+            put CONVERSATION => business::update_conversation,
+            delete CONVERSATION => path_management::delete_conversation,
+            post PATHS => path_management::create,
+            get PATH => business::path,
+            put PATH => path_management::update,
+            delete PATH => path_management::delete,
+        }
+    };
+}
+pub(super) use {auth_routes, business_routes};

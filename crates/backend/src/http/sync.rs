@@ -18,7 +18,7 @@ use std::sync::Arc;
         (status = 403, description = "Origin rejected", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 404, description = "Resource unavailable in owner scope", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 409, description = "Identity, source session or idempotency conflict", body = dto::ErrorResponse, content_type = "application/json"),
-        (status = 413, description = "Input capacity exceeded", body = String, content_type = "text/plain"),
+        (status = 413, description = "Input capacity exceeded: extractor text or structured batch/record limit", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
         (status = 415, description = "JSON Content-Type required", body = String, content_type = "text/plain"),
         (status = 422, description = "JSON does not match the target type", body = String, content_type = "text/plain"),
         (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),

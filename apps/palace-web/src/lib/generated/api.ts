@@ -1584,12 +1584,13 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Input capacity exceeded */
+      /** @description Input capacity exceeded: extractor text or structured batch/record limit */
       413: {
         headers: {
           [name: string]: unknown;
         };
         content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
           "text/plain": string;
         };
       };

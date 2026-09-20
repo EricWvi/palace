@@ -1662,8 +1662,13 @@
             }
           },
           "413": {
-            "description": "Input capacity exceeded",
+            "description": "Input capacity exceeded: extractor text or structured batch/record limit",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
               "text/plain": {
                 "schema": {
                   "type": "string"
