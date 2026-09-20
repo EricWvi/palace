@@ -112,6 +112,12 @@ tasks:
     cmds:
       - node scripts/export-openapi.mjs
 
+  api:generate:
+    desc: Export OpenAPI and generate browser API types
+    cmds:
+      - task: api:export
+      - node scripts/generate-api-types.mjs
+
   test:api-schema:
     desc: Validate production OpenAPI schemas and local references
     cmds:
@@ -137,6 +143,11 @@ tasks:
     desc: Typecheck and lint frontend source
     cmds:
       - npm run lint
+  test:browser:
+    desc: Run Chromium frontend regressions against an isolated Vite server
+    cmds:
+      - npm run test:browser -w apps/palace-web
+
   test:frontend:
     desc: Run frontend tests with clean stderr
     cmds:
