@@ -107,6 +107,16 @@ tasks:
     cmds:
       - node scripts/check-contract-toolchain.mjs
 
+  api:export:
+    desc: Export the production OpenAPI contract without database or OIDC services
+    cmds:
+      - node scripts/export-openapi.mjs
+
+  test:api-schema:
+    desc: Validate production OpenAPI schemas and local references
+    cmds:
+      - node scripts/check-api-schema.mjs
+
   install:frontend:
     desc: Install locked frontend dependencies (Node 24+)
     cmds:

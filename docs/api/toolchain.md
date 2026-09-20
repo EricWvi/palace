@@ -1,12 +1,12 @@
-# API 契约工具链与第一阶段结论
+# API 契约工具链与导出流程
 
-第一阶段选择 Rust 类型及路由声明 → OpenAPI 3.1 → TypeScript 的生成方向。最小样例已落地为 `task test:api-toolchain`；它验证工具组合及特殊传输语义，不代表生产路由已经接入 OpenAPI，也不替代真实 HTTP/PostgreSQL 契约测试。
+Rust HTTP DTO 及实际 handler 的声明生成 OpenAPI 3.1。第二阶段已覆盖 17 个显式路由操作；前端类型生成与调用迁移留在第三阶段。`task test:api-toolchain` 仍验证独立最小样例，`task test:api-schema` 验证正式契约；两者都不替代真实 HTTP/PostgreSQL 契约测试。
 
 ## 固定版本与职责
 
 | 依赖 | 版本 | 当前用途 |
 | --- | --- | --- |
-| utoipa / utoipa-gen | 5.5.0 | backend 的开发依赖，从样例类型和路由生成 OpenAPI 3.1.0 |
+| utoipa / utoipa-gen | 5.5.0 | backend 的运行依赖，从实际 DTO 与 handler 声明生成 OpenAPI 3.1.0 |
 | openapi-typescript | 7.13.0 | 根开发依赖，生成 TS 类型 |
 | TypeScript（生成工具） | 5.9.3 | 根开发依赖，满足生成器声明的 `^5.x` peer dependency |
 | TypeScript（Web） | 6.0.3（当前 lock） | 保留 Web 的 `^6.0.3` 声明；验证生成结果兼容应用编译器 |
@@ -46,30 +46,39 @@ task test:api-toolchain
 | binary format | Ajv 将其注册为非校验注解，文件编码由 multipart Request 测试验证；不声称 Ajv 校验了二进制传输 |
 | 非标准业务限制 | UTF-8 字节数、trim 后非空、游标数值上界、资源归属与事务约束仍由服务端执行 |
 
-当前提取器只处理 fixture 中的本地 schema 引用，不是支持外部引用和所有 OpenAPI 方言的通用验证框架；第四阶段接入真实契约时必须按实际 schema 扩展和检查。schema 标注不会自动增加运行时约束。
+当前两个 schema 验证脚本只处理本地 components 引用，不是支持外部引用和所有 OpenAPI 方言的通用验证框架；第四阶段验证真实 HTTP 响应时需要选择正确操作、状态码和媒体类型，并继续覆盖这些解析边界。schema 标注不会自动增加运行时约束。
 
-## 确定的第二阶段路径与入口
+## 第二阶段导出与校验
 
-以下是后续实施约定，目前未创建生产契约和导出入口：
+```bash
+task api:export
+task test:api-schema
+```
+
+`api:export` 编译并运行离线 example，成功拿到完整 JSON 后才写入 `contracts/openapi.json`。`test:api-schema` 验证导出的 26 个 schema、所有本地引用及关键正反例，并确认选定的 TS 生成器能读取正式契约。它不会偷偷重写契约，检查生成漂移的默认门禁留在第四阶段。
+
+声明位于实际 handler 的 `#[utoipa::path]`；路径常量同时供 Router 使用。方法注册和 OpenAPI 的操作列表仍需分别维护，目前有 17 操作清单测试，尚不宣称已具备自动路由覆盖检查。
+
+DTO 仅公开明确列举的字段。DB/domain 到 DTO 的转换按完整 JSON 对象比较，检验 null、字符串游标、开放 body 与所有公开标识保持一致；错误 responder 测试检查状态码、媒体类型和整个 JSON 对象。业务校验仍在原 parser、domain 和数据库事务中执行。
 
 | 产物或职责 | 路径 / 命令 |
 | --- | --- |
-| Rust HTTP DTO 与契约组装 | `crates/backend/src/http/` 下独立私有模块，模块根使用 `name.rs`；由 backend 显式导出最小契约生成 API |
+| Rust HTTP DTO 与契约组装 | `crates/backend/src/http/` 下独立私有模块，模块根使用 `name.rs`；由 backend 显式导出 `api_contract()` |
 | 离线导出入口 | `crates/backend/examples/export_openapi.rs`；`cargo run --locked -p palace-backend --example export_openapi` 输出 JSON 到 stdout |
 | 正式契约 | `contracts/openapi.json`，提交版本管理 |
-| TS 生成类型 | `apps/palace-web/src/lib/generated/api.ts`，提交版本管理，禁止手改 |
+| TS 生成类型（第三阶段） | `apps/palace-web/src/lib/generated/api.ts`，提交版本管理，禁止手改 |
 | 调用封装 | `apps/palace-web/src/lib/api.ts`，保留业务错误文案及凭证策略 |
 | 接口说明 | `docs/api/`，文档导航由 `docs/README.md` 提供 |
-| 后续 Taskfile 入口 | `api:export`、`api:generate`、`api:check`；实现时分别负责导出、完整生成和不覆盖本地文件的漂移检查 |
+| Taskfile 入口 | `api:export` 已实现；`api:generate`、`api:check` 分别留给完整生成和不覆盖本地文件的漂移检查 |
 
-离线导出不得创建 Server、连接 PostgreSQL 或联系 OIDC；契约信息采用固定 metadata，避免时间戳、环境路径或部署配置使生成结果漂移。当前 `contract_probe` 只服务于第一阶段验证，不能作为实际 API 的导出入口。
+离线导出不创建 Server、不连接 PostgreSQL 或联系 OIDC；契约信息采用固定 metadata，不包含时间戳、环境路径或部署配置。当前 `contract_probe` 只服务于第一阶段验证，不能作为实际 API 的导出入口。
 
 ## CI 与后续工作
 
-遵循 Eric 的备注：GitHub Actions 只做构建，CI 放在 Taskfile。本阶段新增独立 `test:api-toolchain` 任务；默认 `task test` 尚不包含它。第四阶段将生产契约生成检查和无容器测试接入默认任务，需要 PostgreSQL 的测试接入显式集成任务；不添加 GitHub Actions 测试作业，不改变现有 `test:contract` 的 Authelia 用途。
+遵循 Eric 的备注：GitHub Actions 只做构建，CI 放在 Taskfile。`api:export`、`test:api-schema`、`test:api-toolchain` 均为独立任务；默认 `task test` 尚未纳入契约导出或 Node schema 校验，但包含新增的 Rust DTO/契约测试。第四阶段将生产契约生成检查和无容器测试接入默认任务，需要 PostgreSQL 的测试接入显式集成任务；不添加 GitHub Actions 测试作业，不改变现有 `test:contract` 的 Authelia 用途。
 
-目前没有改变生产接口行为，也没有创建新领域 ADR。原生纯文本错误、元数据超限映射为 400、详情额外字段等现状见 [接口盘点](inventory.md)；需要改变这些行为时显式设计并同步相应证据，不能通过修改 schema 隐藏差异。
+本次是保持生产接口行为的 HTTP DTO 重构，没有创建新领域 ADR。原生纯文本错误、元数据超限映射为 400、详情额外字段等现状见 [接口盘点](inventory.md)；需要改变这些行为时显式设计并同步相应证据，不能通过修改 schema 隐藏差异。
 
-2026-09-20 验证结果：`task test:api-toolchain`、`task format` 和 `task test` 通过。全量任务包含前端 lint、22 个前端测试及 Rust workspace lint/默认测试；默认忽略的容器集成测试本阶段未运行。第一阶段未修改生产接口或数据库行为，也没有把这些容器用例记为本次契约验证证据。
+2026-09-20 第二阶段验证：`task format`、`task test`、`task test:api-schema`、`task test:api-toolchain` 和 `task test:integration` 通过。集成任务显式执行 18 个真实 PostgreSQL 用例及 2 个真实 HTTP 用例，使用本地已有镜像；两次离线导出逐字节一致且匹配版本化产物。本阶段未运行真实 Authelia 协议测试；没有修改 OIDC 交互逻辑。全量 HTTP 响应按 schema 验证以及漂移门禁仍属于第四阶段。
 
 官方依据：[utoipa ToSchema](https://docs.rs/utoipa/5.5.0/utoipa/derive.ToSchema.html)、[openapi-typescript Node API](https://openapi-ts.dev/node)、[openapi-fetch](https://openapi-ts.dev/openapi-fetch/)、[Ajv JSON Schema 方言](https://ajv.js.org/json-schema.html)。具体版本及适配选择以本仓库锁文件和可执行样例为证据。

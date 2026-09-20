@@ -1,6 +1,6 @@
 # HTTP 接口与传输语义盘点
 
-盘点日期：2026-09-20。本文记录第一阶段确认的现有行为，作为后续 OpenAPI 建模基线；尚未生成生产接口契约，也不表示已验证所有 HTTP 分支。
+盘点日期：2026-09-20，第二阶段已接入 [OpenAPI 契约](../../contracts/openapi.json)。本文保留接口导航及 schema 无法完整表达的现有语义；字段结构以生成契约为准，不表示已验证所有 HTTP 分支。
 
 CI 检查由根 `Taskfile.yml` 提供统一入口；GitHub Actions 只做构建，不承载本计划的 lint、测试或契约检查编排。
 
@@ -36,30 +36,14 @@ CI 检查由根 `Taskfile.yml` 提供统一入口；GitHub Actions 只做构建�
 
 ## 输入和输出对象
 
-下列字段均使用实际序列化名称；除单独说明外，字段必填且不能为 null。UUID 在线上为字符串，生成的新内部 ID 为 UUIDv7，但入口 UUID 解析并不限定版本。
+字段清单与必填约束由 [OpenAPI components.schemas](../../contracts/openapi.json) 生成，不再手工维护另一份类型表。声明与转换位于 [HTTP DTO 模块](../../crates/backend/src/http/dto.rs)。
 
-| 对象 | 字段与结构 |
-| --- | --- |
-| `TextImport` | `title: string`、`occurred_at: i64`、`source: Source`、`session_id: string`、`history: string`、`idempotency_key: string` |
-| `NewPath` | `session_id: string`、`history: string`、`occurred_at: i64`、`idempotency_key: string` |
-| `UpdatePath` | `history: string`、`occurred_at: i64`、`idempotency_key: string` |
-| `Owner` | `id: UUID`、`email: string`、`identity_id: UUID` |
-| `Conversation`（详情内） | `id: UUID`、`owner_id: UUID`、`title: string`、`source: Source` |
-| `Message` | `id: UUID`、`owner_id: UUID`、`conversation_id: UUID`、`parent_message_id: UUID \| null`、`role: Role`、`content: string`、`created_order: i64` |
-| `Detail` | `conversation: Conversation`、`messages: Message[]`、`paths: ConversationPath[]` |
-| `ConversationPath`（详情内） | `id: UUID`、`session_id: string`、`head_message_id: UUID`、`occurred_at/created_at/updated_at: i64`、`message_count: i64`、`original_link: string` |
-| `Summary` | `id: UUID`、`title: string`、`source: Source`、`session_ids: string[]`、`path_count: i64`、`path_id: UUID`、`occurred_at: i64`、`head_message_id: UUID`、`message_count: i64` |
-| `ImportResult` | `import_id: UUID`、`conversation_id: UUID`、`path_id: UUID`、`head_message_id: UUID`、`created: usize`、`reused: usize` |
-| `Record` | `id: UUID`、`updatedAt: i64`、`isDeleted: boolean`、`body: 任意 JSON`；body 必填，允许显式 null |
-| `PublishedRecord` | `ownerId: UUID`、`serverVersion: 十进制字符串`、`record: Record` |
-| `UploadResult` | `{status: "accepted", record: PublishedRecord}` 或 `{status: "retained", record: PublishedRecord}` |
-| `SyncPage` | `records: PublishedRecord[]`、`cursor: 十进制字符串` |
-
-类型来源：[领域对象](../../crates/domain/src/conversation.rs)、[同步对象](../../crates/domain/src/sync.rs)、[列表](../../crates/db/src/conversation_list.rs)、[详情](../../crates/db/src/conversation_tree.rs)、[Owner](../../crates/db/src/owner.rs)、[导入结果](../../crates/db/src/import.rs)。
-
-`Source` 严格取 `chatgpt/gemini/grok`，`Role` 严格取 `user/assistant`。Message 响应的 `parent_message_id` 总是出现，根消息为 null；不能把它生成成可省略字段。请求/响应同一 Rust 类型不一定具有同一必填语义，后续需要分别检查。`created/reused` 为本次导入新建和复用的消息数量，不是时间；前端当前只声明 ImportResult 中的三个会话/路径/head 标识。
-
-`TextImport`、`NewPath`、`UpdatePath`、会话元数据以及 Record 外壳拒绝未知字段。同步 pull 和认证 callback 的 query 未启用 `deny_unknown_fields`，额外参数被忽略。history 内的 MessageInput 只读取 `role/content`，忽略其他字段；不得将其误标为拒绝额外字段。
+- UUID 在线上为字符串；新生成的内部 ID 为 UUIDv7，但入口解析不限定版本。
+- `Source` 严格取 `chatgpt/gemini/grok`，`Role` 严格取 `user/assistant`。
+- Message 的 `parent_message_id` 总是出现，根消息为 null；Record 的 body 必填且允许任意 JSON，包括 null。
+- ImportResult 包含 `import_id`、`created`、`reused` 等字段；created/reused 是新建和复用的消息数量。前端目前只声明三个会话/路径/head 标识，尚待第三阶段迁移。
+- `TextImport`、`NewPath`、`UpdatePath`、会话元数据与 Record 外壳拒绝未知字段；同步 pull 和认证 callback 的额外 query 参数被忽略。
+- history 内的 MessageInput 只读取 `role/content`，忽略其他字段，不能误标为拒绝额外字段。
 
 ## 时间、游标和开放 JSON
 
@@ -105,8 +89,8 @@ CI 检查由根 `Taskfile.yml` 提供统一入口；GitHub Actions 只做构建�
 
 原生行为核对了锁定的 Axum 0.8.9 源码 `extract/rejection.rs`、`extract/multipart.rs`。后续若决定统一错误，需要显式改变 handler/extractor 行为并补测试；不能只把 OpenAPI 写成理想化的统一 JSON。
 
-## 第二阶段建模边界
+## 保留的行为边界
 
-详情当前输出前端未声明的 `owner_id`、`conversation_id`，`/api/me` 输出 `identity_id`；这些是现有协议字段，不属于凭证，但应在整理 DTO 时逐项确认是否保留。第一阶段不移除字段。前端当前能够读取 JSON 错误中的 path/message 或 error，却丢弃原生纯文本错误；这也是迁移时需要显式处理的行为。
+详情当前输出前端未声明的 `owner_id`、`conversation_id`，`/api/me` 输出 `identity_id`；这些是现有协议字段，不属于凭证，但应在整理 DTO 时逐项确认是否保留。第二阶段的 DTO 显式保留这些字段。前端当前能够读取 JSON 错误中的 path/message 或 error，却丢弃原生纯文本错误；这也是迁移时需要显式处理的行为。
 
-本文件是实现盘点，不新增领域决策或承诺。后续生成的 OpenAPI 成为字段结构的事实来源后，应收缩这里重复的字段表，保留无法由 schema 表达的语义与风险说明。
+本文件是实现盘点，不新增领域决策或承诺。schema 中的描述不是新的校验路径；字节限制、数据库约束和授权仍由原实现保障。
