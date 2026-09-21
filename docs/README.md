@@ -1,10 +1,21 @@
 # Palace 开发文档
 
-## API 契约建设
+## API 契约
 
-现有接口、媒体类型、错误分支与传输语义见 [HTTP 接口盘点](api/inventory.md)。
+接口、字段、媒体类型及错误响应以 [OpenAPI](../contracts/openapi.json) 为准。
+修改 Rust DTO 或 handler 声明后，执行 `task api:generate` 重新生成契约和前端类型，
+并一同提交；`task api:export` 可单独导出契约。生成文件不要手工修改。
+
 CI 入口统一放在 `Taskfile.yml`；GitHub Actions 只做构建。
-正式接口契约见 [OpenAPI](../contracts/openapi.json)，运行 `task api:generate` 离线生成契约和前端类型，`task test:api-schema` 校验。Web 使用 openapi-fetch 从生成类型推导调用；`task api:export` 可单独导出契约。工具版本、路径与验证边界见 [契约工具链](api/toolchain.md)；`task test:api-toolchain` 保留为工具组合验证。默认 `task test` 已包含生成漂移、schema 与路由覆盖检查；`task api:check` 不覆盖本地文件。真实 HTTP 响应验证使用 `task test:api-http`，并纳入 `task test:integration`，需要 Node/npm 和已有 PostgreSQL 镜像。
+默认 `task test` 包含生成漂移、schema、工具链与路由覆盖检查；
+`task api:check` 在内存中重新生成并比较，缺失或过期即失败，不覆盖本地文件。
+真实 HTTP 响应校验使用 `task test:api-http`，并纳入 `task test:integration`，
+需要 Node/npm 依赖、已有 PostgreSQL 镜像和 Docker/Podman socket。
+操作覆盖不代表每个状态码分支都已覆盖，也不替代 `task test:contract` 的 Authelia 协议测试。
+
+新增路由通过 `crates/backend/src/http/routes.rs` 的注册清单挂载；
+覆盖测试将其方法、路径与 handler 声明生成的契约比较。
+Web 调用及浏览器适配见[会话前端](会话前端.md#api-契约)。
 
 ## 产品设计
 
