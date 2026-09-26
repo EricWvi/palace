@@ -8,6 +8,7 @@ Palace 的产品方向是按发生时间组织个人内容，通过时间线卡�
 | 目录 | 内容 |
 | --- | --- |
 | [产品设计](product/README.md) | 产品方向、领域模型及 Web/移动端形态 |
+| [设计系统](design/README.md) | Tally 视觉语言：颜色、字体、间距、交互与组件规范 |
 | [前端工程](frontend/README.md) | Web 开发、API 客户端、通用组件与样式 |
 | [功能实现](features/README.md) | 各内容类型的业务规则和专属交互，目前包含对话收藏 |
 | [服务端](server/README.md) | API 契约、数据库、同步、认证及运行方式 |
