@@ -10,6 +10,8 @@
 - 行为依据：页面和组件 → 前端 hooks → Go handler → model / migration。截图用于确认呈现，隐藏菜单、状态变化、字段含义以该发布版代码补全。
 - 本次为静态梳理，未连接部署数据库、未运行旧服务。文中“已实现”表示发布版存在调用链，不等于已经在线逐项验收；限制与可疑边界单独列明。
 
+旧项目通过 `third_party/dashboard` Git submodule 跟踪，固定在上述 tag 对应的 commit。新检出 Palace 后，执行 `git submodule update --init third_party/dashboard` 获取该版本；不要使用 `--remote` 更新到后续开发代码。
+
 ## 阅读入口
 
 | 页面 / 能力      | 文档                                                       | 主要问题                                   |
