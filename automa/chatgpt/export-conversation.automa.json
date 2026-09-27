@@ -1,9 +1,5 @@
 {
-    "extVersion": "1.30.02",
-    "name": "ChatGPT",
-    "icon": "riGlobalLine",
-    "table": [],
-    "version": "1.30.02",
+    "description": "",
     "drawflow": {
         "edges": [
             {
@@ -14,99 +10,86 @@
                 "selectable": true,
                 "source": "SlP0Dj43vUp4djSLQRZMp",
                 "sourceHandle": "SlP0Dj43vUp4djSLQRZMp-output-1",
-                "sourceX": 312,
-                "sourceY": 350.000005086263,
                 "target": "fbyrzrc",
                 "targetHandle": "fbyrzrc-input-1",
-                "targetX": 363.9999593098958,
-                "targetY": 350.000005086263,
                 "type": "custom",
                 "updatable": true
             },
             {
                 "data": {},
-                "id": "vueflow__edge-fbyrzrcfbyrzrc-output-1-uu3mmo8uu3mmo8-input-1",
+                "id": "vueflow__edge-fbyrzrcfbyrzrc-output-1-jiglnitjiglnit-input-1",
                 "label": "",
                 "markerEnd": "arrowclosed",
                 "selectable": true,
                 "source": "fbyrzrc",
                 "sourceHandle": "fbyrzrc-output-1",
-                "sourceX": 604,
-                "sourceY": 350.000005086263,
-                "target": "uu3mmo8",
-                "targetHandle": "uu3mmo8-input-1",
-                "targetX": 655.9999593098959,
-                "targetY": 350.000005086263,
-                "type": "custom",
-                "updatable": true
-            },
-            {
-                "class": "connected-edges",
-                "data": {},
-                "id": "vueflow__edge-uu3mmo8uu3mmo8-output-1-xxep41uxxep41u-input-1",
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "selectable": true,
-                "source": "uu3mmo8",
-                "sourceHandle": "uu3mmo8-output-1",
-                "sourceX": 896,
-                "sourceY": 350.000005086263,
-                "target": "xxep41u",
-                "targetHandle": "xxep41u-input-1",
-                "targetX": 948.0001627604166,
-                "targetY": 350.000005086263,
+                "target": "jiglnit",
+                "targetHandle": "jiglnit-input-1",
                 "type": "custom",
                 "updatable": true
             },
             {
                 "data": {},
-                "id": "vueflow__edge-jiglnitjiglnit-output-1-7qbifjr7qbifjr-input-1",
+                "id": "vueflow__edge-jiglnitjiglnit-output-1-scrolltopscrolltop-input-1",
                 "label": "",
                 "markerEnd": "arrowclosed",
                 "selectable": true,
                 "source": "jiglnit",
                 "sourceHandle": "jiglnit-output-1",
-                "sourceX": 1480,
-                "sourceY": 350.000005086263,
-                "target": "7qbifjr",
-                "targetHandle": "7qbifjr-input-1",
-                "targetX": 1532.0000375600962,
-                "targetY": 362,
-                "type": "custom",
-                "updatable": true
-            },
-            {
-                "class": "connected-edges",
-                "data": {},
-                "id": "vueflow__edge-xxep41uxxep41u-output-1-jiglnitjiglnit-input-1",
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "selectable": true,
-                "source": "xxep41u",
-                "sourceHandle": "xxep41u-output-1",
-                "sourceX": 1188,
-                "sourceY": 350.000005086263,
-                "target": "jiglnit",
-                "targetHandle": "jiglnit-input-1",
-                "targetX": 1239.9999593098958,
-                "targetY": 350.000005086263,
+                "target": "scrolltop",
+                "targetHandle": "scrolltop-input-1",
                 "type": "custom",
                 "updatable": true
             },
             {
                 "data": {},
-                "id": "vueflow__edge-7qbifjr7qbifjr-output-1-4xsplhe4xsplhe-input-1",
+                "id": "vueflow__edge-scrolltopscrolltop-output-1-topwaittopwait-input-1",
                 "label": "",
                 "markerEnd": "arrowclosed",
                 "selectable": true,
-                "source": "7qbifjr",
-                "sourceHandle": "7qbifjr-output-1",
-                "sourceX": 1772.0000939002405,
-                "sourceY": 362,
+                "source": "scrolltop",
+                "sourceHandle": "scrolltop-output-1",
+                "target": "topwait",
+                "targetHandle": "topwait-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-topwaittopwait-output-1-loopturnloopturn-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "topwait",
+                "sourceHandle": "topwait-output-1",
+                "target": "loopturn",
+                "targetHandle": "loopturn-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-loopturnloopturn-output-1-turnidturnid-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "loopturn",
+                "sourceHandle": "loopturn-output-1",
+                "target": "turnid",
+                "targetHandle": "turnid-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-turnidturnid-output-1-4xsplhe4xsplhe-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "turnid",
+                "sourceHandle": "turnid-output-1",
                 "target": "4xsplhe",
                 "targetHandle": "4xsplhe-input-1",
-                "targetX": 1824.0000027527446,
-                "targetY": 114.49999678846467,
                 "type": "custom",
                 "updatable": true
             },
@@ -118,29 +101,60 @@
                 "selectable": true,
                 "source": "4xsplhe",
                 "sourceHandle": "4xsplhe-output-1",
-                "sourceX": 2063.9998122649304,
-                "sourceY": 114.49999678846467,
                 "target": "yzpfobl",
                 "targetHandle": "yzpfobl-input-1",
-                "targetX": 2148.0000617998926,
-                "targetY": 157.08590585333468,
                 "type": "custom",
                 "updatable": true
             },
             {
                 "data": {},
-                "id": "vueflow__edge-yzpfoblyzpfobl-output-wWftmAbX2VNmBFogQArJW-itnk3lcitnk3lc-input-1",
+                "id": "vueflow__edge-yzpfoblyzpfobl-output-chatgptTurnSeen-cqwhcdlcqwhcdl-input-1",
                 "label": "",
                 "markerEnd": "arrowclosed",
                 "selectable": true,
                 "source": "yzpfobl",
-                "sourceHandle": "yzpfobl-output-wWftmAbX2VNmBFogQArJW",
-                "sourceX": 2452.999866606512,
-                "sourceY": 167.6796651593846,
+                "sourceHandle": "yzpfobl-output-chatgptTurnSeen",
+                "target": "cqwhcdl",
+                "targetHandle": "cqwhcdl-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-yzpfoblyzpfobl-output-fallback-turnscrollturnscroll-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "yzpfobl",
+                "sourceHandle": "yzpfobl-output-fallback",
+                "target": "turnscroll",
+                "targetHandle": "turnscroll-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-turnscrollturnscroll-output-1-scrollwaitscrollwait-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "turnscroll",
+                "sourceHandle": "turnscroll-output-1",
+                "target": "scrollwait",
+                "targetHandle": "scrollwait-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-scrollwaitscrollwait-output-1-itnk3lcitnk3lc-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "scrollwait",
+                "sourceHandle": "scrollwait-output-1",
                 "target": "itnk3lc",
                 "targetHandle": "itnk3lc-input-1",
-                "targetX": 2472.0000027527444,
-                "targetY": 478.99999678846467,
                 "type": "custom",
                 "updatable": true
             },
@@ -152,234 +166,242 @@
                 "selectable": true,
                 "source": "itnk3lc",
                 "sourceHandle": "itnk3lc-output-1",
-                "sourceX": 2711.9998122649304,
-                "sourceY": 478.99999678846467,
                 "target": "syv0pik",
                 "targetHandle": "syv0pik-input-1",
-                "targetX": 2763.999837957213,
-                "targetY": 501.58588357890204,
                 "type": "custom",
                 "updatable": true
             },
             {
                 "data": {},
-                "id": "vueflow__edge-1h4zphk1h4zphk-output-1-igknuosigknuos-input-1",
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "selectable": true,
-                "source": "1h4zphk",
-                "sourceHandle": "1h4zphk-output-1",
-                "sourceX": 3651.9999729299284,
-                "sourceY": 469.00000104413135,
-                "target": "igknuos",
-                "targetHandle": "igknuos-input-1",
-                "targetX": 3703.9999645768776,
-                "targetY": 491.5858971365897,
-                "type": "custom",
-                "updatable": true
-            },
-            {
-                "data": {},
-                "id": "vueflow__edge-igknuosigknuos-output-1-b0vvwkbb0vvwkb-input-1",
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "selectable": true,
-                "source": "igknuos",
-                "sourceHandle": "igknuos-output-1",
-                "sourceX": 3943.9997312328605,
-                "sourceY": 491.5858971365897,
-                "target": "b0vvwkb",
-                "targetHandle": "b0vvwkb-input-1",
-                "targetX": 3995.9998700298875,
-                "targetY": 571.2500310747776,
-                "type": "custom",
-                "updatable": true
-            },
-            {
-                "data": {},
-                "id": "vueflow__edge-oo4xuuwoo4xuuw-output-1-i320acji320acj-input-1",
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "selectable": true,
-                "source": "oo4xuuw",
-                "sourceHandle": "oo4xuuw-output-1",
-                "sourceX": 2711.999893464654,
-                "sourceY": 114.4999662149246,
-                "target": "i320acj",
-                "targetHandle": "i320acj-input-1",
-                "targetX": 2763.9998941720146,
-                "targetY": 137.0858908099143,
-                "type": "custom",
-                "updatable": true
-            },
-            {
-                "data": {},
-                "id": "vueflow__edge-i320acji320acj-output-1-m4xgctsm4xgcts-input-1",
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "selectable": true,
-                "source": "i320acj",
-                "sourceHandle": "i320acj-output-1",
-                "sourceX": 3003.999893464654,
-                "sourceY": 137.0858908099143,
-                "target": "m4xgcts",
-                "targetHandle": "m4xgcts-input-1",
-                "targetX": 3087.9998941720146,
-                "targetY": 232.2499662149246,
-                "type": "custom",
-                "updatable": true
-            },
-            {
-                "data": {},
-                "id": "vueflow__edge-b0vvwkbb0vvwkb-output-1-7qbifjr7qbifjr-input-1",
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "selectable": true,
-                "source": "b0vvwkb",
-                "sourceHandle": "b0vvwkb-output-1",
-                "sourceX": 4236.000118628108,
-                "sourceY": 571.2500310747776,
-                "target": "7qbifjr",
-                "targetHandle": "7qbifjr-input-1",
-                "targetX": 1532.0000375600962,
-                "targetY": 362,
-                "type": "custom",
-                "updatable": true
-            },
-            {
-                "data": {},
-                "id": "vueflow__edge-m4xgctsm4xgcts-output-1-7qbifjr7qbifjr-input-1",
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "selectable": true,
-                "source": "m4xgcts",
-                "sourceHandle": "m4xgcts-output-1",
-                "sourceX": 3327.999893464654,
-                "sourceY": 232.2499662149246,
-                "target": "7qbifjr",
-                "targetHandle": "7qbifjr-input-1",
-                "targetX": 1532.0000375600962,
-                "targetY": 362,
-                "type": "custom",
-                "updatable": true
-            },
-            {
-                "data": {},
-                "id": "vueflow__edge-yzpfoblyzpfobl-output-fallback-oo4xuuwoo4xuuw-input-1",
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "selectable": true,
-                "source": "yzpfobl",
-                "sourceHandle": "yzpfobl-output-fallback",
-                "sourceX": 2451.9999551663777,
-                "sourceY": 209.67967606554677,
-                "target": "oo4xuuw",
-                "targetHandle": "oo4xuuw-input-1",
-                "targetX": 2471.9998941720146,
-                "targetY": 114.4999662149246,
-                "type": "custom",
-                "updatable": true
-            },
-            {
-                "data": {},
-                "id": "vueflow__edge-syv0piksyv0pik-output-1-g0nvccqg0nvccq-input-1",
+                "id": "vueflow__edge-syv0piksyv0pik-output-1-hasuserhasuser-input-1",
                 "label": "",
                 "markerEnd": "arrowclosed",
                 "selectable": true,
                 "source": "syv0pik",
                 "sourceHandle": "syv0pik-output-1",
-                "sourceX": 3003.9998122649304,
-                "sourceY": 501.58588357890204,
-                "target": "g0nvccq",
-                "targetHandle": "g0nvccq-input-1",
-                "targetX": 3088.0000181817095,
-                "targetY": 521.585981882884,
+                "target": "hasuser",
+                "targetHandle": "hasuser-input-1",
                 "type": "custom",
                 "updatable": true
             },
             {
                 "data": {},
-                "id": "vueflow__edge-g0nvccqg0nvccq-output-LbfuZTOYUFc7j7BEjKLW6-1h4zphk1h4zphk-input-1",
+                "id": "vueflow__edge-hasuserhasuser-output-chatgptHasUser-setusersetuser-input-1",
                 "label": "",
                 "markerEnd": "arrowclosed",
                 "selectable": true,
-                "source": "g0nvccq",
-                "sourceHandle": "g0nvccq-output-LbfuZTOYUFc7j7BEjKLW6",
-                "sourceX": 3393.0002385323564,
-                "sourceY": 532.1797027091732,
-                "target": "1h4zphk",
-                "targetHandle": "1h4zphk-input-1",
-                "targetX": 3412.0002062739454,
-                "targetY": 469.00000104413135,
+                "source": "hasuser",
+                "sourceHandle": "hasuser-output-chatgptHasUser",
+                "target": "setuser",
+                "targetHandle": "setuser-input-1",
                 "type": "custom",
                 "updatable": true
             },
             {
                 "data": {},
-                "id": "vueflow__edge-g0nvccqg0nvccq-output-fallback-p9m4ly0p9m4ly0-input-1",
+                "id": "vueflow__edge-hasuserhasuser-output-fallback-hasassthasasst-input-1",
                 "label": "",
                 "markerEnd": "arrowclosed",
                 "selectable": true,
-                "source": "g0nvccq",
-                "sourceHandle": "g0nvccq-output-fallback",
-                "sourceX": 3392.00036988928,
-                "sourceY": 574.1797421271922,
-                "target": "p9m4ly0",
-                "targetHandle": "p9m4ly0-input-1",
-                "targetX": 3412.0000181817095,
-                "targetY": 596.7500262786793,
-                "type": "custom",
-                "updatable": true
-            },
-            {
-                "class": "source-p9m4ly0-output-1 target-7qbifjr-input-1",
-                "data": {},
-                "id": "vueflow__edge-p9m4ly0p9m4ly0-output-1-7qbifjr7qbifjr-input-1",
-                "label": "",
-                "markerEnd": "arrowclosed",
-                "selectable": true,
-                "source": "p9m4ly0",
-                "sourceHandle": "p9m4ly0-output-1",
-                "sourceX": 3652.0002284111442,
-                "sourceY": 596.7500262786793,
-                "target": "7qbifjr",
-                "targetHandle": "7qbifjr-input-1",
-                "targetX": 1532.0000375600962,
-                "targetY": 362,
+                "source": "hasuser",
+                "sourceHandle": "hasuser-output-fallback",
+                "target": "hasasst",
+                "targetHandle": "hasasst-input-1",
                 "type": "custom",
                 "updatable": true
             },
             {
                 "data": {},
-                "id": "vueflow__edge-7qbifjr7qbifjr-output-fallback-3cnis153cnis15-input-1",
+                "id": "vueflow__edge-setusersetuser-output-1-clruserclruser-input-1",
                 "label": "",
                 "markerEnd": "arrowclosed",
                 "selectable": true,
-                "source": "7qbifjr",
-                "sourceHandle": "7qbifjr-output-fallback",
-                "sourceX": 1772.0000939002405,
-                "sourceY": 383.9999812199519,
-                "target": "3cnis15",
-                "targetHandle": "3cnis15-input-1",
-                "targetX": 1824.0000375600962,
-                "targetY": 278.999995304988,
+                "source": "setuser",
+                "sourceHandle": "setuser-output-1",
+                "target": "clruser",
+                "targetHandle": "clruser-input-1",
                 "type": "custom",
                 "updatable": true
             },
             {
                 "data": {},
-                "id": "vueflow__edge-3cnis153cnis15-output-1-ddyc51wddyc51w-input-1",
+                "id": "vueflow__edge-clruserclruser-output-1-clickuserclickuser-input-1",
                 "label": "",
                 "markerEnd": "arrowclosed",
                 "selectable": true,
-                "source": "3cnis15",
-                "sourceHandle": "3cnis15-output-1",
-                "sourceX": 2064.000187800481,
-                "sourceY": 278.999995304988,
+                "source": "clruser",
+                "sourceHandle": "clruser-output-1",
+                "target": "clickuser",
+                "targetHandle": "clickuser-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-clickuserclickuser-output-1-igknuosigknuos-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "clickuser",
+                "sourceHandle": "clickuser-output-1",
+                "target": "igknuos",
+                "targetHandle": "igknuos-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-hasassthasasst-output-chatgptHasAssistant-setasstsetasst-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "hasasst",
+                "sourceHandle": "hasasst-output-chatgptHasAssistant",
+                "target": "setasst",
+                "targetHandle": "setasst-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-hasassthasasst-output-fallback-turncheckturncheck-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "hasasst",
+                "sourceHandle": "hasasst-output-fallback",
+                "target": "turncheck",
+                "targetHandle": "turncheck-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-setasstsetasst-output-1-clrasstclrasst-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "setasst",
+                "sourceHandle": "setasst-output-1",
+                "target": "clrasst",
+                "targetHandle": "clrasst-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-clrasstclrasst-output-1-clickasstclickasst-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "clrasst",
+                "sourceHandle": "clrasst-output-1",
+                "target": "clickasst",
+                "targetHandle": "clickasst-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-clickasstclickasst-output-1-igknuosigknuos-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "clickasst",
+                "sourceHandle": "clickasst-output-1",
+                "target": "igknuos",
+                "targetHandle": "igknuos-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-igknuosigknuos-output-1-readclipreadclip-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "igknuos",
+                "sourceHandle": "igknuos-output-1",
+                "target": "readclip",
+                "targetHandle": "readclip-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-readclipreadclip-output-1-b0vvwkbb0vvwkb-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "readclip",
+                "sourceHandle": "readclip-output-1",
+                "target": "b0vvwkb",
+                "targetHandle": "b0vvwkb-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-b0vvwkbb0vvwkb-output-1-afteruserafteruser-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "b0vvwkb",
+                "sourceHandle": "b0vvwkb-output-1",
+                "target": "afteruser",
+                "targetHandle": "afteruser-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-afteruserafteruser-output-chatgptAfterUser-hasassthasasst-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "afteruser",
+                "sourceHandle": "afteruser-output-chatgptAfterUser",
+                "target": "hasasst",
+                "targetHandle": "hasasst-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-afteruserafteruser-output-fallback-cqwhcdlcqwhcdl-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "afteruser",
+                "sourceHandle": "afteruser-output-fallback",
+                "target": "cqwhcdl",
+                "targetHandle": "cqwhcdl-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-turncheckturncheck-output-1-cqwhcdlcqwhcdl-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "turncheck",
+                "sourceHandle": "turncheck-output-1",
+                "target": "cqwhcdl",
+                "targetHandle": "cqwhcdl-input-1",
+                "type": "custom",
+                "updatable": true
+            },
+            {
+                "data": {},
+                "id": "vueflow__edge-cqwhcdlcqwhcdl-output-1-ddyc51wddyc51w-input-1",
+                "label": "",
+                "markerEnd": "arrowclosed",
+                "selectable": true,
+                "source": "cqwhcdl",
+                "sourceHandle": "cqwhcdl-output-1",
                 "target": "ddyc51w",
                 "targetHandle": "ddyc51w-input-1",
-                "targetX": 2147.9998941720146,
-                "targetY": 278.9999662149246,
                 "type": "custom",
                 "updatable": true
             }
@@ -432,7 +454,7 @@
                 "label": "trigger",
                 "position": {
                     "x": 96,
-                    "y": 314
+                    "y": 125
                 },
                 "type": "BlockBasic"
             },
@@ -459,69 +481,15 @@
                 "label": "active-tab",
                 "position": {
                     "x": 388,
-                    "y": 314
+                    "y": 125
                 },
                 "type": "BlockBasic"
             },
             {
                 "data": {
-                    "code": "const userTurns = document.querySelectorAll(\n  'section[data-testid^=\"conversation-turn-\"][data-turn=\"user\"]'\n);\n\nconst assistantTurns = document.querySelectorAll(\n  'section[data-testid^=\"conversation-turn-\"][data-turn=\"assistant\"]'\n);\n\nconst turns = document.querySelectorAll(\n  'section[data-testid^=\"conversation-turn-\"][data-turn]'\n);\n\nif (turns.length === 0) {\n  throw new Error(\n    \"未找到 ChatGPT 对话，请确认当前页面是聊天页面\"\n  );\n}\n\nautomaSetVariable(\"chatgptPageCheck\", {\n  mountedTurns: turns.length,\n  users: userTurns.length,\n  assistants: assistantTurns.length,\n  url: location.href\n});\n\nconsole.log(\n  \"[ChatGPT export] page check\",\n  {\n    mountedTurns: turns.length,\n    users: userTurns.length,\n    assistants: assistantTurns.length\n  }\n);",
-                    "context": "website",
-                    "description": "校验页面",
-                    "disableBlock": false,
-                    "everyNewTab": false,
-                    "onError": {
-                        "dataToInsert": [],
-                        "enable": false,
-                        "errorMessage": "",
-                        "insertData": false,
-                        "retry": false,
-                        "retryInterval": 2,
-                        "retryTimes": 1,
-                        "toDo": "error"
-                    },
-                    "preloadScripts": [],
-                    "runBeforeLoad": false,
-                    "settings": {
-                        "blockTimeout": 0,
-                        "debugMode": false
-                    },
-                    "timeout": 20000
-                },
-                "id": "uu3mmo8",
-                "initialized": false,
-                "label": "javascript-code",
-                "position": {
-                    "x": 680,
-                    "y": 314
-                },
-                "type": "BlockBasic"
-            },
-            {
-                "data": {
-                    "code": "const preview = text =>\n  text.length > 30\n    ? text.slice(0, 30) + \"…\"\n    : text;\n\nwindow.__chatgptCopiedText = null;\nwindow.__chatgptCopySeq = 0;\nwindow.__chatgptLastReadSeq = 0;\n\nif (!window.__chatgptClipboardInstalled) {\n  window.__chatgptClipboardInstalled = true;\n\n  const clipboard = navigator.clipboard;\n  window.__chatgptOriginalClipboardWriteText =\n    clipboard?.writeText;\n  \n  window.__chatgptOriginalClipboardWrite =\n    clipboard?.write;\n\n  if (clipboard?.writeText) {\n    clipboard.writeText = async function (text) {\n      window.__chatgptCopiedText = text;\n      window.__chatgptCopySeq++;\n\n      console.log(\n        \"[ChatGPT export] writeText:\",\n        window.__chatgptCopySeq,\n        preview(text)\n      );\n\n      // 不真正写入系统剪贴板\n      return;\n    };\n  }\n\n  if (clipboard?.write) {\n    clipboard.write = async function (items) {\n      console.log(\n        \"[ChatGPT export] write() called\",\n        items.length\n      );\n\n      for (const item of items) {\n        if (!item.types?.includes(\"text/plain\")) {\n          continue;\n        }\n\n        const blob =\n          await item.getType(\"text/plain\");\n\n        const text =\n          await blob.text();\n\n        window.__chatgptCopiedText = text;\n        window.__chatgptCopySeq++;\n\n        console.log(\n          \"[ChatGPT export] write:\",\n          window.__chatgptCopySeq,\n          preview(text)\n        );\n\n        return;\n      }\n\n      console.warn(\n        \"[ChatGPT export] write() 中没有 text/plain\"\n      );\n    };\n  }\n}\n\nconsole.log(\n  \"[ChatGPT export] clipboard interceptor ready\"\n);",
-                    "context": "website",
-                    "description": "拦截剪切板",
-                    "disableBlock": false,
-                    "everyNewTab": false,
-                    "preloadScripts": [],
-                    "runBeforeLoad": false,
-                    "timeout": 20000
-                },
-                "id": "xxep41u",
-                "initialized": false,
-                "label": "javascript-code",
-                "position": {
-                    "x": 972,
-                    "y": 314
-                },
-                "type": "BlockBasic"
-            },
-            {
-                "data": {
-                    "code": "automaSetVariable(\"conversation\", []);\nautomaSetVariable(\"currentTurnSelector\", null);\nautomaSetVariable(\"currentTurnId\", null);\nautomaSetVariable(\"currentTurnRole\", null);\nautomaSetVariable(\"currentTurnNumber\", null);\nautomaSetVariable(\"chatgptDone\", false);\nautomaSetVariable(\"currentTurnFound\", \"no\");\n\nwindow.__chatgptSeen = new Set();\nwindow.__chatgptIdleRounds = 0;\n\nconsole.log(\n  \"[ChatGPT export] state initialized\"\n);",
-                    "context": "website",
-                    "description": "初始化数组",
+                    "code": "automaSetVariable(\"conversation\", []);\nautomaSetVariable(\"seenTurnIds\", []);\nautomaSetVariable(\"currentTurnId\", \"\");\nautomaSetVariable(\"currentTurnSkip\", \"no\");\nautomaSetVariable(\"currentMessageRole\", \"\");\nautomaSetVariable(\"currentCopiedText\", \"\");\nautomaSetVariable(\"turnMessageCount\", 0);\n\nconsole.log(\n  \"[ChatGPT export] state initialized\"\n);",
+                    "context": "background",
+                    "description": "初始化导出状态（后台）",
                     "disableBlock": false,
                     "everyNewTab": false,
                     "preloadScripts": [],
@@ -532,55 +500,112 @@
                 "initialized": false,
                 "label": "javascript-code",
                 "position": {
-                    "x": 1264,
-                    "y": 314
+                    "x": 680,
+                    "y": 125
                 },
                 "type": "BlockBasic"
             },
             {
                 "data": {
-                    "conditions": [
-                        {
-                            "conditions": [
-                                {
-                                    "id": "Cwttq56LuAJFFTrOXQIi4",
-                                    "items": [
-                                        {
-                                            "category": "value",
-                                            "data": {
-                                                "value": "{{variables.chatgptDone}}"
-                                            },
-                                            "id": "XUwNhsWy0UAJG9muuOICA",
-                                            "type": "value"
-                                        },
-                                        {
-                                            "category": "compare",
-                                            "id": "28X6tqEfipOP16cd_7eqs",
-                                            "type": "ifl"
-                                        }
-                                    ]
-                                }
-                            ],
-                            "id": "rIRD24tCBcpoh_X-H6WCo"
-                        }
-                    ],
-                    "description": "",
-                    "disableBlock": false
+                    "description": "滚到对话顶部（容器为 column-reverse，顶部是负的 scrollTop）",
+                    "disableBlock": false,
+                    "findBy": "cssSelector",
+                    "incX": false,
+                    "incY": false,
+                    "markEl": false,
+                    "multiple": false,
+                    "scrollIntoView": false,
+                    "scrollX": 0,
+                    "scrollY": -100000000,
+                    "selector": ".thread-scroll-container",
+                    "smooth": false,
+                    "waitForSelector": true,
+                    "waitSelectorTimeout": 5000
                 },
-                "id": "7qbifjr",
+                "id": "scrolltop",
                 "initialized": false,
-                "label": "while-loop",
+                "label": "element-scroll",
                 "position": {
-                    "x": 1556,
-                    "y": 314
+                    "x": 972,
+                    "y": 125
                 },
-                "type": "BlockBasicWithFallback"
+                "type": "BlockBasic"
             },
             {
                 "data": {
-                    "code": "const turns = [\n  ...document.querySelectorAll(\n    'section[data-testid^=\"conversation-turn-\"][data-turn][data-turn-id]'\n  )\n];\n\nconst getTurnNumber = el => {\n  const testid =\n    el.getAttribute(\"data-testid\") || \"\";\n\n  const match =\n    testid.match(/conversation-turn-(\\d+)/);\n\n  return match\n    ? Number(match[1])\n    : Number.MAX_SAFE_INTEGER;\n};\n\nturns.sort(\n  (a, b) =>\n    getTurnNumber(a) - getTurnNumber(b)\n);\n\nlet found = null;\n\nfor (const el of turns) {\n  const id =\n    el.getAttribute(\"data-turn-id\");\n\n  if (\n    id &&\n    !window.__chatgptSeen.has(id)\n  ) {\n    found = el;\n    break;\n  }\n}\n\nif (!found) {\n  automaSetVariable(\n    \"currentTurnFound\",\n    \"no\"\n  );\n\n  automaSetVariable(\n    \"currentTurnSelector\",\n    \"\"\n  );\n\n  automaSetVariable(\n    \"currentTurnId\",\n    \"\"\n  );\n\n  automaSetVariable(\n    \"currentTurnRole\",\n    \"\"\n  );\n\n  automaSetVariable(\n    \"currentTurnNumber\",\n    \"\"\n  );\n\n  console.log(\n    \"[ChatGPT export] no new mounted turn\"\n  );\n} else {\n  const id =\n    found.getAttribute(\"data-turn-id\");\n\n  const role =\n    found.getAttribute(\"data-turn\");\n\n  const turnNumber =\n    getTurnNumber(found);\n\n  const selector =\n    `section[data-turn-id=\"${CSS.escape(id)}\"]`;\n\n  automaSetVariable(\n    \"currentTurnFound\",\n    \"yes\"\n  );\n\n  automaSetVariable(\n    \"currentTurnSelector\",\n    selector\n  );\n\n  automaSetVariable(\n    \"currentTurnId\",\n    id\n  );\n\n  automaSetVariable(\n    \"currentTurnRole\",\n    role\n  );\n\n  automaSetVariable(\n    \"currentTurnNumber\",\n    turnNumber\n  );\n\n  console.log(\n    \"[ChatGPT export] next turn\",\n    {\n      turnNumber,\n      role,\n      id,\n      selector\n    }\n  );\n}",
-                    "context": "website",
-                    "description": "Find Next Turn",
+                    "disableBlock": false,
+                    "time": "1000"
+                },
+                "id": "topwait",
+                "initialized": false,
+                "label": "delay",
+                "position": {
+                    "x": 1264,
+                    "y": 125
+                },
+                "type": "BlockBasic"
+            },
+            {
+                "data": {
+                    "actionElMaxWaitTime": 5,
+                    "actionElSelector": "",
+                    "actionPageMaxWaitTime": 10,
+                    "description": "逐段滚动并遍历 ChatGPT 问答轮次",
+                    "disableBlock": false,
+                    "findBy": "cssSelector",
+                    "loadMoreAction": "scroll",
+                    "loopId": "ChTurn",
+                    "maxLoop": "2000",
+                    "reverseLoop": false,
+                    "scrollToBottom": false,
+                    "selector": "[data-turn-key]",
+                    "waitForSelector": true,
+                    "waitSelectorTimeout": 5000
+                },
+                "id": "loopturn",
+                "initialized": false,
+                "label": "loop-elements",
+                "position": {
+                    "x": 1556,
+                    "y": 125
+                },
+                "type": "BlockBasic"
+            },
+            {
+                "data": {
+                    "action": "get",
+                    "addExtraRow": false,
+                    "assignVariable": true,
+                    "attributeName": "data-turn-key",
+                    "attributeValue": "",
+                    "dataColumn": "",
+                    "description": "读取 turn key",
+                    "disableBlock": false,
+                    "extraRowDataColumn": "",
+                    "extraRowValue": "",
+                    "findBy": "cssSelector",
+                    "markEl": false,
+                    "multiple": false,
+                    "saveData": false,
+                    "selector": "{{loopData@ChTurn}}",
+                    "variableName": "currentTurnId",
+                    "waitForSelector": false,
+                    "waitSelectorTimeout": 5000
+                },
+                "id": "turnid",
+                "initialized": false,
+                "label": "attribute-value",
+                "position": {
+                    "x": 1848,
+                    "y": 125
+                },
+                "type": "BlockBasic"
+            },
+            {
+                "data": {
+                    "code": "const id = automaRefData(\n  \"variables\",\n  \"currentTurnId\"\n);\n\nif (!id) {\n  throw new Error(\n    \"当前 turn 缺少 data-turn-key\"\n  );\n}\n\nconst seenTurnIds = automaRefData(\n  \"variables\",\n  \"seenTurnIds\"\n) || [];\n\n// 虚拟列表重新挂载的节点没有 Automa 的循环标记，只能按稳定 ID 跳过\nconst skip = seenTurnIds.includes(id);\n\n// 本轮任何失败都会中止整个工作流，因此进入处理时即可记为已导出\nif (!skip) {\n  seenTurnIds.push(id);\n}\n\nautomaSetVariable(\"seenTurnIds\", seenTurnIds);\nautomaSetVariable(\n  \"currentTurnSkip\",\n  skip ? \"yes\" : \"no\"\n);\nautomaSetVariable(\"currentMessageRole\", \"\");\nautomaSetVariable(\"turnMessageCount\", 0);\n\nconsole.log(\n  \"[ChatGPT export] next turn\",\n  {\n    id,\n    skip\n  }\n);",
+                    "context": "background",
+                    "description": "检查 turn 是否已导出（后台）",
                     "disableBlock": false,
                     "everyNewTab": false,
                     "preloadScripts": [],
@@ -591,8 +616,8 @@
                 "initialized": false,
                 "label": "javascript-code",
                 "position": {
-                    "x": 1848,
-                    "y": 78.5
+                    "x": 2140,
+                    "y": 125
                 },
                 "type": "BlockBasic"
             },
@@ -604,19 +629,19 @@
                                 {
                                     "conditions": [
                                         {
-                                            "id": "KqQjP2l5jpQG7VYdldT1J",
+                                            "id": "chatgptTurnSeenCondition",
                                             "items": [
                                                 {
                                                     "category": "value",
                                                     "data": {
-                                                        "value": "{{variables.currentTurnFound}}"
+                                                        "value": "{{variables.currentTurnSkip}}"
                                                     },
-                                                    "id": "jAU7YshTUUUvuIl9KPfkA",
+                                                    "id": "chatgptTurnSeenValue",
                                                     "type": "value"
                                                 },
                                                 {
                                                     "category": "compare",
-                                                    "id": "kkgKI-N5JguI2WUtZCAEb",
+                                                    "id": "chatgptTurnSeenCompare",
                                                     "type": "eq"
                                                 },
                                                 {
@@ -624,42 +649,86 @@
                                                     "data": {
                                                         "value": "yes"
                                                     },
-                                                    "id": "mqz3FPhLQ1ThTasOeUmAR",
+                                                    "id": "chatgptTurnSeenExpected",
                                                     "type": "value"
                                                 }
                                             ]
                                         }
                                     ],
-                                    "id": "aBfgbLX7G55mzARnLErCK"
+                                    "id": "chatgptTurnSeenGroup"
                                 }
                             ],
-                            "id": "wWftmAbX2VNmBFogQArJW",
-                            "name": "Has Turn"
+                            "id": "chatgptTurnSeen",
+                            "name": "Seen"
                         }
                     ],
-                    "description": "",
+                    "description": "跳过虚拟列表重新挂载的已导出 turn",
                     "disableBlock": false,
                     "retryConditions": false,
                     "retryCount": 10,
-                    "retryTimeout": 1000
+                    "retryTimeout": 1000,
+                    "settings": {
+                        "blockTimeout": 0,
+                        "debugMode": false
+                    }
                 },
                 "id": "yzpfobl",
                 "initialized": false,
                 "label": "conditions",
                 "position": {
-                    "x": 2172,
-                    "y": 78.5
+                    "x": 2432,
+                    "y": 125
                 },
                 "type": "BlockConditions"
             },
             {
                 "data": {
-                    "description": "",
+                    "description": "把当前 turn 滚到视口中央，确保内容已挂载",
+                    "disableBlock": false,
+                    "findBy": "cssSelector",
+                    "incX": false,
+                    "incY": false,
+                    "markEl": false,
+                    "multiple": false,
+                    "scrollIntoView": true,
+                    "scrollX": 0,
+                    "scrollY": 0,
+                    "selector": "{{loopData@ChTurn}}",
+                    "smooth": false,
+                    "waitForSelector": false,
+                    "waitSelectorTimeout": 5000
+                },
+                "id": "turnscroll",
+                "initialized": false,
+                "label": "element-scroll",
+                "position": {
+                    "x": 2756,
+                    "y": 202
+                },
+                "type": "BlockBasic"
+            },
+            {
+                "data": {
+                    "disableBlock": false,
+                    "time": "300"
+                },
+                "id": "scrollwait",
+                "initialized": false,
+                "label": "delay",
+                "position": {
+                    "x": 3048,
+                    "y": 202
+                },
+                "type": "BlockBasic"
+            },
+            {
+                "data": {
+                    "description": "显示当前 turn 的操作按钮",
                     "disableBlock": false,
                     "findBy": "cssSelector",
                     "markEl": false,
                     "multiple": false,
-                    "selector": "{{variables.currentTurnSelector}}",
+                    "selector": "{{loopData@ChTurn}}",
                     "waitForSelector": false,
                     "waitSelectorTimeout": 5000
                 },
@@ -667,8 +736,8 @@
                 "initialized": false,
                 "label": "hover-element",
                 "position": {
-                    "x": 2496,
-                    "y": 443
+                    "x": 3340,
+                    "y": 202
                 },
                 "type": "BlockBasic"
             },
@@ -681,50 +750,267 @@
                 "initialized": false,
                 "label": "delay",
                 "position": {
-                    "x": 2788,
-                    "y": 443
+                    "x": 3632,
+                    "y": 202
                 },
-                "type": "BlockDelay"
+                "type": "BlockBasic"
             },
             {
                 "data": {
-                    "description": "",
+                    "conditions": [
+                        {
+                            "conditions": [
+                                {
+                                    "conditions": [
+                                        {
+                                            "id": "chatgptHasUserCondition",
+                                            "items": [
+                                                {
+                                                    "category": "value",
+                                                    "data": {
+                                                        "selector": "{{loopData@ChTurn}} button:is([aria-label=\"复制消息\"], [aria-label=\"Copy message\"])"
+                                                    },
+                                                    "id": "chatgptHasUserExists",
+                                                    "type": "element#exists"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "id": "chatgptHasUserGroup"
+                                }
+                            ],
+                            "id": "chatgptHasUser",
+                            "name": "Has User"
+                        }
+                    ],
+                    "description": "当前 turn 是否有 user 复制按钮",
+                    "disableBlock": false,
+                    "retryConditions": false,
+                    "retryCount": 10,
+                    "retryTimeout": 1000,
+                    "settings": {
+                        "blockTimeout": 0,
+                        "debugMode": false
+                    }
+                },
+                "id": "hasuser",
+                "initialized": false,
+                "label": "conditions",
+                "position": {
+                    "x": 3924,
+                    "y": 202
+                },
+                "type": "BlockConditions"
+            },
+            {
+                "data": {
+                    "code": "automaSetVariable(\"currentMessageRole\", \"user\");\nautomaSetVariable(\"currentCopiedText\", \"\");",
+                    "context": "background",
+                    "description": "记录 user 角色（后台）",
+                    "disableBlock": false,
+                    "everyNewTab": false,
+                    "preloadScripts": [],
+                    "runBeforeLoad": false,
+                    "timeout": 20000
+                },
+                "id": "setuser",
+                "initialized": false,
+                "label": "javascript-code",
+                "position": {
+                    "x": 4248,
+                    "y": 48
+                },
+                "type": "BlockBasic"
+            },
+            {
+                "data": {
+                    "assignVariable": false,
+                    "copySelectedText": false,
+                    "dataColumn": "",
+                    "dataToCopy": "__palace_chatgpt_export_pending__",
+                    "description": "写入占位文本，避免复制失败时复用上一条消息",
+                    "disableBlock": false,
+                    "saveData": false,
+                    "type": "insert",
+                    "variableName": ""
+                },
+                "id": "clruser",
+                "initialized": false,
+                "label": "clipboard",
+                "position": {
+                    "x": 4540,
+                    "y": 48
+                },
+                "type": "BlockBasic"
+            },
+            {
+                "data": {
+                    "description": "点击 user 复制按钮",
                     "disableBlock": false,
                     "findBy": "cssSelector",
                     "markEl": false,
                     "multiple": false,
-                    "selector": "{{variables.currentTurnSelector}} button[data-testid=\"copy-turn-action-button\"]",
+                    "selector": "{{loopData@ChTurn}} button:is([aria-label=\"复制消息\"], [aria-label=\"Copy message\"])",
                     "waitForSelector": true,
                     "waitSelectorTimeout": 5000
                 },
-                "id": "1h4zphk",
+                "id": "clickuser",
                 "initialized": false,
                 "label": "event-click",
                 "position": {
-                    "x": 3436,
-                    "y": 433
+                    "x": 4832,
+                    "y": 48
+                },
+                "type": "BlockBasic"
+            },
+            {
+                "data": {
+                    "conditions": [
+                        {
+                            "conditions": [
+                                {
+                                    "conditions": [
+                                        {
+                                            "id": "chatgptHasAssistantCondition",
+                                            "items": [
+                                                {
+                                                    "category": "value",
+                                                    "data": {
+                                                        "selector": "{{loopData@ChTurn}} .turn-action-controls button:is([aria-label=\"复制\"], [aria-label=\"Copy\"])"
+                                                    },
+                                                    "id": "chatgptHasAssistantExists",
+                                                    "type": "element#exists"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "id": "chatgptHasAssistantGroup"
+                                }
+                            ],
+                            "id": "chatgptHasAssistant",
+                            "name": "Has Assistant"
+                        }
+                    ],
+                    "description": "当前 turn 是否有 assistant 复制按钮",
+                    "disableBlock": false,
+                    "retryConditions": false,
+                    "retryCount": 10,
+                    "retryTimeout": 1000,
+                    "settings": {
+                        "blockTimeout": 0,
+                        "debugMode": false
+                    }
+                },
+                "id": "hasasst",
+                "initialized": false,
+                "label": "conditions",
+                "position": {
+                    "x": 4248,
+                    "y": 356
+                },
+                "type": "BlockConditions"
+            },
+            {
+                "data": {
+                    "code": "automaSetVariable(\"currentMessageRole\", \"assistant\");\nautomaSetVariable(\"currentCopiedText\", \"\");",
+                    "context": "background",
+                    "description": "记录 assistant 角色（后台）",
+                    "disableBlock": false,
+                    "everyNewTab": false,
+                    "preloadScripts": [],
+                    "runBeforeLoad": false,
+                    "timeout": 20000
+                },
+                "id": "setasst",
+                "initialized": false,
+                "label": "javascript-code",
+                "position": {
+                    "x": 4540,
+                    "y": 280
+                },
+                "type": "BlockBasic"
+            },
+            {
+                "data": {
+                    "assignVariable": false,
+                    "copySelectedText": false,
+                    "dataColumn": "",
+                    "dataToCopy": "__palace_chatgpt_export_pending__",
+                    "description": "写入占位文本，避免复制失败时复用上一条消息",
+                    "disableBlock": false,
+                    "saveData": false,
+                    "type": "insert",
+                    "variableName": ""
+                },
+                "id": "clrasst",
+                "initialized": false,
+                "label": "clipboard",
+                "position": {
+                    "x": 4832,
+                    "y": 280
+                },
+                "type": "BlockBasic"
+            },
+            {
+                "data": {
+                    "description": "点击 assistant 复制按钮",
+                    "disableBlock": false,
+                    "findBy": "cssSelector",
+                    "markEl": false,
+                    "multiple": false,
+                    "selector": "{{loopData@ChTurn}} .turn-action-controls button:is([aria-label=\"复制\"], [aria-label=\"Copy\"])",
+                    "waitForSelector": true,
+                    "waitSelectorTimeout": 5000
+                },
+                "id": "clickasst",
+                "initialized": false,
+                "label": "event-click",
+                "position": {
+                    "x": 5124,
+                    "y": 280
                 },
                 "type": "BlockBasic"
             },
             {
                 "data": {
                     "disableBlock": false,
-                    "time": "300"
+                    "time": "500"
                 },
                 "id": "igknuos",
                 "initialized": false,
                 "label": "delay",
                 "position": {
-                    "x": 3728,
-                    "y": 433
+                    "x": 5416,
+                    "y": 125
                 },
-                "type": "BlockDelay"
+                "type": "BlockBasic"
             },
             {
                 "data": {
-                    "code": "const seq =\n  window.__chatgptCopySeq || 0;\n\nconst lastSeq =\n  window.__chatgptLastReadSeq || 0;\n\nconst text =\n  window.__chatgptCopiedText;\n\nif (seq <= lastSeq) {\n  throw new Error(\n    `本轮没有捕获到新的复制内容: seq=${seq}, last=${lastSeq}`\n  );\n}\n\nif (typeof text !== \"string\") {\n  throw new Error(\n    \"捕获到的复制内容不是字符串\"\n  );\n}\n\nconst id =\n  automaRefData(\n    \"variables\",\n    \"currentTurnId\"\n  );\n\nconst role =\n  automaRefData(\n    \"variables\",\n    \"currentTurnRole\"\n  );\n\nconst turnNumber =\n  automaRefData(\n    \"variables\",\n    \"currentTurnNumber\"\n  );\n\nif (!id) {\n  throw new Error(\n    \"缺少 currentTurnId\"\n  );\n}\n\nif (\n  role !== \"user\" &&\n  role !== \"assistant\"\n) {\n  throw new Error(\n    `无法识别 role: ${role}`\n  );\n}\n\nconst conversation =\n  automaRefData(\n    \"variables\",\n    \"conversation\"\n  ) || [];\n\nconversation.push({\n  role,\n  content: text,\n  turnId: id,\n  turnNumber\n});\n\nwindow.__chatgptSeen.add(id);\nwindow.__chatgptLastReadSeq = seq;\n\nautomaSetVariable(\n  \"conversation\",\n  conversation\n);\n\nconsole.log(\n  \"[ChatGPT export] consumed\",\n  {\n    turnNumber,\n    role,\n    total: conversation.length\n  }\n);",
-                    "context": "website",
-                    "description": "Consume clipboard",
+                    "assignVariable": true,
+                    "copySelectedText": false,
+                    "dataColumn": "",
+                    "dataToCopy": "",
+                    "description": "读取本轮复制结果",
+                    "disableBlock": false,
+                    "saveData": false,
+                    "type": "get",
+                    "variableName": "currentCopiedText"
+                },
+                "id": "readclip",
+                "initialized": false,
+                "label": "clipboard",
+                "position": {
+                    "x": 5708,
+                    "y": 125
+                },
+                "type": "BlockBasic"
+            },
+            {
+                "data": {
+                    "code": "const PENDING_CLIPBOARD =\n  \"__palace_chatgpt_export_pending__\";\n\nconst id = automaRefData(\n  \"variables\",\n  \"currentTurnId\"\n);\n\nconst role = automaRefData(\n  \"variables\",\n  \"currentMessageRole\"\n);\n\nconst content = automaRefData(\n  \"variables\",\n  \"currentCopiedText\"\n);\n\nif (role !== \"user\" && role !== \"assistant\") {\n  throw new Error(\n    `无法识别消息角色: ${role}`\n  );\n}\n\n// 剪贴板仍是占位文本，说明点击没有触发新的复制\nif (\n  typeof content !== \"string\" ||\n  content.length === 0 ||\n  content === PENDING_CLIPBOARD\n) {\n  throw new Error(\n    \"本轮没有从剪贴板读到新的复制内容\"\n  );\n}\n\nconst conversation = automaRefData(\n  \"variables\",\n  \"conversation\"\n) || [];\n\nconst turnMessageCount = automaRefData(\n  \"variables\",\n  \"turnMessageCount\"\n) || 0;\n\nconversation.push({\n  role,\n  content,\n  turnId: id\n});\n\nautomaSetVariable(\"conversation\", conversation);\nautomaSetVariable(\n  \"turnMessageCount\",\n  turnMessageCount + 1\n);\n\nconsole.log(\n  \"[ChatGPT export] consumed\",\n  {\n    id,\n    role,\n    contentLength: content.length,\n    total: conversation.length\n  }\n);",
+                    "context": "background",
+                    "description": "追加消息（后台）",
                     "disableBlock": false,
                     "everyNewTab": false,
                     "preloadScripts": [],
@@ -735,64 +1021,105 @@
                 "initialized": false,
                 "label": "javascript-code",
                 "position": {
-                    "x": 4020,
-                    "y": 535.25
+                    "x": 6000,
+                    "y": 125
                 },
                 "type": "BlockBasic"
             },
             {
                 "data": {
-                    "code": "const el = document.querySelector(\n  '[data-scroll-root]'\n);\n\nif (!el) {\n  throw new Error(\n    \"无法找到 ChatGPT scroll root\"\n  );\n}\n\nconst before = el.scrollTop;\n\nconst distance = Math.max(\n  el.clientHeight * 0.75,\n  500\n);\n\nel.scrollBy({\n  top: distance,\n  behavior: \"instant\"\n});\n\nconst after = el.scrollTop;\n\nconsole.log(\n  \"[ChatGPT export] scroll down\",\n  {\n    before,\n    after,\n    moved: after - before,\n    distance,\n    scrollHeight: el.scrollHeight,\n    clientHeight: el.clientHeight,\n    remaining:\n      el.scrollHeight -\n      el.clientHeight -\n      after\n  }\n);",
-                    "context": "website",
-                    "description": "Scroll Down",
+                    "conditions": [
+                        {
+                            "conditions": [
+                                {
+                                    "conditions": [
+                                        {
+                                            "id": "chatgptAfterUserCondition",
+                                            "items": [
+                                                {
+                                                    "category": "value",
+                                                    "data": {
+                                                        "value": "{{variables.currentMessageRole}}"
+                                                    },
+                                                    "id": "chatgptAfterUserValue",
+                                                    "type": "value"
+                                                },
+                                                {
+                                                    "category": "compare",
+                                                    "id": "chatgptAfterUserCompare",
+                                                    "type": "eq"
+                                                },
+                                                {
+                                                    "category": "value",
+                                                    "data": {
+                                                        "value": "user"
+                                                    },
+                                                    "id": "chatgptAfterUserExpected",
+                                                    "type": "value"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "id": "chatgptAfterUserGroup"
+                                }
+                            ],
+                            "id": "chatgptAfterUser",
+                            "name": "After User"
+                        }
+                    ],
+                    "description": "user 复制完后继续处理 assistant",
+                    "disableBlock": false,
+                    "retryConditions": false,
+                    "retryCount": 10,
+                    "retryTimeout": 1000,
+                    "settings": {
+                        "blockTimeout": 0,
+                        "debugMode": false
+                    }
+                },
+                "id": "afteruser",
+                "initialized": false,
+                "label": "conditions",
+                "position": {
+                    "x": 6292,
+                    "y": 125
+                },
+                "type": "BlockConditions"
+            },
+            {
+                "data": {
+                    "code": "const id = automaRefData(\n  \"variables\",\n  \"currentTurnId\"\n);\n\nconst turnMessageCount = automaRefData(\n  \"variables\",\n  \"turnMessageCount\"\n) || 0;\n\n// 一轮里两种复制按钮都没找到，多半是页面改版或内容尚未挂载，不能静默跳过\nif (turnMessageCount === 0) {\n  throw new Error(\n    `turn ${id} 中没有找到 user 或 assistant 的复制按钮`\n  );\n}",
+                    "context": "background",
+                    "description": "确认本轮至少导出一条消息（后台）",
                     "disableBlock": false,
                     "everyNewTab": false,
                     "preloadScripts": [],
                     "runBeforeLoad": false,
                     "timeout": 20000
                 },
-                "id": "oo4xuuw",
+                "id": "turncheck",
                 "initialized": false,
                 "label": "javascript-code",
                 "position": {
-                    "x": 2496,
-                    "y": 78.5
+                    "x": 4540,
+                    "y": 432
                 },
                 "type": "BlockBasic"
             },
             {
                 "data": {
+                    "clearLoop": false,
                     "disableBlock": false,
-                    "time": 500
+                    "loopId": "ChTurn"
                 },
-                "id": "i320acj",
+                "id": "cqwhcdl",
                 "initialized": false,
-                "label": "delay",
+                "label": "loop-breakpoint",
                 "position": {
-                    "x": 2788,
-                    "y": 78.5
+                    "x": 6616,
+                    "y": 432
                 },
-                "type": "BlockDelay"
-            },
-            {
-                "data": {
-                    "code": "const el = document.querySelector(\n  '[data-scroll-root]'\n);\n\nif (!el) {\n  throw new Error(\n    \"无法找到 ChatGPT scroll root\"\n  );\n}\n\nconst nearBottom =\n  el.scrollTop + el.clientHeight >=\n  el.scrollHeight - 120;\n\nconst mountedTurns = [\n  ...document.querySelectorAll(\n    'section[data-testid^=\"conversation-turn-\"][data-turn][data-turn-id]'\n  )\n];\n\nconst hasUnseen =\n  mountedTurns.some(turn => {\n    const id =\n      turn.getAttribute(\"data-turn-id\");\n\n    return (\n      id &&\n      !window.__chatgptSeen.has(id)\n    );\n  });\n\nif (hasUnseen) {\n  window.__chatgptIdleRounds = 0;\n} else {\n  window.__chatgptIdleRounds =\n    (window.__chatgptIdleRounds || 0) + 1;\n}\n\nconst done =\n  nearBottom &&\n  !hasUnseen &&\n  window.__chatgptIdleRounds >= 3;\n\nautomaSetVariable(\n  \"chatgptDone\",\n  done\n);\n\nconsole.log(\n  \"[ChatGPT export] check done\",\n  {\n    nearBottom,\n    hasUnseen,\n    idleRounds: window.__chatgptIdleRounds,\n    done,\n    scrollTop: el.scrollTop,\n    scrollHeight: el.scrollHeight,\n    clientHeight: el.clientHeight\n  }\n);",
-                    "context": "website",
-                    "description": "Check Done",
-                    "disableBlock": false,
-                    "everyNewTab": false,
-                    "preloadScripts": [],
-                    "runBeforeLoad": false,
-                    "timeout": 20000
-                },
-                "id": "m4xgcts",
-                "initialized": false,
-                "label": "javascript-code",
-                "position": {
-                    "x": 3112,
-                    "y": 196.25
-                },
-                "type": "BlockBasic"
+                "type": "BlockLoopBreakpoint"
             },
             {
                 "data": {
@@ -811,91 +1138,8 @@
                 "initialized": false,
                 "label": "export-data",
                 "position": {
-                    "x": 2172,
-                    "y": 243
-                },
-                "type": "BlockBasic"
-            },
-            {
-                "data": {
-                    "conditions": [
-                        {
-                            "conditions": [
-                                {
-                                    "conditions": [
-                                        {
-                                            "id": "W53a8TVlvv5UYEvGb1xRQ",
-                                            "items": [
-                                                {
-                                                    "category": "value",
-                                                    "data": {
-                                                        "selector": "{{variables.currentTurnSelector}} button[data-testid=\"copy-turn-action-button\"]"
-                                                    },
-                                                    "id": "0cDJBHkkRGO6GjL4lvJBC",
-                                                    "type": "element#exists"
-                                                }
-                                            ]
-                                        }
-                                    ],
-                                    "id": "gpJ0aDD_ZZxKnVJQO4_PV"
-                                }
-                            ],
-                            "id": "LbfuZTOYUFc7j7BEjKLW6",
-                            "name": "Has Copy"
-                        }
-                    ],
-                    "description": "",
-                    "disableBlock": false,
-                    "retryConditions": false,
-                    "retryCount": 10,
-                    "retryTimeout": 1000
-                },
-                "id": "g0nvccq",
-                "initialized": false,
-                "label": "conditions",
-                "position": {
-                    "x": 3112,
-                    "y": 443
-                },
-                "type": "BlockConditions"
-            },
-            {
-                "data": {
-                    "code": "const selector =\n  automaRefData(\n    \"variables\",\n    \"currentTurnSelector\"\n  );\n\nconst id =\n  automaRefData(\n    \"variables\",\n    \"currentTurnId\"\n  );\n\nconst role =\n  automaRefData(\n    \"variables\",\n    \"currentTurnRole\"\n  );\n\nconst turnNumber =\n  automaRefData(\n    \"variables\",\n    \"currentTurnNumber\"\n  );\n\nconst el =\n  document.querySelector(selector);\n\nif (!el) {\n  throw new Error(\n    `找不到当前 turn: ${selector}`\n  );\n}\n\nlet content = \"\";\n\n// user 优先取消息正文，不把操作栏混进去\nconst message =\n  el.querySelector(\n    `[data-message-author-role=\"${role}\"]`\n  );\n\nif (message) {\n  content = message.innerText.trim();\n} else {\n  content = el.innerText.trim();\n}\n\nconst conversation =\n  automaRefData(\n    \"variables\",\n    \"conversation\"\n  ) || [];\n\nconversation.push({\n  role,\n  content,\n  turnId: id,\n  turnNumber,\n  copied: false\n});\n\nwindow.__chatgptSeen.add(id);\n\nautomaSetVariable(\n  \"conversation\",\n  conversation\n);\n\nconsole.log(\n  \"[ChatGPT export] fallback extracted\",\n  {\n    turnNumber,\n    role,\n    total: conversation.length\n  }\n);",
-                    "context": "website",
-                    "description": "",
-                    "disableBlock": false,
-                    "everyNewTab": false,
-                    "preloadScripts": [],
-                    "runBeforeLoad": false,
-                    "timeout": 20000
-                },
-                "id": "p9m4ly0",
-                "initialized": false,
-                "label": "javascript-code",
-                "position": {
-                    "x": 3436,
-                    "y": 560.75
-                },
-                "type": "BlockBasic"
-            },
-            {
-                "data": {
-                    "code": "const clipboard = navigator.clipboard;\n\nif (clipboard) {\n  if (window.__chatgptOriginalClipboardWriteText) {\n    clipboard.writeText =\n      window.__chatgptOriginalClipboardWriteText;\n  }\n\n  if (window.__chatgptOriginalClipboardWrite) {\n    clipboard.write =\n      window.__chatgptOriginalClipboardWrite;\n  }\n}\n\nwindow.__chatgptClipboardInstalled = false;\n\nconsole.log(\n  \"[ChatGPT export] clipboard interceptor restored\"\n);",
-                    "context": "website",
-                    "description": "恢复剪切板",
-                    "disableBlock": false,
-                    "everyNewTab": false,
-                    "preloadScripts": [],
-                    "runBeforeLoad": false,
-                    "timeout": 20000
-                },
-                "id": "3cnis15",
-                "initialized": false,
-                "label": "javascript-code",
-                "position": {
-                    "x": 1848,
-                    "y": 243
+                    "x": 6908,
+                    "y": 432
                 },
                 "type": "BlockBasic"
             }
@@ -911,6 +1155,11 @@
         },
         "zoom": 0.3
     },
+    "extVersion": "1.30.02",
+    "globalData": "{\n\t\"key\": \"value\"\n}",
+    "icon": "riGlobalLine",
+    "includedWorkflows": {},
+    "name": "ChatGPT",
     "settings": {
         "aipowerToken": "",
         "blockDelay": 0,
@@ -928,7 +1177,6 @@
         "saveLog": true,
         "tabLoadTimeout": 30000
     },
-    "globalData": "{\n\t\"key\": \"value\"\n}",
-    "description": "",
-    "includedWorkflows": {}
+    "table": [],
+    "version": "1.30.02"
 }
