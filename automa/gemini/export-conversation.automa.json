@@ -140,13 +140,13 @@
         },
         "data": {
           "disableBlock": false,
-          "description": "清空剪贴板，避免复制失败时复用上一条消息",
+          "description": "写入占位文本，避免复制失败时复用上一条消息",
           "type": "insert",
           "assignVariable": false,
           "variableName": "",
           "saveData": false,
           "dataColumn": "",
-          "dataToCopy": "",
+          "dataToCopy": "__palace_gemini_export_pending__",
           "copySelectedText": false
         },
         "label": "clipboard"
@@ -384,7 +384,7 @@
           "description": "追加消息（后台）",
           "timeout": 20000,
           "context": "background",
-          "code": "const role = automaRefData(\n  \"variables\",\n  \"currentMessageRole\"\n);\n\nconst content = automaRefData(\n  \"variables\",\n  \"currentCopiedText\"\n);\n\nif (role !== \"user\" && role !== \"assistant\") {\n  throw new Error(\n    `无法识别消息角色: ${role}`\n  );\n}\n\nif (typeof content !== \"string\" || content.length === 0) {\n  throw new Error(\n    \"本轮没有从剪贴板读到复制内容\"\n  );\n}\n\nconst conversation = automaRefData(\n  \"variables\",\n  \"conversation\"\n) || [];\n\nconst replayAnchors = automaRefData(\n  \"variables\",\n  \"replayAnchors\"\n) || [];\n\nlet replayAnchorRun = automaRefData(\n  \"variables\",\n  \"replayAnchorRun\"\n) || 0;\n\nconst message = { role, content };\n\nconst matches = (left, right) =>\n  left?.role === right.role &&\n  left?.content === right.content;\n\nif (replayAnchors.length < 2) {\n  replayAnchors.push(message);\n}\n\nconst matchedAnchor =\n  replayAnchors.length === 2 &&\n  conversation.length >= 2 &&\n  replayAnchors.some((anchor) =>\n    matches(anchor, message)\n  );\n\nconversation.push(message);\nreplayAnchorRun = matchedAnchor\n  ? replayAnchorRun + 1\n  : 0;\n\nconst done = replayAnchorRun >= 2;\n\nif (done) {\n  conversation.splice(\n    conversation.length - replayAnchorRun,\n    replayAnchorRun\n  );\n}\n\nautomaSetVariable(\"conversation\", conversation);\nautomaSetVariable(\"replayAnchors\", replayAnchors);\nautomaSetVariable(\"replayAnchorRun\", replayAnchorRun);\nautomaSetVariable(\n  \"geminiLoopDone\",\n  done ? \"yes\" : \"no\"\n);\n\nconsole.log(\n  done\n    ? \"[Gemini export] replay anchors confirmed\"\n    : \"[Gemini export] consumed\",\n  {\n    index: conversation.length - 1,\n    role,\n    contentLength: content.length,\n    anchorCount: replayAnchors.length,\n    matchedAnchor,\n    replayAnchorRun,\n    done\n  }\n);",
+          "code": "const PENDING_CLIPBOARD =\n  \"__palace_gemini_export_pending__\";\n\nconst role = automaRefData(\n  \"variables\",\n  \"currentMessageRole\"\n);\n\nconst content = automaRefData(\n  \"variables\",\n  \"currentCopiedText\"\n);\n\nif (role !== \"user\" && role !== \"assistant\") {\n  throw new Error(\n    `无法识别消息角色: ${role}`\n  );\n}\n\n// 剪贴板仍是占位文本，说明点击没有触发新的复制\nif (\n  typeof content !== \"string\" ||\n  content.length === 0 ||\n  content === PENDING_CLIPBOARD\n) {\n  throw new Error(\n    \"本轮没有从剪贴板读到新的复制内容\"\n  );\n}\n\nconst conversation = automaRefData(\n  \"variables\",\n  \"conversation\"\n) || [];\n\nconst replayAnchors = automaRefData(\n  \"variables\",\n  \"replayAnchors\"\n) || [];\n\nlet replayAnchorRun = automaRefData(\n  \"variables\",\n  \"replayAnchorRun\"\n) || 0;\n\nconst message = { role, content };\n\nconst matches = (left, right) =>\n  left?.role === right.role &&\n  left?.content === right.content;\n\nif (replayAnchors.length < 2) {\n  replayAnchors.push(message);\n}\n\nconst matchedAnchor =\n  replayAnchors.length === 2 &&\n  conversation.length >= 2 &&\n  replayAnchors.some((anchor) =>\n    matches(anchor, message)\n  );\n\nconversation.push(message);\nreplayAnchorRun = matchedAnchor\n  ? replayAnchorRun + 1\n  : 0;\n\nconst done = replayAnchorRun >= 2;\n\nif (done) {\n  conversation.splice(\n    conversation.length - replayAnchorRun,\n    replayAnchorRun\n  );\n}\n\nautomaSetVariable(\"conversation\", conversation);\nautomaSetVariable(\"replayAnchors\", replayAnchors);\nautomaSetVariable(\"replayAnchorRun\", replayAnchorRun);\nautomaSetVariable(\n  \"geminiLoopDone\",\n  done ? \"yes\" : \"no\"\n);\n\nconsole.log(\n  done\n    ? \"[Gemini export] replay anchors confirmed\"\n    : \"[Gemini export] consumed\",\n  {\n    index: conversation.length - 1,\n    role,\n    contentLength: content.length,\n    anchorCount: replayAnchors.length,\n    matchedAnchor,\n    replayAnchorRun,\n    done\n  }\n);",
           "preloadScripts": [],
           "everyNewTab": false,
           "runBeforeLoad": false

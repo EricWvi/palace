@@ -88,3 +88,26 @@ test("confirmed replay reaches Export without the element breakpoint", () => {
   const node = workflow.drawflow.nodes.find((item) => item.id === edge.target);
   assert.equal(node.label, "export-data");
 });
+
+test("the clipboard placeholder is rejected instead of being exported", () => {
+  const nodes = new Map(workflow.drawflow.nodes.map((node) => [node.id, node]));
+  const variables = {
+    conversation: [],
+    currentMessageRole: "user",
+    currentCopiedText: nodes.get("clrclip").data.dataToCopy,
+  };
+  assert.throws(
+    () =>
+      new Function(
+        "automaRefData",
+        "automaSetVariable",
+        "console",
+        nodes.get("i6mlj2r").data.code,
+      )(
+        (_, name) => variables[name],
+        () => {},
+        { log() {} },
+      ),
+    /没有从剪贴板读到新的复制内容/,
+  );
+});

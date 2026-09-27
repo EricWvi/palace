@@ -13,7 +13,7 @@ Gemini 的 Trusted Types 策略会阻止 Automa `JavaScript Code / Active Tab` �
 5. 运行期间不要手动复制其他内容，也不要切换或滚动当前 Gemini 页面。
 6. 导出后检查首尾消息、消息数量、公式和代码块，再把 JSON 导入 Palace。
 
-工作流会清空并使用系统剪贴板，结束后保留最后一条 Gemini 消息。清空操作用于避免复制失败时错误复用上一条消息。
+工作流会真实写入系统剪贴板：每次点击复制前先写入占位文本，结束后保留最后一条 Gemini 消息。占位文本用于识别复制失败，避免错误复用上一条消息；不使用空字符串，因为 `execCommand("copy")` 在没有选中内容时可能不改写剪贴板。
 
 ## 总体流程
 
@@ -22,7 +22,7 @@ Gemini 的 Trusted Types 策略会阻止 Automa `JavaScript Code / Active Tab` �
   → 绑定当前标签页
   → Background JavaScript 初始化 conversation
   → Loop elements 遍历当前挂载消息并逐段向下滚动
-      → 清空系统剪贴板
+      → 向系统剪贴板写入占位文本
       → 悬停当前消息
       → 等待操作按钮渲染
       → 根据复制按钮识别 user / assistant
@@ -53,7 +53,7 @@ Gemini 的 Trusted Types 策略会阻止 Automa `JavaScript Code / Active Tab` �
 | --- | --- | --- |
 | `jiglnit` | JavaScript / Background | 初始化 `conversation`、当前角色和当前复制文本 |
 | `zzmi7il` | Loop elements | 遍历 `:is(user-query, model-response)`，以 `scroll` 方式逐段加载 |
-| `clrclip` | Clipboard / Insert | 在处理每条消息前清空系统剪贴板 |
+| `clrclip` | Clipboard / Insert | 在处理每条消息前写入占位文本 |
 | `j5a7mlm` | Hover element | 让当前消息的操作按钮显示出来 |
 | `hoverwait` | Delay | 等待操作按钮完成渲染 |
 | `xvm5a4f` | Conditions | 根据当前容器中的复制按钮识别角色 |
@@ -97,7 +97,7 @@ Automa 变量：
 }
 ```
 
-`role` 只能是 `user` 或 `assistant`，`content` 必须为非空字符串。页面没有成功复制时，前置清空使 `currentCopiedText` 保持为空，后台消费节点会中止工作流，而不会静默复用旧内容。
+`role` 只能是 `user` 或 `assistant`，`content` 必须为非空字符串。页面没有成功复制时，`currentCopiedText` 仍是前置写入的占位文本，后台消费节点会报错 `本轮没有从剪贴板读到新的复制内容` 并中止工作流，而不会静默复用旧内容。
 
 ## 时序与虚拟列表边界
 
@@ -133,4 +133,4 @@ Automa 变量：
 
 ## 本地回归验证
 
-安装项目 npm 依赖后，在仓库根目录运行 `node --test examples/gemini/export-conversation.test.mjs`。测试读取实际工作流选择器，使用 jsdom 验证首轮顺序、全部标记后无第二批 user、后续加载只返回新消息，以及回卷确认分支直接到达 Export。它不代替 Gemini 登录页面上的完整运行验证。
+安装项目 npm 依赖后，在仓库根目录运行 `node --test automa/gemini/export-conversation.test.mjs`。测试读取实际工作流选择器，使用 jsdom 验证首轮顺序、全部标记后无第二批 user、后续加载只返回新消息，以及回卷确认分支直接到达 Export。它不代替 Gemini 登录页面上的完整运行验证。
