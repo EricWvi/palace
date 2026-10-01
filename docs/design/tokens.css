@@ -1,0 +1,85 @@
+/*
+ * Palace design tokens: color, font, font size and radius.
+ *
+ * Light is the default. A subtree opts into a fixed theme with
+ * data-theme="light" / "dark"; without it, the OS preference decides.
+ * Every neutral stays on the same yellow-leaning hue so light and dark
+ * never mix warm and cool grays.
+ */
+
+:root {
+  --font-serif: "EB Garamond", "Noto Serif SC", "Songti SC", Georgia, serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --font-size-xs: 13px;
+  --font-size-sm: 14px;
+  --font-size-md: 15px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 21px;
+  --font-size-2xl: 22px;
+  --font-size-3xl: 26px;
+  --font-size-4xl: 32px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-round: 50%;
+}
+
+:root,
+[data-theme="light"] {
+  --bg: #f9f8f4;
+  --bg-sunken: #f1efe9;
+  --surface: #fffefb;
+  --surface-raised: #fffefb;
+  --border: #e4e1d8;
+  --text: #2b2a27;
+  --text-2: #5e5b53;
+  --text-3: #8a867c;
+  --accent: #b84a24;
+  --accent-hover: #9c3d1c;
+  --accent-soft: #f3e3da;
+  --success: #3f6b4f;
+  --success-soft: #e3ebe4;
+  --on-accent: #fffefb;
+}
+
+/*
+ * Dark is declared twice: once for an explicit opt-in, once for the OS
+ * preference. Keep both blocks identical.
+ */
+[data-theme="dark"] {
+  --bg: #1f1e1c;
+  --bg-sunken: #181715;
+  --surface: #2b2a27;
+  --surface-raised: #35332f;
+  --border: #433f3a;
+  --text: #f9f8f4;
+  --text-2: #b5b0a5;
+  --text-3: #878277;
+  --accent: #e07a52;
+  --accent-hover: #ea8f6b;
+  --accent-soft: #3a2a22;
+  --success: #7fb08f;
+  --success-soft: #24302a;
+  --on-accent: #1f1e1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1f1e1c;
+    --bg-sunken: #181715;
+    --surface: #2b2a27;
+    --surface-raised: #35332f;
+    --border: #433f3a;
+    --text: #f9f8f4;
+    --text-2: #b5b0a5;
+    --text-3: #878277;
+    --accent: #e07a52;
+    --accent-hover: #ea8f6b;
+    --accent-soft: #3a2a22;
+    --success: #7fb08f;
+    --success-soft: #24302a;
+    --on-accent: #1f1e1c;
+  }
+}

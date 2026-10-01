@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palace Palette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Noto+Serif+SC:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    font-family: var(--font-serif);
+    font-size: var(--font-size-base);
+    line-height: 1.55;
+  }
+  button, input { font: inherit; color: inherit; }
+
+  .themes { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+  .panel {
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px 40px 48px;
+    min-width: 0;
+  }
+  .panel h1 { margin: 0; font-size: var(--font-size-4xl); font-weight: 600; letter-spacing: .01em; }
+  .panel h1 span { font-weight: 500; }
+  .lede { margin: 6px 0 28px; color: var(--text-2); }
+  h2 { margin: 0 0 16px; font-size: var(--font-size-2xl); font-weight: 600; }
+
+  /* Swatches */
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 22px 14px;
+  }
+  .swatch { margin: 0; min-width: 0; }
+  .chip {
+    height: 76px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .swatch b { display: block; margin-top: 8px; font-weight: 600; font-size: var(--font-size-md); }
+  .swatch code { display: block; font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-2); }
+  .swatch small { display: block; font-size: var(--font-size-xs); color: var(--text-3); line-height: 1.4; margin-top: 2px; }
+  .swatch .ratio { color: var(--text-2); }
+  .group-label { margin: 28px 0 10px; font-size: var(--font-size-xs); color: var(--text-3); letter-spacing: .08em; }
+  .group-label:first-of-type { margin-top: 0; }
+
+  hr { border: 0; border-top: 1px solid var(--border); margin: 36px 0 28px; }
+
+  /* Interface sample */
+  .sample { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; }
+  .box { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px 20px; }
+  .box > .tag { margin: 0 0 8px; color: var(--text-2); font-size: var(--font-size-sm); }
+  .card { background: var(--surface); }
+  .card h3 { margin: 0 0 8px; font-size: var(--font-size-xl); font-weight: 600; }
+  .card p { margin: 0 0 18px; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:hover { color: var(--accent-hover); }
+  .btns { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    padding: 8px 22px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+  .btn.ghost:hover { background: var(--bg-sunken); }
+
+  .stack { display: grid; gap: 14px; align-content: start; }
+  .sunken { background: var(--bg-sunken); }
+  .field {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-sunken);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .field input { flex: 1; min-width: 0; border: 0; background: none; outline: none; }
+  .field input::placeholder { color: var(--text-3); }
+  .field:focus-within { border-color: var(--accent); }
+  .field svg { color: var(--text-3); flex: none; }
+  pre {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .kw { color: var(--accent); }
+  .str { color: var(--success); }
+  .ty { color: var(--text-2); }
+
+  /* Notices: warm-only palette, so "info" stays neutral instead of borrowing a blue. */
+  .notices { display: grid; gap: 10px; margin-top: 14px; }
+  .notice {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 12px 18px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+  }
+  .notice .icon {
+    width: 22px; height: 22px; flex: none; margin-top: 2px;
+    border-radius: var(--radius-round);
+    display: grid; place-items: center;
+    font-size: var(--font-size-xs); font-weight: 600;
+    color: var(--bg);
+  }
+  .notice b { display: block; font-weight: 600; }
+  .notice span { color: var(--text-2); font-size: var(--font-size-sm); }
+  .notice.info { background: var(--bg-sunken); }
+  .notice.info .icon { background: var(--text-2); }
+  .notice.ok { background: var(--success-soft); border-color: transparent; }
+  .notice.ok .icon { background: var(--success); }
+  .notice.ok b { color: var(--success); }
+  .notice.em { background: var(--accent-soft); border-color: transparent; }
+  .notice.em .icon { background: var(--accent); }
+  .notice.em b { color: var(--accent); }
+
+  /* Bottom bar */
+  .bar { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin-top: 14px; }
+  .tabs { display: flex; justify-content: space-around; padding: 10px 8px; background: var(--surface); }
+  .tabs a {
+    display: grid; justify-items: center; gap: 2px;
+    color: var(--text-3); text-decoration: none; font-size: var(--font-size-xs);
+  }
+  .tabs a[aria-current="page"] { color: var(--accent); }
+  .tabs a:hover { color: var(--text); }
+  .me { display: flex; align-items: center; gap: 14px; padding: 10px 16px; background: var(--surface-raised); }
+  .avatar {
+    width: 44px; height: 44px; border-radius: var(--radius-round); flex: none;
+    display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent);
+    font-weight: 600; font-size: var(--font-size-lg);
+  }
+  .me .who { flex: 1; line-height: 1.3; min-width: 0; }
+  .me .who small { display: block; color: var(--text-3); }
+  .me .more { color: var(--text-3); letter-spacing: 2px; }
+
+  @media (max-width: 1100px) {
+    .themes { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .panel { padding: 28px 16px 36px; }
+    .panel h1 { font-size: var(--font-size-3xl); }
+    .swatches { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+    .sample, .bar { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="themes">
+  <section class="panel" data-theme="light">
+    <h1>亮色主题 <span>(Light Theme)</span></h1>
+    <p class="lede">温暖的中性色，清晰的层次与柔和的对比</p>
+  </section>
+  <section class="panel" data-theme="dark">
+    <h1>暗色主题 <span>(Dark Theme)</span></h1>
+    <p class="lede">同一色相的深色版本，层次分明，柔和而不刺眼</p>
+  </section>
+</div>
+
+<template id="body">
+  <div class="swatches-slot"></div>
+  <hr>
+  <h2>界面示例</h2>
+  <div class="sample">
+    <div class="box card">
+      <p class="tag">卡片（surface）</p>
+      <h3>标题示例</h3>
+      <p>这是一段正文示例，用于展示文字在卡片中的显示效果，包含普通文字和一个<a href="#">链接示例</a>。</p>
+      <div class="btns">
+        <button class="btn">主要按钮</button>
+        <button class="btn ghost">次要按钮</button>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="box card">
+        <p class="tag">表单卡片（surface）· 输入框（bg-sunken）</p>
+        <label class="field">
+          <input placeholder="请输入内容…">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg>
+        </label>
+      </div>
+      <div class="box sunken">
+        <p class="tag">代码块（bg-sunken）</p>
+<pre><span class="kw">const</span> greet = (name: <span class="ty">string</span>) =&gt; {
+  console.log(<span class="str">`Hello, ${name}!`</span>);
+};</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="notices">
+    <div class="notice info"><span class="icon">i</span><div><b>信息提示</b><span>这是一条信息提示文案，使用次要文字色。</span></div></div>
+    <div class="notice ok"><span class="icon">✓</span><div><b>成功提示</b><span>操作已成功完成。</span></div></div>
+    <div class="notice em"><span class="icon">!</span><div><b>强调提示</b><span>这是一个强调的提示内容，用于重要但非错误的场景。</span></div></div>
+  </div>
+
+  <div class="bar">
+    <nav class="box tabs">
+      <a href="#" aria-current="page">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2.5l7.5 6.5V17a1 1 0 01-1 1H12v-5H8v5H3.5a1 1 0 01-1-1V9z"/></svg>首页</a>
+      <a href="#">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="4" width="15" height="12.5" rx="1.5"/><path d="M2.5 7.5h15M7 4V2.5h6V4"/></svg>项目</a>
+      <a href="#">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="9" cy="9" r="6"/><path d="M13.5 13.5L18 18"/></svg>搜索</a>
+      <a href="#">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="2.6"/><path d="M10 1.8v2.4M10 15.8v2.4M1.8 10h2.4M15.8 10h2.4M4.2 4.2l1.7 1.7M14.1 14.1l1.7 1.7M4.2 15.8l1.7-1.7M14.1 5.9l1.7-1.7"/></svg>设置</a>
+    </nav>
+    <div class="box me">
+      <span class="avatar">E</span>
+      <div class="who">Eric Wang<small>@eric</small></div>
+      <span class="more">···</span>
+    </div>
+  </div>
+</template>
+
+<script>
+  // Token list per theme: [name, css var, usage]. Values are read back from the
+  // panel's computed style so the swatches can never drift from the CSS above.
+  const tokens = {
+    light: [
+      ["中性色", [
+        ["bg", "--bg", "页面背景"],
+        ["bg-sunken", "--bg-sunken", "输入框、代码块、侧栏"],
+        ["surface", "--surface", "卡片、弹层"],
+        ["border", "--border", "分割线、描边"],
+      ]],
+      ["文字", [
+        ["text", "--text", "正文、标题"],
+        ["text-secondary", "--text-2", "次要文字"],
+        ["text-muted", "--text-3", "占位符、辅助说明"],
+      ]],
+      ["强调与状态", [
+        ["accent", "--accent", "主按钮、链接"],
+        ["accent-hover", "--accent-hover", "悬停、按下"],
+        ["accent-soft", "--accent-soft", "强调色的浅底"],
+        ["success", "--success", "成功、次强调"],
+      ]],
+    ],
+    dark: [
+      ["中性色", [
+        ["bg", "--bg", "页面背景"],
+        ["bg-sunken", "--bg-sunken", "输入框、代码块"],
+        ["surface", "--surface", "卡片、弹层"],
+        ["surface-raised", "--surface-raised", "悬浮层、下拉菜单"],
+        ["border", "--border", "分割线、描边"],
+      ]],
+      ["文字", [
+        ["text", "--text", "标题、重要文字"],
+        ["text-secondary", "--text-2", "正文次级"],
+        ["text-muted", "--text-3", "占位符、辅助说明"],
+      ]],
+      ["强调与状态", [
+        ["accent", "--accent", "主按钮、链接"],
+        ["accent-hover", "--accent-hover", "悬停"],
+        ["accent-soft", "--accent-soft", "强调色的深底"],
+        ["success", "--success", "成功、次强调"],
+      ]],
+    ],
+  };
+
+  // Foreground roles get a WCAG contrast ratio against the theme's bg.
+  const foreground = new Set(["--text", "--text-2", "--text-3", "--accent", "--accent-hover", "--success"]);
+
+  const luminance = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => {
+      const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (a, b) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+
+  const template = document.getElementById("body");
+  document.querySelectorAll(".panel").forEach((panel) => {
+    panel.append(template.content.cloneNode(true));
+    const style = getComputedStyle(panel);
+    const value = (v) => style.getPropertyValue(v).trim();
+    const bg = value("--bg");
+    const slot = panel.querySelector(".swatches-slot");
+
+    for (const [label, items] of tokens[panel.dataset.theme]) {
+      const heading = document.createElement("p");
+      heading.className = "group-label";
+      heading.textContent = label;
+      const grid = document.createElement("div");
+      grid.className = "swatches";
+      for (const [name, v, usage] of items) {
+        const hex = value(v);
+        const ratio = foreground.has(v)
+          ? `<small class="ratio">对比度 ${contrast(hex, bg).toFixed(1)} : 1</small>`
+          : "";
+        grid.insertAdjacentHTML("beforeend",
+          `<figure class="swatch"><div class="chip" style="background:${hex}"></div>` +
+          `<b>${name}</b><code>${hex}</code><small>${usage}</small>${ratio}</figure>`);
+      }
+      slot.append(heading, grid);
+    }
+  });
+</script>
+</body>
+</html>
