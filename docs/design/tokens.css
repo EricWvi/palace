@@ -9,7 +9,18 @@
 
 :root {
   --font-serif: "EB Garamond", "Noto Serif SC", "Songti SC", Georgia, serif;
+  --font-sans: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /*
+   * Components pick a role, never a family. Songti's hairline strokes break
+   * up at control sizes, so the serif is reserved for display text and the
+   * timeline's moment cards. A moment's own page shows the user's words,
+   * which read best in the system face.
+   */
+  --font-display: var(--font-serif);
+  --font-ui: var(--font-sans);
+  --font-content: var(--font-sans);
 
   --font-size-xs: 13px;
   --font-size-sm: 14px;

@@ -15,7 +15,7 @@
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: var(--font-serif);
+    font-family: var(--font-ui);
     font-size: var(--font-size-base);
     line-height: 1.55;
   }
@@ -30,6 +30,7 @@
   /* Navigation: plain words on a single rule, the active one filled with the accent. */
   nav {
     display: flex;
+    font-family: var(--font-display);
     gap: 4px;
     border-bottom: 1px solid var(--border);
   }
@@ -50,6 +51,7 @@
   header.day { margin: 64px 0 0; position: relative; }
   header.day h1 {
     margin: 0;
+    font-family: var(--font-display);
     font-weight: 400;
     font-size: var(--font-size-4xl);
     letter-spacing: -0.01em;
@@ -69,7 +71,7 @@
     margin: 40px 0 0;
     padding: 0;
   }
-  .moment { padding-bottom: 44px; }
+  .moment { padding-bottom: 44px; font-family: var(--font-display); }
   .moment-head {
     display: block;
     width: 100%;
