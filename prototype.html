@@ -27,21 +27,43 @@
     padding: 44px 24px 72px;
   }
 
-  /* Navigation: plain words on a single rule, the active one filled with the accent. */
+  /*
+   * Navigation: plain words, the active one in accent text with an underline.
+   * Right-aligned to leave the left side for the logo. 18px because Songti
+   * strokes blur on Chinese text at smaller sizes.
+   */
   nav {
     display: flex;
+    justify-content: flex-end;
     font-family: var(--font-display);
+    font-size: var(--font-size-lg);
     gap: 4px;
-    border-bottom: 1px solid var(--border);
   }
   nav a {
-    padding: 2px 16px 3px;
+    --nav-side: 16px;
+    position: relative;
+    padding: 2px var(--nav-side) 3px;
     color: var(--text);
     text-decoration: none;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   }
-  nav a[aria-current="page"] { background: var(--accent); color: var(--on-accent); }
-  nav a:not([aria-current]):hover { text-decoration: underline; text-underline-offset: 3px; }
+  /*
+   * A drawn line instead of text-decoration: the browser underline hugs the
+   * glyphs and stays hairline-thin, while this one keeps its own gap and weight.
+   * Inset by the link's side padding so it spans only the word.
+   */
+  nav a::after {
+    content: "";
+    position: absolute;
+    left: var(--nav-side);
+    right: var(--nav-side);
+    bottom: 0;
+    height: 2px;
+    background: currentColor;
+    visibility: hidden;
+  }
+  nav a[aria-current="page"] { color: var(--accent); }
+  nav a[aria-current="page"]::after,
+  nav a:hover::after { visibility: visible; }
 
   /*
    * The date is the only day control: click it to pick a day, arrow keys step
@@ -154,8 +176,8 @@
 
   @media (max-width: 720px) {
     .sheet { padding: 20px 16px 48px; }
-    nav { overflow-x: auto; }
-    nav a { padding: 2px 10px 3px; white-space: nowrap; }
+    nav { overflow-x: auto; justify-content: flex-start; }
+    nav a { --nav-side: 10px; white-space: nowrap; }
     header.day { margin-top: 36px; }
     header.day h1 { font-size: var(--font-size-3xl); }
     .moment-head { font-size: var(--font-size-lg); }
@@ -169,11 +191,11 @@
 <body>
 <main class="sheet">
   <nav>
-    <a href="#" aria-current="page">Today</a>
-    <a href="#">Calendar</a>
-    <a href="#">Search</a>
-    <a href="#">Import</a>
-    <a href="#">Settings</a>
+    <a href="#" aria-current="page">时刻</a>
+    <a href="#">行事</a>
+    <a href="#">旅途</a>
+    <a href="#">摘星</a>
+    <a href="#">回响</a>
   </nav>
 
   <header class="day">
