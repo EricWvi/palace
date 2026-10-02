@@ -1,7 +1,7 @@
 # 对话收藏
 
-对话是 Palace 的一种内容类型。本文描述当前已实现的收藏、导入与阅读行为；
-整体时间线与跨内容类型体验见[产品设计](../../product/README.md)。
+对话是 Palace 的一种 Moment 类型。本文描述当前已实现的收藏、导入与阅读行为；
+整体时间线与跨 Moment 类型体验见[产品设计](../../product/README.md)。
 
 后端提供 `GET /api/conversations`，只返回当前 Owner 的会话。每个会话取所有 Path
 最大的 `occurred_at`，列表按该时间降序、会话 ID 降序排列。
