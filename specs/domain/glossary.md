@@ -41,3 +41,13 @@
 **Palace Session**：Palace 在完成一次 Authelia OIDC 认证后建立的服务端会话，以可撤销的 opaque cookie 恢复 Owner Scope；它不是 Authelia Session，也不是 OIDC token。
 
 **身份复核（Identity Recheck）**：Palace 使用 Authelia OIDC refresh/UserInfo 能力重新确认 session 所绑定的 `(issuer, subject)` 与当前 email，成功后才能继续延长无需交互登录的使用时间。
+
+## 时刻
+
+以下术语对应已经批准的 Moment 根决策。
+
+**Moment（时刻）**：某一天里用户希望保存、回看或继续处理的一条记录，拥有唯一身份、类型和时间线定位时间；类型专属内容保存在对应的详情中。
+
+**Moment 类型（Moment Kind）**：Moment 的封闭分类，决定详情结构与卡片摘要；第一版只有对话。
+
+**对话 Moment**：一条 Conversation Path 在时间线上的身份，与该 Path 共用 ID；同一 Conversation 的多个 Path 分别是不同的 Moment。
