@@ -8,7 +8,7 @@
  */
 
 :root {
-  --font-serif: "EB Garamond", "Noto Serif SC", "Songti SC", Georgia, serif;
+  --font-serif: "EB Garamond", "Noto Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif;
   --font-sans: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
