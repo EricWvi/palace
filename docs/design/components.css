@@ -1,0 +1,103 @@
+/*
+ * App components used by more than one prototype. Load after base.css.
+ * A style moves here only once a second page needs it; until then it stays
+ * in the page that is still experimenting with it.
+ */
+
+.sheet {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 44px 24px 72px;
+}
+
+/* Rendered by <palace-header> in shared.js. */
+palace-header {
+  display: block;
+}
+
+/*
+ * Top bar: a printer's ornament on the left, navigation on the right.
+ * The ornament is decoration, not a logo: a quill that has just written a
+ * line of handwriting, ending in two dots. Traced from Eric's reference
+ * image, with the feather's shaft and barb splits cut out of the solid
+ * silhouette. Sepia-ink tone keeps it quieter than the text.
+ */
+header.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.ornament {
+  display: block;
+  flex: none;
+  height: 36px;
+  width: auto;
+  color: var(--ornament);
+}
+
+/*
+ * Navigation: plain words, the active one in accent text with an underline.
+ * 18px because Songti strokes blur on Chinese text at smaller sizes.
+ */
+nav {
+  display: flex;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  gap: 4px;
+}
+
+nav a {
+  --nav-side: 16px;
+  position: relative;
+  padding: 2px var(--nav-side) 3px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+/*
+ * A drawn line instead of text-decoration: the browser underline hugs the
+ * glyphs and stays hairline-thin, while this one keeps its own gap and weight.
+ * Inset by the link's side padding so it spans only the word.
+ */
+nav a::after {
+  content: "";
+  position: absolute;
+  left: var(--nav-side);
+  right: var(--nav-side);
+  bottom: 0;
+  height: 2px;
+  background: currentColor;
+  visibility: hidden;
+}
+
+nav a[aria-current="page"] {
+  color: var(--accent);
+}
+
+nav a[aria-current="page"]::after,
+nav a:hover::after {
+  visibility: visible;
+}
+
+@media (max-width: 720px) {
+  .sheet {
+    padding: 20px 16px 48px;
+  }
+
+  /* The ornament would push the nav into scrolling; narrow layouts are only kept from breaking. */
+  .ornament {
+    display: none;
+  }
+
+  nav {
+    overflow-x: auto;
+  }
+
+  nav a {
+    --nav-side: 10px;
+    white-space: nowrap;
+  }
+}
