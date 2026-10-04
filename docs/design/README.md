@@ -8,7 +8,7 @@
 | --- | --- |
 | [0-palette.html](0-palette.html) | 色板：浅色与深色主题的 token、对比度和界面样例 |
 | [1-prototype.html](1-prototype.html) | 时间线：按天浏览 Moment，卡片原地展开详情 |
-| [2.1-moment-conversation.html](2.1-moment-conversation.html) | 对话 Moment 的详情页（进行中） |
+| [2.1-moment-conversation.html](2.1-moment-conversation.html) | 摘星中的对话阅读页：从时间线的对话标题进入，含分支切换与返回当天 |
 
 ## 共享代码
 
@@ -18,7 +18,7 @@
 | --- | --- |
 | [tokens.css](tokens.css) | 颜色、字体、字号、圆角等变量，以及浅色/深色主题 |
 | [base.css](base.css) | reset 和 `body` 默认样式，所有页面都引入 |
-| [components.css](components.css) | 多个原型共用的应用组件：页面容器 `.sheet`、页头、导航 |
+| [components.css](components.css) | 多个原型共用的应用组件：页面容器 `.sheet`、页头、导航、元信息行 `.meta` |
 | [shared.js](shared.js) | 共用的 HTML 结构，目前提供 `<palace-header>` |
 
 新原型的 `<head>` 按这个顺序引入（只用到 token 的页面，比如色板，可以只引入前两个）：

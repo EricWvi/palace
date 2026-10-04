@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>计划周末出行</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="components.css">
+  <script src="shared.js"></script>
+  <style>
+    /*
+     * The way back to the day the reader came from. Quiet on purpose: the
+     * browser's back button does the same, this only names where it goes.
+     * It hangs in the gap above the title so the title lands exactly where the
+     * day heading sits in 时刻, and switching pages does not shift it.
+     */
+    .back {
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      margin-bottom: 8px;
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+      text-decoration: none;
+    }
+
+    .back:hover {
+      color: var(--text-2);
+    }
+
+    .back[hidden] {
+      display: none;
+    }
+
+    /* Same distance from the nav as the day heading in 时刻. */
+    header.conversation {
+      position: relative;
+      margin-top: 64px;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    header.conversation h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: var(--font-size-3xl);
+      letter-spacing: -0.01em;
+    }
+
+    /*
+     * Rare actions (edit, branches, delete) hide behind a mark that only
+     * appears while the pointer is over the title, so reading stays clean.
+     * Keyboard focus and an open menu keep it visible; touch screens have no
+     * hover, so there it always shows.
+     */
+    .manage {
+      position: relative;
+      flex: none;
+    }
+
+    .more {
+      color: var(--text-3);
+      font-size: var(--font-size-lg);
+      letter-spacing: 2px;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+
+    .title-row:hover .more,
+    .more:focus-visible,
+    .more[aria-expanded="true"] {
+      opacity: 1;
+    }
+
+    .more:hover,
+    .more[aria-expanded="true"] {
+      color: var(--text-2);
+    }
+
+    @media (hover: none) {
+      .more {
+        opacity: 1;
+      }
+    }
+
+    .menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 1;
+      min-width: 128px;
+      margin: 0;
+      padding: 6px 0;
+      list-style: none;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgb(0 0 0 / .08);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .menu[hidden] {
+      display: none;
+    }
+
+    .menu button {
+      display: block;
+      width: 100%;
+      padding: 6px 16px;
+      text-align: left;
+      color: var(--text-2);
+    }
+
+    .menu button:hover,
+    .menu button:focus-visible {
+      background: var(--bg-sunken);
+      color: var(--text);
+      outline: none;
+    }
+
+    .meta a,
+    .meta button {
+      color: inherit;
+      text-decoration: underline;
+      text-decoration-color: var(--text-3);
+      text-underline-offset: 3px;
+    }
+
+    .meta a:hover,
+    .meta button:hover {
+      color: var(--accent);
+    }
+
+    /*
+     * Transcript: a page of text, not chat bubbles. Speakers are named in a
+     * small label; the reader's own turns sit on a sunken ground so the eye
+     * can find them without the left/right swing of a messenger.
+     */
+    ol.messages {
+      list-style: none;
+      margin: 48px 0 0;
+      padding: 0;
+      font-family: var(--font-content);
+      line-height: 1.75;
+    }
+
+    .message+.message,
+    .message+.fork,
+    .fork+.message {
+      margin-top: 32px;
+    }
+
+    .who {
+      margin-bottom: 6px;
+      color: var(--text-3);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .message.user .body {
+      padding: 14px 18px;
+      background: var(--bg-sunken);
+      border-radius: var(--radius-md);
+    }
+
+    .body> :first-child {
+      margin-top: 0;
+    }
+
+    .body> :last-child {
+      margin-bottom: 0;
+    }
+
+    .body p,
+    .body ul,
+    .body ol {
+      margin: 0 0 12px;
+    }
+
+    .body ul,
+    .body ol {
+      padding-left: 22px;
+    }
+
+    .body h3 {
+      margin: 20px 0 6px;
+      font-size: var(--font-size-base);
+      font-weight: 600;
+    }
+
+    .body b {
+      font-weight: 600;
+    }
+
+    .body table {
+      margin: 0 0 12px;
+      border-collapse: collapse;
+    }
+
+    .body th,
+    .body td {
+      padding: 6px 28px 6px 0;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .body th {
+      color: var(--text-2);
+      font-weight: 500;
+    }
+
+    /*
+     * A fork is a sentence, not a control: the options are the first words of
+     * each branch's next message, and picking one swaps everything below it.
+     */
+    .fork {
+      color: var(--text-3);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .fork .options>*+*::before {
+      content: "·";
+      margin: 0 8px;
+      color: var(--text-3);
+    }
+
+    .fork button {
+      color: var(--text-2);
+    }
+
+    .fork button:hover {
+      color: var(--text);
+    }
+
+    .fork button[aria-current="true"] {
+      color: var(--text);
+      text-decoration: underline;
+      text-decoration-color: var(--accent);
+      text-underline-offset: 4px;
+    }
+
+    @media (max-width: 720px) {
+      header.conversation {
+        margin-top: 36px;
+      }
+
+      .back {
+        margin-bottom: 4px;
+      }
+
+      header.conversation h1 {
+        font-size: var(--font-size-2xl);
+      }
+
+      .message.user .body {
+        padding: 12px 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="sheet">
+    <palace-header active="摘星"></palace-header>
+
+    <header class="conversation">
+      <a class="back" id="back" hidden></a>
+      <div class="title-row">
+        <h1>计划周末出行</h1>
+        <div class="manage">
+          <button class="more" id="more" aria-label="管理对话" aria-haspopup="menu" aria-expanded="false"
+            aria-controls="menu">···</button>
+          <ul class="menu" id="menu" role="menu" hidden>
+            <li role="none"><button role="menuitem">编辑</button></li>
+            <li role="none"><button role="menuitem">分支管理</button></li>
+            <li role="none"><button role="menuitem">删除</button></li>
+          </ul>
+        </div>
+      </div>
+      <p class="meta"><span>ChatGPT</span><span id="count"></span><a href="#">继续对话 ↗</a></p>
+    </header>
+
+    <ol class="messages" id="messages"></ol>
+  </main>
+
+  <script>
+    // Sample tree: a shared trunk, then two Paths that part at the seventh user turn.
+    const trunk = [
+      ["user", "<p>这个周末想出去走走，最好在海边，从旧金山出发不要开太久。</p>"],
+      ["assistant", `<p>好主意！从旧金山出发，海边有三个不错的选择：</p>
+        <ul>
+          <li><b>Half Moon Bay</b>：车程约 45 分钟，淡季很安静，适合当天往返。</li>
+          <li><b>Point Reyes</b>：约 1.5 小时，适合徒步，可以看灯塔和象海豹。</li>
+          <li><b>Mendocino</b>：约 3 小时，最远，但小镇和海岸线最值得住两晚。</li>
+        </ul>
+        <p>你打算住几晚？</p>`],
+      ["user", "<p>住两晚，住宿预算大概 600 美元。</p>"],
+      ["assistant", `<p>那 Mendocino 很合适。Main Street 一带的旅馆每晚 250–300 美元，周末会贵一些，建议尽早订。两晚的花费大致是：</p>
+        <table>
+          <tr><th>项目</th><th>预估</th></tr>
+          <tr><td>住宿两晚</td><td>$560</td></tr>
+          <tr><td>油费</td><td>$80</td></tr>
+          <tr><td>餐饮</td><td>$150</td></tr>
+        </table>`],
+      ["user", "<p>周六早上出发的话，路上有什么值得停的地方？</p>"],
+      ["assistant", `<p>走 1 号公路会慢一些，但风景好：</p>
+        <ol>
+          <li>Bodega Bay 吃午饭，蛤蜊浓汤很有名；</li>
+          <li>Jenner 看 Russian River 入海口；</li>
+          <li>Sea Ranch 的小教堂可以停十分钟。</li>
+        </ol>
+        <p>全程大约 5 小时（含停留）。赶时间就走 101 再转 128，3 小时出头。</p>`],
+      ["user", "<p>去程走 1 号公路，回程走 101 吧。</p>"],
+      ["assistant", "<p>好的。周日回程从 Mendocino 走 128 穿过 Anderson Valley，沿路有几家酒庄，Navarro 和 Husch 都能试饮。</p>"],
+      ["user", "<p>Mendocino 住的地方有推荐吗？想要能看海的。</p>"],
+      ["assistant", `<p>能看海的几家：</p>
+        <ul>
+          <li><b>Brewery Gulch Inn</b>：在镇南的山坡上，房间都朝海，含早餐和傍晚的酒，略超预算。</li>
+          <li><b>Headlands Inn</b>：在镇中心，步行就到海岬步道，价格在预算内。</li>
+          <li><b>Glendeven Inn</b>：在镇北的 Little River，安静，有花园。</li>
+        </ul>
+        <p>预算优先的话，Headlands Inn 最稳。</p>`],
+      ["user", "<p>那就 Headlands Inn。周六晚上吃什么？</p>"],
+      ["assistant", "<p>推荐 <b>Café Beaujolais</b>，Mendocino 最有名的餐厅之一，需要提前预订。想轻松一点的话，<b>Trillium Café</b> 有露台，日落时位置很好。</p>"],
+    ];
+
+    const branches = {
+      coast: [
+        ["user", "<p>订 Café Beaujolais。周日上午有什么安排？</p>"],
+        ["assistant", "<p>周日上午可以走 <b>Mendocino Headlands State Park</b> 的海岬步道，从旅馆出门就是，一圈 1 小时左右。之后去 Point Cabrillo 灯塔，十点开门。</p>"],
+        ["user", "<p>天气会怎么样？要带什么？</p>"],
+        ["assistant", `<p>十月初的北加州海岸早晚凉，常有雾：</p>
+          <ul>
+            <li>防风外套和一件薄毛衣；</li>
+            <li>徒步鞋，海岬步道有些路段湿滑；</li>
+            <li>傍晚在海边会冷，带条围巾。</li>
+          </ul>`],
+        ["user", "<p>帮我把整个行程整理一下。</p>"],
+        ["assistant", `<h3>周六</h3>
+          <ul>
+            <li>08:30 出发，走 1 号公路</li>
+            <li>12:00 Bodega Bay 午饭</li>
+            <li>17:00 入住 Headlands Inn</li>
+            <li>19:00 Café Beaujolais 晚餐</li>
+          </ul>
+          <h3>周日</h3>
+          <ul>
+            <li>09:00 海岬步道</li>
+            <li>10:30 Point Cabrillo 灯塔</li>
+            <li>下午自由活动</li>
+          </ul>
+          <h3>周一</h3>
+          <ul>
+            <li>10:00 退房，走 128 回程，途经 Anderson Valley 的酒庄</li>
+          </ul>`],
+        ["user", "<p>完美，谢谢！</p>"],
+        ["assistant", "<p>祝旅途愉快！出发前一天记得再看一下 1 号公路的路况，雾大时 Jenner 一带会封路。</p>"],
+      ],
+      reyes: [
+        ["user", "<p>算了，还是改去 Point Reyes 吧，开车太久了。</p>"],
+        ["assistant", "<p>也好，Point Reyes 车程只要 1.5 小时。住宿可以选 Olema 或 Inverness，<b>Olema House</b> 每晚约 280 美元，两晚在预算内。</p>"],
+        ["user", "<p>Point Reyes 有哪些必去的地方？</p>"],
+        ["assistant", `<ul>
+            <li><b>Point Reyes 灯塔</b>：要下 300 多级台阶，风很大；</li>
+            <li><b>Tomales Point</b>：看麋鹿，往返约 15 公里；</li>
+            <li><b>Drakes Beach</b>：淡季能看到象海豹。</li>
+          </ul>
+          <p>周六下午到达后，可以先去 Drakes Beach 看日落。</p>`],
+      ],
+    };
+
+    const speakers = { user: "你", assistant: "ChatGPT" };
+    const list = document.getElementById("messages");
+    const params = new URLSearchParams(location.search);
+    let path = params.get("path") in branches ? params.get("path") : "coast";
+
+    // A fork option is named by the first words of its branch, the way the reader remembers it.
+    const optionLabel = (html) => {
+      const text = html.replace(/<[^>]+>/g, "");
+      return text.length > 14 ? `${text.slice(0, 14)}…` : text;
+    };
+
+    const message = ([role, html]) =>
+      `<li class="message ${role}"><div class="who">${speakers[role]}</div><div class="body">${html}</div></li>`;
+
+    const render = () => {
+      const options = Object.entries(branches)
+        .map(([key, rest]) => {
+          const current = key === path ? ' aria-current="true"' : "";
+          return `<button data-path="${key}"${current}>${optionLabel(rest[0][1])}</button>`;
+        })
+        .join("");
+      const fork = `<li class="fork">此处分为 ${Object.keys(branches).length} 支：<span class="options">${options}</span></li>`;
+      list.innerHTML = trunk.map(message).join("") + fork + branches[path].map(message).join("");
+      document.getElementById("count").textContent = `${trunk.length + branches[path].length} 条消息`;
+    };
+    render();
+
+    list.addEventListener("click", (e) => {
+      const option = e.target.closest("[data-path]");
+      if (!option || option.dataset.path === path) return;
+      path = option.dataset.path;
+      // Replace, not push: switching branches is reading, and back should still lead to the day.
+      params.set("path", path);
+      history.replaceState(null, "", `?${params}`);
+      render();
+    });
+
+    // The back link only exists when the reader arrived from a day in 时刻.
+    const date = params.get("date");
+    if (date) {
+      const [, month, day] = date.split("-").map(Number);
+      const back = document.getElementById("back");
+      back.href = `1-prototype.html?date=${date}&moment=trip`;
+      back.textContent = `← ${month} 月 ${day} 日`;
+      back.hidden = false;
+    }
+
+    // The menu closes on a choice, a click elsewhere or Escape; the actions themselves are not wired up.
+    const more = document.getElementById("more");
+    const menu = document.getElementById("menu");
+    const setMenu = (open) => {
+      menu.hidden = !open;
+      more.setAttribute("aria-expanded", String(open));
+    };
+    more.addEventListener("click", () => setMenu(menu.hidden));
+    menu.addEventListener("click", () => setMenu(false));
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".manage")) setMenu(false);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !menu.hidden) {
+        setMenu(false);
+        more.focus();
+      }
+    });
+  </script>
+</body>
+
+</html>

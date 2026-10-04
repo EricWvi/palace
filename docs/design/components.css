@@ -101,3 +101,18 @@ nav a:hover::after {
     white-space: nowrap;
   }
 }
+
+/* A line of facts under a title, joined by middle dots. */
+.meta {
+  margin: 2px 0 0;
+  color: var(--text-2);
+  font-size: var(--font-size-md);
+}
+
+/* inline-block keeps a link's underline from running under the dot. */
+.meta > *+*::before {
+  display: inline-block;
+  content: "·";
+  margin: 0 8px;
+  color: var(--text-3);
+}

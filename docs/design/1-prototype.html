@@ -69,6 +69,8 @@
       width: 100%;
       text-align: left;
       font-size: var(--font-size-xl);
+      color: inherit;
+      text-decoration: none;
     }
 
     .moment-head .kind {
@@ -95,18 +97,6 @@
       margin: 4px 0 0;
       color: var(--text-2);
       max-width: 470px;
-    }
-
-    .meta {
-      margin: 2px 0 0;
-      color: var(--text-2);
-      font-size: var(--font-size-md);
-    }
-
-    .meta span+span::before {
-      content: "·";
-      margin: 0 8px;
-      color: var(--text-3);
     }
 
     .well {
@@ -399,19 +389,16 @@
 
       <li class="moment">
         <div>
-          <button class="moment-head"><span class="kind">对话</span><span class="title">计划周末出行</span></button>
-          <p class="summary">Discussed itinerary ideas, budget and accommodation options for the weekend trip.</p>
+          <!--
+            Conversations are read in 摘星, where they belong; the timeline only
+            notes that the session happened, so the title leaves the page instead of unfolding.
+          -->
+          <a class="moment-head" id="trip" href="2.1-moment-conversation.html?path=coast&amp;date=2025-09-30"><span class="kind">对话</span><span class="title">计划周末出行</span></a>
+          <p class="meta"><span>ChatGPT</span><span>20 条消息</span></p>
           <blockquote class="chat">
-            <p>You: I’m thinking about a short trip this weekend. Maybe somewhere near the coast?</p>
-            <p>Assistant: That sounds great! Here are a few options …</p>
+            <p>你：这个周末想出去走走，最好在海边，从旧金山出发不要开太久。</p>
+            <p>ChatGPT：好主意！从旧金山出发，海边有三个不错的选择……</p>
           </blockquote>
-          <div class="detail transcript">
-            <p><b>Assistant:</b> Half Moon Bay is 45 minutes away and quiet off-season. Point Reyes is better if you
-              want to hike. Mendocino is the longest drive but the most rewarding for two nights.</p>
-            <p><b>You:</b> Two nights, budget around $600 for lodging.</p>
-            <p><b>Assistant:</b> Then Mendocino fits — inns along Main Street run $250–300 a night midweek …</p>
-            <p class="meta"><span>ChatGPT</span><span>14 messages</span><span>Imported Sep 30</span></p>
-          </div>
         </div>
       </li>
 
@@ -486,7 +473,8 @@
 
   <script>
     // Cards open in place: the timeline stays the only page, detail is a fold.
-    document.querySelectorAll(".moment-head").forEach((head) => {
+    // Links (conversations) leave for their own page instead.
+    document.querySelectorAll("button.moment-head").forEach((head) => {
       head.addEventListener("click", () => head.closest(".moment").classList.toggle("open"));
     });
 
@@ -500,12 +488,34 @@
     const pick = document.getElementById("pick");
     const fmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
     const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    let day = new Date(2025, 8, 30);
+    const conversation = document.getElementById("trip");
+    const sample = () => new Date(2025, 8, 30);
+    // The day lives in the URL so the conversation page's back link and the
+    // browser's back button both land on the day the reader left from.
+    const fromUrl = new URLSearchParams(location.search).get("date");
+    let day = fromUrl ? new Date(`${fromUrl}T00:00`) : sample();
+    if (Number.isNaN(day.getTime())) day = sample();
     const render = () => {
       dateButton.textContent = fmt.format(day);
       pick.value = iso(day);
+      const url = new URL(location.href);
+      url.searchParams.set("date", iso(day));
+      history.replaceState(null, "", url);
+      conversation.href = `2.1-moment-conversation.html?path=coast&date=${iso(day)}`;
     };
     render();
+
+    /*
+     * Returning from a moment's page scrolls back to it. A URL fragment would do
+     * the same but also focuses the link, and the browser draws a focus ring on it.
+     */
+    const returned = new URLSearchParams(location.search).get("moment");
+    if (returned) {
+      document.getElementById(returned)?.scrollIntoView({ block: "center" });
+      const url = new URL(location.href);
+      url.searchParams.delete("moment");
+      history.replaceState(null, "", url);
+    }
 
     // Clicking the date opens the browser's own picker instead of a custom calendar.
     dateButton.onclick = () => pick.showPicker();
@@ -524,7 +534,7 @@
         day.setDate(day.getDate() + step);
         render();
       } else if (e.key === "t") {
-        day = new Date(2025, 8, 30);
+        day = sample();
         render();
       }
     });
