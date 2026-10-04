@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="docs/design/tokens.css">
+  <link rel="stylesheet" href="tokens.css">
   <style>
     * {
       box-sizing: border-box;
@@ -169,6 +169,7 @@
 
     .moment-head .kind {
       margin-right: 12px;
+      font-size: var(--font-size-base);
       color: var(--text-2);
     }
 
@@ -451,7 +452,7 @@
     <ol class="timeline">
       <li class="moment">
         <div>
-          <button class="moment-head"><span class="kind">Sleep</span><span class="title">7h 26m · Good</span></button>
+          <button class="moment-head"><span class="kind">睡眠</span><span class="title">7 小时 26 分 · 良好</span></button>
           <p class="summary">Went to bed at 23:46, woke up at 07:12. Sleep quality was good with stable heart rate.</p>
           <div class="well sleep">
             <svg viewBox="0 0 400 60" preserveAspectRatio="none" aria-label="Sleep stages">
@@ -493,8 +494,7 @@
 
       <li class="moment">
         <div>
-          <button class="moment-head"><span class="kind">Photo</span><span class="title">Morning at the
-              park</span></button>
+          <button class="moment-head"><span class="kind">照片</span><span class="title">公园的早晨</span></button>
           <p class="meta"><span>3 photos</span><span>Riverside Park, San Francisco</span></p>
           <div class="photos">
             <figure class="photo"
@@ -525,8 +525,7 @@
 
       <li class="moment">
         <div>
-          <button class="moment-head"><span class="kind">Conversation</span><span class="title">Planning the weekend
-              trip</span></button>
+          <button class="moment-head"><span class="kind">对话</span><span class="title">计划周末出行</span></button>
           <p class="summary">Discussed itinerary ideas, budget and accommodation options for the weekend trip.</p>
           <blockquote class="chat">
             <p>You: I’m thinking about a short trip this weekend. Maybe somewhere near the coast?</p>
@@ -544,7 +543,7 @@
 
       <li class="moment">
         <div>
-          <button class="moment-head"><span class="kind">Music</span><span class="title">Autumn Breeze</span></button>
+          <button class="moment-head"><span class="kind">音乐</span><span class="title">秋日微风</span></button>
           <p class="meta"><span>Taylor Swift</span><span>3:42</span><span>Spotify</span></p>
           <div class="well track">
             <div class="cover" aria-hidden="true"></div>
@@ -566,7 +565,7 @@
 
       <li class="moment">
         <div>
-          <button class="moment-head"><span class="kind">Note</span><span class="title">Ideas for Palace</span></button>
+          <button class="moment-head"><span class="kind">笔记</span><span class="title">Palace 的一些想法</span></button>
           <p class="summary" style="max-width:none">Some thoughts on the timeline experience, card design and
             cross-platform consistency. Need to refine the data model and think about import flow.</p>
           <div class="detail">
@@ -580,8 +579,7 @@
 
       <li class="moment">
         <div>
-          <button class="moment-head"><span class="kind">Photo</span><span class="title">Dinner with
-              friends</span></button>
+          <button class="moment-head"><span class="kind">照片</span><span class="title">和朋友聚餐</span></button>
           <p class="meta"><span>5 photos</span><span>The Progress, San Francisco</span></p>
           <div class="photos dim">
             <figure class="photo" style="background:radial-gradient(circle,#d9a25a 0 30%,#f1ece2 32% 52%,#d8d2c6 54%)">
