@@ -40,7 +40,7 @@
 
 风险：骨架按位置错配成别的卡片，并发写入后列表残留加载中的骨架、丢失卡片或顺序错误；过渡结束后内联样式残留，卡片高度被锁死；减少动态效果的设置被忽略；新增 Moment 类型没有骨架。前置：轮廓先于时间线到达。触发：时间线与轮廓完全一致；时间线删掉轮廓中的一项、新增一项、调换两项顺序；在 `prefers-reduced-motion: reduce` 下重复一致的情形。
 
-必须成立：每个骨架所在的列表项以 Moment `id` 为键，原位过渡为同 `id` 的卡片而不重新挂载；时间线中不存在的骨架收拢后移除，轮廓中不存在的卡片在其位置展开，顺序变化的项移动到时间线给出的位置；时间线到达后不再有处于加载状态的骨架；最终显示的卡片及顺序与时间线响应完全一致；过渡结束后列表项没有残留的内联高度、透明度或 `overflow`；过渡期间卡片链接可以点击；减少动态效果时骨架不做起伏、替换不做过渡；每种 `kind` 恰好对应一种骨架形状。禁止卡片内容来自轮廓，禁止过渡中拦截点击。
+必须成立：每个骨架所在的列表项以 Moment `id` 为键，原位过渡为同 `id` 的卡片而不重新挂载；时间线中不存在的骨架收拢后移除，轮廓中不存在的卡片在其位置展开，顺序变化的项移动到时间线给出的位置；时间线到达后不再有处于加载状态的骨架；最终显示的卡片及顺序与时间线响应完全一致；过渡结束后列表项没有残留的内联高度、透明度或 `overflow`；过渡期间卡片链接可以点击；减少动态效果时骨架不做起伏、替换不做过渡；每种 `kind` 恰好对应一种骨架形状；对话骨架的高度与标题一行、摘录两行的卡片相同。禁止卡片内容来自轮廓，禁止过渡中拦截点击。
 
 验证义务与证据：
 
@@ -50,6 +50,7 @@
 | 轮廓与时间线不一致时的收拢、展开与移动，最终列表只取时间线 | Covered | `e2e/timeline-loading.spec.ts::placeholders grow into their own cards, collapse or make room, and leave no trace`、`pages/timeline.test.tsx::asks for both at once, outlines the day, then turns each placeholder into its own card` |
 | 过渡结束后撤销内联样式，过渡中卡片可点击 | Partial | `e2e/timeline-loading.spec.ts::placeholders grow into their own cards, collapse or make room, and leave no trace`（内联样式与动画撤销）；过渡中的点击没有直接测试 |
 | `prefers-reduced-motion: reduce` 下无动画 | Covered | `e2e/timeline-loading.spec.ts::asking for less motion stills the placeholders and swaps them without a morph`（真实 Chromium） |
+| 骨架高度与标题一行、摘录两行的卡片完全一致，替换时不跳动 | Covered | `e2e/timeline-loading.spec.ts::a placeholder is exactly as tall as a card with a one-line title and two excerpt lines`（真实 Chromium） |
 | 每种 `kind` 恰好一种骨架 | Covered | `DayMoments` 的骨架映射类型为 `Record<MomentKind, …>`，缺少或多出类型时 `task lint:frontend` 的类型检查失败 |
 
 决策依据：D3、D4，不变量 3、5、6、8。

@@ -131,6 +131,25 @@ test("asking for less motion stills the placeholders and swaps them without a mo
   expect(await seenStates(page)).toEqual(["card"]);
 });
 
+// Core test case: `specs/test-cases/server/moment/timeline-loading.md#each-skeleton-must-become-the-card-with-its-own-id`
+test("a placeholder is exactly as tall as a card with a one-line title and two excerpt lines", async ({
+  page,
+}) => {
+  // Without motion the card replaces its placeholder at once, so both heights are final.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const release = await serve(page, [moment("p1", 2)]);
+  await page.goto("/?date=2025-09-30");
+  await expect(items(page).first()).toHaveAttribute("data-state", "skeleton");
+  const height = () =>
+    items(page)
+      .first()
+      .evaluate((item) => item.getBoundingClientRect().height);
+  const placeholder = await height();
+  release([moment("p1", 2)]);
+  await expect(page.getByRole("link", { name: /对话 p1/ })).toBeVisible();
+  expect(placeholder).toBe(await height());
+});
+
 // Core test case: `specs/test-cases/server/moment/timeline-loading.md#scrolling-to-a-moment-must-wait-for-card-heights-to-settle`
 test("a moment named in the address is centred once the cards stop growing", async ({
   page,
