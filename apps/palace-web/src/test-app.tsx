@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { App } from "./app";
 
 // Mounts the whole app on a memory router, so tests can read the address and how it changed
-// (push or replace) without a browser.
+// (push or replace) without a browser, and the query cache that pages read through.
 export function mountApp(route: string) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -18,7 +18,7 @@ export function mountApp(route: string) {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return { router, user: userEvent.setup() };
+  return { router, client, user: userEvent.setup() };
 }
 
 // The address as the reader would see it, e.g. "/?date=2025-09-30".

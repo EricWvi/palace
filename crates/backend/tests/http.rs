@@ -77,6 +77,7 @@ fn request(
 /// - `specs/test-cases/server/owner/owner-isolation.md#an-inactive-session-past-24-hours-must-revalidate-on-its-next-request`
 /// - `specs/test-cases/server/owner/owner-isolation.md#a-browser-session-secret-must-remain-opaque-and-resistant-to-fixation`
 /// - `specs/test-cases/server/owner/owner-isolation.md#local-session-revocation-must-take-effect-before-external-logout-succeeds`
+/// - `specs/test-cases/server/moment/timeline-loading.md#day-outline-must-list-the-timelines-moments-in-the-same-order`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {
@@ -238,6 +239,59 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
             serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes())
                 .unwrap();
         assert_eq!(body, expected);
+        // The outline is the same day reduced to identity and kind, in the same order.
+        let response = app
+            .clone()
+            .oneshot(request(
+                "GET",
+                "/api/timeline/outline?start=1700000000000&end=1700000000001",
+                credential,
+                "https://palace.test",
+                "application/json",
+                String::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()["cache-control"], "no-store");
+        let outline: serde_json::Value =
+            serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes())
+                .unwrap();
+        let projected: Vec<serde_json::Value> = expected
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|moment| serde_json::json!({"id":moment["id"],"kind":moment["kind"]}))
+            .collect();
+        assert_eq!(outline, serde_json::Value::Array(projected));
+    }
+    // Both day endpoints reject the same ranges with the same error.
+    for range in [
+        "start=5&end=5",
+        "start=5&end=1",
+        "start=0&end=172800001",
+        "start=5",
+    ] {
+        let mut answers = Vec::new();
+        for endpoint in ["/api/timeline", "/api/timeline/outline"] {
+            let response = app
+                .clone()
+                .oneshot(request(
+                    "GET",
+                    &format!("{endpoint}?{range}"),
+                    &cookie,
+                    "https://palace.test",
+                    "application/json",
+                    String::new(),
+                ))
+                .await
+                .unwrap();
+            let status = response.status();
+            let body = response.into_body().collect().await.unwrap().to_bytes();
+            answers.push((status, body));
+        }
+        assert_eq!(answers[0].0, StatusCode::BAD_REQUEST, "{range}");
+        assert_eq!(answers[0], answers[1], "{range}");
     }
     let path = format!(
         "/api/conversations/{}",

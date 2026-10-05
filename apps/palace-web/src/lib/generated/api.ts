@@ -162,6 +162,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/timeline/outline": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Lists the identity and kind of one local day's moments in timeline order, so the page can draw
+     *     placeholders of the right shape while the slower card request is still running.
+     */
+    get: operations["timelineOutline"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/auth/callback": {
     parameters: {
       query?: never;
@@ -388,6 +408,17 @@ export interface components {
     Moment: components["schemas"]["ConversationMoment"] & {
       /** @enum {string} */
       kind: "conversation";
+    };
+    /** @enum {string} */
+    MomentKind: "conversation";
+    /** @description One entry of a day's outline, in the same order as the timeline returns its cards. */
+    MomentOutline: {
+      /**
+       * Format: uuid
+       * @description Moment id, equal to the id of the card it previews.
+       */
+      id: string;
+      kind: components["schemas"]["MomentKind"];
     };
     NewPath: {
       /** @description Original JSON array text, with the same limits as TextImport.history. */
@@ -1638,6 +1669,81 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["Moment"][];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity, source session or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  timelineOutline: {
+    parameters: {
+      query: {
+        /** @description Inclusive start, Unix epoch milliseconds computed in the caller's time zone. */
+        start: number;
+        /** @description Exclusive end, Unix epoch milliseconds; after start and at most 48 hours later. */
+        end: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Moment ids and kinds in the order the timeline returns them */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MomentOutline"][];
         };
       };
       /** @description Invalid input; JSON domain error or native extractor text as declared */

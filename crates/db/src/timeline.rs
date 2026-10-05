@@ -35,6 +35,18 @@ pub struct ExcerptLine {
     pub role: Role,
     pub text: String,
 }
+/// One entry of a day's outline: enough to draw a placeholder of the right shape before the
+/// cards arrive, and to match it to its card by identity.
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct MomentOutline {
+    pub id: Uuid,
+    pub kind: MomentKind,
+}
+/// The closed set of moment kinds, mirroring the `moment.kind` check constraint.
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+pub enum MomentKind {
+    Conversation,
+}
 
 impl Database {
     /// Lists the moments in `[start, end)` epoch milliseconds, ordered by time then id.
@@ -47,48 +59,88 @@ impl Database {
         start: i64,
         end: i64,
     ) -> Result<Vec<Moment>, DbError> {
-        if start >= end || end - start > MAX_RANGE_MS {
-            return Err(InputError::new(
-                InputErrorKind::Field,
-                "end",
-                "expected start < end within 48 hours",
-            )
-            .into());
-        }
         let mut tx = self.pool.begin().await?;
         // Cards and moments must come from the same snapshot, or a concurrent delete could leave
         // a moment without its card.
         sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             .execute(&mut *tx)
             .await?;
-        let rows = sqlx::query("SELECT id,kind,(extract(epoch FROM occurred_at)*1000)::bigint AS occurred_at FROM moment WHERE owner_id=$1 AND occurred_at>=to_timestamp($2::double precision/1000.0) AND occurred_at<to_timestamp($3::double precision/1000.0) ORDER BY occurred_at,id")
-            .bind(owner.id()).bind(start).bind(end).fetch_all(&mut *tx).await?;
+        let moments = day_moments(&mut *tx, owner, start, end).await?;
         let mut conversations = Vec::new();
-        let mut moments = Vec::with_capacity(rows.len());
-        for row in rows {
-            let id: Uuid = row.try_get("id")?;
-            let kind: String = row.try_get("kind")?;
-            match kind.as_str() {
-                "conversation" => conversations.push(id),
-                // The database check constraint admits no other kind yet.
-                _ => return Err(DbError::Conflict),
+        for (outline, _) in &moments {
+            match outline.kind {
+                MomentKind::Conversation => conversations.push(outline.id),
             }
-            moments.push((id, row.try_get::<i64, _>("occurred_at")?));
         }
         let mut cards = conversation_cards(&mut tx, owner, &conversations).await?;
         tx.commit().await?;
         moments
             .into_iter()
-            .map(|(id, occurred_at)| {
-                let card = cards.remove(&id).ok_or(DbError::Conflict)?;
+            .map(|(outline, occurred_at)| {
+                let detail = match outline.kind {
+                    MomentKind::Conversation => MomentDetail::Conversation(
+                        cards.remove(&outline.id).ok_or(DbError::Conflict)?,
+                    ),
+                };
                 Ok(Moment {
-                    id,
+                    id: outline.id,
                     occurred_at,
-                    detail: MomentDetail::Conversation(card),
+                    detail,
                 })
             })
             .collect()
     }
+
+    /// Lists the identity and kind of the moments `timeline` would return for the same range, in
+    /// the same order, without reading any details.
+    pub async fn day_outline(
+        &self,
+        owner: OwnerScope,
+        start: i64,
+        end: i64,
+    ) -> Result<Vec<MomentOutline>, DbError> {
+        Ok(day_moments(&self.pool, owner, start, end)
+            .await?
+            .into_iter()
+            .map(|(outline, _)| outline)
+            .collect())
+    }
+}
+
+/// Scans one range of `moment` in timeline order. Both the timeline and its outline read through
+/// here, so they cannot disagree on validation, range bounds or order.
+async fn day_moments<'e>(
+    executor: impl sqlx::PgExecutor<'e>,
+    owner: OwnerScope,
+    start: i64,
+    end: i64,
+) -> Result<Vec<(MomentOutline, i64)>, DbError> {
+    if start >= end || end - start > MAX_RANGE_MS {
+        return Err(InputError::new(
+            InputErrorKind::Field,
+            "end",
+            "expected start < end within 48 hours",
+        )
+        .into());
+    }
+    let rows = sqlx::query("SELECT id,kind,(extract(epoch FROM occurred_at)*1000)::bigint AS occurred_at FROM moment WHERE owner_id=$1 AND occurred_at>=to_timestamp($2::double precision/1000.0) AND occurred_at<to_timestamp($3::double precision/1000.0) ORDER BY occurred_at,id")
+        .bind(owner.id()).bind(start).bind(end).fetch_all(executor).await?;
+    rows.into_iter()
+        .map(|row| {
+            let kind = match row.try_get::<String, _>("kind")?.as_str() {
+                "conversation" => MomentKind::Conversation,
+                // The database check constraint admits no other kind yet.
+                _ => return Err(DbError::Conflict),
+            };
+            Ok((
+                MomentOutline {
+                    id: row.try_get("id")?,
+                    kind,
+                },
+                row.try_get("occurred_at")?,
+            ))
+        })
+        .collect()
 }
 
 /// Reads the card fields of many conversation moments with a fixed number of queries.

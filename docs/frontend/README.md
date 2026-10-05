@@ -18,9 +18,13 @@
 
 - React 19 + Vite + TypeScript，React Router 管理页面路由。
 - React Query 管理服务端数据与 mutation；正在浏览的日期、当前 Path 等页面状态保存在地址中，不另设客户端状态库。
+- 时刻页在没有当天缓存时，同时请求时间线和轮廓（`/api/timeline/outline`）：轮廓先到就按每项的 `kind` 画出骨架，
+  卡片到达后每个骨架在同一个列表项里按 `id` 过渡为自己的卡片（`DayMoments`）。系统要求减少动态效果时不做动画。
+  规则见 `specs/decisions/server/moment/20261005-day-outline-and-skeleton-to-card.md`。
 - 通用组件和主题由前端工程维护，Moment 类型的摘要、详情与专属操作归各功能文档。
 - 认证与 Session 的服务端行为见[认证系统](../server/认证系统.md)。
 
-新增 Moment 类型时，在 `docs/features/` 下记录该类型的发生时间、摘要、详情与专属操作；
+新增 Moment 类型时，在 `docs/features/` 下记录该类型的发生时间、摘要、详情与专属操作，
+并在 `DayMoments` 的骨架映射中给出它的骨架形状（缺少时类型检查失败）；
 跨 Moment 类型的产品约定继续维护在 `docs/product/`。
 文档目录用于组织实现知识，不要求每种 Moment 拥有独立一级页面。

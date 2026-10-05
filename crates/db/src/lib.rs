@@ -14,7 +14,9 @@ pub use session::{
     SessionError,
 };
 pub use session_crypto::CredentialKey;
-pub use timeline::{ConversationCard, ExcerptLine, Moment, MomentDetail};
+pub use timeline::{
+    ConversationCard, ExcerptLine, Moment, MomentDetail, MomentKind, MomentOutline,
+};
 
 pub use import::ImportResult;
 pub use owner::{Owner, OwnerScope};

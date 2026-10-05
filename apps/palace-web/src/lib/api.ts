@@ -3,6 +3,8 @@ import type { components, paths } from "./generated/api";
 
 export type Source = components["schemas"]["Source"];
 export type Moment = components["schemas"]["Moment"];
+export type MomentKind = components["schemas"]["MomentKind"];
+export type MomentOutline = components["schemas"]["MomentOutline"];
 export type Message = components["schemas"]["Message"];
 export type Detail = components["schemas"]["ConversationDetail"];
 export type ConversationPath = components["schemas"]["ConversationPath"];
@@ -81,6 +83,18 @@ export function timelineOptions(
     queryKey: ["timeline", day],
     queryFn: () =>
       apiData(api.GET("/api/timeline", { params: { query: range } })),
+  };
+}
+// A day's moment ids and kinds, cheap enough to arrive before the cards and shape placeholders.
+// It sits under the day's timeline key, so invalidating a day's timeline invalidates it too.
+export function outlineOptions(
+  day: string,
+  range: { start: number; end: number },
+) {
+  return {
+    queryKey: ["timeline", day, "outline"],
+    queryFn: () =>
+      apiData(api.GET("/api/timeline/outline", { params: { query: range } })),
   };
 }
 export function conversationOptions(id: string) {

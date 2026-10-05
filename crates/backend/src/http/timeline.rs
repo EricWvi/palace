@@ -37,3 +37,36 @@ pub(super) async fn timeline(
             .collect(),
     ))
 }
+
+/// Lists the identity and kind of one local day's moments in timeline order, so the page can draw
+/// placeholders of the right shape while the slower card request is still running.
+#[utoipa::path(
+    get, path = routes::TIMELINE_OUTLINE, operation_id = "timelineOutline",
+    params(dto::TimelineRange),
+    security(("session" = [])),
+    responses(
+        (status = 200, description = "Moment ids and kinds in the order the timeline returns them", body = [dto::MomentOutline], headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
+        (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
+        (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 409, description = "Identity, source session or idempotency conflict", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 503, description = "Identity provider temporarily unavailable", body = dto::ErrorResponse, content_type = "application/json"),
+    )
+)]
+pub(super) async fn outline(
+    State(server): State<Arc<BusinessServer>>,
+    axum::Extension(owner): axum::Extension<palace_db::Owner>,
+    range: Result<Query<dto::TimelineRange>, QueryRejection>,
+) -> Result<Json<Vec<dto::MomentOutline>>, ApiError> {
+    let Query(range) = range
+        .map_err(|error| InputError::new(InputErrorKind::Field, "query", error.body_text()))?;
+    Ok(Json(
+        server
+            .database
+            .day_outline(owner.scope(), range.start, range.end)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+    ))
+}

@@ -17,6 +17,7 @@ use utoipa::{
         business::import_text,
         business::import_file,
         timeline::timeline,
+        timeline::outline,
         business::conversation,
         business::path,
         path_management::create,

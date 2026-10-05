@@ -102,7 +102,7 @@ function setup(route: string) {
         };
         return Response.json({ id: pathId ?? "tree" });
       }
-      if (path === "/api/timeline") return Response.json([]);
+      if (path.startsWith("/api/timeline")) return Response.json([]);
       return Response.json(current);
     });
   return { fetch, ...mountApp(route) };
@@ -116,6 +116,21 @@ async function choose(user: ReturnType<typeof mountApp>["user"], item: string) {
 }
 const fork = (after: number) =>
   screen.getByRole("group", { name: `第 ${after} 条消息后的分支` });
+
+// Core test case: `specs/test-cases/server/moment/timeline-loading.md#skeletons-must-appear-only-while-a-day-has-no-cards-to-show`
+it("deleting a conversation invalidates the outlines of the days it was on", async () => {
+  const { client, router, user } = setup("/conversations/tree?path=p1");
+  const outline = ["timeline", "2025-09-30", "outline"];
+  client.setQueryData(outline, [{ id: "p1", kind: "conversation" }]);
+  expect(client.getQueryState(outline)?.isInvalidated).toBe(false);
+  await choose(user, "删除对话");
+  const dialog = await screen.findByRole("dialog", { name: "删除对话？" });
+  await user.click(within(dialog).getByRole("button", { name: "删除对话" }));
+  await waitFor(() => expect(address(router)).toBe("/"));
+  await waitFor(() =>
+    expect(client.getQueryState(outline)?.isInvalidated).toBe(true),
+  );
+});
 
 // Core test case: `specs/test-cases/server/conversation/message-tree.md#fork-selection-must-resolve-to-one-real-source-session`
 it("defaults to the latest path and resets downstream forks to the latest matching continuation", async () => {

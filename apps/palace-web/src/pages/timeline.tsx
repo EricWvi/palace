@@ -1,7 +1,14 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { sources, timelineOptions, type Moment } from "@/lib/api";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { outlineOptions, timelineOptions } from "@/lib/api";
 import {
   addDays,
   dayHeading,
@@ -11,6 +18,7 @@ import {
   parseDay,
   today,
 } from "@/lib/day";
+import { DayMoments } from "@/components/day-moments";
 import { ErrorState } from "@/components/error-state";
 import { MoreMenu } from "@/components/more-menu";
 
@@ -27,7 +35,13 @@ export function TimelinePage() {
   // An unreadable date falls back to today rather than an error page.
   const day = parseDay(params.get("date")) ?? today();
   const date = dayParam(day);
-  const query = useQuery(timelineOptions(date, dayRange(day)));
+  const range = dayRange(day);
+  const query = useQuery(timelineOptions(date, range));
+  // Asked alongside the cards, never before them, and only when the day has no cards to show.
+  const outline = useQuery({
+    ...outlineOptions(date, range),
+    enabled: query.isPending,
+  });
   const [importing, setImporting] = useState(false);
   const pick = useRef<HTMLInputElement>(null);
 
@@ -50,16 +64,17 @@ export function TimelinePage() {
     return () => document.removeEventListener("keydown", step);
   }, [day, setParams]);
 
-  // A reader coming back from a moment lands on it. Scrolling, unlike a #fragment, leaves focus
-  // alone, so the title does not light up with a focus ring. The target is used once and dropped.
+  // A reader coming back from a moment lands on it, once the cards have stopped growing out of
+  // their placeholders. Scrolling, unlike a #fragment, leaves focus alone, so the title does not
+  // light up with a focus ring. The target is used once and dropped.
   const target = params.get("moment");
-  useEffect(() => {
-    if (!target || !query.data) return;
+  const settled = useCallback(() => {
+    if (!target) return;
     document
       .getElementById(`moment-${target}`)
       ?.scrollIntoView({ block: "center" });
     setParams({ date }, { replace: true });
-  }, [target, query.data, date, setParams]);
+  }, [target, date, setParams]);
 
   return (
     <>
@@ -93,16 +108,17 @@ export function TimelinePage() {
           }}
         />
       </header>
-      {query.isPending ? null : query.isError ? (
+      {query.isError ? (
         <ErrorState error={query.error} retry={() => void query.refetch()} />
-      ) : query.data.length === 0 ? (
-        <p className="quiet-note">这一天还没有记录。</p>
       ) : (
-        <ol className="timeline">
-          {query.data.map((moment) => (
-            <MomentCard key={moment.id} moment={moment} date={date} />
-          ))}
-        </ol>
+        <DayMoments
+          // A new day starts over: no leftover placeholders and no exit animation.
+          key={date}
+          outline={outline.data}
+          moments={query.data}
+          date={date}
+          onSettled={settled}
+        />
       )}
       {importing && (
         <Suspense fallback={null}>
@@ -125,34 +141,5 @@ export function TimelinePage() {
         </Suspense>
       )}
     </>
-  );
-}
-
-// A conversation's full text belongs to 摘星, so its card only says what happened and links there.
-function MomentCard({ moment, date }: { moment: Moment; date: string }) {
-  const source = sources[moment.source];
-  return (
-    <li className="moment" id={`moment-${moment.id}`}>
-      <Link
-        className="moment-head"
-        to={`/conversations/${moment.conversation_id}?path=${moment.id}&date=${date}`}
-      >
-        <span className="kind">对话</span>
-        <span className="title">{moment.title}</span>
-      </Link>
-      <p className="meta">
-        <span>{source}</span>
-        <span>{moment.message_count} 条消息</span>
-      </p>
-      {moment.excerpt.length > 0 && (
-        <blockquote className="chat">
-          {moment.excerpt.map((line, index) => (
-            <p key={index}>
-              {line.role === "user" ? "你" : source}：{line.text}
-            </p>
-          ))}
-        </blockquote>
-      )}
-    </li>
   );
 }

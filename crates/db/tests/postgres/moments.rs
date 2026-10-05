@@ -1,5 +1,8 @@
 use super::database;
-use palace_db::{ConversationCard, Database, DbError, ExcerptLine, Moment, MomentDetail, Owner};
+use palace_db::{
+    ConversationCard, Database, DbError, ExcerptLine, Moment, MomentDetail, MomentKind,
+    MomentOutline, Owner,
+};
 use palace_domain::{
     ImportInput, ImportLimits, ImportRequest, ImportTarget, PathInput, Role, SessionId, Source,
 };
@@ -333,6 +336,79 @@ async fn day_timeline_returns_moments_inside_the_callers_range() {
     for (from, to) in [(start, start), (end, start), (start, start + 2 * day + 1)] {
         assert!(matches!(
             db.timeline(owner.scope(), from, to).await,
+            Err(DbError::Input(_))
+        ));
+    }
+}
+
+/// The outline is the timeline reduced to identity and kind: same range, same order, same owner.
+/// Core test case:
+/// - `specs/test-cases/server/moment/timeline-loading.md#day-outline-must-list-the-timelines-moments-in-the-same-order`
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn day_outline_lists_the_timelines_moments_in_the_same_order() {
+    let (_container, db, _pool) = database().await;
+    let owner = db
+        .resolve_identity("https://idp", "outline", "outline@example.com")
+        .await
+        .unwrap();
+    let other = db
+        .resolve_identity("https://idp", "outsider", "outsider@example.com")
+        .await
+        .unwrap();
+    let day = 86_400_000_i64;
+    let (start, end) = (10 * day, 11 * day);
+    create(&db, &owner, "before", &["x"], start - 1).await;
+    create(&db, &owner, "at-end", &["x"], end).await;
+    let late = create(&db, &owner, "late", &["x"], end - 1).await;
+    // Moments sharing a time are ordered by id in both lists.
+    let tied = [
+        create(&db, &owner, "tie-a", &["x"], start + 5).await,
+        create(&db, &owner, "tie-b", &["x"], start + 5).await,
+        create(&db, &owner, "tie-c", &["x"], start + 5).await,
+    ];
+    let first = create(&db, &owner, "first", &["x"], start).await;
+    let foreign = create(&db, &other, "foreign", &["x"], start).await;
+
+    let mut ties: Vec<Uuid> = tied.iter().map(|result| result.path_id).collect();
+    ties.sort();
+    let expected: Vec<MomentOutline> = [first.path_id]
+        .into_iter()
+        .chain(ties)
+        .chain([late.path_id])
+        .map(|id| MomentOutline {
+            id,
+            kind: MomentKind::Conversation,
+        })
+        .collect();
+    assert_eq!(
+        db.day_outline(owner.scope(), start, end).await.unwrap(),
+        expected
+    );
+    assert_eq!(
+        db.timeline(owner.scope(), start, end)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|moment| MomentOutline {
+                id: moment.id,
+                kind: match moment.detail {
+                    MomentDetail::Conversation(_) => MomentKind::Conversation,
+                },
+            })
+            .collect::<Vec<_>>(),
+        expected
+    );
+    assert_eq!(
+        db.day_outline(other.scope(), start, end).await.unwrap(),
+        vec![MomentOutline {
+            id: foreign.path_id,
+            kind: MomentKind::Conversation,
+        }]
+    );
+    for (from, to) in [(start, start), (end, start), (start, start + 2 * day + 1)] {
+        assert!(matches!(
+            db.day_outline(owner.scope(), from, to).await,
             Err(DbError::Input(_))
         ));
     }

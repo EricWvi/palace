@@ -1773,6 +1773,126 @@
         ]
       }
     },
+    "/api/timeline/outline": {
+      "get": {
+        "tags": [
+          "timeline"
+        ],
+        "summary": "Lists the identity and kind of one local day's moments in timeline order, so the page can draw\nplaceholders of the right shape while the slower card request is still running.",
+        "operationId": "timelineOutline",
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "description": "Inclusive start, Unix epoch milliseconds computed in the caller's time zone.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "description": "Exclusive end, Unix epoch milliseconds; after start and at most 48 hours later.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Moment ids and kinds in the order the timeline returns them",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MomentOutline"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Identity, source session or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/auth/callback": {
       "get": {
         "tags": [
@@ -2496,6 +2616,30 @@
           }
         ],
         "description": "One timeline entry; `kind` selects the card fields that follow."
+      },
+      "MomentKind": {
+        "type": "string",
+        "enum": [
+          "conversation"
+        ]
+      },
+      "MomentOutline": {
+        "type": "object",
+        "description": "One entry of a day's outline, in the same order as the timeline returns its cards.",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Moment id, equal to the id of the card it previews."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MomentKind"
+          }
+        }
       },
       "NewPath": {
         "type": "object",

@@ -52,10 +52,14 @@ const detail: Detail = {
 function mockApi() {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const path = requestPath(url);
-    if (path === "/api/timeline") {
+    if (path === "/api/timeline" || path === "/api/timeline/outline") {
       const query = new URL(testRequest(url).url).searchParams;
+      const listed =
+        Number(query.get("start")) === dayRange(day).start ? moments : [];
       return Response.json(
-        Number(query.get("start")) === dayRange(day).start ? moments : [],
+        path === "/api/timeline"
+          ? listed
+          : listed.map(({ id, kind }) => ({ id, kind })),
       );
     }
     if (path === "/api/import/file")
@@ -158,7 +162,9 @@ it("restores the day from the address, falls back to today, and steps days in pl
   ]);
 });
 
-// Core test case: `specs/test-cases/web/navigation/text-nav-and-day-routes.md#returning-from-a-conversation-must-land-on-the-same-day-without-focusing-the-moment`
+// Core test cases:
+// - `specs/test-cases/web/navigation/text-nav-and-day-routes.md#returning-from-a-conversation-must-land-on-the-same-day-without-focusing-the-moment`
+// - `specs/test-cases/server/moment/timeline-loading.md#scrolling-to-a-moment-must-wait-for-card-heights-to-settle`
 it("scrolls to the moment named in the address without focusing it, then drops the target", async () => {
   mockApi();
   const { router } = mountApp("/?date=2025-09-30&moment=p1");
@@ -194,9 +200,15 @@ it("opens the day menu from the keyboard and returns focus on Escape", async () 
 // Core test cases:
 // - `specs/test-cases/server/import/import-entry.md#new-imports-must-start-from-the-day-menu-with-the-viewed-day-as-default`
 // - `specs/test-cases/server/import/import-entry.md#successful-import-must-open-the-reading-page-dated-to-the-submitted-occurrence`
+// - `specs/test-cases/server/moment/timeline-loading.md#skeletons-must-appear-only-while-a-day-has-no-cards-to-show`
 it("imports from the day menu at the viewed day and opens the reading page dated to it", async () => {
   const fetch = mockApi();
-  const { router, user } = mountApp("/?date=2025-09-30");
+  const { router, client, user } = mountApp("/?date=2025-09-30");
+  const outline = ["timeline", "2025-09-30", "outline"];
+  await waitFor(() =>
+    expect(client.getQueryState(outline)?.status).toBe("success"),
+  );
+  expect(client.getQueryState(outline)?.isInvalidated).toBe(false);
   await openImport(user);
   const dialog = await screen.findByRole("dialog", { name: "导入对话" });
   const now = new Date();
@@ -220,6 +232,8 @@ it("imports from the day menu at the viewed day and opens the reading page dated
   expect(address(router)).toBe(
     "/conversations/new?path=path-new&date=2025-09-30",
   );
+  // The import changed the day, so its outline must not seed placeholders for the old list.
+  expect(client.getQueryState(outline)?.isInvalidated).toBe(true);
   expect(screen.getByRole("link", { name: "← 9 月 30 日" })).toHaveAttribute(
     "href",
     "/?date=2025-09-30&moment=path-new",
@@ -310,15 +324,19 @@ it("reuses an idempotency key on retry after an ambiguous failure", async () => 
 });
 
 it("shows network and authentication failures with a way forward", async () => {
-  const fetch = vi
-    .spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(Response.json({}, { status: 503 }))
-    .mockResolvedValueOnce(Response.json({}, { status: 401 }));
+  const statuses = [503, 401];
+  const timeline = vi.fn();
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+    if (requestPath(url) !== "/api/timeline")
+      return Response.json({}, { status: 503 });
+    timeline();
+    return Response.json({}, { status: statuses.shift() });
+  });
   const { user } = mountApp("/?date=2025-09-30");
   expect(await screen.findByRole("alert")).toHaveTextContent("服务暂时不可用");
   await user.click(screen.getByRole("button", { name: "重试" }));
   expect(
     await screen.findByRole("link", { name: "前往登录 →" }),
   ).toHaveAttribute("href", "/auth/login");
-  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(timeline).toHaveBeenCalledTimes(2);
 });

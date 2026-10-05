@@ -84,6 +84,7 @@ docker run --publish 8080:8080 --env-file .env palace:local
 | `POST /api/import` | JSON 对象：title、source、session_id、history（原始 JSON 文本字符串）、idempotency_key、occurred_at（epoch 毫秒） |
 | `POST /api/import/file` | multipart 同名字段；history 为文件原始字节 |
 | `GET /api/timeline?start=&end=` | 调用方本地日期区间内的 Moment，按发生时间排序，含卡片字段 |
+| `GET /api/timeline/outline?start=&end=` | 同一区间内 Moment 的 `id` 与 `kind`，顺序与时间线一致，不读详情 |
 | `GET /api/conversations/{id}` | 对话、消息树、各 Path 标题和受控来源链接 |
 | `GET /api/conversations/{id}/paths/{path_id}` | 来源 Path 对应的完整祖先路径 |
 | `POST /api/conversations/{id}/paths` | 在已有树中新建带标题的分支，JSON 不接受来源 |

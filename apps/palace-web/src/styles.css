@@ -280,6 +280,94 @@ ol.timeline {
   text-underline-offset: 4px;
 }
 
+/*
+ * Placeholders: the shape of a card in quiet blocks that breathe together, never a sweeping
+ * shimmer. A placeholder grows into its card in the same item; while it does, the item clips its
+ * content to the animated height and the placeholder fades out over the arriving card.
+ */
+.moment .skeleton {
+  display: block;
+  animation: breathe 1.6s ease-in-out infinite;
+}
+
+.moment .skeleton .bar {
+  display: block;
+  height: 14px;
+  margin: 6px 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+}
+
+.moment .skeleton .bar.head {
+  width: 42%;
+  height: 22px;
+  margin: 5px 0;
+}
+
+.moment .skeleton .bar.meta {
+  width: 22%;
+  margin: 8px 0 0;
+}
+
+.moment .skeleton .excerpt {
+  display: block;
+  margin: 18px 0 0;
+  padding: 16px 40px;
+  border-left: 3px solid var(--accent-soft);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--bg-sunken);
+}
+
+.moment .skeleton .excerpt .bar {
+  width: 78%;
+  background: var(--border);
+}
+
+.moment .skeleton .excerpt .bar.short {
+  width: 52%;
+}
+
+.moment[data-state="arriving"],
+.moment[data-state="entering"],
+.moment[data-state="leaving"] {
+  position: relative;
+  overflow: hidden;
+}
+
+.moment[data-state="arriving"] > :not(.skeleton) {
+  animation: fade-in 280ms ease-out both;
+}
+
+.moment .skeleton.fading {
+  position: absolute;
+  inset: 0 0 auto;
+  animation: fade-out 280ms ease-out forwards;
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moment .skeleton {
+    animation: none;
+  }
+}
+
 blockquote.chat {
   margin: 18px 0 0;
   padding: 16px 40px;

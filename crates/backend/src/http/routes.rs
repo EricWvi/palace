@@ -5,6 +5,7 @@ pub(super) const SYNC: &str = "/api/sync";
 pub(super) const IMPORT: &str = "/api/import";
 pub(super) const IMPORT_FILE: &str = "/api/import/file";
 pub(super) const TIMELINE: &str = "/api/timeline";
+pub(super) const TIMELINE_OUTLINE: &str = "/api/timeline/outline";
 pub(super) const CONVERSATION: &str = "/api/conversations/{id}";
 pub(super) const PATHS: &str = "/api/conversations/{id}/paths";
 pub(super) const PATH: &str = "/api/conversations/{id}/paths/{path_id}";
@@ -34,6 +35,7 @@ macro_rules! business_routes {
             post IMPORT => business::import_text,
             post IMPORT_FILE => business::import_file,
             get TIMELINE => timeline::timeline,
+            get TIMELINE_OUTLINE => timeline::outline,
             get CONVERSATION => business::conversation,
             delete CONVERSATION => path_management::delete_conversation,
             post PATHS => path_management::create,

@@ -170,3 +170,27 @@ impl From<palace_db::Moment> for Moment {
         }
     }
 }
+
+/// One entry of a day's outline, in the same order as the timeline returns its cards.
+#[derive(Serialize, ToSchema)]
+pub(crate) struct MomentOutline {
+    /// Moment id, equal to the id of the card it previews.
+    pub id: Uuid,
+    pub kind: MomentKind,
+}
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum MomentKind {
+    Conversation,
+}
+impl From<palace_db::MomentOutline> for MomentOutline {
+    /// Keeps the public kind vocabulary exhaustive when the database gains a kind.
+    fn from(value: palace_db::MomentOutline) -> Self {
+        Self {
+            id: value.id,
+            kind: match value.kind {
+                palace_db::MomentKind::Conversation => MomentKind::Conversation,
+            },
+        }
+    }
+}
