@@ -61,10 +61,9 @@ mod tests {
     async fn cache_headers_follow_file_naming() {
         let dist = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dist.path().join("assets")).unwrap();
-        std::fs::create_dir_all(dist.path().join("r")).unwrap();
         std::fs::write(dist.path().join("index.html"), "index").unwrap();
         std::fs::write(dist.path().join("assets").join("app-1a2b.js"), "app").unwrap();
-        std::fs::write(dist.path().join("r").join("style.json"), "{}").unwrap();
+        std::fs::write(dist.path().join("favicon-light.png"), "icon").unwrap();
         let app = web_app(dist.path());
         let mut observed = Vec::new();
         for path in [
@@ -72,7 +71,7 @@ mod tests {
             "/assets/missing-0000.js",
             "/",
             "/conversations/some-id?path=p&date=2025-09-30",
-            "/r/style.json",
+            "/favicon-light.png",
         ] {
             let response = app
                 .clone()
@@ -106,7 +105,7 @@ mod tests {
                     no_cache.clone(),
                     "index".to_owned()
                 ),
-                ("/r/style.json", 200, no_cache, "{}".to_owned()),
+                ("/favicon-light.png", 200, no_cache, "icon".to_owned()),
             ]
         );
     }
