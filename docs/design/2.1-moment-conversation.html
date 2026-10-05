@@ -279,14 +279,14 @@
     <header class="conversation">
       <a class="back" id="back" hidden></a>
       <div class="title-row">
-        <h1>计划周末出行</h1>
+        <h1 id="title">计划周末出行</h1>
         <div class="manage">
           <button class="more" id="more" aria-label="管理对话" aria-haspopup="menu" aria-expanded="false"
             aria-controls="menu">···</button>
           <ul class="menu" id="menu" role="menu" hidden>
-            <li role="none"><button role="menuitem">编辑</button></li>
+            <li role="none"><button role="menuitem">编辑对话</button></li>
             <li role="none"><button role="menuitem">分支管理</button></li>
-            <li role="none"><button role="menuitem">删除</button></li>
+            <li role="none"><button role="menuitem">删除对话</button></li>
           </ul>
         </div>
       </div>
@@ -382,6 +382,9 @@
       ],
     };
 
+    // Each Path carries its own title, so a branch that changed course can say so.
+    const titles = { coast: "计划周末出行", reyes: "改去 Point Reyes" };
+
     const speakers = { user: "你", assistant: "ChatGPT" };
     const list = document.getElementById("messages");
     const params = new URLSearchParams(location.search);
@@ -405,6 +408,8 @@
         .join("");
       const fork = `<li class="fork">此处分为 ${Object.keys(branches).length} 支：<span class="options">${options}</span></li>`;
       list.innerHTML = trunk.map(message).join("") + fork + branches[path].map(message).join("");
+      document.getElementById("title").textContent = titles[path];
+      document.title = titles[path];
       document.getElementById("count").textContent = `${trunk.length + branches[path].length} 条消息`;
     };
     render();
