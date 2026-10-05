@@ -1,17 +1,25 @@
 import { expect, expectTypeOf, it, vi } from "vitest";
-import { api, apiData, ApiError, libraryOptions, serializeImport } from "./api";
+import {
+  api,
+  apiData,
+  ApiError,
+  serializeImport,
+  timelineOptions,
+} from "./api";
 import type { components } from "./generated/api";
 import { testRequest } from "./test-request";
+
+const day = timelineOptions("1970-01-01", { start: 1000, end: 2000 });
 
 it("sends same-origin credentials and serializes typed path parameters", async () => {
   const fetch = vi
     .spyOn(globalThis, "fetch")
     .mockResolvedValue(Response.json([]));
-  expect(await libraryOptions.queryFn()).toEqual([]);
+  expect(await day.queryFn()).toEqual([]);
   const request = testRequest(fetch.mock.calls[0][0]);
   expect([request.method, request.url, request.credentials]).toEqual([
     "GET",
-    new URL("/api/conversations", window.location.origin).href,
+    new URL("/api/timeline?start=1000&end=2000", window.location.origin).href,
     "same-origin",
   ]);
   fetch.mockResolvedValueOnce(Response.json({ id: "a/b" }));
@@ -30,12 +38,12 @@ it("sends same-origin credentials and serializes typed path parameters", async (
 it.each([
   [401, '{"error":"unauthorized","login":"/auth/login"}', "请先登录后再继续。"],
   [403, "Origin rejected", "请求来源未被允许，请检查开发环境配置。"],
-  [404, "null", "找不到这段会话。"],
-  [409, "{}", "导入请求冲突，请重新打开导入窗口。"],
+  [404, "null", "找不到这段对话。"],
+  [409, "{}", "请求冲突，请重新打开窗口后再试。"],
   [
     409,
     '{"error":"session_already_exists"}',
-    "该来源已有相同的 Session ID，请检查来源或对应会话。",
+    "该来源已有相同的 Session ID，请检查来源或对应对话。",
   ],
   [413, "body too large", "文件或消息超过大小限制。"],
   [
@@ -48,17 +56,15 @@ it.each([
   vi.spyOn(globalThis, "fetch").mockResolvedValue(
     new Response(body, { status }),
   );
-  await expect(libraryOptions.queryFn()).rejects.toEqual(
-    new ApiError(status, message),
-  );
+  await expect(day.queryFn()).rejects.toEqual(new ApiError(status, message));
 });
 
 it("propagates network failures and rejects empty successful responses", async () => {
   const failure = new Error("网络中断");
   const fetch = vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(failure);
-  await expect(libraryOptions.queryFn()).rejects.toBe(failure);
+  await expect(day.queryFn()).rejects.toBe(failure);
   fetch.mockResolvedValueOnce(new Response(""));
-  await expect(libraryOptions.queryFn()).rejects.toEqual(
+  await expect(day.queryFn()).rejects.toEqual(
     new ApiError(200, "服务暂时不可用，请稍后重试。"),
   );
 });
@@ -122,19 +128,29 @@ it("keeps browser bodies, nullable fields and cursors tied to generated types", 
   const compileOnly = () => {
     // @ts-expect-error Unknown API paths must not compile.
     api.GET("/api/unknown");
-    // @ts-expect-error The list endpoint has no PUT operation.
-    api.PUT("/api/conversations", { body: {} });
+    // @ts-expect-error The timeline is read-only.
+    api.PUT("/api/timeline", { body: {} });
     // @ts-expect-error The detail operation requires its id.
     api.GET("/api/conversations/{id}");
-    api.PUT("/api/conversations/{id}", {
-      params: { path: { id: "id" } },
+    api.PUT("/api/conversations/{id}/paths/{path_id}/metadata", {
+      params: { path: { id: "id", path_id: "path" } },
       // @ts-expect-error Unknown source values must not compile.
       body: { title: "title", source: "unknown" },
     });
     api.PUT("/api/conversations/{id}/paths/{path_id}", {
       params: { path: { id: "id", path_id: "path" } },
-      // @ts-expect-error JSON timestamps are numbers, unlike multipart timestamps.
-      body: { history: "[]", occurred_at: "123", idempotency_key: "key" },
+      body: {
+        title: "t",
+        history: "[]",
+        // @ts-expect-error JSON timestamps are numbers, unlike multipart timestamps.
+        occurred_at: "123",
+        idempotency_key: "key",
+      },
+    });
+    api.PUT("/api/conversations/{id}/paths/{path_id}", {
+      params: { path: { id: "id", path_id: "path" } },
+      // @ts-expect-error An update names its path, so the title is required.
+      body: { history: "[]", occurred_at: 123, idempotency_key: "key" },
     });
   };
   expectTypeOf(compileOnly).toBeFunction();

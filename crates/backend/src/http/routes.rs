@@ -4,10 +4,11 @@ pub(super) const ME: &str = "/api/me";
 pub(super) const SYNC: &str = "/api/sync";
 pub(super) const IMPORT: &str = "/api/import";
 pub(super) const IMPORT_FILE: &str = "/api/import/file";
-pub(super) const CONVERSATIONS: &str = "/api/conversations";
+pub(super) const TIMELINE: &str = "/api/timeline";
 pub(super) const CONVERSATION: &str = "/api/conversations/{id}";
 pub(super) const PATHS: &str = "/api/conversations/{id}/paths";
 pub(super) const PATH: &str = "/api/conversations/{id}/paths/{path_id}";
+pub(super) const PATH_METADATA: &str = "/api/conversations/{id}/paths/{path_id}/metadata";
 pub(super) const LOGIN: &str = "/auth/login";
 pub(super) const CALLBACK: &str = "/auth/callback";
 pub(super) const LOGOUT: &str = "/auth/logout";
@@ -32,14 +33,14 @@ macro_rules! business_routes {
             post SYNC => sync::upload,
             post IMPORT => business::import_text,
             post IMPORT_FILE => business::import_file,
-            get CONVERSATIONS => business::conversations,
+            get TIMELINE => timeline::timeline,
             get CONVERSATION => business::conversation,
-            put CONVERSATION => business::update_conversation,
             delete CONVERSATION => path_management::delete_conversation,
             post PATHS => path_management::create,
             get PATH => business::path,
             put PATH => path_management::update,
             delete PATH => path_management::delete,
+            put PATH_METADATA => path_management::update_metadata,
         }
     };
 }

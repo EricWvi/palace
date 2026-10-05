@@ -40,6 +40,21 @@ export interface BranchChoice {
   pathId: string;
 }
 
+// A fork option is named by the first words of its branch, the way a reader remembers it.
+const LABEL_CHARS = 14;
+function optionLabel(content: string): string {
+  // Markdown markers would eat into the few characters shown; they never read as words.
+  const text = content
+    .replace(/[#*_`>~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return "（空消息）";
+  const chars = [...text];
+  return chars.length > LABEL_CHARS
+    ? `${chars.slice(0, LABEL_CHARS).join("")}…`
+    : text;
+}
+
 // A continuation selects the newest complete path in that subtree; each endpoint keeps its session.
 export function branchChoices(
   paths: ResolvedPath[],
@@ -47,21 +62,25 @@ export function branchChoices(
   after: number,
 ): BranchChoice[] {
   const choices = new Map<string, BranchChoice>();
+  const endings: ConversationPath[] = [];
   for (const candidate of paths) {
     // A message has exactly one parent, so matching this node proves the entire prefix.
     if (candidate.messages[after]?.id !== selected.messages[after]?.id)
       continue;
     const next = candidate.messages[after + 1];
+    if (!next) endings.push(candidate.path);
     const key = next ? `message:${next.id}` : `path:${candidate.path.id}`;
     if (!choices.has(key))
       choices.set(key, {
         key,
-        label: next
-          ? `${next.role === "user" ? "你" : "回答"}：${next.content.slice(0, 60) || "（空消息）"}`
-          : `在此结束 · ${candidate.path.session_id}`,
+        label: next ? optionLabel(next.content) : "",
         pathId: candidate.path.id,
       });
   }
+  // Several sessions may stop at the same message; only then does the session tell them apart.
+  for (const path of endings)
+    choices.get(`path:${path.id}`)!.label =
+      endings.length > 1 ? `在此结束 · ${path.session_id}` : "在此结束";
   return [...choices.values()];
 }
 

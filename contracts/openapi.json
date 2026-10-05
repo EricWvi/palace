@@ -9,89 +9,6 @@
     "version": "1.0.0"
   },
   "paths": {
-    "/api/conversations": {
-      "get": {
-        "tags": [
-          "business"
-        ],
-        "summary": "Lists each conversation once, ordered by its newest user-selected conversation occurrence time.",
-        "operationId": "conversations",
-        "responses": {
-          "200": {
-            "description": "Successful operation",
-            "headers": {
-              "Cache-Control": {
-                "schema": {
-                  "type": "string"
-                },
-                "description": "no-store"
-              },
-              "Set-Cookie": {
-                "schema": {
-                  "type": "string"
-                },
-                "description": "Refreshed production session; absent in fixed-user mode"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ConversationSummary"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Identity, source session or idempotency conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal persistence or response failure",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Identity provider temporarily unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "session": []
-          }
-        ]
-      }
-    },
     "/api/conversations/{id}": {
       "get": {
         "tags": [
@@ -153,150 +70,6 @@
           },
           "401": {
             "description": "Authentication required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource unavailable in owner scope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Identity, source session or idempotency conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal persistence or response failure",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Identity provider temporarily unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "session": []
-          }
-        ]
-      },
-      "put": {
-        "tags": [
-          "business"
-        ],
-        "summary": "Replaces editable card metadata without exposing tree or owner reassignment.",
-        "operationId": "update_conversation",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "Owner-scoped UUID",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "Origin",
-            "in": "header",
-            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConversationMetadata"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful operation",
-            "headers": {
-              "Cache-Control": {
-                "schema": {
-                  "type": "string"
-                },
-                "description": "no-store"
-              },
-              "Set-Cookie": {
-                "schema": {
-                  "type": "string"
-                },
-                "description": "Refreshed production session; absent in fixed-user mode"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConversationMetadataResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid input; JSON domain error or native extractor text as declared",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InputErrorResponse"
-                }
-              },
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Origin rejected",
             "content": {
               "application/json": {
                 "schema": {
@@ -487,7 +260,7 @@
         "tags": [
           "path_management"
         ],
-        "summary": "Branch creation derives title and source exclusively from the owner-scoped conversation.",
+        "summary": "Branch creation names its own path but derives the source exclusively from the owner-scoped conversation.",
         "operationId": "create",
         "parameters": [
           {
@@ -771,7 +544,7 @@
         "tags": [
           "path_management"
         ],
-        "summary": "Updates keep the session identity fixed and validate the full historical prefix in the transaction.",
+        "summary": "Updates keep the session identity fixed, may rename the path, and validate the full historical prefix in the transaction.",
         "operationId": "update",
         "parameters": [
           {
@@ -996,6 +769,162 @@
           "400": {
             "description": "Invalid input; JSON domain error or native extractor text as declared",
             "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Identity, source session or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/conversations/{id}/paths/{path_id}/metadata": {
+      "put": {
+        "tags": [
+          "path_management"
+        ],
+        "summary": "Renames one path and corrects the conversation source; tree and owner stay untouched.",
+        "operationId": "update_path_metadata",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "path_id",
+            "in": "path",
+            "description": "Owner-scoped UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PathMetadata"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathMetadataResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
               "text/plain": {
                 "schema": {
                   "type": "string"
@@ -1724,6 +1653,126 @@
         ]
       }
     },
+    "/api/timeline": {
+      "get": {
+        "tags": [
+          "timeline"
+        ],
+        "summary": "Lists one local day of moments; the browser supplies the day's bounds in its own time zone.",
+        "operationId": "timeline",
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "description": "Inclusive start, Unix epoch milliseconds computed in the caller's time zone.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "description": "Exclusive end, Unix epoch milliseconds; after start and at most 48 hours later.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Moments ordered by occurrence time, then id",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Moment"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Identity, source session or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/auth/callback": {
       "get": {
         "tags": [
@@ -2058,7 +2107,6 @@
         "required": [
           "id",
           "owner_id",
-          "title",
           "source"
         ],
         "properties": {
@@ -2072,9 +2120,6 @@
           },
           "source": {
             "$ref": "#/components/schemas/Source"
-          },
-          "title": {
-            "type": "string"
           }
         }
       },
@@ -2103,40 +2148,52 @@
           }
         }
       },
-      "ConversationMetadata": {
+      "ConversationMoment": {
         "type": "object",
-        "required": [
-          "title",
-          "source"
-        ],
-        "properties": {
-          "source": {
-            "$ref": "#/components/schemas/Source"
-          },
-          "title": {
-            "type": "string",
-            "description": "Nonblank after trimming; at most 1024 UTF-8 bytes; no normalization."
-          }
-        },
-        "additionalProperties": false
-      },
-      "ConversationMetadataResponse": {
-        "type": "object",
+        "description": "A conversation moment is one path of a conversation tree.",
         "required": [
           "id",
+          "occurred_at",
+          "conversation_id",
           "title",
-          "source"
+          "source",
+          "message_count",
+          "excerpt"
         ],
         "properties": {
-          "id": {
+          "conversation_id": {
             "type": "string",
             "format": "uuid"
           },
+          "excerpt": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExcerptLine"
+            },
+            "description": "Up to the first two messages of the path as plain text, each at most 120 characters plus an ellipsis."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Moment id, equal to the path id."
+          },
+          "message_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Messages from the root to the end of this path."
+          },
+          "occurred_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds selected by the user."
+          },
           "source": {
-            "$ref": "#/components/schemas/Source"
+            "$ref": "#/components/schemas/Source",
+            "description": "Source of the whole conversation."
           },
           "title": {
-            "type": "string"
+            "type": "string",
+            "description": "Title of this path."
           }
         }
       },
@@ -2144,6 +2201,7 @@
         "type": "object",
         "required": [
           "id",
+          "title",
           "session_id",
           "head_message_id",
           "occurred_at",
@@ -2182,63 +2240,14 @@
           "session_id": {
             "type": "string"
           },
+          "title": {
+            "type": "string",
+            "description": "The title of this source session; other paths of the tree have their own."
+          },
           "updated_at": {
             "type": "integer",
             "format": "int64",
             "description": "Unix epoch milliseconds assigned by the database."
-          }
-        }
-      },
-      "ConversationSummary": {
-        "type": "object",
-        "required": [
-          "id",
-          "title",
-          "source",
-          "session_ids",
-          "path_count",
-          "path_id",
-          "occurred_at",
-          "head_message_id",
-          "message_count"
-        ],
-        "properties": {
-          "head_message_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "message_count": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "occurred_at": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Unix epoch milliseconds selected by the user."
-          },
-          "path_count": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "path_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "session_ids": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "source": {
-            "$ref": "#/components/schemas/Source"
-          },
-          "title": {
-            "type": "string"
           }
         }
       },
@@ -2284,6 +2293,21 @@
           "login": {
             "type": "string",
             "description": "/auth/login for authentication_required; the empty string for other errors. Always present."
+          }
+        }
+      },
+      "ExcerptLine": {
+        "type": "object",
+        "required": [
+          "role",
+          "text"
+        ],
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "text": {
+            "type": "string"
           }
         }
       },
@@ -2447,9 +2471,36 @@
           }
         }
       },
+      "Moment": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConversationMoment"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "conversation"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "One timeline entry; `kind` selects the card fields that follow."
+      },
       "NewPath": {
         "type": "object",
         "required": [
+          "title",
           "session_id",
           "history",
           "occurred_at",
@@ -2474,6 +2525,10 @@
           "session_id": {
             "type": "string",
             "description": "1..512 UTF-8 bytes; same source identity validation as initial import."
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the new path. Nonblank after trimming; at most 1024 UTF-8 bytes."
           }
         },
         "additionalProperties": false
@@ -2496,6 +2551,49 @@
           "identity_id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "PathMetadata": {
+        "type": "object",
+        "required": [
+          "title",
+          "source"
+        ],
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/Source",
+            "description": "Source of the whole conversation; it cascades to every path."
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of the addressed path. Nonblank after trimming; at most 1024 UTF-8 bytes; no normalization."
+          }
+        },
+        "additionalProperties": false
+      },
+      "PathMetadataResponse": {
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "path_id",
+          "title",
+          "source"
+        ],
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "path_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "title": {
+            "type": "string"
           }
         }
       },
@@ -2624,6 +2722,7 @@
       "UpdatePath": {
         "type": "object",
         "required": [
+          "title",
           "history",
           "occurred_at",
           "idempotency_key"
@@ -2643,6 +2742,10 @@
             "description": "Unix epoch milliseconds selected by the user.",
             "maximum": 253402300799999,
             "minimum": -62135596800000
+          },
+          "title": {
+            "type": "string",
+            "description": "Replaces the path title. Nonblank after trimming; at most 1024 UTF-8 bytes."
           }
         },
         "additionalProperties": false

@@ -43,6 +43,8 @@ pub(crate) struct FileImport {
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct NewPath {
+    /// Title of the new path. Nonblank after trimming; at most 1024 UTF-8 bytes.
+    pub title: String,
     /// 1..512 UTF-8 bytes; same source identity validation as initial import.
     pub session_id: String,
     /// Original JSON array text, with the same limits as TextImport.history.
@@ -56,6 +58,8 @@ pub(crate) struct NewPath {
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct UpdatePath {
+    /// Replaces the path title. Nonblank after trimming; at most 1024 UTF-8 bytes.
+    pub title: String,
     /// Full historical prefix plus appended messages as original JSON text; TextImport limits apply.
     pub history: String,
     /// Unix epoch milliseconds selected by the user.
@@ -66,10 +70,19 @@ pub(crate) struct UpdatePath {
 }
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct ConversationMetadata {
-    /// Nonblank after trimming; at most 1024 UTF-8 bytes; no normalization.
+pub(crate) struct PathMetadata {
+    /// Title of the addressed path. Nonblank after trimming; at most 1024 UTF-8 bytes; no normalization.
     pub title: String,
+    /// Source of the whole conversation; it cascades to every path.
     pub source: Source,
+}
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(crate) struct TimelineRange {
+    /// Inclusive start, Unix epoch milliseconds computed in the caller's time zone.
+    pub start: i64,
+    /// Exclusive end, Unix epoch milliseconds; after start and at most 48 hours later.
+    pub end: i64,
 }
 #[derive(Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]

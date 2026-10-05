@@ -30,8 +30,11 @@ async fn call(
         serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
     (status, body)
 }
-/// Covers metadata rejection, unique source links, append-only updates, owner isolation and deletion.
+/// Covers branch titles, path metadata edits, unique source links, append-only updates, owner
+/// isolation and deletion.
 /// Core test cases:
+/// - `specs/test-cases/server/import/linear-path-import.md#every-import-must-carry-a-valid-path-title`
+/// - `specs/test-cases/server/conversation/message-tree.md#each-path-must-own-its-title-independently`
 /// - `specs/test-cases/server/conversation/message-tree.md#source-sessions-must-uniquely-identify-owned-paths`
 /// - `specs/test-cases/server/conversation/message-tree.md#metadata-correction-must-atomically-preserve-conversation-tree-identities`
 /// - `specs/test-cases/server/import/linear-path-import.md#path-updates-must-retain-the-entire-historical-prefix`
@@ -44,12 +47,18 @@ pub(super) async fn exercise_path_lifecycle(app: &Router, cookie: &str, foreign:
     let id = first["conversation_id"].as_str().unwrap();
     let url = format!("/api/conversations/{id}");
     let branch_url = format!("{url}/paths");
-    let branch = json!({"session_id":"http-branch","history":history,"occurred_at":2000,"idempotency_key":"http-branch"});
-    for (field, value) in [
-        ("title", json!("injected")),
-        ("source", json!("grok")),
-        ("owner_id", json!(id)),
-    ] {
+    let branch = json!({"title":"branch title","session_id":"http-branch","history":history,"occurred_at":2000,"idempotency_key":"http-branch"});
+    let mut untitled = branch.clone();
+    untitled.as_object_mut().unwrap().remove("title");
+    let mut blank = branch.clone();
+    blank["title"] = json!(" ");
+    for invalid in [untitled, blank] {
+        assert_eq!(
+            call(app, cookie, "POST", &branch_url, invalid).await.0,
+            StatusCode::BAD_REQUEST
+        );
+    }
+    for (field, value) in [("source", json!("grok")), ("owner_id", json!(id))] {
         let mut invalid = branch.clone();
         invalid[field] = value;
         assert_eq!(
@@ -75,30 +84,29 @@ pub(super) async fn exercise_path_lifecycle(app: &Router, cookie: &str, foreign:
         call(app, cookie, "POST", "/api/import", duplicate).await.0,
         StatusCode::CONFLICT
     );
+    let first_path = first["path_id"].as_str().unwrap();
+    let metadata_url = format!("{branch_url}/{first_path}/metadata");
     assert_eq!(
         call(
             app,
             foreign,
             "PUT",
-            &url,
+            &metadata_url,
             json!({"title":"foreign","source":"grok"}),
         )
         .await
         .0,
         StatusCode::NOT_FOUND
     );
-    assert_eq!(
-        call(
-            app,
-            cookie,
-            "PUT",
-            &url,
-            json!({"title":"invalid","source":"unknown"}),
-        )
-        .await
-        .0,
-        StatusCode::BAD_REQUEST
-    );
+    for invalid in [
+        json!({"title":"invalid","source":"unknown"}),
+        json!({"title":" ","source":"grok"}),
+    ] {
+        assert_eq!(
+            call(app, cookie, "PUT", &metadata_url, invalid).await.0,
+            StatusCode::BAD_REQUEST
+        );
+    }
     let legacy = app
         .clone()
         .oneshot(request(
@@ -117,18 +125,26 @@ pub(super) async fn exercise_path_lifecycle(app: &Router, cookie: &str, foreign:
             app,
             cookie,
             "PUT",
-            &url,
+            &metadata_url,
             json!({"title":"corrected","source":"gemini"}),
         )
         .await,
         (
             StatusCode::OK,
-            json!({"id":id,"title":"corrected","source":"gemini"})
+            json!({"conversation_id":id,"path_id":first_path,"title":"corrected","source":"gemini"})
         )
     );
     let (_, corrected) = call(app, cookie, "GET", &url, json!({})).await;
-    assert_eq!(corrected["conversation"]["title"], "corrected");
     assert_eq!(corrected["conversation"]["source"], "gemini");
+    // Only the addressed path is renamed; the branch keeps the title it was imported with.
+    let mut titles: Vec<_> = corrected["paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|path| path["title"].as_str().unwrap())
+        .collect();
+    titles.sort();
+    assert_eq!(titles, vec!["branch title", "corrected"]);
     assert!(corrected["paths"].as_array().unwrap().iter().all(|path| {
         path["original_link"]
             .as_str()
@@ -136,12 +152,12 @@ pub(super) async fn exercise_path_lifecycle(app: &Router, cookie: &str, foreign:
             .starts_with("https://gemini.google.com/app/")
     }));
     let path_url = format!("{branch_url}/{}", second["path_id"].as_str().unwrap());
-    let update = json!({"history":format!("{},{{\"role\":\"user\",\"content\":\"U2\"}}]",&history[..history.len()-1]),"occurred_at":3000,"idempotency_key":"http-update"});
+    let update = json!({"title":"continued","history":format!("{},{{\"role\":\"user\",\"content\":\"U2\"}}]",&history[..history.len()-1]),"occurred_at":3000,"idempotency_key":"http-update"});
     assert_eq!(
         call(app, cookie, "PUT", &path_url, update).await.0,
         StatusCode::OK
     );
-    let short = json!({"history":history,"occurred_at":4000,"idempotency_key":"http-truncate"});
+    let short = json!({"title":"continued","history":history,"occurred_at":4000,"idempotency_key":"http-truncate"});
     assert_eq!(
         call(app, cookie, "PUT", &path_url, short).await.0,
         StatusCode::BAD_REQUEST

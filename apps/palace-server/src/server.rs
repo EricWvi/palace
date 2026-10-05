@@ -4,7 +4,6 @@ use palace_db::{CredentialKey, Database};
 use palace_domain::{ImportLimits, SourceLinks};
 use palace_logging::{LogLevel, LogOutput, LoggingConfig, init_logging, palace_info, palace_warn};
 use std::path::PathBuf;
-use tower_http::services::{ServeDir, ServeFile};
 
 /// Composes the HTTP server and durable revocation worker from explicit deployment configuration.
 pub(crate) async fn run(
@@ -45,7 +44,6 @@ pub(crate) async fn run(
     let web_dist = std::env::var_os("PALACE_WEB_DIST")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("apps/palace-web/dist"));
-    let index = web_dist.join("index.html");
     let app = router(Server {
         database,
         provider,
@@ -55,7 +53,7 @@ pub(crate) async fn run(
         limits: ImportLimits::default(),
         now: now_seconds,
     })
-    .fallback_service(ServeDir::new(web_dist).not_found_service(ServeFile::new(index)));
+    .merge(crate::web_app::web_app(&web_dist));
     palace_info!(message="Palace server listening",address=%address);
     let result = axum::serve(listener, app)
         .with_graceful_shutdown(crate::runtime::shutdown())

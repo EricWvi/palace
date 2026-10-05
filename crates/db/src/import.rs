@@ -33,20 +33,15 @@ impl Database {
         }
         let (conversation_id, path_id, source, session_id, old_head) = match request.target() {
             ImportTarget::Conversation {
-                title,
-                source,
-                session_id,
+                source, session_id, ..
             } => {
                 let id = Uuid::now_v7();
-                sqlx::query(
-                    "INSERT INTO conversation(id,owner_id,title,source) VALUES($1,$2,$3,$4)",
-                )
-                .bind(id)
-                .bind(owner.id())
-                .bind(title)
-                .bind(source.as_str())
-                .execute(&mut *tx)
-                .await?;
+                sqlx::query("INSERT INTO conversation(id,owner_id,source) VALUES($1,$2,$3)")
+                    .bind(id)
+                    .bind(owner.id())
+                    .bind(source.as_str())
+                    .execute(&mut *tx)
+                    .await?;
                 (
                     id,
                     Uuid::now_v7(),
@@ -58,6 +53,7 @@ impl Database {
             ImportTarget::Branch {
                 conversation_id,
                 session_id,
+                ..
             } => {
                 let source: String = sqlx::query_scalar(
                     "SELECT source FROM conversation WHERE owner_id=$1 AND id=$2",
@@ -78,6 +74,7 @@ impl Database {
             ImportTarget::Update {
                 conversation_id,
                 path_id,
+                ..
             } => {
                 let row = sqlx::query("SELECT source,session_id,head_message_id FROM conversation_path WHERE owner_id=$1 AND conversation_id=$2 AND id=$3")
                     .bind(owner.id()).bind(conversation_id).bind(path_id).fetch_optional(&mut *tx).await?.ok_or(DbError::NotFound)?;
@@ -138,7 +135,7 @@ impl Database {
             return Err(InputError::new(
                 InputErrorKind::Field,
                 "history",
-                "新分支必须共享从根到 assistant 消息的完整前缀；无共同前缀请导入新会话",
+                "新分支必须共享从根到 assistant 消息的完整前缀；无共同前缀请导入新对话",
             )
             .into());
         }
@@ -150,12 +147,19 @@ impl Database {
             created,
             reused: request.messages().len() - created,
         };
+        let title = request.target().title();
         if old_head.is_some() {
-            sqlx::query("UPDATE conversation_path SET head_message_id=$4,message_count=$5,occurred_at=to_timestamp($6::double precision/1000.0),updated_at=GREATEST(date_trunc('milliseconds',clock_timestamp()),updated_at+interval '1 millisecond') WHERE owner_id=$1 AND conversation_id=$2 AND id=$3")
-                .bind(owner.id()).bind(conversation_id).bind(path_id).bind(result.head_message_id).bind(request.messages().len() as i64).bind(request.occurred_at()).execute(&mut *tx).await?;
+            sqlx::query("UPDATE conversation_path SET head_message_id=$4,message_count=$5,title=$6,updated_at=GREATEST(date_trunc('milliseconds',clock_timestamp()),updated_at+interval '1 millisecond') WHERE owner_id=$1 AND conversation_id=$2 AND id=$3")
+                .bind(owner.id()).bind(conversation_id).bind(path_id).bind(result.head_message_id).bind(request.messages().len() as i64).bind(title).execute(&mut *tx).await?;
+            // The moment follows the latest continuation, so an append moves it to the new day.
+            sqlx::query("UPDATE moment SET occurred_at=to_timestamp($3::double precision/1000.0) WHERE owner_id=$1 AND id=$2")
+                .bind(owner.id()).bind(path_id).bind(request.occurred_at()).execute(&mut *tx).await?;
         } else {
-            sqlx::query("INSERT INTO conversation_path(id,owner_id,conversation_id,source,session_id,head_message_id,message_count,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7,to_timestamp($8::double precision/1000.0))")
-                .bind(path_id).bind(owner.id()).bind(conversation_id).bind(source).bind(session_id).bind(result.head_message_id).bind(request.messages().len() as i64).bind(request.occurred_at()).execute(&mut *tx).await?;
+            // The moment comes first because the path's foreign key points at it.
+            sqlx::query("INSERT INTO moment(id,owner_id,kind,occurred_at) VALUES($1,$2,'conversation',to_timestamp($3::double precision/1000.0))")
+                .bind(path_id).bind(owner.id()).bind(request.occurred_at()).execute(&mut *tx).await?;
+            sqlx::query("INSERT INTO conversation_path(id,owner_id,conversation_id,source,session_id,head_message_id,message_count,title) VALUES($1,$2,$3,$4,$5,$6,$7,$8)")
+                .bind(path_id).bind(owner.id()).bind(conversation_id).bind(source).bind(session_id).bind(result.head_message_id).bind(request.messages().len() as i64).bind(title).execute(&mut *tx).await?;
         }
         sqlx::query("INSERT INTO conversation_import(id,owner_id,conversation_id,path_id,head_message_id,input_digest,message_count,idempotency_key,result,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,to_timestamp($10::double precision/1000.0))")
             .bind(result.import_id).bind(owner.id()).bind(conversation_id).bind(path_id).bind(result.head_message_id).bind(request.digest()).bind(request.messages().len() as i64).bind(request.idempotency_key()).bind(sqlx::types::Json(&result)).bind(request.occurred_at()).execute(&mut *tx).await?;

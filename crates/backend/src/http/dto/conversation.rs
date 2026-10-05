@@ -24,7 +24,6 @@ impl From<palace_db::Owner> for Owner {
 pub(crate) struct Conversation {
     pub id: Uuid,
     pub owner_id: Uuid,
-    pub title: String,
     pub source: Source,
 }
 impl From<palace_domain::Conversation> for Conversation {
@@ -33,7 +32,6 @@ impl From<palace_domain::Conversation> for Conversation {
         Self {
             id: value.id,
             owner_id: value.owner_id,
-            title: value.title,
             source: value.source.into(),
         }
     }
@@ -68,36 +66,6 @@ impl From<palace_domain::Message> for Message {
 }
 
 #[derive(Serialize, ToSchema)]
-pub(crate) struct ConversationSummary {
-    pub id: Uuid,
-    pub title: String,
-    pub source: Source,
-    pub session_ids: Vec<String>,
-    pub path_count: i64,
-    pub path_id: Uuid,
-    /// Unix epoch milliseconds selected by the user.
-    pub occurred_at: i64,
-    pub head_message_id: Uuid,
-    pub message_count: i64,
-}
-impl From<palace_db::ConversationSummary> for ConversationSummary {
-    /// Copies only the deliberately exposed wire fields from the persisted model.
-    fn from(value: palace_db::ConversationSummary) -> Self {
-        Self {
-            id: value.id,
-            title: value.title,
-            source: value.source.into(),
-            session_ids: value.session_ids,
-            path_count: value.path_count,
-            path_id: value.path_id,
-            occurred_at: value.occurred_at,
-            head_message_id: value.head_message_id,
-            message_count: value.message_count,
-        }
-    }
-}
-
-#[derive(Serialize, ToSchema)]
 pub(crate) struct ImportResult {
     pub import_id: Uuid,
     pub conversation_id: Uuid,
@@ -123,6 +91,8 @@ impl From<palace_db::ImportResult> for ImportResult {
 #[derive(Serialize, ToSchema)]
 pub(crate) struct ConversationPath {
     pub id: Uuid,
+    /// The title of this source session; other paths of the tree have their own.
+    pub title: String,
     pub session_id: String,
     pub head_message_id: Uuid,
     /// Unix epoch milliseconds selected by the user.
@@ -142,8 +112,61 @@ pub(crate) struct ConversationDetail {
     pub paths: Vec<ConversationPath>,
 }
 #[derive(Serialize, ToSchema)]
-pub(crate) struct ConversationMetadataResponse {
-    pub id: Uuid,
+pub(crate) struct PathMetadataResponse {
+    pub conversation_id: Uuid,
+    pub path_id: Uuid,
     pub title: String,
     pub source: Source,
+}
+
+/// One timeline entry; `kind` selects the card fields that follow.
+#[derive(Serialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub(crate) enum Moment {
+    Conversation(ConversationMoment),
+}
+/// A conversation moment is one path of a conversation tree.
+#[derive(Serialize, ToSchema)]
+pub(crate) struct ConversationMoment {
+    /// Moment id, equal to the path id.
+    pub id: Uuid,
+    /// Unix epoch milliseconds selected by the user.
+    pub occurred_at: i64,
+    pub conversation_id: Uuid,
+    /// Title of this path.
+    pub title: String,
+    /// Source of the whole conversation.
+    pub source: Source,
+    /// Messages from the root to the end of this path.
+    pub message_count: i64,
+    /// Up to the first two messages of the path as plain text, each at most 120 characters plus an ellipsis.
+    pub excerpt: Vec<ExcerptLine>,
+}
+#[derive(Serialize, ToSchema)]
+pub(crate) struct ExcerptLine {
+    pub role: Role,
+    pub text: String,
+}
+impl From<palace_db::Moment> for Moment {
+    /// Flattens the persisted kind into the wire `kind` tag.
+    fn from(value: palace_db::Moment) -> Self {
+        match value.detail {
+            palace_db::MomentDetail::Conversation(card) => Self::Conversation(ConversationMoment {
+                id: value.id,
+                occurred_at: value.occurred_at,
+                conversation_id: card.conversation_id,
+                title: card.title,
+                source: card.source.into(),
+                message_count: card.message_count,
+                excerpt: card
+                    .excerpt
+                    .into_iter()
+                    .map(|line| ExcerptLine {
+                        role: line.role.into(),
+                        text: line.text,
+                    })
+                    .collect(),
+            }),
+        }
+    }
 }

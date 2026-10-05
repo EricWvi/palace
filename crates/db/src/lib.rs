@@ -1,20 +1,20 @@
 //! PostgreSQL transactions enforce owner boundaries independently of HTTP inputs.
 mod conversation_delete;
-mod conversation_list;
 mod conversation_tree;
 pub use conversation_tree::{ConversationDetail, ConversationPath};
 mod import;
-pub use conversation_list::ConversationSummary;
 mod login;
 mod owner;
 mod session;
 mod session_crypto;
 mod sync;
+mod timeline;
 pub use session::{
     AuthenticatedSession, IdentityProvider, IdentityTokens, ProviderError, RevokeScope,
     SessionError,
 };
 pub use session_crypto::CredentialKey;
+pub use timeline::{ConversationCard, ExcerptLine, Moment, MomentDetail};
 
 pub use import::ImportResult;
 pub use owner::{Owner, OwnerScope};

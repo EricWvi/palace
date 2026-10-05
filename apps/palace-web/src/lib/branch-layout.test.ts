@@ -6,6 +6,7 @@ import type { ConversationPath, Message } from "./api";
 function path(id: string): ConversationPath {
   return {
     id,
+    title: id,
     session_id: id,
     head_message_id: id,
     message_count: 1,

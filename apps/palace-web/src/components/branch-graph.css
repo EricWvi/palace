@@ -1,59 +1,53 @@
+/* The branch canvas takes every color from the Palace tokens, so it follows dark mode too. */
 .branch-graph {
   height: clamp(340px, 58dvh, 620px);
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  background: #f5f7f1;
-  --xy-edge-stroke-default: #9aab89;
-  --xy-edge-stroke-width-default: 2;
-  --xy-controls-button-background-color-default: #fffefa;
-  --xy-controls-button-color-default: #546b40;
+  background: var(--bg-sunken);
+  --xy-edge-stroke-default: var(--text-3);
+  --xy-edge-stroke-width-default: 1.5;
+  --xy-controls-button-background-color-default: var(--surface-raised);
+  --xy-controls-button-background-color-hover-default: var(--bg-sunken);
+  --xy-controls-button-color-default: var(--text-2);
+  --xy-controls-button-border-color-default: var(--border);
 }
 .branch-node-card {
   height: 100%;
   padding: 14px 16px;
-  background: var(--background);
-  border: 1px solid #d6ddce;
-  border-radius: 14px;
-  box-shadow: 0 3px 12px #3546290a;
-  transition:
-    border-color 150ms,
-    box-shadow 150ms;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color 150ms;
 }
 .branch-node-card.has-paths {
-  border-top: 3px solid #8ca477;
-  padding-top: 12px;
+  border-top: 2px solid var(--accent);
+  padding-top: 13px;
 }
 .branch-node-card:hover,
 .branch-node-card:focus-within {
-  border-color: #8ca477;
-  box-shadow: 0 6px 18px #35462918;
+  border-color: var(--text-3);
 }
 .branch-node-heading {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--muted-foreground);
-  font-size: 10px;
   margin-bottom: 9px;
-  letter-spacing: 0.04em;
+  color: var(--text-3);
+  font-size: var(--font-size-xs);
 }
 .branch-node-count {
-  display: flex;
-  align-items: center;
-  gap: 3px;
   margin-left: auto;
-  color: var(--primary);
+  color: var(--accent);
 }
 .branch-node-card .branch-node-text {
-  font-size: 13px;
-  font-weight: 550;
+  font-size: var(--font-size-sm);
   line-height: 20px;
   margin: 0;
 }
 .branch-node-sessions {
-  border-top: 1px solid #ecefe6;
+  border-top: 1px solid var(--border);
   margin-top: 12px;
 }
 .branch-node-card .path-actions {
@@ -62,8 +56,8 @@
   gap: 8px;
 }
 .branch-node-card .path-session {
-  font-family: ui-monospace, monospace;
-  font-size: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 .branch-node-buttons {
   display: flex;
@@ -73,9 +67,9 @@
   transition: opacity 120ms;
 }
 .branch-node-buttons button {
-  width: 28px;
   height: 28px;
-  border-radius: 7px;
+  padding: 0 8px;
+  font-size: var(--font-size-xs);
 }
 .branch-node-card:hover .branch-node-buttons,
 .branch-node-card:focus-within .branch-node-buttons {
@@ -85,14 +79,14 @@
 .branch-graph .react-flow__handle {
   width: 7px;
   height: 7px;
-  background: #a3b594;
-  border: 2px solid #f5f7f1;
+  background: var(--text-3);
+  border: 2px solid var(--bg-sunken);
 }
 .branch-graph .react-flow__controls {
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 2px 8px #3546290d;
+  border-radius: var(--radius-md);
+  box-shadow: none;
 }
 .branch-graph .react-flow__attribution {
   background: transparent;

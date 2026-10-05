@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { CalendarIcon } from "lucide-react";
 import { zhCN } from "date-fns/locale";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -23,7 +22,6 @@ export function DateTimePicker({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" aria-label="选择对话发生日期">
-            <CalendarIcon size={16} />
             {format(value, "yyyy 年 MM 月 dd 日")}
           </Button>
         </PopoverTrigger>

@@ -8,6 +8,7 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct ConversationPath {
     pub id: Uuid,
+    pub title: String,
     pub session_id: SessionId,
     pub head_message_id: Uuid,
     pub occurred_at: i64,
@@ -22,21 +23,26 @@ pub struct ConversationDetail {
     pub paths: Vec<ConversationPath>,
 }
 impl Database {
-    /// Replaces editable metadata while preserving every Palace-owned tree identity.
-    pub async fn update_conversation_metadata(
+    /// Renames one path and corrects the whole tree's source in a single transaction.
+    ///
+    /// The title belongs to the path; the source is part of every path's external identity,
+    /// so it can only change for the conversation as a whole.
+    pub async fn update_path_metadata(
         &self,
         owner: OwnerScope,
         id: Uuid,
+        path_id: Uuid,
         title: &str,
         source: Source,
     ) -> Result<(), DbError> {
         palace_domain::validate_title(title)?;
         let mut tx = self.begin_write().await?;
         let exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM conversation WHERE owner_id=$1 AND id=$2)",
+            "SELECT EXISTS(SELECT 1 FROM conversation_path WHERE owner_id=$1 AND conversation_id=$2 AND id=$3)",
         )
         .bind(owner.id())
         .bind(id)
+        .bind(path_id)
         .fetch_one(&mut *tx)
         .await?;
         if !exists {
@@ -55,13 +61,21 @@ impl Database {
         if duplicate {
             return Err(DbError::DuplicateSession);
         }
-        sqlx::query("UPDATE conversation SET title=$3,source=$4 WHERE owner_id=$1 AND id=$2")
+        sqlx::query("UPDATE conversation SET source=$3 WHERE owner_id=$1 AND id=$2")
             .bind(owner.id())
             .bind(id)
-            .bind(title)
             .bind(source.as_str())
             .execute(&mut *tx)
             .await?;
+        sqlx::query(
+            "UPDATE conversation_path SET title=$4 WHERE owner_id=$1 AND conversation_id=$2 AND id=$3",
+        )
+        .bind(owner.id())
+        .bind(id)
+        .bind(path_id)
+        .bind(title)
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         Ok(())
     }
@@ -75,7 +89,7 @@ impl Database {
         sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             .execute(&mut *tx)
             .await?;
-        let row = sqlx::query("SELECT title,source FROM conversation WHERE owner_id=$1 AND id=$2")
+        let row = sqlx::query("SELECT source FROM conversation WHERE owner_id=$1 AND id=$2")
             .bind(owner.id())
             .bind(id)
             .fetch_optional(&mut *tx)
@@ -87,7 +101,6 @@ impl Database {
         let conversation = Conversation {
             id,
             owner_id: owner.id(),
-            title: row.try_get("title")?,
             source,
         };
         let rows = sqlx::query("SELECT id,parent_message_id,role,content,created_order FROM message WHERE owner_id=$1 AND conversation_id=$2 ORDER BY created_order,id").bind(owner.id()).bind(id).fetch_all(&mut *tx).await?;
@@ -108,13 +121,14 @@ impl Database {
                 })
             })
             .collect::<Result<Vec<_>, DbError>>()?;
-        let rows = sqlx::query("SELECT id,session_id,head_message_id,message_count,(extract(epoch FROM occurred_at)*1000)::bigint AS occurred_at,(extract(epoch FROM created_at)*1000)::bigint AS created_at,(extract(epoch FROM updated_at)*1000)::bigint AS updated_at FROM conversation_path WHERE owner_id=$1 AND conversation_id=$2 ORDER BY updated_at DESC,id DESC")
+        let rows = sqlx::query("SELECT p.id,p.title,p.session_id,p.head_message_id,p.message_count,(extract(epoch FROM m.occurred_at)*1000)::bigint AS occurred_at,(extract(epoch FROM p.created_at)*1000)::bigint AS created_at,(extract(epoch FROM p.updated_at)*1000)::bigint AS updated_at FROM conversation_path p JOIN moment m ON m.owner_id=p.owner_id AND m.id=p.id WHERE p.owner_id=$1 AND p.conversation_id=$2 ORDER BY p.updated_at DESC,p.id DESC")
             .bind(owner.id()).bind(id).fetch_all(&mut *tx).await?;
         let paths = rows
             .into_iter()
             .map(|row| {
                 Ok(ConversationPath {
                     id: row.try_get("id")?,
+                    title: row.try_get("title")?,
                     session_id: SessionId::try_from(row.try_get::<String, _>("session_id")?)?,
                     head_message_id: row.try_get("head_message_id")?,
                     message_count: row.try_get("message_count")?,

@@ -1,5 +1,6 @@
 mod runtime;
 mod server;
+mod web_app;
 
 /// Runs the production server against explicitly configured database and identity services.
 #[tokio::main]

@@ -69,11 +69,23 @@ pub enum ImportTarget {
     Branch {
         conversation_id: Uuid,
         session_id: SessionId,
+        title: String,
     },
     Update {
         conversation_id: Uuid,
         path_id: Uuid,
+        title: String,
     },
+}
+impl ImportTarget {
+    /// Every operation names the path it writes, so each target carries that path's title.
+    pub fn title(&self) -> &str {
+        match self {
+            Self::Conversation { title, .. }
+            | Self::Branch { title, .. }
+            | Self::Update { title, .. } => title,
+        }
+    }
 }
 /// Carries the common upload independently of conversation metadata and path identity.
 pub struct PathInput {
@@ -119,9 +131,7 @@ impl ImportRequest {
                 "upload too large",
             ));
         }
-        if let ImportTarget::Conversation { title, .. } = &target {
-            validate_title(title)?;
-        }
+        validate_title(target.title())?;
         // Bound browser epoch milliseconds to calendar years 0001 through 9999.
         if !(-62_135_596_800_000..=253_402_300_799_999).contains(&input.occurred_at) {
             return Err(InputError::new(
@@ -209,6 +219,7 @@ impl ImportRequest {
             }
         }
         // Length framing prevents ambiguous concatenations; raw input detects key reuse even when extra fields differ.
+        // The serialized target includes the path title, so a retry that renames the path conflicts.
         let mut hash = Sha256::new();
         let identity = serde_json::to_vec(&target)
             .map_err(|error| InputError::new(InputErrorKind::Field, "target", error.to_string()))?;
@@ -232,7 +243,7 @@ impl ImportRequest {
     pub fn occurred_at(&self) -> i64 {
         self.occurred_at
     }
-    /// Prevents branch imports from redefining conversation metadata or source identity.
+    /// Prevents branch imports from redefining source identity; only the path title travels with them.
     pub fn target(&self) -> &ImportTarget {
         &self.target
     }
@@ -249,7 +260,7 @@ impl ImportRequest {
         &self.digest
     }
 }
-/// Applies the same metadata boundary to initial imports and later title edits without changing identity.
+/// Applies the same path title boundary to every import and to later title edits without changing identity.
 pub fn validate_title(title: &str) -> Result<(), InputError> {
     if title.trim().is_empty() || title.len() > 1024 {
         return Err(InputError::new(
@@ -303,6 +314,50 @@ mod tests {
                 .path,
             "occurred_at"
         );
+    }
+    /// Branch and append imports name their path too, and a renamed retry is a different request.
+    /// Core test cases:
+    /// - `specs/test-cases/server/import/linear-path-import.md#every-import-must-carry-a-valid-path-title`
+    /// - `specs/test-cases/server/import/linear-path-import.md#import-receipts-and-tree-mutations-must-commit-atomically`
+    #[test]
+    fn every_target_validates_its_path_title_and_hashes_it() {
+        let parse = |title: &str| {
+            ImportRequest::parse_target(
+                ImportTarget::Update {
+                    conversation_id: Uuid::nil(),
+                    path_id: Uuid::nil(),
+                    title: title.into(),
+                },
+                PathInput {
+                    history: br#"[{"role":"user","content":"x"}]"#.to_vec(),
+                    idempotency_key: "k".into(),
+                    occurred_at: 0,
+                },
+                ImportLimits::default(),
+            )
+        };
+        for title in [" ", ""] {
+            assert_eq!(parse(title).unwrap_err().path, "title");
+        }
+        let branch = ImportRequest::parse_target(
+            ImportTarget::Branch {
+                conversation_id: Uuid::nil(),
+                session_id: SessionId::try_from("s".to_owned()).unwrap(),
+                title: "a".repeat(1025),
+            },
+            PathInput {
+                history: br#"[{"role":"user","content":"x"}]"#.to_vec(),
+                idempotency_key: "k".into(),
+                occurred_at: 0,
+            },
+            ImportLimits::default(),
+        );
+        assert_eq!(branch.unwrap_err().path, "title");
+        assert_ne!(
+            parse("first").unwrap().digest(),
+            parse("renamed").unwrap().digest()
+        );
+        assert_eq!(parse("first").unwrap(), parse("first").unwrap());
     }
     /// Retains exact Markdown, empty messages, extra-field tolerance and consecutive user messages.
     #[test]

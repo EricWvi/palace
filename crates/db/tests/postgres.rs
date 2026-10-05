@@ -11,6 +11,8 @@ use uuid::Uuid;
 
 #[path = "postgres/import_times.rs"]
 mod import_times;
+#[path = "postgres/moments.rs"]
+mod moments;
 #[path = "postgres/paths.rs"]
 mod paths;
 
@@ -142,29 +144,36 @@ async fn identity_and_database_constraints_isolate_owners() {
     ] {
         assert_eq!(id.get_version_num(), 7);
     }
-    let (mut renamed, messages) = db
-        .conversation(a.scope(), ar.conversation_id)
+    let mut renamed = db
+        .conversation_detail(a.scope(), ar.conversation_id)
         .await
         .unwrap();
-    renamed.title = "新标题".into();
-    db.update_conversation_metadata(
+    renamed.paths[0].title = "新标题".into();
+    db.update_path_metadata(
         a.scope(),
         ar.conversation_id,
-        &renamed.title,
-        renamed.source,
+        ar.path_id,
+        "新标题",
+        renamed.conversation.source,
     )
     .await
     .unwrap();
     assert_eq!(
-        db.conversation(a.scope(), ar.conversation_id)
+        db.conversation_detail(a.scope(), ar.conversation_id)
             .await
             .unwrap(),
-        (renamed, messages)
+        renamed
     );
     assert!(
-        db.update_conversation_metadata(b.scope(), ar.conversation_id, "foreign", Source::Chatgpt,)
-            .await
-            .is_err()
+        db.update_path_metadata(
+            b.scope(),
+            ar.conversation_id,
+            ar.path_id,
+            "foreign",
+            Source::Chatgpt,
+        )
+        .await
+        .is_err()
     );
     assert_ne!(ar.conversation_id, br.conversation_id);
     assert!(matches!(
@@ -749,7 +758,7 @@ async fn all_scoped_references_and_multirow_cycles_are_rejected() {
             .is_err()
     );
     let other = Uuid::now_v7();
-    sqlx::query("INSERT INTO conversation(id,owner_id,title,source) VALUES($1,$2,'other','grok')")
+    sqlx::query("INSERT INTO conversation(id,owner_id,source) VALUES($1,$2,'grok')")
         .bind(other)
         .bind(a.id)
         .execute(&pool)
@@ -833,62 +842,4 @@ async fn owner_allocation_is_atomic_and_conflicts_preserve_existing_knowledge() 
             .unwrap(),
         owner
     );
-}
-
-/// Exercises actual timestamp persistence, deterministic ordering, deduplication and owner isolation.
-#[tokio::test]
-#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
-async fn library_lists_latest_import_per_owned_conversation() {
-    let (_container, db, _pool) = database().await;
-    let owner = db
-        .resolve_identity("https://idp", "library", "library@example.com")
-        .await
-        .unwrap();
-    let other = db
-        .resolve_identity("https://idp", "other-library", "other-library@example.com")
-        .await
-        .unwrap();
-    let mut expected = Vec::new();
-    for (key, session, occurred_at) in [
-        ("first", "a", 1000),
-        ("second", "b", 3000),
-        ("third", "c", 2000),
-    ] {
-        let request = ImportRequest::parse(
-            ImportInput {
-                title: key.into(),
-                source: Source::Chatgpt,
-                session_id: session.into(),
-                history: br#"[{"role":"user","content":"hello"}]"#.to_vec(),
-                idempotency_key: key.into(),
-                occurred_at,
-            },
-            ImportLimits::default(),
-        )
-        .unwrap();
-        let result = db.import_path(owner.scope(), &request).await.unwrap();
-        assert_eq!(
-            db.import_path(owner.scope(), &request).await.unwrap(),
-            result
-        );
-        {
-            expected.push(palace_db::ConversationSummary {
-                id: result.conversation_id,
-                title: key.into(),
-                source: Source::Chatgpt,
-                session_ids: vec![session.into()],
-                path_count: 1,
-                path_id: result.path_id,
-                occurred_at,
-                head_message_id: result.head_message_id,
-                message_count: 1,
-            });
-        }
-    }
-    expected.sort_by_key(|entry| std::cmp::Reverse(entry.occurred_at));
-    assert_eq!(
-        db.list_conversations(owner.scope()).await.unwrap(),
-        expected
-    );
-    assert_eq!(db.list_conversations(other.scope()).await.unwrap(), vec![]);
 }

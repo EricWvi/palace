@@ -1,57 +1,43 @@
-import { Link, Route, Routes } from "react-router-dom";
-import { Library, Sparkles } from "lucide-react";
-import { LibraryPage } from "./pages/library";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { Link, Route, Routes, useLocation } from "react-router-dom";
+import { PalaceHeader, type Section } from "./components/palace-header";
+import { TimelinePage } from "./pages/timeline";
 const ConversationPage = lazy(() =>
   import("./pages/conversation").then((module) => ({
     default: module.ConversationPage,
   })),
 );
+
+// Each page belongs to one section of the top bar; a conversation is read in 摘星.
+function sectionOf(pathname: string): Section | undefined {
+  if (pathname === "/") return "时刻";
+  if (pathname.startsWith("/conversations/")) return "摘星";
+  return undefined;
+}
+
 export function App() {
+  const { pathname } = useLocation();
+  // The reading page names the tab after the conversation; every other page is just Palace.
+  useEffect(() => {
+    if (!pathname.startsWith("/conversations/")) document.title = "Palace";
+  }, [pathname]);
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <Link className="brand" to="/">
-          <span className="brand-mark">
-            <Sparkles size={22} />
-          </span>
-          palace<span className="brand-dot">.</span>
-        </Link>
-        <p className="eyebrow">你的思考，值得留存</p>
-        <nav>
-          <Link className="nav-link" to="/">
-            <Library size={18} />
-            会话收藏
-          </Link>
-        </nav>
-        <div className="sidebar-footer">
-          <span className="status-dot" /> 为灵感留一个位置
-          <small>YOUR PERSONAL CONVERSATION LIBRARY</small>
-        </div>
-      </aside>
-      <main className="main">
-        <Suspense
-          fallback={
-            <p role="status" className="empty">
-              正在加载页面…
-            </p>
-          }
-        >
-          <Routes>
-            <Route path="/" element={<LibraryPage />} />
-            <Route path="/conversations/:id" element={<ConversationPage />} />
-            <Route
-              path="*"
-              element={
-                <div className="empty">
-                  <h1>页面不存在</h1>
-                  <Link to="/">返回会话收藏</Link>
-                </div>
-              }
-            />
-          </Routes>
-        </Suspense>
-      </main>
-    </div>
+    <main className="sheet">
+      <PalaceHeader active={sectionOf(pathname)} />
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/" element={<TimelinePage />} />
+          <Route path="/conversations/:id" element={<ConversationPage />} />
+          <Route
+            path="*"
+            element={
+              <p className="quiet-note">
+                这里什么也没有。<Link to="/">回到今天</Link>
+              </p>
+            }
+          />
+        </Routes>
+      </Suspense>
+    </main>
   );
 }

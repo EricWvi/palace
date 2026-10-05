@@ -41,13 +41,19 @@ impl Database {
         .bind(path_id)
         .execute(&mut *tx)
         .await?;
+        // The path pointed at its moment, so the moment can only go once the path is gone.
+        sqlx::query("DELETE FROM moment WHERE owner_id=$1 AND id=$2")
+            .bind(owner.id())
+            .bind(path_id)
+            .execute(&mut *tx)
+            .await?;
         // Delete complete unused suffixes together so no retained parent reference is broken.
         sqlx::query("WITH RECURSIVE retained(id,parent_message_id) AS (SELECT m.id,m.parent_message_id FROM message m JOIN conversation_path p ON p.head_message_id=m.id WHERE p.owner_id=$1 AND p.conversation_id=$2 UNION SELECT m.id,m.parent_message_id FROM message m JOIN retained r ON m.id=r.parent_message_id) DELETE FROM message WHERE owner_id=$1 AND conversation_id=$2 AND id NOT IN (SELECT id FROM retained)")
             .bind(owner.id()).bind(conversation_id).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(())
     }
-    /// Removes a whole card, its paths, receipts and messages in one owner-scoped transaction.
+    /// Removes a conversation, its paths and their moments, receipts and messages in one owner-scoped transaction.
     pub async fn delete_conversation(&self, owner: OwnerScope, id: Uuid) -> Result<(), DbError> {
         let mut tx = self.begin_write().await?;
         sqlx::query("DELETE FROM conversation_import WHERE owner_id=$1 AND conversation_id=$2")
@@ -55,9 +61,16 @@ impl Database {
             .bind(id)
             .execute(&mut *tx)
             .await?;
-        sqlx::query("DELETE FROM conversation_path WHERE owner_id=$1 AND conversation_id=$2")
+        let paths: Vec<Uuid> = sqlx::query_scalar(
+            "DELETE FROM conversation_path WHERE owner_id=$1 AND conversation_id=$2 RETURNING id",
+        )
+        .bind(owner.id())
+        .bind(id)
+        .fetch_all(&mut *tx)
+        .await?;
+        sqlx::query("DELETE FROM moment WHERE owner_id=$1 AND id=ANY($2)")
             .bind(owner.id())
-            .bind(id)
+            .bind(&paths)
             .execute(&mut *tx)
             .await?;
         sqlx::query("DELETE FROM message WHERE owner_id=$1 AND conversation_id=$2")

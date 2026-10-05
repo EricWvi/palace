@@ -119,7 +119,6 @@ impl Role {
 pub struct Conversation {
     pub id: Uuid,
     pub owner_id: Uuid,
-    pub title: String,
     pub source: Source,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -210,7 +209,6 @@ mod tests {
         let c = Conversation {
             id: Uuid::now_v7(),
             owner_id: Uuid::now_v7(),
-            title: "t".into(),
             source: Source::Grok,
         };
         let a = Message {

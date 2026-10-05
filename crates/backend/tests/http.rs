@@ -216,7 +216,8 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     for (credential, expected) in [
         (
             &cookie,
-            serde_json::json!([{"id":result["conversation_id"],"title":"t","source":"chatgpt","session_ids":["s"],"path_id":result["path_id"],"path_count":1,"occurred_at":1700000000000_i64,"head_message_id":result["head_message_id"],"message_count":1}]),
+            // Raw HTML never reaches the plain-text excerpt.
+            serde_json::json!([{"kind":"conversation","id":result["path_id"],"occurred_at":1700000000000_i64,"conversation_id":result["conversation_id"],"title":"t","source":"chatgpt","message_count":1,"excerpt":[{"role":"user","text":""}]}]),
         ),
         (&foreign, serde_json::json!([])),
     ] {
@@ -224,7 +225,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
             .clone()
             .oneshot(request(
                 "GET",
-                "/api/conversations",
+                "/api/timeline?start=1700000000000&end=1700000000001",
                 credential,
                 "https://palace.test",
                 "application/json",
@@ -273,7 +274,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(
         tree,
-        serde_json::json!({"conversation":{"id":result["conversation_id"],"owner_id":sessions[0].owner.id,"title":"t","source":"chatgpt"},"messages":[{"id":result["head_message_id"],"owner_id":sessions[0].owner.id,"conversation_id":result["conversation_id"],"parent_message_id":null,"role":"user","content":"<script>alert(1)</script>\r\n","created_order":1}],"paths":[{"id":result["path_id"],"session_id":"s","head_message_id":result["head_message_id"],"message_count":1,"occurred_at":1700000000000_i64,"created_at":tree["paths"][0]["created_at"],"updated_at":tree["paths"][0]["updated_at"],"original_link":format!("{source_url}s")}]})
+        serde_json::json!({"conversation":{"id":result["conversation_id"],"owner_id":sessions[0].owner.id,"source":"chatgpt"},"messages":[{"id":result["head_message_id"],"owner_id":sessions[0].owner.id,"conversation_id":result["conversation_id"],"parent_message_id":null,"role":"user","content":"<script>alert(1)</script>\r\n","created_order":1}],"paths":[{"id":result["path_id"],"title":"t","session_id":"s","head_message_id":result["head_message_id"],"message_count":1,"occurred_at":1700000000000_i64,"created_at":tree["paths"][0]["created_at"],"updated_at":tree["paths"][0]["updated_at"],"original_link":format!("{source_url}s")}]})
     );
     assert_eq!(source_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
     source_server.abort();

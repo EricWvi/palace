@@ -214,6 +214,7 @@ pub(super) async fn conversation(
                 .original_link(detail.conversation.source, &path.session_id)?;
             Ok(dto::ConversationPath {
                 id: path.id,
+                title: path.title,
                 session_id: path.session_id.into(),
                 head_message_id: path.head_message_id,
                 occurred_at: path.occurred_at,
@@ -262,67 +263,4 @@ pub(super) async fn path(
     let messages =
         palace_domain::read_path(&detail.conversation, &detail.messages, path.head_message_id)?;
     Ok(Json(messages.into_iter().map(Into::into).collect()))
-}
-
-/// Replaces editable card metadata without exposing tree or owner reassignment.
-#[utoipa::path(
-    put, path = routes::CONVERSATION, operation_id = "update_conversation",
-    request_body = dto::ConversationMetadata,
-    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
-    security(("session" = [])),
-    responses(
-        (status = 200, description = "Successful operation", body = dto::ConversationMetadataResponse, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
-        (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
-        (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
-        (status = 403, description = "Origin rejected", body = dto::ErrorResponse, content_type = "application/json"),
-        (status = 404, description = "Resource unavailable in owner scope", body = dto::ErrorResponse, content_type = "application/json"),
-        (status = 409, description = "Identity, source session or idempotency conflict", body = dto::ErrorResponse, content_type = "application/json"),
-        (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
-        (status = 503, description = "Identity provider temporarily unavailable", body = dto::ErrorResponse, content_type = "application/json"),
-    )
-)]
-pub(super) async fn update_conversation(
-    State(server): State<Arc<BusinessServer>>,
-    axum::Extension(owner): axum::Extension<palace_db::Owner>,
-    Path(id): Path<Uuid>,
-    body: Result<Json<dto::ConversationMetadata>, JsonRejection>,
-) -> Result<Json<dto::ConversationMetadataResponse>, ApiError> {
-    let Json(input) =
-        body.map_err(|error| InputError::new(InputErrorKind::Field, "request", error.body_text()))?;
-    server
-        .database
-        .update_conversation_metadata(owner.scope(), id, &input.title, input.source.into())
-        .await?;
-    Ok(Json(dto::ConversationMetadataResponse {
-        id,
-        title: input.title,
-        source: input.source,
-    }))
-}
-
-/// Lists each conversation once, ordered by its newest user-selected conversation occurrence time.
-#[utoipa::path(
-    get, path = routes::CONVERSATIONS, operation_id = "conversations",
-    security(("session" = [])),
-    responses(
-        (status = 200, description = "Successful operation", body = [dto::ConversationSummary], headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
-        (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
-        (status = 409, description = "Identity, source session or idempotency conflict", body = dto::ErrorResponse, content_type = "application/json"),
-        (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
-        (status = 503, description = "Identity provider temporarily unavailable", body = dto::ErrorResponse, content_type = "application/json"),
-    )
-)]
-pub(super) async fn conversations(
-    State(server): State<Arc<BusinessServer>>,
-    axum::Extension(owner): axum::Extension<palace_db::Owner>,
-) -> Result<Json<Vec<dto::ConversationSummary>>, ApiError> {
-    Ok(Json(
-        server
-            .database
-            .list_conversations(owner.scope())
-            .await?
-            .into_iter()
-            .map(Into::into)
-            .collect(),
-    ))
 }

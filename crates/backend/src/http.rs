@@ -14,6 +14,7 @@ mod security;
 mod sync;
 #[cfg(test)]
 mod tests;
+mod timeline;
 
 use crate::{LoginRedirect, OidcProvider};
 use axum::{Router, extract::DefaultBodyLimit};

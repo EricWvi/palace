@@ -1,8 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { v7 as uuidv7 } from "uuid";
-import { useNavigate } from "react-router-dom";
-import { FileJson, Upload } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,57 +19,60 @@ import {
   serializeImport,
   sources,
   type Source,
-  type ConversationMetadata,
   type ConversationPath,
 } from "@/lib/api";
+import { atCurrentTime } from "@/lib/day";
 import { validateFile } from "@/lib/import-file";
+import type { components } from "@/lib/generated/api";
+
+export type ImportResult = components["schemas"]["ImportResult"];
 export type ImportMode =
-  | { kind: "conversation" }
-  | { kind: "branch"; conversation: ConversationMetadata }
+  // `day` is the timeline day the import was started from.
+  | { kind: "conversation"; day: Date }
+  // `title` is the path being read when the branch was started; the new branch starts with it.
+  | { kind: "branch"; conversationId: string; source: Source; title: string }
   | {
       kind: "update";
-      conversation: ConversationMetadata;
+      conversationId: string;
+      source: Source;
       path: ConversationPath;
     };
-const newConversation: ImportMode = { kind: "conversation" };
+const headings = {
+  conversation: ["导入对话", "上传对话的 JSON 文件，并为它命名。"],
+  branch: [
+    "新建分支",
+    "上传完整 JSON，必须与已有分支共享到某条回复为止的开头。",
+  ],
+  update: ["更新分支", "上传完整 JSON，只能在原有消息之后追加。"],
+} as const;
+
 export function ImportDialog({
   open,
   onOpenChange,
-  mode = newConversation,
+  mode,
   onImported,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mode?: ImportMode;
-  onImported?: () => void;
+  mode: ImportMode;
+  // Receives the submitted occurrence time, which decides the day the reader returns to.
+  onImported: (result: ImportResult, occurredAt: number) => void;
 }) {
+  const [title, description] = headings[mode.kind];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="import-dialog">
         <DialogHeader>
-          <span className="dialog-icon">
-            <Upload size={22} />
-          </span>
-          <DialogTitle>
-            {mode.kind === "conversation"
-              ? "收藏一段对话"
-              : mode.kind === "branch"
-                ? "新建分支"
-                : "更新分支"}
-          </DialogTitle>
-          <DialogDescription>
-            {mode.kind === "conversation"
-              ? "从 JSON 文件导入，给这次思考一个名字。"
-              : mode.kind === "branch"
-                ? "上传完整 JSON，必须与已有路径共享包含 assistant 回复的前缀。"
-                : "上传完整 JSON，只允许追加消息，不可修改或截短历史。"}
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {open && (
           <ImportForm
             mode={mode}
-            onImported={onImported}
-            onComplete={() => onOpenChange(false)}
+            onImported={(result, occurredAt) => {
+              onOpenChange(false);
+              onImported(result, occurredAt);
+            }}
           />
         )}
       </DialogContent>
@@ -79,25 +80,31 @@ export function ImportDialog({
   );
 }
 function ImportForm({
-  onComplete,
   mode,
   onImported,
 }: {
-  onComplete: () => void;
   mode: ImportMode;
-  onImported?: () => void;
+  onImported: (result: ImportResult, occurredAt: number) => void;
 }) {
   const [source, setSource] = useState<Source>(
-    mode.kind === "conversation" ? "chatgpt" : mode.conversation.source,
+    mode.kind === "conversation" ? "chatgpt" : mode.source,
   );
   const [title, setTitle] = useState(
-    mode.kind === "conversation" ? "" : mode.conversation.title,
+    mode.kind === "conversation"
+      ? ""
+      : mode.kind === "branch"
+        ? mode.title
+        : mode.path.title,
   );
   const [session, setSession] = useState(
     mode.kind === "update" ? mode.path.session_id : "",
   );
   const [date, setDate] = useState(() =>
-    mode.kind === "update" ? new Date(mode.path.occurred_at) : new Date(),
+    mode.kind === "update"
+      ? new Date(mode.path.occurred_at)
+      : mode.kind === "conversation"
+        ? atCurrentTime(mode.day)
+        : new Date(),
   );
   const [file, setFile] = useState<File | null>(null);
   const [attempt, setAttempt] = useState<{
@@ -105,10 +112,11 @@ function ImportForm({
     key: string;
   } | null>(null);
   const client = useQueryClient();
-  const navigate = useNavigate();
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!title.trim()) throw new Error("请填写会话标题。");
+      if (!title.trim()) throw new Error("请填写标题。");
+      if (new TextEncoder().encode(title).length > 1024)
+        throw new Error("标题不能超过 1024 字节。");
       if (
         !session ||
         /[\s/\\?#%:]/.test(session) ||
@@ -127,12 +135,13 @@ function ImportForm({
         date.getTime(),
         history,
         mode.kind,
-        mode.kind === "conversation" ? null : mode.conversation.id,
+        mode.kind === "conversation" ? null : mode.conversationId,
         mode.kind === "update" ? mode.path.id : null,
       ]);
       const key = attempt?.fingerprint === fingerprint ? attempt.key : uuidv7();
       setAttempt({ fingerprint, key });
       const input = {
+        title,
         history,
         occurred_at: date.getTime(),
         idempotency_key: key,
@@ -140,7 +149,7 @@ function ImportForm({
       if (mode.kind === "branch") {
         return apiData(
           api.POST("/api/conversations/{id}/paths", {
-            params: { path: { id: mode.conversation.id } },
+            params: { path: { id: mode.conversationId } },
             body: { ...input, session_id: session },
           }),
         );
@@ -149,7 +158,7 @@ function ImportForm({
         return apiData(
           api.PUT("/api/conversations/{id}/paths/{path_id}", {
             params: {
-              path: { id: mode.conversation.id, path_id: mode.path.id },
+              path: { id: mode.conversationId, path_id: mode.path.id },
             },
             body: input,
           }),
@@ -171,19 +180,12 @@ function ImportForm({
     },
     onSuccess: async (result) => {
       await Promise.all([
-        client.invalidateQueries({ queryKey: ["conversations"] }),
+        client.invalidateQueries({ queryKey: ["timeline"] }),
         client.invalidateQueries({
           queryKey: ["conversation", result.conversation_id],
         }),
       ]);
-      onComplete();
-      if (onImported) {
-        onImported();
-        return;
-      }
-      navigate(
-        `/conversations/${result.conversation_id}?path=${result.path_id}`,
-      );
+      onImported(result, date.getTime());
     },
   });
   function submit(event: FormEvent) {
@@ -194,10 +196,9 @@ function ImportForm({
     <form onSubmit={submit}>
       <fieldset disabled={mutation.isPending} className="import-fields">
         <div>
-          <Label htmlFor="title">自定义标题</Label>
+          <Label htmlFor="title">标题</Label>
           <Input
             id="title"
-            disabled={mode.kind !== "conversation"}
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -205,7 +206,7 @@ function ImportForm({
           />
         </div>
         <div>
-          <Label htmlFor="source">会话来源</Label>
+          <Label htmlFor="source">来源</Label>
           <select
             id="source"
             disabled={mode.kind !== "conversation"}
@@ -221,31 +222,30 @@ function ImportForm({
           </select>
         </div>
         <div>
-          <Label htmlFor="session">来源网站 Session ID</Label>
+          <Label htmlFor="session">Session ID</Label>
           <Input
             id="session"
             disabled={mode.kind === "update"}
             required
             value={session}
             onChange={(e) => setSession(e.target.value)}
-            placeholder="例如：会话网址最后一段的 ID"
+            placeholder="对话网址最后一段的 ID"
           />
           <p className="field-hint">
             {mode.kind === "update"
-              ? "Session ID 保持不变；发生时间可以修改。"
+              ? "Session ID 保持不变。"
               : "同一来源的 Session ID 不可重复。"}
           </p>
         </div>
         <div>
-          <Label>对话发生日期与时间</Label>
+          <Label>发生时间</Label>
           <DateTimePicker value={date} onChange={setDate} />
           <p className="field-hint">
-            使用本地时区 · {Intl.DateTimeFormat().resolvedOptions().timeZone}
+            本地时区 · {Intl.DateTimeFormat().resolvedOptions().timeZone}
           </p>
         </div>
-        <div className="file-area">
-          <FileJson size={27} />
-          <Label htmlFor="history">{file?.name ?? "选择会话 JSON 文件"}</Label>
+        <div>
+          <Label htmlFor="history">{file?.name ?? "选择对话 JSON 文件"}</Label>
           <Input
             id="history"
             type="file"
@@ -258,7 +258,7 @@ function ImportForm({
           <p className="field-hint">仅支持 JSON · 最大 8 MiB</p>
         </div>
         <details className="format-help">
-          <summary>查看 JSON 格式示例</summary>
+          <summary>JSON 格式示例</summary>
           <pre>
             {
               '[{"role":"user","content":"你好"},\n {"role":"assistant","content":"你好！"}]'
@@ -267,11 +267,10 @@ function ImportForm({
         </details>
         {mutation.isError && <ErrorState error={mutation.error} />}
         <Button type="submit" className="submit-import">
-          <Upload size={16} />
           {mutation.isPending
             ? "正在导入…"
             : mode.kind === "conversation"
-              ? "导入并查看会话"
+              ? "导入"
               : mode.kind === "branch"
                 ? "导入分支"
                 : "保存更新"}

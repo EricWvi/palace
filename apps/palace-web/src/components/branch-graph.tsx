@@ -9,7 +9,6 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import { GitBranch, MessageSquare, Pencil, Trash2 } from "lucide-react";
 import type { ConversationPath } from "@/lib/api";
 import { layoutBranches } from "@/lib/branch-layout";
 import type { userTree } from "@/lib/conversation-tree";
@@ -34,12 +33,10 @@ function BranchNodeCard({ data }: NodeProps<BranchNode>) {
     <div className={`branch-node-card${data.paths.length ? " has-paths" : ""}`}>
       {!data.root && <Handle type="target" position={Position.Top} />}
       <div className="branch-node-heading">
-        <MessageSquare size={14} />
-        <span>{data.root ? "对话起点" : "用户消息"}</span>
+        <span>{data.root ? "对话起点" : "你的消息"}</span>
         {data.paths.length > 0 && (
           <span className="branch-node-count">
-            <GitBranch size={12} />
-            {data.paths.length}
+            {data.paths.length} 支在此结束
           </span>
         )}
       </div>
@@ -56,16 +53,15 @@ function BranchNodeCard({ data }: NodeProps<BranchNode>) {
               <div className="branch-node-buttons nodrag nopan">
                 <Button
                   variant="ghost"
-                  size="icon"
-                  title="更新分支"
+                  size="sm"
                   aria-label={`更新分支 ${path.session_id}`}
                   onClick={() => actions.onUpdate(path)}
                 >
-                  <Pencil size={14} />
+                  更新
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="sm"
                   title={
                     actions.canDelete
                       ? "删除分支"
@@ -75,7 +71,7 @@ function BranchNodeCard({ data }: NodeProps<BranchNode>) {
                   disabled={!actions.canDelete}
                   onClick={() => actions.onDelete(path)}
                 >
-                  <Trash2 size={14} />
+                  删除
                 </Button>
               </div>
             </div>
@@ -145,7 +141,7 @@ export function BranchGraph({
             variant={BackgroundVariant.Dots}
             gap={20}
             size={1}
-            color="#cdd4c4"
+            color="var(--border)"
           />
           <Controls showInteractive={false} position="bottom-left" />
         </ReactFlow>

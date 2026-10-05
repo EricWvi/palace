@@ -1,6 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,13 +8,18 @@ import {
   DialogDescription,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
-import { ImportDialog, type ImportMode } from "./import-dialog";
+import {
+  ImportDialog,
+  type ImportMode,
+  type ImportResult,
+} from "./import-dialog";
 import { ErrorState } from "./error-state";
 import {
   api,
   apiData,
-  type ConversationMetadata,
+  conversationOptions,
   type ConversationPath,
+  type Source,
 } from "@/lib/api";
 import { resolvePaths, userTree } from "@/lib/conversation-tree";
 
@@ -24,37 +28,37 @@ const BranchGraph = lazy(() =>
 );
 
 export function BranchManager({
-  conversation,
+  conversationId,
+  source,
+  title,
+  onImported,
   onClose,
 }: {
-  conversation: ConversationMetadata;
+  conversationId: string;
+  source: Source;
+  // The title of the path being read; a new branch starts with it.
+  title: string;
+  onImported: (result: ImportResult, occurredAt: number) => void;
   onClose: () => void;
 }) {
   const [form, setForm] = useState<ImportMode | null>(null);
   const [deleting, setDeleting] = useState<ConversationPath | null>(null);
   const client = useQueryClient();
-  const detail = useQuery({
-    queryKey: ["conversation", conversation.id],
-    queryFn: () =>
-      apiData(
-        api.GET("/api/conversations/{id}", {
-          params: { path: { id: conversation.id } },
-        }),
-      ),
-  });
+  const detail = useQuery(conversationOptions(conversationId));
   const deletion = useMutation({
     mutationFn: (path: ConversationPath) =>
       apiData(
         api.DELETE("/api/conversations/{id}/paths/{path_id}", {
-          params: { path: { id: conversation.id, path_id: path.id } },
+          params: { path: { id: conversationId, path_id: path.id } },
         }),
       ),
     onSuccess: async () => {
+      // The page falls back to a remaining path once the deleted one is gone from the tree.
       await Promise.all([
         client.invalidateQueries({
-          queryKey: ["conversation", conversation.id],
+          queryKey: ["conversation", conversationId],
         }),
-        client.invalidateQueries({ queryKey: ["conversations"] }),
+        client.invalidateQueries({ queryKey: ["timeline"] }),
       ]);
       setDeleting(null);
     },
@@ -73,9 +77,7 @@ export function BranchManager({
       <DialogContent className="branch-dialog">
         <DialogHeader>
           <DialogTitle>分支管理</DialogTitle>
-          <DialogDescription>
-            {conversation.title} · 每个 Session 对应一条完整路径。
-          </DialogDescription>
+          <DialogDescription>每个 Session 是一条完整的分支。</DialogDescription>
         </DialogHeader>
         {detail.isPending ? (
           <p role="status">正在加载分支…</p>
@@ -97,7 +99,7 @@ export function BranchManager({
                 tree={tree!}
                 canDelete={detail.data!.paths.length > 1}
                 onUpdate={(path) =>
-                  setForm({ kind: "update", conversation, path })
+                  setForm({ kind: "update", conversationId, source, path })
                 }
                 onDelete={(path) => {
                   deletion.reset();
@@ -106,14 +108,15 @@ export function BranchManager({
               />
             </Suspense>
             {detail.data!.paths.length === 1 && (
-              <p className="field-hint">
-                最后一个分支请通过卡片菜单的“删除对话”移除。
-              </p>
+              <p className="field-hint">最后一个分支请通过“删除对话”移除。</p>
             )}
             <div className="branch-toolbar">
               <p>拖动画布移动 · 滚轮缩放</p>
-              <Button onClick={() => setForm({ kind: "branch", conversation })}>
-                <Plus size={16} />
+              <Button
+                onClick={() =>
+                  setForm({ kind: "branch", conversationId, source, title })
+                }
+              >
                 新建分支
               </Button>
             </div>
@@ -126,7 +129,11 @@ export function BranchManager({
             onOpenChange={(open) => {
               if (!open) setForm(null);
             }}
-            onImported={() => setForm(null)}
+            onImported={(result, occurredAt) => {
+              setForm(null);
+              onClose();
+              onImported(result, occurredAt);
+            }}
           />
         )}
         <Dialog

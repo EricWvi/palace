@@ -1,35 +1,23 @@
+/*
+ * Tailwind names for the Palace tokens in docs/design/tokens.css, which styles.css imports.
+ * Only names live here; every value comes from the tokens, including dark mode.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--foreground);
-  --color-muted: var(--secondary);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--foreground);
-  --color-popover: var(--background);
-  --color-popover-foreground: var(--foreground);
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--on-accent);
+  --color-secondary: var(--bg-sunken);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--bg-sunken);
+  --color-muted-foreground: var(--text-3);
+  /* shadcn's "accent" is the hover surface, not the Palace accent color. */
+  --color-accent: var(--bg-sunken);
+  --color-accent-foreground: var(--text);
+  --color-popover: var(--surface-raised);
+  --color-popover-foreground: var(--text);
   --color-border: var(--border);
   --color-input: var(--border);
-  --color-ring: var(--primary);
-  --color-destructive: #b13e36;
-  --radius-md: 0.65rem;
-  --radius-lg: 0.9rem;
-  --radius-sm: 0.4rem;
-}
-:root {
-  --background: #fffefa;
-  --foreground: #292c25;
-  --primary: #546b40;
-  --primary-foreground: #fffefa;
-  --secondary: #efeee7;
-  --muted-foreground: #777a70;
-  --accent: #e8eddf;
-  --border: #e3e4db;
-  font-family: "Inter", "Noto Sans SC", system-ui, sans-serif;
-  color: var(--foreground);
-  background: var(--background);
-  font-synthesis: none;
+  --color-ring: var(--accent);
+  --color-destructive: var(--accent);
 }

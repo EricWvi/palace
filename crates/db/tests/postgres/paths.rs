@@ -26,6 +26,10 @@ async fn migration_retains_existing_linear_conversations() {
         .await
         .unwrap();
     let mut tx = pool.begin().await.unwrap();
+    sqlx::raw_sql(super::moments::BEFORE_MOMENTS)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
     sqlx::raw_sql("ALTER TABLE conversation_import DROP COLUMN path_id;
         ALTER TABLE conversation ADD COLUMN session_id text;
         UPDATE conversation c SET session_id=p.session_id FROM conversation_path p WHERE p.conversation_id=c.id;
@@ -33,10 +37,15 @@ async fn migration_retains_existing_linear_conversations() {
         ALTER TABLE conversation DROP CONSTRAINT conversation_owner_id_id_source_key;
         UPDATE conversation_import SET result=result-'path_id';")
         .execute(&mut *tx).await.unwrap();
-    sqlx::raw_sql(include_str!("../../migrations/0007_conversation_paths.sql"))
-        .execute(&mut *tx)
-        .await
-        .unwrap();
+    // Replay every later migration so the upgrade is checked against the current schema.
+    for migration in [
+        include_str!("../../migrations/0007_conversation_paths.sql"),
+        include_str!("../../migrations/0008_edit_conversation_source.sql"),
+        include_str!("../../migrations/0009_moments.sql"),
+        include_str!("../../migrations/0010_path_titles.sql"),
+    ] {
+        sqlx::raw_sql(migration).execute(&mut *tx).await.unwrap();
+    }
     tx.commit().await.unwrap();
     let after = db
         .conversation_detail(owner.scope(), first.conversation_id)
@@ -63,12 +72,12 @@ fn history(contents: &[&str]) -> Vec<u8> {
     }).collect::<Vec<_>>()).unwrap()
 }
 
-/// Card chronology follows occurrence time while opening follows the most recently updated session.
+/// Timeline position follows occurrence time while opening follows the most recently updated session.
 /// Core test case:
 /// - `specs/test-cases/server/conversation/message-tree.md#fork-selection-must-resolve-to-one-real-source-session`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
-async fn library_separates_occurrence_order_from_default_path_selection() {
+async fn default_path_follows_updates_while_moments_follow_occurrence() {
     let (_container, db, _pool) = database().await;
     let owner = db
         .resolve_identity("https://idp", "library", "library@example.com")
@@ -78,19 +87,17 @@ async fn library_separates_occurrence_order_from_default_path_selection() {
         .import_path(owner.scope(), &create("s1", &["U1", "A1"]))
         .await
         .unwrap();
-    db.import_path(
-        owner.scope(),
-        &branch(first.conversation_id, "s2", &["U1", "A1", "U2", "A2"]),
-    )
-    .await
-    .unwrap();
+    let second = db
+        .import_path(
+            owner.scope(),
+            &branch(first.conversation_id, "s2", &["U1", "A1", "U2", "A2"]),
+        )
+        .await
+        .unwrap();
     db.import_path(
         owner.scope(),
         &change(
-            ImportTarget::Update {
-                conversation_id: first.conversation_id,
-                path_id: first.path_id,
-            },
+            update(first.conversation_id, first.path_id),
             "older-occurrence",
             &["U1", "A1"],
             /*occurred_at*/ 500,
@@ -98,19 +105,26 @@ async fn library_separates_occurrence_order_from_default_path_selection() {
     )
     .await
     .unwrap();
+    let detail = db
+        .conversation_detail(owner.scope(), first.conversation_id)
+        .await
+        .unwrap();
     assert_eq!(
-        db.list_conversations(owner.scope()).await.unwrap(),
-        vec![palace_db::ConversationSummary {
-            id: first.conversation_id,
-            title: "tree".into(),
-            source: Source::Chatgpt,
-            session_ids: vec!["s1".into(), "s2".into()],
-            path_count: 2,
-            path_id: first.path_id,
-            occurred_at: 2000,
-            head_message_id: first.head_message_id,
-            message_count: 4,
-        }]
+        detail
+            .paths
+            .iter()
+            .map(|path| (path.id, path.occurred_at))
+            .collect::<Vec<_>>(),
+        vec![(first.path_id, 500), (second.path_id, 2000)]
+    );
+    assert_eq!(
+        db.timeline(owner.scope(), 0, 3000)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|moment| (moment.id, moment.occurred_at))
+            .collect::<Vec<_>>(),
+        vec![(first.path_id, 500), (second.path_id, 2000)]
     );
 }
 /// Creates a root import without sharing identity between separate test conversations.
@@ -141,12 +155,21 @@ fn change(target: ImportTarget, key: &str, contents: &[&str], occurred_at: i64) 
     )
     .unwrap()
 }
-/// Builds a fresh external identity for a branch of one existing tree.
+/// Targets an append to an existing path while keeping the title every fixture starts with.
+fn update(conversation_id: Uuid, path_id: Uuid) -> ImportTarget {
+    ImportTarget::Update {
+        conversation_id,
+        path_id,
+        title: "tree".into(),
+    }
+}
+/// Builds a fresh external identity for a branch of one existing tree, titled after its session.
 fn branch(id: Uuid, session: &str, contents: &[&str]) -> ImportRequest {
     change(
         ImportTarget::Branch {
             conversation_id: id,
             session_id: SessionId::try_from(session.to_owned()).unwrap(),
+            title: format!("branch {session}"),
         },
         session,
         contents,
@@ -154,9 +177,11 @@ fn branch(id: Uuid, session: &str, contents: &[&str]) -> ImportRequest {
     )
 }
 
-/// Source correction cascades to every path without changing tree or receipt identity.
-/// Core test case:
+/// Renaming one path leaves sibling titles alone, while source correction cascades to every path
+/// without changing tree or receipt identity.
+/// Core test cases:
 /// - `specs/test-cases/server/conversation/message-tree.md#metadata-correction-must-atomically-preserve-conversation-tree-identities`
+/// - `specs/test-cases/server/conversation/message-tree.md#each-path-must-own-its-title-independently`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn metadata_correction_is_atomic_and_preserves_tree_identities() {
@@ -173,12 +198,13 @@ async fn metadata_correction_is_atomic_and_preserves_tree_identities() {
         .import_path(owner.scope(), &create("s1", &["U1", "A1"]))
         .await
         .unwrap();
-    db.import_path(
-        owner.scope(),
-        &branch(first.conversation_id, "s2", &["U1", "A1", "U2", "A2"]),
-    )
-    .await
-    .unwrap();
+    let second = db
+        .import_path(
+            owner.scope(),
+            &branch(first.conversation_id, "s2", &["U1", "A1", "U2", "A2"]),
+        )
+        .await
+        .unwrap();
     let blocker = ImportRequest::parse(
         ImportInput {
             title: "blocker".into(),
@@ -191,7 +217,7 @@ async fn metadata_correction_is_atomic_and_preserves_tree_identities() {
         ImportLimits::default(),
     )
     .unwrap();
-    db.import_path(owner.scope(), &blocker).await.unwrap();
+    let blocker = db.import_path(owner.scope(), &blocker).await.unwrap();
     let before = db
         .conversation_detail(owner.scope(), first.conversation_id)
         .await
@@ -200,10 +226,12 @@ async fn metadata_correction_is_atomic_and_preserves_tree_identities() {
         sqlx::query_as("SELECT id,path_id,result FROM conversation_import WHERE owner_id=$1 AND conversation_id=$2 ORDER BY id")
             .bind(owner.id).bind(first.conversation_id).fetch_all(&pool).await.unwrap();
 
+    // A source conflict rolls back the title in the same request too.
     assert!(matches!(
-        db.update_conversation_metadata(
+        db.update_path_metadata(
             owner.scope(),
             first.conversation_id,
+            first.path_id,
             "conflicting",
             Source::Gemini,
         )
@@ -216,25 +244,33 @@ async fn metadata_correction_is_atomic_and_preserves_tree_identities() {
             .unwrap(),
         before
     );
+    for (scope, path_id) in [
+        (foreign.scope(), first.path_id),
+        // A path of another conversation is as unknown as a missing one.
+        (owner.scope(), blocker.path_id),
+    ] {
+        assert!(matches!(
+            db.update_path_metadata(scope, first.conversation_id, path_id, "x", Source::Grok)
+                .await,
+            Err(DbError::NotFound)
+        ));
+    }
     assert!(matches!(
-        db.update_conversation_metadata(
-            foreign.scope(),
+        db.update_path_metadata(
+            owner.scope(),
             first.conversation_id,
-            "foreign",
+            first.path_id,
+            " ",
             Source::Grok,
         )
         .await,
-        Err(DbError::NotFound)
-    ));
-    assert!(matches!(
-        db.update_conversation_metadata(owner.scope(), first.conversation_id, " ", Source::Grok,)
-            .await,
         Err(DbError::Input(_))
     ));
 
-    db.update_conversation_metadata(
+    db.update_path_metadata(
         owner.scope(),
         first.conversation_id,
+        first.path_id,
         "corrected",
         Source::Grok,
     )
@@ -245,9 +281,22 @@ async fn metadata_correction_is_atomic_and_preserves_tree_identities() {
         .await
         .unwrap();
     let mut expected = before;
-    expected.conversation.title = "corrected".into();
     expected.conversation.source = Source::Grok;
+    for path in &mut expected.paths {
+        if path.id == first.path_id {
+            path.title = "corrected".into();
+        }
+    }
     assert_eq!(after, expected);
+    assert_eq!(
+        after
+            .paths
+            .iter()
+            .find(|path| path.id == second.path_id)
+            .unwrap()
+            .title,
+        "branch s2"
+    );
     let path_sources: Vec<String> = sqlx::query_scalar(
         "SELECT source FROM conversation_path WHERE owner_id=$1 AND conversation_id=$2 ORDER BY id",
     )
@@ -261,6 +310,21 @@ async fn metadata_correction_is_atomic_and_preserves_tree_identities() {
         sqlx::query_as("SELECT id,path_id,result FROM conversation_import WHERE owner_id=$1 AND conversation_id=$2 ORDER BY id")
             .bind(owner.id).bind(first.conversation_id).fetch_all(&pool).await.unwrap();
     assert_eq!(receipts_after, receipts_before);
+    // The conversation keeps no title of its own; only paths are named.
+    let conversation_title: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='conversation' AND column_name='title')",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(!conversation_title);
+    assert!(
+        sqlx::query("UPDATE conversation_path SET title=' ' WHERE id=$1")
+            .bind(first.path_id)
+            .execute(&pool)
+            .await
+            .is_err()
+    );
 
     let released = ImportRequest::parse(
         ImportInput {
@@ -386,8 +450,8 @@ async fn branches_share_prefix_and_failures_roll_back() {
             .unwrap(),
         before
     );
-    let counts: (i64,i64,i64,i64) = sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_path),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
-    assert_eq!(counts, (1, 8, 3, 3));
+    let counts: (i64,i64,i64,i64,i64) = sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_path),(SELECT count(*) FROM conversation_import),(SELECT count(*) FROM moment)").fetch_one(&pool).await.unwrap();
+    assert_eq!(counts, (1, 8, 3, 3, 3));
 }
 
 /// Updates retain the full historical prefix, preserve timestamps on retries and reject stale histories.
@@ -406,10 +470,7 @@ async fn updates_are_append_only_and_retries_preserve_path_metadata() {
         .import_path(owner.scope(), &create("s1", &["U1", "A1"]))
         .await
         .unwrap();
-    let target = ImportTarget::Update {
-        conversation_id: first.conversation_id,
-        path_id: first.path_id,
-    };
+    let target = update(first.conversation_id, first.path_id);
     let before = db
         .conversation_detail(owner.scope(), first.conversation_id)
         .await
@@ -434,8 +495,14 @@ async fn updates_are_append_only_and_retries_preserve_path_metadata() {
             before
         );
     }
+    // A continuation may rename the path along with its new messages.
+    let renamed = ImportTarget::Update {
+        conversation_id: first.conversation_id,
+        path_id: first.path_id,
+        title: "renamed".into(),
+    };
     let input = change(
-        target.clone(),
+        renamed.clone(),
         "append",
         &["U1", "A1", "U2", "A2"],
         /*occurred_at*/ 3000,
@@ -449,6 +516,27 @@ async fn updates_are_append_only_and_retries_preserve_path_metadata() {
         (result.path_id, result.created, result.reused),
         (first.path_id, 2, 2)
     );
+    assert_eq!(
+        (
+            before.paths[0].title.as_str(),
+            after.paths[0].title.as_str()
+        ),
+        ("tree", "renamed")
+    );
+    // The same key with only a different title is a different request.
+    assert!(matches!(
+        db.import_path(
+            owner.scope(),
+            &change(
+                target.clone(),
+                "append",
+                &["U1", "A1", "U2", "A2"],
+                /*occurred_at*/ 3000
+            )
+        )
+        .await,
+        Err(DbError::Conflict)
+    ));
     assert_eq!(
         (after.paths[0].occurred_at, after.paths[0].created_at),
         (3000, before.paths[0].created_at)
@@ -475,7 +563,7 @@ async fn updates_are_append_only_and_retries_preserve_path_metadata() {
         Err(DbError::Input(_))
     ));
     let time_only = change(
-        target,
+        renamed,
         "time-only",
         &["U1", "A1", "U2", "A2"],
         /*occurred_at*/ 5000,
@@ -564,8 +652,8 @@ async fn deletion_preserves_shared_messages_and_owner_boundaries() {
     db.delete_conversation(owner.scope(), first.conversation_id)
         .await
         .unwrap();
-    let counts: (i64,i64,i64,i64) = sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_path),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
-    assert_eq!(counts, (0, 0, 0, 0));
+    let counts: (i64,i64,i64,i64,i64) = sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_path),(SELECT count(*) FROM conversation_import),(SELECT count(*) FROM moment)").fetch_one(&pool).await.unwrap();
+    assert_eq!(counts, (0, 0, 0, 0, 0));
 }
 
 /// Competing initial imports cannot create duplicate session identities or orphan cards.

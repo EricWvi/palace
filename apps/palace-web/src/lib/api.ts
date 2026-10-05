@@ -2,9 +2,7 @@ import createClient from "openapi-fetch";
 import type { components, paths } from "./generated/api";
 
 export type Source = components["schemas"]["Source"];
-export type ConversationMetadata =
-  components["schemas"]["ConversationMetadataResponse"];
-export type Summary = components["schemas"]["ConversationSummary"];
+export type Moment = components["schemas"]["Moment"];
 export type Message = components["schemas"]["Message"];
 export type Detail = components["schemas"]["ConversationDetail"];
 export type ConversationPath = components["schemas"]["ConversationPath"];
@@ -39,15 +37,15 @@ export async function apiData<T>(
     const messages: Record<number, string> = {
       401: "请先登录后再继续。",
       403: "请求来源未被允许，请检查开发环境配置。",
-      404: "找不到这段会话。",
-      409: "导入请求冲突，请重新打开导入窗口。",
+      404: "找不到这段对话。",
+      409: "请求冲突，请重新打开窗口后再试。",
       413: "文件或消息超过大小限制。",
     };
     let message = messages[response.status] ?? "服务暂时不可用，请稍后重试。";
     // Native extractor text and proxy errors do not have the JSON domain-error shape.
     if (typeof error === "object" && error !== null) {
       if ("error" in error && error.error === "session_already_exists") {
-        message = "该来源已有相同的 Session ID，请检查来源或对应会话。";
+        message = "该来源已有相同的 Session ID，请检查来源或对应对话。";
       } else if (
         "path" in error &&
         typeof error.path === "string" &&
@@ -74,13 +72,21 @@ export function serializeImport(
   return form;
 }
 
-export const libraryOptions = {
-  queryKey: ["conversations"],
-  queryFn: () => apiData(api.GET("/api/conversations")),
-};
-export function formatTime(value: number) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(value);
+// One local day of moments; the key holds the day so each day caches separately.
+export function timelineOptions(
+  day: string,
+  range: { start: number; end: number },
+) {
+  return {
+    queryKey: ["timeline", day],
+    queryFn: () =>
+      apiData(api.GET("/api/timeline", { params: { query: range } })),
+  };
+}
+export function conversationOptions(id: string) {
+  return {
+    queryKey: ["conversation", id],
+    queryFn: () =>
+      apiData(api.GET("/api/conversations/{id}", { params: { path: { id } } })),
+  };
 }

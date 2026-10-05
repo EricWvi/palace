@@ -9,7 +9,7 @@ use palace_domain::{
 use std::sync::Arc;
 use uuid::Uuid;
 
-/// Branch creation derives title and source exclusively from the owner-scoped conversation.
+/// Branch creation names its own path but derives the source exclusively from the owner-scoped conversation.
 #[utoipa::path(
     post, path = routes::PATHS, operation_id = "create",
     request_body = dto::NewPath,
@@ -38,6 +38,7 @@ pub(super) async fn create(
         ImportTarget::Branch {
             conversation_id,
             session_id: SessionId::try_from(body.session_id)?,
+            title: body.title,
         },
         PathInput {
             history: body.history.into_bytes(),
@@ -54,7 +55,7 @@ pub(super) async fn create(
             .into(),
     ))
 }
-/// Updates keep the session identity fixed and validate the full historical prefix in the transaction.
+/// Updates keep the session identity fixed, may rename the path, and validate the full historical prefix in the transaction.
 #[utoipa::path(
     put, path = routes::PATH, operation_id = "update",
     request_body = dto::UpdatePath,
@@ -83,6 +84,7 @@ pub(super) async fn update(
         ImportTarget::Update {
             conversation_id,
             path_id,
+            title: body.title,
         },
         PathInput {
             history: body.history.into_bytes(),
@@ -152,6 +154,47 @@ pub(super) async fn delete_conversation(
         .delete_conversation(owner.scope(), id)
         .await?;
     Ok(Json(dto::Deleted { id }))
+}
+/// Renames one path and corrects the conversation source; tree and owner stay untouched.
+#[utoipa::path(
+    put, path = routes::PATH_METADATA, operation_id = "update_path_metadata",
+    request_body = dto::PathMetadata,
+    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("path_id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
+    security(("session" = [])),
+    responses(
+        (status = 200, description = "Successful operation", body = dto::PathMetadataResponse, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
+        (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
+        (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 403, description = "Origin rejected", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 404, description = "Resource unavailable in owner scope", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 409, description = "Identity, source session or idempotency conflict", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 503, description = "Identity provider temporarily unavailable", body = dto::ErrorResponse, content_type = "application/json"),
+    )
+)]
+pub(super) async fn update_metadata(
+    State(server): State<Arc<BusinessServer>>,
+    axum::Extension(owner): axum::Extension<palace_db::Owner>,
+    Path((conversation_id, path_id)): Path<(Uuid, Uuid)>,
+    body: Result<Json<dto::PathMetadata>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<dto::PathMetadataResponse>, ApiError> {
+    let Json(input) = body.map_err(json_error)?;
+    server
+        .database
+        .update_path_metadata(
+            owner.scope(),
+            conversation_id,
+            path_id,
+            &input.title,
+            input.source.into(),
+        )
+        .await?;
+    Ok(Json(dto::PathMetadataResponse {
+        conversation_id,
+        path_id,
+        title: input.title,
+        source: input.source,
+    }))
 }
 /// Gives unknown metadata fields the same structured rejection as other import validation errors.
 fn json_error(error: axum::extract::rejection::JsonRejection) -> InputError {

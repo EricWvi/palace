@@ -75,7 +75,6 @@ fn dto_conversions_preserve_existing_payloads() {
     let conversation = palace_domain::Conversation {
         id,
         owner_id: id,
-        title: "对话".into(),
         source: palace_domain::Source::Gemini,
     };
     assert_eq!(
@@ -95,21 +94,24 @@ fn dto_conversions_preserve_existing_payloads() {
         serde_json::to_value(dto::Message::from(message.clone())).unwrap(),
         serde_json::to_value(message).unwrap()
     );
-    let summary = palace_db::ConversationSummary {
+    // The wire flattens the persisted kind into a `kind` tag beside the card fields.
+    let moment = palace_db::Moment {
         id,
-        title: "title".into(),
-        source: palace_domain::Source::Grok,
-        session_ids: vec!["s1".into()],
-        path_count: 1,
-        path_id: id,
         occurred_at: 123,
-        head_message_id: id,
-        message_count: 2,
+        detail: palace_db::MomentDetail::Conversation(palace_db::ConversationCard {
+            conversation_id: id,
+            title: "title".into(),
+            source: palace_domain::Source::Grok,
+            message_count: 2,
+            excerpt: vec![palace_db::ExcerptLine {
+                role: palace_domain::Role::User,
+                text: "你好".into(),
+            }],
+        }),
     };
-    let expected = serde_json::to_value(&summary).unwrap();
     assert_eq!(
-        serde_json::to_value(dto::ConversationSummary::from(summary)).unwrap(),
-        expected
+        serde_json::to_value(dto::Moment::from(moment)).unwrap(),
+        json!({"kind":"conversation","id":id,"occurred_at":123,"conversation_id":id,"title":"title","source":"grok","message_count":2,"excerpt":[{"role":"user","text":"你好"}]})
     );
     let imported = palace_db::ImportResult {
         import_id: id,

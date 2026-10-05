@@ -5,23 +5,6 @@
 
 // Regenerate with task api:generate. Browser supplies Origin; binary parts accept Blob/File.
 export interface paths {
-  "/api/conversations": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Lists each conversation once, ordered by its newest user-selected conversation occurrence time. */
-    get: operations["conversations"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/conversations/{id}": {
     parameters: {
       query?: never;
@@ -31,8 +14,7 @@ export interface paths {
     };
     /** Returns a stable tree and controlled external link only for the authenticated owner. */
     get: operations["conversation"];
-    /** Replaces editable card metadata without exposing tree or owner reassignment. */
-    put: operations["update_conversation"];
+    put?: never;
     post?: never;
     /** Deletes the card and all branches atomically inside the authenticated owner's scope. */
     delete: operations["delete_conversation"];
@@ -50,7 +32,7 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Branch creation derives title and source exclusively from the owner-scoped conversation. */
+    /** Branch creation names its own path but derives the source exclusively from the owner-scoped conversation. */
     post: operations["create"];
     delete?: never;
     options?: never;
@@ -67,11 +49,28 @@ export interface paths {
     };
     /** Exposes one validated ancestor path without inferring turns or role alternation. */
     get: operations["path"];
-    /** Updates keep the session identity fixed and validate the full historical prefix in the transaction. */
+    /** Updates keep the session identity fixed, may rename the path, and validate the full historical prefix in the transaction. */
     put: operations["update"];
     post?: never;
     /** Deletes only one source path while preserving shared ancestors and other paths. */
     delete: operations["delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/conversations/{id}/paths/{path_id}/metadata": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Renames one path and corrects the conversation source; tree and owner stay untouched. */
+    put: operations["update_path_metadata"];
+    post?: never;
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -140,6 +139,23 @@ export interface paths {
     put?: never;
     /** Returns an explicit committed result for every uploaded independent record. */
     post: operations["upload"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/timeline": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Lists one local day of moments; the browser supplies the day's bounds in its own time zone. */
+    get: operations["timeline"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -224,22 +240,36 @@ export interface components {
       /** Format: uuid */
       owner_id: string;
       source: components["schemas"]["Source"];
-      title: string;
     };
     ConversationDetail: {
       conversation: components["schemas"]["Conversation"];
       messages: components["schemas"]["Message"][];
       paths: components["schemas"]["ConversationPath"][];
     };
-    ConversationMetadata: {
-      source: components["schemas"]["Source"];
-      /** @description Nonblank after trimming; at most 1024 UTF-8 bytes; no normalization. */
-      title: string;
-    };
-    ConversationMetadataResponse: {
+    /** @description A conversation moment is one path of a conversation tree. */
+    ConversationMoment: {
       /** Format: uuid */
+      conversation_id: string;
+      /** @description Up to the first two messages of the path as plain text, each at most 120 characters plus an ellipsis. */
+      excerpt: components["schemas"]["ExcerptLine"][];
+      /**
+       * Format: uuid
+       * @description Moment id, equal to the path id.
+       */
       id: string;
+      /**
+       * Format: int64
+       * @description Messages from the root to the end of this path.
+       */
+      message_count: number;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds selected by the user.
+       */
+      occurred_at: number;
+      /** @description Source of the whole conversation. */
       source: components["schemas"]["Source"];
+      /** @description Title of this path. */
       title: string;
     };
     ConversationPath: {
@@ -262,31 +292,13 @@ export interface components {
       /** @description A controlled external link, never fetched by the server. */
       original_link: string;
       session_id: string;
+      /** @description The title of this source session; other paths of the tree have their own. */
+      title: string;
       /**
        * Format: int64
        * @description Unix epoch milliseconds assigned by the database.
        */
       updated_at: number;
-    };
-    ConversationSummary: {
-      /** Format: uuid */
-      head_message_id: string;
-      /** Format: uuid */
-      id: string;
-      /** Format: int64 */
-      message_count: number;
-      /**
-       * Format: int64
-       * @description Unix epoch milliseconds selected by the user.
-       */
-      occurred_at: number;
-      /** Format: int64 */
-      path_count: number;
-      /** Format: uuid */
-      path_id: string;
-      session_ids: string[];
-      source: components["schemas"]["Source"];
-      title: string;
     };
     /** @description Canonical decimal string in 0..=9223372036854775807; the domain checks the numeric upper bound. */
     Cursor: string;
@@ -307,6 +319,10 @@ export interface components {
       error: components["schemas"]["ErrorCode"];
       /** @description /auth/login for authentication_required; the empty string for other errors. Always present. */
       login: string;
+    };
+    ExcerptLine: {
+      role: components["schemas"]["Role"];
+      text: string;
     };
     /** @description A multipart transport view of TextImport; each metadata part is UTF-8 text (at most 1024 bytes). */
     FileImport: {
@@ -368,6 +384,11 @@ export interface components {
       parent_message_id: string | null;
       role: components["schemas"]["Role"];
     };
+    /** @description One timeline entry; `kind` selects the card fields that follow. */
+    Moment: components["schemas"]["ConversationMoment"] & {
+      /** @enum {string} */
+      kind: "conversation";
+    };
     NewPath: {
       /** @description Original JSON array text, with the same limits as TextImport.history. */
       history: string;
@@ -380,6 +401,8 @@ export interface components {
       occurred_at: number;
       /** @description 1..512 UTF-8 bytes; same source identity validation as initial import. */
       session_id: string;
+      /** @description Title of the new path. Nonblank after trimming; at most 1024 UTF-8 bytes. */
+      title: string;
     };
     Owner: {
       email: string;
@@ -387,6 +410,20 @@ export interface components {
       id: string;
       /** Format: uuid */
       identity_id: string;
+    };
+    PathMetadata: {
+      /** @description Source of the whole conversation; it cascades to every path. */
+      source: components["schemas"]["Source"];
+      /** @description Title of the addressed path. Nonblank after trimming; at most 1024 UTF-8 bytes; no normalization. */
+      title: string;
+    };
+    PathMetadataResponse: {
+      /** Format: uuid */
+      conversation_id: string;
+      /** Format: uuid */
+      path_id: string;
+      source: components["schemas"]["Source"];
+      title: string;
     };
     PublishedRecord: {
       /** Format: uuid */
@@ -445,6 +482,8 @@ export interface components {
        * @description Unix epoch milliseconds selected by the user.
        */
       occurred_at: number;
+      /** @description Replaces the path title. Nonblank after trimming; at most 1024 UTF-8 bytes. */
+      title: string;
     };
     UploadResult:
       | {
@@ -466,66 +505,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  conversations: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful operation */
-      200: {
-        headers: {
-          /** @description no-store */
-          "Cache-Control"?: string;
-          /** @description Refreshed production session; absent in fixed-user mode */
-          "Set-Cookie"?: string;
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ConversationSummary"][];
-        };
-      };
-      /** @description Authentication required */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-      /** @description Identity, source session or idempotency conflict */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-      /** @description Internal persistence or response failure */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-      /** @description Identity provider temporarily unavailable */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-    };
-  };
   conversation: {
     parameters: {
       query?: never;
@@ -563,101 +542,6 @@ export interface operations {
       };
       /** @description Authentication required */
       401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-      /** @description Resource unavailable in owner scope */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-      /** @description Identity, source session or idempotency conflict */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-      /** @description Internal persistence or response failure */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-      /** @description Identity provider temporarily unavailable */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-    };
-  };
-  update_conversation: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Owner-scoped UUID */
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ConversationMetadata"];
-      };
-    };
-    responses: {
-      /** @description Successful operation */
-      200: {
-        headers: {
-          /** @description no-store */
-          "Cache-Control"?: string;
-          /** @description Refreshed production session; absent in fixed-user mode */
-          "Set-Cookie"?: string;
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ConversationMetadataResponse"];
-        };
-      };
-      /** @description Invalid input; JSON domain error or native extractor text as declared */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["InputErrorResponse"];
-          "text/plain": string;
-        };
-      };
-      /** @description Authentication required */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-      /** @description Origin rejected */
-      403: {
         headers: {
           [name: string]: unknown;
         };
@@ -1179,6 +1063,103 @@ export interface operations {
       };
     };
   };
+  update_path_metadata: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped UUID */
+        id: string;
+        /** @description Owner-scoped UUID */
+        path_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PathMetadata"];
+      };
+    };
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PathMetadataResponse"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity, source session or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
   import_text: {
     parameters: {
       query?: never;
@@ -1610,6 +1591,81 @@ export interface operations {
         };
         content: {
           "text/plain": string;
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  timeline: {
+    parameters: {
+      query: {
+        /** @description Inclusive start, Unix epoch milliseconds computed in the caller's time zone. */
+        start: number;
+        /** @description Exclusive end, Unix epoch milliseconds; after start and at most 48 hours later. */
+        end: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Moments ordered by occurrence time, then id */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Moment"][];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity, source session or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
         };
       };
       /** @description Internal persistence or response failure */

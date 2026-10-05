@@ -8,7 +8,7 @@
       "type": "registry:style",
       "extends": "none",
       "title": "Palace",
-      "description": "Warm paper surfaces, olive accents, and source-owned accessible components. Import src/theme.css after Tailwind.",
+      "description": "Palace prototype style: warm paper, rust accent, text-first components. Colors, fonts and radii come from tokens.css (docs/design/tokens.css); import it, then theme.css, after Tailwind.",
       "dependencies": [
         "cn",
         "class-variance-authority",
@@ -43,23 +43,16 @@
           "type": "registry:ui"
         },
         {
+          "path": "../../docs/design/tokens.css",
+          "type": "registry:file",
+          "target": "src/tokens.css"
+        },
+        {
           "path": "src/theme.css",
           "type": "registry:file",
           "target": "src/theme.css"
         }
-      ],
-      "cssVars": {
-        "light": {
-          "background": "#fffefa",
-          "foreground": "#292c25",
-          "primary": "#546b40",
-          "primary-foreground": "#fffefa",
-          "secondary": "#efeee7",
-          "muted-foreground": "#777a70",
-          "accent": "#e8eddf",
-          "border": "#e3e4db"
-        }
-      }
+      ]
     }
   ]
 }
