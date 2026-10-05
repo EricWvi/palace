@@ -6,7 +6,7 @@ COPY apps/palace-web/package.json apps/palace-web/package.json
 RUN npm ci
 COPY apps/palace-web apps/palace-web
 # styles.css imports the shared design tokens by path; they are the one copy.
-COPY docs/design/tokens.css docs/design/tokens.css
+COPY design/tokens.css design/tokens.css
 RUN npm run build -w apps/palace-web
 
 FROM rust:1.95-alpine AS server

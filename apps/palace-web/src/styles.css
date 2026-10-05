@@ -1,10 +1,10 @@
 @import "tailwindcss";
 /* The one copy of the Palace tokens; prototypes and the app share it. */
-@import "../../../docs/design/tokens.css";
+@import "../../../design/tokens.css";
 @import "./theme.css";
 
 /*
- * Page styles follow the prototypes in docs/design: base.css and components.css first,
+ * Page styles follow the prototypes in design: base.css and components.css first,
  * then 1-prototype.html (时刻) and 2.1-moment-conversation.html (摘星 reading page).
  */
 

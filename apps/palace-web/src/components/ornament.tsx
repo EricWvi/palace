@@ -1,4 +1,4 @@
-// Traced from Eric's reference image; the same quill as docs/design/shared.js.
+// Traced from Eric's reference image; the same quill as design/shared.js.
 export function Ornament() {
   return (
     <svg

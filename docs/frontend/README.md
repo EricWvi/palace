@@ -3,7 +3,7 @@
 前端承载 Palace 的整体产品体验。产品方向是按日期浏览时间线、通过 Moment 卡片进入类型化详情，
 见[跨端形态](../product/跨端形态.md)。这些产品约定包含后续建设目标。
 
-当前 Web 应用位于 `apps/palace-web/`，视觉以 [`docs/design`](../design/README.md) 的原型为准。已实现：
+当前 Web 应用位于 `apps/palace-web/`，视觉以 [`design`](../../design/README.md) 的原型为准。已实现：
 顶部五个文字导航（只有「时刻」可点击）、按日期浏览的时刻时间线、摘星中的对话阅读页及对话的导入与管理；
 其他 Moment 类型和摘星入口页尚未实现。对话的业务规则放在[对话功能](../features/conversations/README.md)，
 本目录记录各功能共同使用的工程能力。

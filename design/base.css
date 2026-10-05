@@ -1,5 +1,5 @@
 /*
- * Base layer shared by every page in docs/design: reset and body defaults.
+ * Base layer shared by every page in design: reset and body defaults.
  * Load after tokens.css. Anything that styles a specific part of the app
  * belongs in components.css instead.
  */

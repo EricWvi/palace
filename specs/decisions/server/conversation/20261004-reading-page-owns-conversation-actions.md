@@ -7,7 +7,7 @@ date: 2026-10-04
 
 对话的阅读与管理从会话收藏页迁到「摘星」的对话阅读页：当前 Path 的标题、来源、消息数和“继续对话”集中在页首，正文以书页式排版展示，分叉写成一句可点击的文字；编辑、分支管理和删除收进标题旁悬停才出现的 `···` 菜单。删除整个对话后回到进入阅读页的来源；删除单个 Path 时同时删除它的 Moment，阅读页改为展示剩余的 Path。
 
-当前为 `implemented`，核心测试用例见[对话阅读页](../../../test-cases/server/conversation/reading-page.md)。继承[Conversation 承载树，Path 承载来源 Session](20260919-conversation-tree-and-session-paths.md)与[卡片菜单统一更新 Conversation 标题与来源](20260919-menu-action-edits-conversation-metadata.md)的数据与接口语义，只修改操作入口、阅读界面和操作后的落点；标题归属由后续的[标题从 Conversation 移到 Path](20261005-title-belongs-to-path.md)决定。页面地址与来源参数见[Web 导航根决策](../../web/navigation/0-text-nav-day-routes-and-moment-opening.md) D3，视觉参照为 `docs/design/2.1-moment-conversation.html`。会话收藏页已移除。
+当前为 `implemented`，核心测试用例见[对话阅读页](../../../test-cases/server/conversation/reading-page.md)。继承[Conversation 承载树，Path 承载来源 Session](20260919-conversation-tree-and-session-paths.md)与[卡片菜单统一更新 Conversation 标题与来源](20260919-menu-action-edits-conversation-metadata.md)的数据与接口语义，只修改操作入口、阅读界面和操作后的落点；标题归属由后续的[标题从 Conversation 移到 Path](20261005-title-belongs-to-path.md)决定。页面地址与来源参数见[Web 导航根决策](../../web/navigation/0-text-nav-day-routes-and-moment-opening.md) D3，视觉参照为 `design/2.1-moment-conversation.html`。会话收藏页已移除。
 
 ## 继承与修改
 

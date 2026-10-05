@@ -1,5 +1,5 @@
 /*
- * Tailwind names for the Palace tokens in docs/design/tokens.css, which styles.css imports.
+ * Tailwind names for the Palace tokens in design/tokens.css, which styles.css imports.
  * Only names live here; every value comes from the tokens, including dark mode.
  */
 @theme inline {

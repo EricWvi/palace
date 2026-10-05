@@ -40,7 +40,7 @@
 
 - **命名**：文件名以编号开头，同一主题的多个原型用小数编号，例如 `2.1-moment-conversation.html`、`2.2-…`。
 - **只用 token**：颜色、字体、字号、圆角一律用 `tokens.css` 里的变量，不写字面值。确实缺一档时，先在 `tokens.css` 里加 token。
-- **token 也供应用使用**：`apps/palace-web` 直接导入这份 `tokens.css`（见[组件与样式](../frontend/组件与样式.md#token-只有一份)），改动它会同时影响线上页面，提交前要一并检查应用。
+- **token 也供应用使用**：`apps/palace-web` 直接导入这份 `tokens.css`（见[组件与样式](../docs/frontend/组件与样式.md#token-只有一份)），改动它会同时影响线上页面，提交前要一并检查应用。
 - **晚一点再共享**：样式或结构先写在原型自己的页面里，等第二个原型也需要时，再挪进 `components.css` 或 `shared.js`。改共享文件前，先确认引用它的原型都没被改坏。
 - **不用 ES module 和 `fetch`**：浏览器在 `file://` 下会拦截它们。共享脚本用普通 `<script src>`，共享结构用自定义元素。
 - **SVG 内联**：装饰图形写在 `shared.js` 或页面里，不要用 `<img>` 或外部 `<use href>` 引用，否则无法通过 CSS 变量控制颜色，`file://` 下外部引用也会被拦截。

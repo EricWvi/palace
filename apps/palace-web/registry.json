@@ -8,7 +8,7 @@
       "type": "registry:style",
       "extends": "none",
       "title": "Palace",
-      "description": "Palace prototype style: warm paper, rust accent, text-first components. Colors, fonts and radii come from tokens.css (docs/design/tokens.css); import it, then theme.css, after Tailwind.",
+      "description": "Palace prototype style: warm paper, rust accent, text-first components. Colors, fonts and radii come from tokens.css (design/tokens.css); import it, then theme.css, after Tailwind.",
       "dependencies": [
         "cn",
         "class-variance-authority",
@@ -43,7 +43,7 @@
           "type": "registry:ui"
         },
         {
-          "path": "../../docs/design/tokens.css",
+          "path": "../../design/tokens.css",
           "type": "registry:file",
           "target": "src/tokens.css"
         },

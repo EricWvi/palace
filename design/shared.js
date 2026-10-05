@@ -1,5 +1,5 @@
 /*
- * Shared markup for the prototypes in docs/design.
+ * Shared markup for the prototypes in design.
  *
  * Plain script, not an ES module: the pages are opened straight from disk,
  * and browsers block module scripts and fetch() on file:// URLs. Custom

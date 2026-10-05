@@ -7,7 +7,7 @@ date: 2026-10-04
 
 Web 端用顶部的五个文字导航（时刻、行事、旅途、摘星、回响）取代会话收藏 POC 的左侧边栏。「时刻」是唯一可以直接进入的导航，地址中携带正在浏览的日期；其余导航暂不可点击。时间线上的 Moment 按“完整内容归属哪个导航”决定打开方式：归属其他导航的（目前只有对话）点标题跳到该导航的详情页，并能回到来时的日期和位置；只属于当天的原地展开。低频操作统一收进悬停时才出现的 `···` 菜单。
 
-当前为 `implemented`，核心测试用例见[文字导航与时刻地址](../../../test-cases/web/navigation/text-nav-and-day-routes.md)。本文件是 `web/navigation` 的根决策，没有前序 ADR，落地了[Moment 根决策](../../server/moment/0-moment-supertype-and-typed-details.md)的第 4 步“主页面改为按天的 Moment 列表”。视觉参照为 `docs/design/1-prototype.html` 与 `docs/design/2.1-moment-conversation.html`。会话收藏页、左侧边栏和旧首页地址已移除，没有保留兼容；对话阅读与管理、导入入口分别见[对话阅读页](../../server/conversation/20261004-reading-page-owns-conversation-actions.md)和[导入入口](../../server/import/20261004-import-from-day-menu-and-open-reading-page.md)。
+当前为 `implemented`，核心测试用例见[文字导航与时刻地址](../../../test-cases/web/navigation/text-nav-and-day-routes.md)。本文件是 `web/navigation` 的根决策，没有前序 ADR，落地了[Moment 根决策](../../server/moment/0-moment-supertype-and-typed-details.md)的第 4 步“主页面改为按天的 Moment 列表”。视觉参照为 `design/1-prototype.html` 与 `design/2.1-moment-conversation.html`。会话收藏页、左侧边栏和旧首页地址已移除，没有保留兼容；对话阅读与管理、导入入口分别见[对话阅读页](../../server/conversation/20261004-reading-page-owns-conversation-actions.md)和[导入入口](../../server/import/20261004-import-from-day-menu-and-open-reading-page.md)。
 
 ## 问题与约束
 

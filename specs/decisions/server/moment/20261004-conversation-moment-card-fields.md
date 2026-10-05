@@ -7,7 +7,7 @@ date: 2026-10-04
 
 时间线上一张对话卡片对应一条 Path，展示该 Path 的标题、Conversation 的来源、该 Path 的消息数，以及该 Path 开头两条消息的纯文本摘录。时间线接口在按天查询 Moment 后，按 `kind` 批量读取这些字段；摘录由服务端截取，不在任何表中冗余保存。
 
-当前为 `implemented`，核心测试用例见[时刻身份与时间线](../../../test-cases/server/moment/moment-timeline.md#conversation-cards-must-summarize-their-own-path)。继承[以 `moment` 表承载时刻身份与时间定位](0-moment-supertype-and-typed-details.md)的身份、时间定位与查询方式，具体化其时间线接口的对话卡片字段；标题归属见[标题从 Conversation 移到 Path](../conversation/20261005-title-belongs-to-path.md)。卡片的打开方式见[Web 导航根决策](../../web/navigation/0-text-nav-day-routes-and-moment-opening.md) D4，视觉参照为 `docs/design/1-prototype.html`。
+当前为 `implemented`，核心测试用例见[时刻身份与时间线](../../../test-cases/server/moment/moment-timeline.md#conversation-cards-must-summarize-their-own-path)。继承[以 `moment` 表承载时刻身份与时间定位](0-moment-supertype-and-typed-details.md)的身份、时间定位与查询方式，具体化其时间线接口的对话卡片字段；标题归属见[标题从 Conversation 移到 Path](../conversation/20261005-title-belongs-to-path.md)。卡片的打开方式见[Web 导航根决策](../../web/navigation/0-text-nav-day-routes-and-moment-opening.md) D4，视觉参照为 `design/1-prototype.html`。
 
 ## 继承与修改
 
