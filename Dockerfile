@@ -5,8 +5,8 @@ COPY package.json package-lock.json ./
 COPY apps/palace-web/package.json apps/palace-web/package.json
 RUN npm ci
 COPY apps/palace-web apps/palace-web
-# styles.css imports the shared design tokens by path; they are the one copy.
-COPY design/tokens.css design/tokens.css
+# The app imports the shared design tokens and ornament geometry by path.
+COPY design/tokens.css design/ornament.js design/ornament.d.ts design/
 RUN npm run build -w apps/palace-web
 
 FROM rust:1.95-alpine AS server

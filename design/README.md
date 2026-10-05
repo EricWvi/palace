@@ -19,6 +19,7 @@
 | [tokens.css](tokens.css) | 颜色、字体、字号、圆角等变量，以及浅色/深色主题 |
 | [base.css](base.css) | reset 和 `body` 默认样式，所有页面都引入 |
 | [components.css](components.css) | 多个原型共用的应用组件：页面容器 `.sheet`、页头、导航、元信息行 `.meta` |
+| [ornament.js](ornament.js) | 原型和 React 共用的装饰 SVG 路径与 viewBox；[ornament.d.ts](ornament.d.ts) 提供 TypeScript 类型 |
 | [shared.js](shared.js) | 共用的 HTML 结构，目前提供 `<palace-header>` |
 
 新原型的 `<head>` 按这个顺序引入（只用到 token 的页面，比如色板，可以只引入前两个）：
@@ -27,6 +28,7 @@
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="components.css">
+<script src="ornament.js"></script>
 <script src="shared.js"></script>
 ```
 
@@ -43,5 +45,6 @@
 - **token 也供应用使用**：`apps/palace-web` 直接导入这份 `tokens.css`（见[组件与样式](../docs/frontend/组件与样式.md#token-只有一份)），改动它会同时影响线上页面，提交前要一并检查应用。
 - **晚一点再共享**：样式或结构先写在原型自己的页面里，等第二个原型也需要时，再挪进 `components.css` 或 `shared.js`。改共享文件前，先确认引用它的原型都没被改坏。
 - **不用 ES module 和 `fetch`**：浏览器在 `file://` 下会拦截它们。共享脚本用普通 `<script src>`，共享结构用自定义元素。
-- **SVG 内联**：装饰图形写在 `shared.js` 或页面里，不要用 `<img>` 或外部 `<use href>` 引用，否则无法通过 CSS 变量控制颜色，`file://` 下外部引用也会被拦截。
+- **装饰只有一份**：路径和 viewBox 只维护 `ornament.js` 中的 `globalThis.palaceOrnament`，原型先加载它再加载 `shared.js`，React 通过副作用导入读取同一份只读数据。
+- **SVG 内联**：`shared.js` 和 React 使用共享数据渲染内联 SVG，不要用 `<img>` 或外部 `<use href>` 引用，否则无法通过 CSS 变量控制颜色，`file://` 下外部引用也会被拦截。
 - **更新目录**：新增或删除原型时，同步修改上面的原型目录。
