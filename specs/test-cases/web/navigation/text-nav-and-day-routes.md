@@ -12,8 +12,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 当前项随页面所属导航变化，任一时刻至多一项 | Missing | — |
-| 不可点击项不是链接、不进入 Tab 顺序、悬停无下划线 | Missing | — |
+| 当前项随页面所属导航变化，任一时刻至多一项 | Covered | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`、`pages/conversation.test.tsx::titles, counts and links the current path, and switching paths only replaces the address` |
+| 不可点击项不是链接、不进入 Tab 顺序、悬停无下划线 | Partial | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`（链接与 Tab 顺序）；悬停下划线只由 CSS 选择器限定在链接上，没有直接测试 |
 
 决策依据：D1，不变量 1、2。
 
@@ -27,8 +27,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 切换日期后地址可还原当天，刷新后一致 | Missing | — |
-| 日期切换不新增历史记录，非法日期回退到今天 | Missing | — |
+| 切换日期后地址可还原当天，刷新后一致 | Covered | `app.test.tsx::restores the day from the address, falls back to today, and steps days in place` |
+| 日期切换不新增历史记录，非法日期回退到今天 | Covered | `app.test.tsx::restores the day from the address, falls back to today, and steps days in place` |
 
 决策依据：D2，不变量 3。
 
@@ -42,9 +42,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 进入阅读页携带来源日期与 Path，没有日期时不显示返回链接 | Missing | — |
-| 返回链接与浏览器后退回到同一天并定位 Moment | Missing | — |
-| 回到时间线后焦点不落在 Moment 标题上，`moment` 参数被移除 | Missing | — |
+| 进入阅读页携带来源日期与 Path，没有日期时不显示返回链接 | Covered | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`、`pages/conversation.test.tsx::shows no way back when the reader did not come from a day` |
+| 返回链接与浏览器后退回到同一天并定位 Moment | Covered | `e2e/timeline.spec.ts`（真实 Chromium，返回链接与后退）、`app.test.tsx::scrolls to the moment named in the address without focusing it, then drops the target` |
+| 回到时间线后焦点不落在 Moment 标题上，`moment` 参数被移除 | Covered | `app.test.tsx::scrolls to the moment named in the address without focusing it, then drops the target`、`e2e/timeline.spec.ts` |
 
 决策依据：D2、D3，不变量 4、5。
 
@@ -58,7 +58,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 对话卡片标题是指向阅读页的链接，卡片不提供原地展开 | Missing | — |
+| 对话卡片标题是指向阅读页的链接，卡片不提供原地展开 | Covered | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page` |
 
 决策依据：D4，不变量 6。
 
@@ -72,7 +72,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 悬停、键盘焦点、展开和触屏四种情况下按钮的可见性 | Missing | — |
-| 三种关闭方式、Esc 后焦点回到按钮、`aria-expanded` 同步 | Missing | — |
+| 悬停、键盘焦点、展开和触屏四种情况下按钮的可见性 | Partial | `e2e/timeline.spec.ts`（悬停前后与触屏的透明度）；键盘聚焦与展开时的可见性只由 CSS 选择器保证 |
+| 三种关闭方式、Esc 后焦点回到按钮、`aria-expanded` 同步 | Partial | `app.test.tsx::opens the day menu from the keyboard and returns focus on Escape`（Esc、焦点与 `aria-expanded`）；选择一项关闭由各菜单流程间接覆盖，点击菜单外关闭没有直接测试 |
 
 决策依据：D5。

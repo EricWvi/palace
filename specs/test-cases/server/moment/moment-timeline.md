@@ -12,8 +12,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 孤立 Moment 与孤立详情在提交时被拒绝，同事务内补齐后可以提交 | Missing | — |
-| 详情 `kind` 与 Moment 不一致、跨 Owner 引用被数据库拒绝 | Missing | — |
+| 孤立 Moment 与孤立详情在提交时被拒绝，同事务内补齐后可以提交 | Covered | `moments::every_moment_must_have_exactly_one_detail_of_its_own_kind`、`moments::conversation_path_writes_keep_their_moment_in_the_same_transaction`（真实 PostgreSQL） |
+| 详情 `kind` 与 Moment 不一致、跨 Owner 引用被数据库拒绝 | Covered | `moments::every_moment_must_have_exactly_one_detail_of_its_own_kind`（真实 PostgreSQL） |
 
 决策依据：D1、D2，不变量 1、2。
 
@@ -27,9 +27,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 新建导入与分支各创建一个同 ID 的对话 Moment，Session 唯一性保证一个 Session 只有一个 Moment | Missing | — |
-| 追加导入把 Moment 移到最后一次续写的时间，幂等重试不移动 | Missing | — |
-| 删除 Path、删除 Conversation 后不残留 Moment，失败时整体回滚 | Missing | — |
+| 新建导入与分支各创建一个同 ID 的对话 Moment，Session 唯一性保证一个 Session 只有一个 Moment | Covered | `moments::conversation_path_writes_keep_their_moment_in_the_same_transaction`、`paths::concurrent_duplicate_sessions_create_only_one_card`（真实 PostgreSQL） |
+| 追加导入把 Moment 移到最后一次续写的时间，幂等重试不移动 | Covered | `moments::conversation_path_writes_keep_their_moment_in_the_same_transaction`（真实 PostgreSQL） |
+| 删除 Path、删除 Conversation 后不残留 Moment，失败时整体回滚 | Covered | `moments::conversation_path_writes_keep_their_moment_in_the_same_transaction`、`paths::deletion_preserves_shared_messages_and_owner_boundaries`、`paths::branches_share_prefix_and_failures_roll_back`（真实 PostgreSQL） |
 
 决策依据：D3，不变量 3、4、5、6。
 
@@ -43,9 +43,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 半开区间边界、排序与 Owner Scope | Missing | — |
-| 多 Path 分别落在各自日期，各自显示 Path 标题 | Missing | — |
-| 追加导入后 Moment 从旧日期移到新日期 | Missing | — |
+| 半开区间边界、排序与 Owner Scope | Covered | `moments::day_timeline_returns_moments_inside_the_callers_range`（真实 PostgreSQL）、`authenticated_http_imports_preserve_scope_and_file_parity`（真实 HTTP/PG） |
+| 多 Path 分别落在各自日期，各自显示 Path 标题 | Covered | `moments::day_timeline_returns_moments_inside_the_callers_range`（真实 PostgreSQL） |
+| 追加导入后 Moment 从旧日期移到新日期 | Covered | `moments::day_timeline_returns_moments_inside_the_callers_range`（真实 PostgreSQL） |
 
 决策依据：D3、D4。
 
@@ -59,10 +59,10 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 消息数与摘录只来自该 Path，包括内部末端的 Path | Missing | — |
-| 标题来自 Path、来源来自 Conversation，编辑后立即反映 | Missing | — |
-| 摘录的 Markdown 去除、空白折叠、120 字符截断与单条消息 | Missing | — |
-| 前端卡片渲染一行与两行摘录 | Missing | — |
+| 消息数与摘录只来自该 Path，包括内部末端的 Path | Covered | `moments::conversation_cards_summarize_their_own_path`（真实 PostgreSQL） |
+| 标题来自 Path、来源来自 Conversation，编辑后立即反映 | Covered | `moments::conversation_cards_summarize_their_own_path`（真实 PostgreSQL） |
+| 摘录的 Markdown 去除、空白折叠、120 字符截断与单条消息 | Covered | `excerpt::tests::strips_markdown_to_visible_words`、`excerpt::tests::truncates_by_unicode_scalars`（领域单元测试）、`moments::conversation_cards_summarize_their_own_path` |
+| 前端卡片渲染一行与两行摘录 | Partial | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`（两行）；一行摘录没有前端测试 |
 
 决策依据：[对话 Moment 卡片字段](../../../decisions/server/moment/20261004-conversation-moment-card-fields.md) D1–D3，不变量 1–4。
 
@@ -76,6 +76,6 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 有数据升级后 Moment 与 Path 一一对应，ID 与时间不变 | Missing | — |
+| 有数据升级后 Moment 与 Path 一一对应，ID 与时间不变 | Covered | `moments::migration_turns_paths_into_moments_and_copies_titles`、`paths::migration_retains_existing_linear_conversations`（真实 PostgreSQL，有数据升级） |
 
 决策依据：D3，“风险与为什么不能直接改写”。

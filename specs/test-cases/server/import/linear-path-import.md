@@ -30,7 +30,7 @@
 | --- | --- | --- |
 | 只接受完整历史的延长，失败保留消息与时间 | Covered | `paths::updates_are_append_only_and_retries_preserve_path_metadata`（真实 PostgreSQL） |
 | 拒绝 Session 与来源字段 | Covered | `http/paths.rs::exercise_path_lifecycle`（真实 HTTP/PG，拒绝多余元数据字段） |
-| 标题必填，成功时与消息、时间一起替换，失败时保留原标题 | Missing | — 现有测试仍以拒绝标题字段为准，实现时改写 |
+| 标题必填，成功时与消息、时间一起替换，失败时保留原标题 | Covered | `paths::updates_are_append_only_and_retries_preserve_path_metadata`（真实 PostgreSQL）、`http/paths.rs::exercise_path_lifecycle` |
 
 ## Import receipts and tree mutations must commit atomically
 
@@ -38,8 +38,8 @@
 
 必须成立：全部状态一起提交；幂等摘要包含标题，同键同请求返回原结果且时间、标题不变，同键不同请求（包括只有标题不同）冲突。禁止留下部分消息、Path 或 Conversation。
 
-证据：Partial — `paths::branches_share_prefix_and_failures_roll_back`、`paths::concurrent_duplicate_sessions_create_only_one_card`、`paths::updates_are_append_only_and_retries_preserve_path_metadata`（真实 PostgreSQL），`authenticated_http_imports_preserve_scope_and_file_parity`（跨入口幂等）。
-标题进入幂等摘要：Missing — 只有标题不同的同键重试必须冲突，尚无直接证据。
+证据：Covered — `paths::branches_share_prefix_and_failures_roll_back`、`paths::concurrent_duplicate_sessions_create_only_one_card`、`paths::updates_are_append_only_and_retries_preserve_path_metadata`（真实 PostgreSQL），`authenticated_http_imports_preserve_scope_and_file_parity`（跨入口幂等）。
+标题进入幂等摘要：`every_target_validates_its_path_title_and_hashes_it`（领域单元测试）与 `paths::updates_are_append_only_and_retries_preserve_path_metadata`（只有标题不同的同键重试返回冲突）。
 
 ## Every import must carry a valid path title
 
@@ -51,8 +51,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 三种导入写入各自 Path 的标题 | Missing | — |
-| 缺少或不合法标题整体拒绝，分支导入拒绝来源 | Missing | — |
-| 分支表单默认填入正在阅读的 Path 标题，追加表单填入该 Path 当前标题 | Missing | — |
+| 三种导入写入各自 Path 的标题 | Covered | `paths::metadata_correction_is_atomic_and_preserves_tree_identities`、`paths::updates_are_append_only_and_retries_preserve_path_metadata`、`moments::day_timeline_returns_moments_inside_the_callers_range`（真实 PostgreSQL） |
+| 缺少或不合法标题整体拒绝，分支导入拒绝来源 | Covered | `every_target_validates_its_path_title_and_hashes_it`（领域单元测试）、`http/paths.rs::exercise_path_lifecycle`（真实 HTTP/PG） |
+| 分支表单默认填入正在阅读的 Path 标题，追加表单填入该 Path 当前标题 | Covered | `components/branch-manager.test.tsx`、`pages/conversation.test.tsx::switches to an imported branch and dates the way back to its occurrence`、`e2e/branches.spec.ts` |
 
 决策依据：[标题从 Conversation 移到 Path](../../../decisions/server/conversation/20261005-title-belongs-to-path.md) D2，不变量 1、6。

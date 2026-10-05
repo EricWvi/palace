@@ -12,9 +12,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 标题、消息数、继续对话链接随当前 Path 变化 | Missing | — |
-| 分叉句的选项集合、内部末端与当前标记 | Missing | — |
-| 切换以替换方式写回 `path`，刷新后一致 | Missing | — |
+| 标题、消息数、继续对话链接随当前 Path 变化 | Covered | `pages/conversation.test.tsx::titles, counts and links the current path, and switching paths only replaces the address`、`pages/conversation.test.tsx::defaults to the latest path and resets downstream forks to the latest matching continuation` |
+| 分叉句的选项集合、内部末端与当前标记 | Covered | `pages/conversation.test.tsx::deep-links to internal endpoints and distinguishes sessions with identical message paths` |
+| 切换以替换方式写回 `path`，刷新后一致 | Covered | `pages/conversation.test.tsx::titles, counts and links the current path, and switching paths only replaces the address`、`e2e/branches.spec.ts`（真实 Chromium 刷新） |
 
 决策依据：D1、D2，不变量 1、2。
 
@@ -28,8 +28,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 标题菜单的三项、顺序与各自打开的对话框 | Missing | — |
-| 时间线与其他页面不提供管理入口 | Missing | — |
+| 标题菜单的三项、顺序与各自打开的对话框 | Covered | `pages/conversation.test.tsx::keeps conversation management in the title menu, destructive last`、`e2e/timeline.spec.ts`、`e2e/branches.spec.ts` |
+| 时间线与其他页面不提供管理入口 | Covered | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`（卡片内没有按钮） |
 
 决策依据：D3，不变量 3。
 
@@ -43,9 +43,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 预填、保存成功后阅读页各处投影刷新 | Missing | — |
-| 时间线卡片只改被编辑 Path 的标题，全部卡片改来源 | Missing | — |
-| 失败保留输入，投影不残留新值 | Missing | — |
+| 预填、保存成功后阅读页各处投影刷新 | Covered | `pages/conversation.test.tsx::renames only the current path and corrects the source of the whole conversation`、`e2e/timeline.spec.ts` |
+| 时间线卡片只改被编辑 Path 的标题，全部卡片改来源 | Partial | `moments::conversation_cards_summarize_their_own_path`（真实 PostgreSQL，卡片字段）；保存后时间线缓存失效没有直接测试 |
+| 失败保留输入，投影不残留新值 | Partial | `pages/conversation.test.tsx::renames only the current path and corrects the source of the whole conversation`（只覆盖前端校验失败） |
 
 决策依据：D6，不变量 6；标题归属决策 D3、D4。
 
@@ -59,7 +59,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 按有无 `date` 选择落点，并以替换方式跳转 | Missing | — |
+| 按有无 `date` 选择落点，并以替换方式跳转 | Covered | `pages/conversation.test.tsx::after deleting %s, replaces the page with %s`、`e2e/timeline.spec.ts` |
 | 删除失败留在原页并可重试 | Missing | — |
 
 决策依据：D4，不变量 4。
@@ -74,8 +74,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 删除 Path 后阅读页切到剩余 Path，返回日期不变 | Missing | — |
-| 原日期的时间线上被删 Path 的卡片消失 | Missing | — |
+| 删除 Path 后阅读页切到剩余 Path，返回日期不变 | Covered | `pages/conversation.test.tsx::falls back to a remaining path after deleting the one being read, keeping the day` |
+| 原日期的时间线上被删 Path 的卡片消失 | Covered | `moments::conversation_path_writes_keep_their_moment_in_the_same_transaction`（真实 PostgreSQL） |
 | 最后一条 Path 只能通过删除对话移除 | Partial | `paths::deletion_preserves_shared_messages_and_owner_boundaries`（真实 PostgreSQL，只覆盖服务端规则） |
 
 决策依据：D5，不变量 5。

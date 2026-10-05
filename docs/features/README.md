@@ -3,7 +3,7 @@
 按 Moment 类型或业务能力组织当前实现的规则、接口用法与交互说明。
 整体产品方向、时间线和卡片模型见[产品设计](../product/README.md)。
 
-- [对话收藏](conversations/README.md)：导入、发生时间、列表与阅读。
+- [对话](conversations/README.md)：时间线卡片、导入、阅读页与管理。
 - [对话分支与路径](conversations/分支与路径.md)：消息树、来源路径及分支管理。
 
 其他 Moment 类型尚未在此登记实现文档；产品设计中的规划不代表已经交付。

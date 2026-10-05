@@ -43,7 +43,7 @@ lint 与默认测试。容器集成测试默认忽略，显式运行时只使用
 
 `palace-db` 启动时执行 `migrations/`。Palace 新建的内部标识统一使用 UUIDv7；数据库仍使用原生 `uuid` 类型承载标识。Owner 的 email 保留原显示值，以 trim 后小写值检查活跃 Owner 冲突。未知 issuer/subject 不能凭相同 email 接管已有 Owner。所有业务查询显式传入服务端 Owner Scope；复合外键同时约束 Owner、Conversation 和父消息。
 
-导入在事务级 advisory lock 内完成来源定位、最长完全相同前缀复用和 Import 审计记录。幂等键在 Owner 内唯一，相同请求重试返回原结果，换内容复用键返回冲突。再次导入保留已有可编辑元数据；标题和来源纠错需走独立业务接口。消息结构在数据库中不可改写，父节点必须先存在，防止自引用、多节点环和跨对话引用。
+导入在事务级 advisory lock 内完成来源定位、最长完全相同前缀复用、Moment 写入和 Import 审计记录。幂等键在 Owner 内唯一，相同请求重试返回原结果，换内容或标题复用键返回冲突。每条 Path 是一个对话 Moment：`moment` 表持有身份、类型和发生时间，详情表以 `(owner_id, id, kind)` 外键引用它，延迟约束触发器保证 Moment 不会缺少详情。消息结构在数据库中不可改写，父节点必须先存在，防止自引用、多节点环和跨对话引用。
 
 `task test:integration` 显式执行默认 `#[ignore]` 的 testcontainers PostgreSQL 测试。测试先检查本地 `postgres:17-alpine`，不存在即失败，不主动调用镜像拉取。测试沿用 `DOCKER_HOST`，支持指向 Podman 的 Docker API socket；每次使用独立容器和数据库，不依赖开发数据。
 
@@ -72,7 +72,7 @@ docker build --tag palace:local .
 docker run --publish 8080:8080 --env-file .env palace:local
 ```
 
-本地联调运行 `task run:test-server`，默认访问 `http://127.0.0.1:8080`，并允许 Vite 页面使用的 `http://127.0.0.1:5173` Origin。每次启动 PostgreSQL testcontainer，数据持久化到项目根目录 `.data/postgres/pgdata`，PostgreSQL 固定映射到宿主机端口 `15432`，可直接连接调试。测试入口固定使用 `local-test@palace.test`，无需登录、OIDC、Session 密钥或 HTTPS；所有业务接口共用生产实现，但用户由本地入口固定指定，重启后保持同一 Owner。写请求仍需匹配的 Origin。需预先准备 `postgres:17-alpine` 镜像。`task test:test-server` 验证持久化和无需登录的单用户接口。
+本地联调运行 `task run:test-server`（启动时对 `.data/postgres` 执行全部迁移，其中 `0010_path_titles.sql` 会删除 `conversation.title`，不可回退），默认访问 `http://127.0.0.1:8080`，并允许 Vite 页面使用的 `http://127.0.0.1:5173` Origin。每次启动 PostgreSQL testcontainer，数据持久化到项目根目录 `.data/postgres/pgdata`，PostgreSQL 固定映射到宿主机端口 `15432`，可直接连接调试。测试入口固定使用 `local-test@palace.test`，无需登录、OIDC、Session 密钥或 HTTPS；所有业务接口共用生产实现，但用户由本地入口固定指定，重启后保持同一 Owner。写请求仍需匹配的 Origin。需预先准备 `postgres:17-alpine` 镜像。`task test:test-server` 验证持久化和无需登录的单用户接口。
 
 完整的生产与测试环境变量说明见[环境变量](环境变量.md)。
 
@@ -83,13 +83,16 @@ docker run --publish 8080:8080 --env-file .env palace:local
 | `POST /auth/logout`、`POST /auth/logout-all` | 当前或全部设备退出，认证服务故障时也可本地退出 |
 | `POST /api/import` | JSON 对象：title、source、session_id、history（原始 JSON 文本字符串）、idempotency_key、occurred_at（epoch 毫秒） |
 | `POST /api/import/file` | multipart 同名字段；history 为文件原始字节 |
-| `GET /api/conversations` | 当前用户的会话，按最新对话发生时间降序，含路径 head |
-| `GET /api/conversations/{id}` | 对话、消息树和受控来源链接 |
+| `GET /api/timeline?start=&end=` | 调用方本地日期区间内的 Moment，按发生时间排序，含卡片字段 |
+| `GET /api/conversations/{id}` | 对话、消息树、各 Path 标题和受控来源链接 |
 | `GET /api/conversations/{id}/paths/{path_id}` | 来源 Path 对应的完整祖先路径 |
-| `POST /api/conversations/{id}/paths` | 在已有树中新建分支，JSON 不接受标题和来源 |
-| `PUT /api/conversations/{id}/paths/{path_id}` | 上传完整历史，只允许追加或修改发生时间 |
-| `DELETE /api/conversations/{id}/paths/{path_id}` | 删除分支并清理不再共享的消息 |
-| `DELETE /api/conversations/{id}` | 删除整张卡片及全部分支、消息 |
+| `POST /api/conversations/{id}/paths` | 在已有树中新建带标题的分支，JSON 不接受来源 |
+| `PUT /api/conversations/{id}/paths/{path_id}` | 上传完整历史，只允许追加；可同时修改标题和发生时间 |
+| `PUT /api/conversations/{id}/paths/{path_id}/metadata` | 修改该 Path 的标题和整个对话的来源 |
+| `DELETE /api/conversations/{id}/paths/{path_id}` | 删除分支及其 Moment，并清理不再共享的消息 |
+| `DELETE /api/conversations/{id}` | 删除整个对话及全部分支、Moment、消息 |
+
+server 托管 `PALACE_WEB_DIST` 时，`/assets/*` 下带内容哈希的文件返回 `Cache-Control: public, max-age=31536000, immutable`，找不到时直接 404；其余前端路径（含 `index.html` 和前端路由回退，状态码 200）返回 `no-cache`。
 
 所有写请求必须携带严格匹配 `PALACE_ORIGIN` 的 Origin。业务请求没有 ownerId 授权参数。安全 cookie 使用 `__Host-` 前缀、Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain，持久期 180 天并滚动续期。业务响应为 `application/json` 且禁止缓存；原始 Markdown 作为 JSON 字符串返回，server 不提供 HTML 渲染。展示端必须安全渲染，不能将字符串直接写入 innerHTML。
 
@@ -111,7 +114,7 @@ SQLite 本地持久化由 Android 原生客户端实现；本仓库不再提供 
 
 Authelia 的 ID token 不必包含 email；Palace 在验证 ID token 后，通过 subject 匹配的 UserInfo 获取当前 email，登录和复核共用该边界。测试实际经过 offline_access 授权页面对应的 consent API，未依赖开发机已有登录或生产账号。
 
-`PUT /api/conversations/{id}` 接收 `{ "title": "新标题", "source": "gemini" }`，原子修改 Conversation 标题与来源。来源更新级联到全部 Path，并重新生成来源链接；若目标来源已存在任一相同 Session ID，整次更新返回 409。Owner、Palace 内部 ID、Session ID、消息父链、Import 凭据和时间保持不变；该元数据操作尚不参与跨端结构同步。
+`PUT /api/conversations/{id}/paths/{path_id}/metadata` 接收 `{ "title": "新标题", "source": "gemini" }`，在同一事务中替换该 Path 的标题和 Conversation 的来源。来源更新级联到全部 Path，并重新生成来源链接；若目标来源已存在任一相同 Session ID，整次更新返回 409。其他 Path 的标题、Owner、Palace 内部 ID、Session ID、消息父链、Import 凭据和时间保持不变；该元数据操作尚不参与跨端结构同步。
 
 Session 的内部 ID、Identity 绑定和创建时间不可更新，撤销时间一经写入不能清空。检测到轮换代次与 secret 摘要不一致，或已知旧 secret 在 30 秒宽限结束后再次使用，会持久撤销该 Session。未知随机 secret 只返回未认证。认证服务限流（429）和 5xx 均属于临时失败，不触发身份失败撤销。email 由独立语法校验器检查，再进行冲突规范化。
 

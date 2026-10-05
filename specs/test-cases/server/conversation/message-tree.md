@@ -12,7 +12,7 @@
 
 ## Metadata correction must atomically preserve conversation tree identities
 
-风险：导入时选错来源后无法纠正，或来源更新只写入 Conversation/部分 Path，造成身份冲突、错误原始链接、树结构变化和 Import 凭据失真；或标题写到了其他 Path 上。前置：一个 Conversation 拥有多个 Path，目标来源下分别准备无冲突和被其他 Conversation 占用相同 Session ID 的状态。触发：通过 `PUT /api/conversations/{id}/paths/{path_id}` 同时更新标题与来源、只改变其中一项、使用非法值、以其他 Owner 更新、指定不属于该 Conversation 的 Path，或把来源改为存在 Session 冲突的目标。
+风险：导入时选错来源后无法纠正，或来源更新只写入 Conversation/部分 Path，造成身份冲突、错误原始链接、树结构变化和 Import 凭据失真；或标题写到了其他 Path 上。前置：一个 Conversation 拥有多个 Path，目标来源下分别准备无冲突和被其他 Conversation 占用相同 Session ID 的状态。触发：通过 `PUT /api/conversations/{id}/paths/{path_id}/metadata` 同时更新标题与来源、只改变其中一项、使用非法值、以其他 Owner 更新、指定不属于该 Conversation 的 Path，或把来源改为存在 Session 冲突的目标。
 
 必须成立：合法更新在一个事务内替换指定 Path 的标题及 Conversation/全部 Path 的来源，其他 Path 的标题不变，保留 Conversation、Path、Message ID、Session ID、消息父链、head、计数、时间和历史 Import 凭据；原始链接改用新来源模板。目标来源冲突、非法输入、不存在记录、Path 与 Conversation 不匹配或跨 Owner 请求必须整体失败，且响应不区分这几种不存在的情况，标题、来源与链接均不能部分更新。旧来源身份在成功后释放，新来源身份立即参与唯一性检查。
 
@@ -20,31 +20,13 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 标题边界和 Owner Scope 拒绝非法更新 | Partial | `title_edits_share_import_validation`、`paths::metadata_correction_is_atomic_and_preserves_tree_identities`、`http/paths.rs::exercise_path_lifecycle`（覆盖 Conversation 标题，未覆盖 Path 不匹配） |
-| 标题只写入指定 Path，其他 Path 标题不变 | Missing | — |
-| Conversation 与全部 Path 的来源原子更新，目标 Session 冲突时标题与来源完整回滚 | Partial | `paths::metadata_correction_is_atomic_and_preserves_tree_identities`（真实 PostgreSQL，标题仍在 Conversation 上） |
+| 标题边界和 Owner Scope 拒绝非法更新 | Covered | `title_edits_share_import_validation`、`paths::metadata_correction_is_atomic_and_preserves_tree_identities`（含 Path 与 Conversation 不匹配）、`http/paths.rs::exercise_path_lifecycle` |
+| 标题只写入指定 Path，其他 Path 标题不变 | Covered | `paths::metadata_correction_is_atomic_and_preserves_tree_identities`（真实 PostgreSQL）、`http/paths.rs::exercise_path_lifecycle` |
+| Conversation 与全部 Path 的来源原子更新，目标 Session 冲突时标题与来源完整回滚 | Covered | `paths::metadata_correction_is_atomic_and_preserves_tree_identities`（真实 PostgreSQL） |
 | 更新保留树内身份、时间及 Import 凭据，并按新来源生成全部 Path 链接 | Covered | `paths::metadata_correction_is_atomic_and_preserves_tree_identities`、`http/paths.rs::exercise_path_lifecycle`（真实 PostgreSQL/HTTP） |
-| `PUT /api/conversations/{id}/paths/{path_id}` 只接受完整合法元数据，`PUT /api/conversations/{id}` 移除 | Missing | — |
+| `PUT /api/conversations/{id}/paths/{path_id}/metadata` 只接受完整合法元数据，`PUT /api/conversations/{id}` 移除 | Covered | `http/paths.rs::exercise_path_lifecycle`（真实 HTTP/PG）、`contract_covers_operations_and_special_wire_types`（路由清单） |
 
 决策依据：[卡片菜单统一更新 Conversation 标题与来源](../../../decisions/server/conversation/20260919-menu-action-edits-conversation-metadata.md)；[标题从 Conversation 移到 Path](../../../decisions/server/conversation/20261005-title-belongs-to-path.md) D3，不变量 2、3。
-
-## Card menu metadata editing must refresh every visible projection
-
-> 已由[对话阅读页](reading-page.md#editing-must-update-the-current-path-title-and-the-conversation-source-everywhere)替代：会话收藏页与卡片菜单在[对话阅读页](../../../decisions/server/conversation/20261004-reading-page-owns-conversation-actions.md)落地第 2 步移除。届时把下列测试迁到阅读页，更新代码中指向本节的引用后删除本节；在此之前本节仍描述现有行为。
-
-风险：保存成功后卡片、搜索、详情或继续对话链接仍使用旧值，或者失败的乐观更新残留在界面。前置：收藏页已加载一个含多个 Path 的 Conversation，并分别准备成功、校验失败和 Session 冲突响应。触发：从卡片菜单打开“编辑会话”，修改标题或来源后保存、取消、重复提交或失败后重试。
-
-必须成立：对话框预填当前标题与来源；取消不发送请求；保存期间不能重复提交。成功后无需刷新即可让卡片、搜索文本、来源图标、无障碍名称、详情和全部原始链接使用新值，且卡片顺序与默认 Path 不变。失败时对话框保留输入并允许重试，所有已提交投影保持或恢复旧值。
-
-验证义务与证据：
-
-| 验证义务 | 状态 | 代表性证据 |
-| --- | --- | --- |
-| 菜单入口、预填、取消、提交中禁用及失败重试符合对话框契约 | Covered | `components/branch-manager.test.tsx::edits complete conversation metadata from the card menu` |
-| 成功更新列表、搜索、详情、来源图标和原始链接缓存，失败不残留新值 | Covered | `components/branch-manager.test.tsx::edits complete conversation metadata from the card menu`、`e2e/library.spec.ts` |
-| 桌面与手机浏览器可完成编辑，刷新后仍显示服务端持久化值 | Covered | `e2e/library.spec.ts`（真实 Chromium，桌面与手机宽度） |
-
-决策依据：[卡片菜单统一更新 Conversation 标题与来源](../../../decisions/server/conversation/20260919-menu-action-edits-conversation-metadata.md)。
 
 ## Each path must own its title independently
 
@@ -56,9 +38,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 数据库约束拒绝缺少或不合法的 Path 标题，`conversation` 没有标题列 | Missing | — |
-| 编辑一条 Path 的标题不影响其他 Path | Missing | — |
-| Conversation 名称取最早的现存 Path，删除后顺延 | Missing | — |
+| 数据库约束拒绝缺少或不合法的 Path 标题，`conversation` 没有标题列 | Covered | `paths::metadata_correction_is_atomic_and_preserves_tree_identities`（真实 PostgreSQL） |
+| 编辑一条 Path 的标题不影响其他 Path | Covered | `paths::metadata_correction_is_atomic_and_preserves_tree_identities`、`moments::conversation_cards_summarize_their_own_path`（真实 PostgreSQL）、`pages/conversation.test.tsx::renames only the current path and corrects the source of the whole conversation` |
+| Conversation 名称取最早的现存 Path，删除后顺延 | Missing | — 对话列表接口已移除，摘星入口页尚未实现，目前没有使用这个名称的读取路径 |
 
 决策依据：[标题从 Conversation 移到 Path](../../../decisions/server/conversation/20261005-title-belongs-to-path.md) D1、D4，不变量 1、2、4、5。
 
@@ -72,7 +54,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 有数据升级后每条 Path 得到原 Conversation 标题，ID 与时间不变 | Missing | — |
+| 有数据升级后每条 Path 得到原 Conversation 标题，ID 与时间不变 | Covered | `moments::migration_turns_paths_into_moments_and_copies_titles`、`paths::migration_retains_existing_linear_conversations`（真实 PostgreSQL，有数据升级） |
 
 决策依据：[标题从 Conversation 移到 Path](../../../decisions/server/conversation/20261005-title-belongs-to-path.md) D1“迁移”、“风险与为什么不能直接改写”，不变量 7。
 
@@ -90,7 +72,7 @@
 
 必须成立：选择后续更新时间最新的匹配 Path，其消息与链接保持同一身份；相同末端的 Session 均可选择。禁止保留不匹配的下游选择。
 
-证据：Covered — `pages/conversation.test.tsx`（React 交互），`e2e/branches.spec.ts`（真实 Chromium）。卡片发生时间与默认路径独立：`paths::library_separates_occurrence_order_from_default_path_selection`（真实 PostgreSQL）。
+证据：Covered — `pages/conversation.test.tsx`（React 交互），`e2e/branches.spec.ts`（真实 Chromium）。卡片发生时间与默认路径独立：`paths::default_path_follows_updates_while_moments_follow_occurrence`（真实 PostgreSQL）。
 
 ## Migration must preserve existing linear conversation identities
 

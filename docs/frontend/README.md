@@ -3,8 +3,9 @@
 前端承载 Palace 的整体产品体验。产品方向是按日期浏览时间线、通过 Moment 卡片进入类型化详情，
 见[跨端形态](../product/跨端形态.md)。这些产品约定包含后续建设目标。
 
-当前 Web 应用位于 `apps/palace-web/`，已实现对话收藏、导入、阅读及分支管理；
-通用时间线和其他 Moment 类型不能据此视为已实现。对话的业务规则放在[对话功能](../features/conversations/README.md)，
+当前 Web 应用位于 `apps/palace-web/`，视觉以 [`docs/design`](../design/README.md) 的原型为准。已实现：
+顶部五个文字导航（只有「时刻」可点击）、按日期浏览的时刻时间线、摘星中的对话阅读页及对话的导入与管理；
+其他 Moment 类型和摘星入口页尚未实现。对话的业务规则放在[对话功能](../features/conversations/README.md)，
 本目录记录各功能共同使用的工程能力。
 
 ## 文档导航
@@ -16,7 +17,7 @@
 ## 当前技术边界
 
 - React 19 + Vite + TypeScript，React Router 管理页面路由。
-- React Query 管理服务端数据与 mutation；Zustand 保存临时界面状态，不复制服务端记录。
+- React Query 管理服务端数据与 mutation；正在浏览的日期、当前 Path 等页面状态保存在地址中，不另设客户端状态库。
 - 通用组件和主题由前端工程维护，Moment 类型的摘要、详情与专属操作归各功能文档。
 - 认证与 Session 的服务端行为见[认证系统](../server/认证系统.md)。
 
