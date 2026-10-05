@@ -1,6 +1,6 @@
 # 时刻身份与时间线核心测试用例
 
-当前决策：[以 `moment` 表承载时刻身份与时间定位](../../../decisions/server/moment/0-moment-supertype-and-typed-details.md)。本决策修改[树与 Path](../../../decisions/server/conversation/20260919-conversation-tree-and-session-paths.md)中“Conversation 是主页面的一张卡片”的约定；对话树、Path 身份与删除规则的既有用例见 [Conversation 树与 Session Path](../conversation/message-tree.md)。
+当前决策：[对话 Moment 卡片字段](../../../decisions/server/moment/20261004-conversation-moment-card-fields.md)，继承[以 `moment` 表承载时刻身份与时间定位](../../../decisions/server/moment/0-moment-supertype-and-typed-details.md)；卡片标题按[标题从 Conversation 移到 Path](../../../decisions/server/conversation/20261005-title-belongs-to-path.md)取自 Path。本决策修改[树与 Path](../../../decisions/server/conversation/20260919-conversation-tree-and-session-paths.md)中“Conversation 是主页面的一张卡片”的约定；对话树、Path 身份与删除规则的既有用例见 [Conversation 树与 Session Path](../conversation/message-tree.md)。
 
 ## Every moment must have exactly one detail of its own kind
 
@@ -37,17 +37,34 @@
 
 风险：跨天边界的 Moment 落到错误日期，同一 Conversation 的分支在时间线上互相遮蔽，或其他 Owner 的 Moment 泄露。前置：一个 Owner 的 Moment 分布在区间边界两侧，同一 Conversation 的两个 Path 落在不同日期，另一个 Owner 在同一区间也有 Moment。触发：以本地时区算出的 `[start, end)` 区间查询时间线，并在追加导入后再次查询。
 
-必须成立：只返回本 Owner、`start <= occurred_at < end` 的 Moment，按 `occurred_at, id` 升序排列；同一 Conversation 的每个 Path 在各自日期分别出现，卡片标题取自所属 Conversation；追加导入后该 Moment 只出现在新日期。禁止返回区间外或其他 Owner 的 Moment。
+必须成立：只返回本 Owner、`start <= occurred_at < end` 的 Moment，按 `occurred_at, id` 升序排列；同一 Conversation 的每个 Path 在各自日期分别出现，各自显示自己 Path 的标题；追加导入后该 Moment 只出现在新日期。禁止返回区间外或其他 Owner 的 Moment。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 半开区间边界、排序与 Owner Scope | Missing | — |
-| 多 Path 分别落在各自日期，共享 Conversation 标题 | Missing | — |
+| 多 Path 分别落在各自日期，各自显示 Path 标题 | Missing | — |
 | 追加导入后 Moment 从旧日期移到新日期 | Missing | — |
 
 决策依据：D3、D4。
+
+## Conversation cards must summarize their own path
+
+风险：卡片上的消息数、摘录或标题来自整棵树或其他 Path，与点开后看到的内容对不上；或时间线接口为摘录下发整条长消息。前置：一个 Conversation 有两条共享前缀、长度不同的 Path，其中一条在内部节点结束，另一条只有一条消息的 Conversation；消息含 Markdown、中英文混排和超过 120 个字符的正文。触发：查询这些 Path 所在日期的时间线，编辑标题与来源后再次查询，并追加导入其中一条 Path。
+
+必须成立：每张卡片的 `id` 等于 Path ID，`message_count` 等于以该 Path 打开阅读页时的消息数；`title` 等于该 Path 的当前标题，`source` 等于 Conversation 的当前来源；`excerpt` 是该 Path 从根开始的至多两条消息，去除 Markdown 标记、折叠空白，按 Unicode 标量截到 120 个字符并在截断时加 `…`；追加导入不改变摘录。禁止卡片字段保存在 `moment` 或其他表中，禁止摘录包含其他 Path 独有的消息。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 消息数与摘录只来自该 Path，包括内部末端的 Path | Missing | — |
+| 标题来自 Path、来源来自 Conversation，编辑后立即反映 | Missing | — |
+| 摘录的 Markdown 去除、空白折叠、120 字符截断与单条消息 | Missing | — |
+| 前端卡片渲染一行与两行摘录 | Missing | — |
+
+决策依据：[对话 Moment 卡片字段](../../../decisions/server/moment/20261004-conversation-moment-card-fields.md) D1–D3，不变量 1–4。
 
 ## Migration must turn existing paths into moments without changing identities
 

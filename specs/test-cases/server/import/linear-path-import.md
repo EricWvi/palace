@@ -1,6 +1,6 @@
 # 明确目标的线性导入核心测试用例
 
-决策：[分支与追加导入](../../../decisions/server/import/20260919-explicit-branch-and-append-imports.md)，继承根决策的输入、原子性与隔离要求。
+决策：[分支与追加导入](../../../decisions/server/import/20260919-explicit-branch-and-append-imports.md)，继承根决策的输入、原子性与隔离要求；请求体中的标题按[标题从 Conversation 移到 Path](../../../decisions/server/conversation/20261005-title-belongs-to-path.md) D2 修改。入口与成功落点见[导入入口与成功落点](import-entry.md)。
 
 ## Text and file inputs must have identical parsing semantics
 
@@ -22,14 +22,37 @@
 
 风险：更新或并发过期请求改写历史、时间先于内容提交。前置：已有路径；触发：追加、只改发生时间、截短、改写、旧前缀更新。
 
-必须成立：只接受相同完整历史及其延长；失败保留所有消息和时间；创建时间不变，成功更新刷新更新时间。禁止修改 Session、标题、来源。
+必须成立：只接受相同完整历史及其延长；请求必须携带合法标题，成功后替换该 Path 的标题，其他 Path 不变；失败保留所有消息、标题和时间；创建时间不变，成功更新刷新更新时间。禁止修改 Session、来源。
 
-证据：Covered — `paths::updates_are_append_only_and_retries_preserve_path_metadata`（真实 PostgreSQL），`http/paths.rs::exercise_path_lifecycle`（真实 HTTP/PG，拒绝多余元数据字段）。
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 只接受完整历史的延长，失败保留消息与时间 | Covered | `paths::updates_are_append_only_and_retries_preserve_path_metadata`（真实 PostgreSQL） |
+| 拒绝 Session 与来源字段 | Covered | `http/paths.rs::exercise_path_lifecycle`（真实 HTTP/PG，拒绝多余元数据字段） |
+| 标题必填，成功时与消息、时间一起替换，失败时保留原标题 | Missing | — 现有测试仍以拒绝标题字段为准，实现时改写 |
 
 ## Import receipts and tree mutations must commit atomically
 
 风险：并发重复 Session、失败回执、网络重试产生孤立卡片或时间漂移。前置：并发请求或回执故障注入；触发：创建、分支、更新与重试。
 
-必须成立：全部状态一起提交；同键同请求返回原结果且时间不变，同键不同请求冲突。禁止留下部分消息、Path 或 Conversation。
+必须成立：全部状态一起提交；幂等摘要包含标题，同键同请求返回原结果且时间、标题不变，同键不同请求（包括只有标题不同）冲突。禁止留下部分消息、Path 或 Conversation。
 
-证据：Covered — `paths::branches_share_prefix_and_failures_roll_back`、`paths::concurrent_duplicate_sessions_create_only_one_card`、`paths::updates_are_append_only_and_retries_preserve_path_metadata`（真实 PostgreSQL），`authenticated_http_imports_preserve_scope_and_file_parity`（跨入口幂等）。
+证据：Partial — `paths::branches_share_prefix_and_failures_roll_back`、`paths::concurrent_duplicate_sessions_create_only_one_card`、`paths::updates_are_append_only_and_retries_preserve_path_metadata`（真实 PostgreSQL），`authenticated_http_imports_preserve_scope_and_file_parity`（跨入口幂等）。
+标题进入幂等摘要：Missing — 只有标题不同的同键重试必须冲突，尚无直接证据。
+
+## Every import must carry a valid path title
+
+风险：分支导入沿用原 Path 标题、无法起新名字；或服务端替调用方补标题，使同一请求在不同时刻得到不同结果。前置：一个已有 Path 的 Conversation。触发：新建导入、分支导入、追加更新分别携带合法标题、缺少标题、纯空白或超过 1024 UTF-8 字节的标题；分支导入额外携带来源字段。
+
+必须成立：三种导入都必须携带合法标题，新建导入写入第一条 Path，分支导入写入新 Path，追加更新替换该 Path 的标题；缺少或不合法时整体拒绝，不创建或修改任何数据；分支导入仍拒绝来源字段。禁止服务端从其他 Path 复制标题作为默认值。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 三种导入写入各自 Path 的标题 | Missing | — |
+| 缺少或不合法标题整体拒绝，分支导入拒绝来源 | Missing | — |
+| 分支表单默认填入正在阅读的 Path 标题，追加表单填入该 Path 当前标题 | Missing | — |
+
+决策依据：[标题从 Conversation 移到 Path](../../../decisions/server/conversation/20261005-title-belongs-to-path.md) D2，不变量 1、6。

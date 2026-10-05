@@ -48,10 +48,10 @@ ALTER TABLE conversation_path ADD FOREIGN KEY(owner_id, id, kind) REFERENCES mom
 | --- | --- |
 | Conversation 是主页面的一张卡片，按所有 Path 中最大的 `occurred_at` 排序 | 修改：时间线上一条 Path 一张卡片，各 Path 按自己的时间定位 |
 | 详情可由链接明确指定 Path | 继承：打开 Moment 时以该 Path 为当前路径展示整棵树 |
-| 卡片标题来自 Conversation | 继承：同一 Conversation 的多张 Path 卡片共用标题，从 Conversation 派生 |
+| 卡片标题来自 Conversation | 修改：标题属于 Path（见[标题从 Conversation 移到 Path](../conversation/20261005-title-belongs-to-path.md)），同一 Conversation 的多张 Path 卡片各自显示自己的标题 |
 | 删除 Path 只清理失去引用的消息；最后一个 Path 通过删除对话删除 | 继承：删除 Path 时在同一事务中删除其 Moment；删除对话时删除全部 Path 的 Moment |
 
-大多数 Conversation 只有一条 Path，这时 Path 与 Conversation 在时间线上看不出区别。有分支的 Conversation 会出现多张卡片，各自落在其 Session 发生的那天，这正是按 Session 回看想要的效果。按导航划分，“摘星”中以 Conversation 为单位浏览知识，这不受本决策影响。
+大多数 Conversation 只有一条 Path，这时 Path 与 Conversation 在时间线上看不出区别。有分支的 Conversation 会出现多张卡片，各自落在其 Session 发生的那天、带着各自的标题，这正是按 Session 回看想要的效果。按导航划分，“摘星”中以 Conversation 为单位浏览知识，这不受本决策影响。
 
 对话 Moment 落在最后一次续写的那一天：追加导入把 Moment 的 `occurred_at` 更新为本次用户提交的时间，Moment 随之移到新的日子，身份不变。这样时间线上看到的是这个 Session 最近一次活跃的时间，而且一个 Session 只出现在一天，不会因为多次续写而在多天重复出现。代价是 Session 开始那一天的时间线上不再显示它；开始时间目前也没有单独保存。
 
