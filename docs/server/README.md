@@ -111,6 +111,8 @@ SQLite 本地持久化由 Android 原生客户端实现；本仓库不再提供 
 
 ## Authelia 契约测试
 
+身份映射、claims 校验、email 缺失或变化、issuer/subject 冲突等大多数认证场景，用测试签发的 token 和固定 JWKS 在单元测试里验证，快速且失败原因明确。真实 Authelia 只用于协议契约和少量完整登录链路。
+
 `task test:contract` 使用已有 `authelia/authelia:4.39.20` 和 testcontainers 验证真实账号登录、用户授权、Authorization Code、UserInfo、refresh 和 revocation。所有测试账号、client、签名密钥和 TLS 文件位于 `crates/backend/tests/fixtures/authelia/` 及 OIDC 单元测试目录，只用于本地独立容器。测试自己注入 fixture CA 和本地 DNS 解析，不修改系统 hosts、不关闭生产 TLS 验证。
 
 Authelia 的 ID token 不必包含 email；Palace 在验证 ID token 后，通过 subject 匹配的 UserInfo 获取当前 email，登录和复核共用该边界。测试实际经过 offline_access 授权页面对应的 consent API，未依赖开发机已有登录或生产账号。
