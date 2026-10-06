@@ -185,6 +185,37 @@ it("scrolls to the moment named in the address without focusing it, then drops t
   expect(document.activeElement).toBe(document.body);
 });
 
+// Core test case: `specs/test-cases/web/navigation/text-nav-and-day-routes.md#day-timeline-address-must-restore-the-viewed-day`
+it("picks a day from the same calendar the import form uses, replacing the address", async () => {
+  mockApi();
+  const { router, user } = mountApp("/?date=2025-09-30");
+  await screen.findByText("计划周末出行");
+  const date = screen.getByRole("button", { name: /选择日期/ });
+  date.focus();
+  await user.keyboard("{Enter}");
+  const calendar = await screen.findByRole("dialog");
+  // The calendar arrives in its own chunk on first use.
+  await within(calendar).findByRole("grid");
+  // The month and year dropdowns of the import form's calendar.
+  expect(within(calendar).getAllByRole("combobox")).toHaveLength(2);
+  // It opens on the viewed day, already selected.
+  expect(
+    within(calendar).getByRole("button", { name: /9月30日.*selected/ }),
+  ).toBeInTheDocument();
+  // Arrow keys move inside the grid instead of stepping the timeline behind it.
+  await user.keyboard("{ArrowLeft}");
+  expect(address(router)).toBe("/?date=2025-09-30");
+  await user.click(
+    within(calendar).getByRole("button", { name: /2025年9月5日/ }),
+  );
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect([address(router), router.state.historyAction]).toEqual([
+    "/?date=2025-09-05",
+    "REPLACE",
+  ]);
+  expect(date).toHaveTextContent("Sep 5, 2025");
+});
+
 // Core test case: `specs/test-cases/web/navigation/text-nav-and-day-routes.md#hover-menus-must-stay-reachable-by-keyboard-and-touch`
 it("opens the day menu from the keyboard and returns focus on Escape", async () => {
   mockApi();

@@ -1,6 +1,6 @@
 # 文字导航与时刻地址核心测试用例
 
-当前决策：[以五个文字导航组织 Web](../../../decisions/web/navigation/0-text-nav-day-routes-and-moment-opening.md)。对话阅读页自身的行为见[对话阅读页](../../server/conversation/reading-page.md)。
+当前决策：[以五个文字导航组织 Web](../../../decisions/web/navigation/0-text-nav-day-routes-and-moment-opening.md)，日期标题的日历见[日期标题打开应用内日历](../../../decisions/web/navigation/20261007-day-heading-opens-the-app-calendar.md)。对话阅读页自身的行为见[对话阅读页](../../server/conversation/reading-page.md)。
 
 ## Navigation must mark only the owning section and keep inert items out of reach
 
@@ -29,8 +29,9 @@
 | --- | --- | --- |
 | 切换日期后地址可还原当天，刷新后一致 | Covered | `app.test.tsx::restores the day from the address, falls back to today, and steps days in place` |
 | 日期切换不新增历史记录，非法日期回退到今天 | Covered | `app.test.tsx::restores the day from the address, falls back to today, and steps days in place` |
+| 日期标题打开导入表单同款日历，选择后以替换方式写回，日历内方向键不切换日期 | Covered | `app.test.tsx::picks a day from the same calendar the import form uses, replacing the address` |
 
-决策依据：D2，不变量 3。
+决策依据：D2，不变量 3；20261007 日历 D1，不变量 1–3。
 
 ## Returning from a conversation must land on the same day without focusing the moment
 

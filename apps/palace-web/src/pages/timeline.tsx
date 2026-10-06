@@ -21,8 +21,18 @@ import {
 import { DayMoments } from "@/components/day-moments";
 import { ErrorState } from "@/components/error-state";
 import { MoreMenu } from "@/components/more-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
-// The import form brings the calendar with it; most visits never open it.
+// The calendar is fetched on first approach to the date, and the import form brings it along;
+// most visits never open either.
+const loadCalendar = () => import("@/components/day-calendar");
+const DayCalendar = lazy(() =>
+  loadCalendar().then((module) => ({ default: module.DayCalendar })),
+);
 const ImportDialog = lazy(() =>
   import("@/components/import-dialog").then((module) => ({
     default: module.ImportDialog,
@@ -43,7 +53,9 @@ export function TimelinePage() {
     enabled: query.isPending,
   });
   const [importing, setImporting] = useState(false);
-  const pick = useRef<HTMLInputElement>(null);
+  const [picking, setPicking] = useState(false);
+  // How the calendar was opened decides where focus goes once it closes, see below.
+  const opened = useRef<"pointer" | "keyboard">("keyboard");
 
   // Replace, never push: stepping through days is browsing, so back still leaves the timeline.
   function show(next: Date) {
@@ -79,33 +91,48 @@ export function TimelinePage() {
   return (
     <>
       <header className="day reveals-more">
-        <h1>
-          <button
-            type="button"
-            className="date"
-            // The heading must still read as the date, not only as a control.
-            aria-label={`${dayHeading(day)}，选择日期`}
-            onClick={() => pick.current?.showPicker?.()}
+        <Popover open={picking} onOpenChange={setPicking}>
+          <h1>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="date"
+                // The heading must still read as the date, not only as a control.
+                aria-label={`${dayHeading(day)}，选择日期`}
+                onPointerEnter={() => void loadCalendar()}
+                onFocus={() => void loadCalendar()}
+                onPointerDown={() => (opened.current = "pointer")}
+                onKeyDown={() => (opened.current = "keyboard")}
+                // A click must not leave focus on the date, or the arrow keys that step days
+                // would ring it, as with 时刻 in the header.
+                onMouseDown={(event) => event.preventDefault()}
+              >
+                {dayHeading(day)}
+              </button>
+            </PopoverTrigger>
+          </h1>
+          <PopoverContent
+            className="w-auto p-0"
+            align="start"
+            onCloseAutoFocus={(event) => {
+              // Keyboard users go back to the date; a pointer never put focus there.
+              if (opened.current === "pointer") event.preventDefault();
+            }}
           >
-            {dayHeading(day)}
-          </button>
-        </h1>
+            <Suspense fallback={null}>
+              <DayCalendar
+                selected={day}
+                onSelect={(picked) => {
+                  show(picked);
+                  setPicking(false);
+                }}
+              />
+            </Suspense>
+          </PopoverContent>
+        </Popover>
         <MoreMenu
           label="当天操作"
           actions={[{ label: "导入对话", onSelect: () => setImporting(true) }]}
-        />
-        {/* The native input only supplies the picker; it stays invisible under the heading. */}
-        <input
-          ref={pick}
-          className="pick"
-          type="date"
-          tabIndex={-1}
-          aria-hidden="true"
-          value={date}
-          onChange={(event) => {
-            const picked = parseDay(event.target.value);
-            if (picked) show(picked);
-          }}
         />
       </header>
       {query.isError ? (

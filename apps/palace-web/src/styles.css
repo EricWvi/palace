@@ -293,17 +293,6 @@ header.day .date:hover {
   color: var(--accent-hover);
 }
 
-/* The native date input only supplies the picker; it stays invisible under the heading. */
-header.day .pick {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
 /* Timeline: a single column of moments in time order, no gutter or rail. */
 ol.timeline {
   list-style: none;

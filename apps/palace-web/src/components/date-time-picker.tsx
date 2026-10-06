@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { zhCN } from "date-fns/locale";
 import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
+import { DayCalendar } from "@/components/day-calendar";
 import {
   Popover,
   PopoverContent,
@@ -26,21 +25,12 @@ export function DateTimePicker({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            locale={zhCN}
-            mode="single"
-            required
+          <DayCalendar
             selected={value}
-            defaultMonth={value}
-            captionLayout="dropdown"
-            startMonth={new Date(1900, 0)}
-            endMonth={new Date(2100, 11)}
             onSelect={(date) => {
-              if (date) {
-                date.setHours(value.getHours(), value.getMinutes(), 0, 0);
-                onChange(date);
-                setOpen(false);
-              }
+              date.setHours(value.getHours(), value.getMinutes(), 0, 0);
+              onChange(date);
+              setOpen(false);
             }}
           />
         </PopoverContent>
