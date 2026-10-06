@@ -467,9 +467,13 @@ blockquote.chat p {
  * 摘星 reading page. The way back hangs in the gap above the title, so the title lands exactly
  * where the day heading sits in 时刻 and switching pages does not shift it.
  */
+/*
+ * Same top as the 时刻 heading plus the difference in baseline: the date is set larger, so a
+ * smaller title on the same top would sit higher and seem to jump when a card is opened.
+ */
 header.conversation {
   position: relative;
-  margin-top: 64px;
+  margin-top: 70px;
 }
 
 header.conversation .back {
@@ -508,7 +512,7 @@ header.conversation h1 {
  */
 ol.messages {
   list-style: none;
-  margin: 48px 0 0;
+  margin: 54px 0 0;
   padding: 0;
   font-family: var(--font-content);
   line-height: 1.75;
@@ -937,7 +941,7 @@ ol.messages {
   }
 
   header.conversation {
-    margin-top: 36px;
+    margin-top: 41px;
   }
 
   header.conversation .back {

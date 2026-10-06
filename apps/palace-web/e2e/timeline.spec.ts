@@ -179,13 +179,22 @@ test("a day, its conversation, an import filed on another day, and the way back"
   await page.locator("header.day h1").hover();
   await expect(dayMenu).toHaveCSS("opacity", "1");
 
-  // The conversation title sits exactly where the day heading was.
-  const dayTop = (await page.locator("header.day h1").boundingBox())!.y;
+  // The conversation title sits on the day heading's baseline, so opening a card does not make
+  // the smaller title seem to jump up. A zero-size inline-block marks a line's baseline.
+  const baseline = (heading: Element) => {
+    const mark = document.createElement("span");
+    mark.style.cssText = "display: inline-block; width: 0; height: 0";
+    heading.prepend(mark);
+    const y = mark.getBoundingClientRect().top;
+    mark.remove();
+    return y;
+  };
+  const dayBaseline = await page.locator("header.day h1").evaluate(baseline);
   await card.click();
   await expect(page).toHaveURL(/\/conversations\/c1\?path=p1&date=2025-09-30$/);
   const title = page.getByRole("heading", { level: 1, name: "计划周末出行" });
   await expect(title).toBeVisible();
-  expect((await title.boundingBox())!.y).toBe(dayTop);
+  expect(await title.evaluate(baseline)).toBe(dayBaseline);
   await expect(page).toHaveTitle("计划周末出行");
   await page.screenshot({ path: "/tmp/palace-reading.png", fullPage: true });
 
