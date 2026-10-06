@@ -225,8 +225,8 @@
     }
 
     /*
-     * A fork is a sentence, not a control: the options are the first words of
-     * each branch's next message, and picking one swaps everything below it.
+     * A fork is a sentence, not a control: the options are the titles of the
+     * branches, and picking one swaps everything below it.
      */
     .fork {
       color: var(--text-3);
@@ -523,11 +523,8 @@
     const params = new URLSearchParams(location.search);
     let path = params.get("path") in branches ? params.get("path") : "coast";
 
-    // A fork option is named by the first words of its branch, the way the reader remembers it.
-    const optionLabel = (html) => {
-      const text = html.replace(/<[^>]+>/g, "");
-      return text.length > 14 ? `${text.slice(0, 14)}…` : text;
-    };
+    // A fork option is named by the title of its branch, the name the reader gave it.
+    const optionLabel = (title) => (title.length > 14 ? `${title.slice(0, 14)}…` : title);
 
     const message = ([role, html], index) =>
       `<li class="message ${role}" id="m-${index}"><div class="who">${speakers[role]}</div><div class="body">${html}</div></li>`;
@@ -605,9 +602,9 @@
 
     const render = () => {
       const options = Object.entries(branches)
-        .map(([key, rest]) => {
+        .map(([key]) => {
           const current = key === path ? ' aria-current="true"' : "";
-          return `<button data-path="${key}"${current}>${optionLabel(rest[0][1])}</button>`;
+          return `<button data-path="${key}"${current}>${optionLabel(titles[key])}</button>`;
         })
         .join("");
       const fork = `<li class="fork">此处分为 ${Object.keys(branches).length} 支：<span class="options">${options}</span></li>`;

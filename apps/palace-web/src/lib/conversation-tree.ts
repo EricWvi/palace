@@ -34,46 +34,54 @@ export interface BranchChoice {
   pathId: string;
 }
 
-// A fork option is named by the first words of its branch, the way a reader remembers it.
+// A fork option is named by the title of the path it opens, the name the reader gave it.
 const LABEL_CHARS = 14;
-function optionLabel(content: string): string {
-  // Markdown markers would eat into the few characters shown; they never read as words.
-  const text = content
-    .replace(/[#*_`>~]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!text) return "（空消息）";
-  const chars = [...text];
+function titleLabel(title: string): string {
+  const chars = [...title.trim()];
   return chars.length > LABEL_CHARS
     ? `${chars.slice(0, LABEL_CHARS).join("")}…`
-    : text;
+    : chars.join("");
 }
 
-// A continuation selects the newest complete path in that subtree; each endpoint keeps its session.
+// A continuation selects the newest complete path in that subtree, or the path being read when it
+// lies there; an internal endpoint is the session that stops at it. Each option is named by that
+// path's title, and the session tells apart options that would otherwise read the same, as new
+// branches start with the title of the path they were made from.
 export function branchChoices(
   paths: ResolvedPath[],
   selected: ResolvedPath,
   after: number,
 ): BranchChoice[] {
-  const choices = new Map<string, BranchChoice>();
-  const endings: ConversationPath[] = [];
+  // Per option: the path it opens, and the path it is named after (the same, unless the reader
+  // is already inside that subtree on an older path).
+  const options = new Map<
+    string,
+    { opens: ConversationPath; named: ConversationPath }
+  >();
   for (const candidate of paths) {
     // A message has exactly one parent, so matching this node proves the entire prefix.
     if (candidate.messages[after]?.id !== selected.messages[after]?.id)
       continue;
     const next = candidate.messages[after + 1];
-    if (!next) endings.push(candidate.path);
     const key = next ? `message:${next.id}` : `path:${candidate.path.id}`;
-    if (!choices.has(key))
-      choices.set(key, {
-        key,
-        label: next ? optionLabel(next.content) : "",
-        pathId: candidate.path.id,
-      });
+    const known = options.get(key);
+    if (!known)
+      options.set(key, { opens: candidate.path, named: candidate.path });
+    else if (candidate.path.id === selected.path.id)
+      known.named = candidate.path;
   }
-  // Several sessions may stop at the same message; only then does the session tell them apart.
-  for (const path of endings)
-    choices.get(`path:${path.id}`)!.label =
-      endings.length > 1 ? `在此结束 · ${path.session_id}` : "在此结束";
-  return [...choices.values()];
+  const entries = [...options];
+  const labels = entries.map(([, { named }]) => titleLabel(named.title));
+  return entries.map(([key, { opens, named }], index) => {
+    const label = labels[index];
+    const shared = labels.filter((other) => other === label).length > 1;
+    return {
+      key,
+      pathId: opens.id,
+      label:
+        shared || !label
+          ? [label, named.session_id].filter(Boolean).join(" · ")
+          : label,
+    };
+  });
 }

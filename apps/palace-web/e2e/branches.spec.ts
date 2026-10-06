@@ -71,19 +71,18 @@ test("nested forks, internal endpoints, the branch list and its update form", as
     "href",
     "https://chatgpt.com/c/s3",
   );
-  await fork(4).getByRole("button", { name: "U4" }).click();
+  await fork(4).getByRole("button", { name: "第 2 支" }).click();
   await expect(page.getByRole("link", { name: "继续对话 ↗" })).toHaveAttribute(
     "href",
     "https://chatgpt.com/c/s2",
   );
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("第 2 支");
-  await fork(2).getByRole("button", { name: "U2" }).click();
-  await fork(2).getByRole("button", { name: "U3" }).click();
-  await expect(fork(4).getByRole("button", { name: "U5" })).toHaveAttribute(
-    "aria-current",
-    "true",
-  );
-  await fork(2).getByRole("button", { name: "在此结束 · s4" }).click();
+  await fork(2).getByRole("button", { name: "第 1 支" }).click();
+  await fork(2).getByRole("button", { name: "第 3 支" }).click();
+  await expect(
+    fork(4).getByRole("button", { name: "第 3 支" }),
+  ).toHaveAttribute("aria-current", "true");
+  await fork(2).getByRole("button", { name: "第 4 支" }).click();
   await page.reload();
   await expect(page.locator(".message")).toHaveCount(2);
   await expect(page.getByRole("link", { name: "继续对话 ↗" })).toHaveAttribute(

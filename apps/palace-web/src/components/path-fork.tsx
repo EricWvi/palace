@@ -1,6 +1,6 @@
 import { branchChoices, type ResolvedPath } from "@/lib/conversation-tree";
 
-// A fork is a sentence, not a control: the options are the first words of each branch, and
+// A fork is a sentence, not a control: the options are the titles of the branches, and
 // picking one swaps everything below it.
 export function PathFork({
   paths,

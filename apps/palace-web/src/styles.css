@@ -619,8 +619,8 @@ ol.messages {
 }
 
 /*
- * A fork is a sentence, not a control: the options are the first words of each branch's next
- * message, and picking one swaps everything below it.
+ * A fork is a sentence, not a control: the options are the titles of the branches, and picking
+ * one swaps everything below it.
  */
 .fork {
   color: var(--text-3);

@@ -70,9 +70,9 @@
 
 风险：上下游选择拼接出不存在的路径，或“继续对话”跳转错误 Session。前置：两级分叉及相同内部末端；触发：切换上游、下游、内部末端并刷新深链接。
 
-必须成立：选择后续更新时间最新的匹配 Path，其消息与链接保持同一身份；相同末端的 Session 均可选择。禁止保留不匹配的下游选择。
+必须成立：选择后续更新时间最新的匹配 Path，其消息与链接保持同一身份；相同末端的 Session 均可选择；选项以 Path 标题命名，读起来相同的选项带 Session ID。禁止保留不匹配的下游选择，禁止两个选项名字相同。
 
-证据：Covered — `pages/conversation.test.tsx`（React 交互），`e2e/branches.spec.ts`（真实 Chromium）。卡片发生时间与默认路径独立：`paths::default_path_follows_updates_while_moments_follow_occurrence`（真实 PostgreSQL）。
+证据：Covered — `pages/conversation.test.tsx`（React 交互），`e2e/branches.spec.ts`（真实 Chromium），`lib/conversation-tree.test.ts::names fork options by path title, telling same-named branches apart by session`（选项命名与重名区分）。卡片发生时间与默认路径独立：`paths::default_path_follows_updates_while_moments_follow_occurrence`（真实 PostgreSQL）。
 
 ## Migration must preserve existing linear conversation identities
 

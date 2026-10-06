@@ -115,24 +115,23 @@ it("defaults to the latest path and resets downstream forks to the latest matchi
     "href",
     "https://chatgpt.com/c/s3",
   );
-  await user.click(within(fork(4)).getByRole("button", { name: "U4" }));
+  await user.click(within(fork(4)).getByRole("button", { name: "第 2 支" }));
   expect(screen.getByText("A4")).toBeInTheDocument();
   expect(screen.queryByText("A5")).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "继续对话 ↗" })).toHaveAttribute(
     "href",
     "https://chatgpt.com/c/s2",
   );
-  await user.click(within(fork(2)).getByRole("button", { name: "U2" }));
+  await user.click(within(fork(2)).getByRole("button", { name: "第 1 支" }));
   expect(screen.getByText("A2")).toBeInTheDocument();
   expect(
     screen.queryByRole("group", { name: "第 4 条消息后的分支" }),
   ).not.toBeInTheDocument();
-  await user.click(within(fork(2)).getByRole("button", { name: "U3" }));
+  await user.click(within(fork(2)).getByRole("button", { name: "第 3 支" }));
   expect(screen.getByText("A5")).toBeInTheDocument();
-  expect(within(fork(4)).getByRole("button", { name: "U5" })).toHaveAttribute(
-    "aria-current",
-    "true",
-  );
+  expect(
+    within(fork(4)).getByRole("button", { name: "第 3 支" }),
+  ).toHaveAttribute("aria-current", "true");
 });
 
 // Core test case: `specs/test-cases/server/conversation/message-tree.md#fork-selection-must-resolve-to-one-real-source-session`
@@ -142,11 +141,9 @@ it("deep-links to internal endpoints and distinguishes sessions with identical m
   expect(document.querySelectorAll(".message")).toHaveLength(2);
   expect(fork(2)).toHaveTextContent("此处分为 4 支：");
   expect(
-    within(fork(2)).getByRole("button", { name: "在此结束 · s4" }),
+    within(fork(2)).getByRole("button", { name: "第 4 支" }),
   ).toHaveAttribute("aria-current", "true");
-  await user.click(
-    within(fork(2)).getByRole("button", { name: "在此结束 · s5" }),
-  );
+  await user.click(within(fork(2)).getByRole("button", { name: "第 5 支" }));
   expect(document.querySelectorAll(".message")).toHaveLength(2);
   expect(screen.getByRole("link", { name: "继续对话 ↗" })).toHaveAttribute(
     "href",
@@ -170,7 +167,7 @@ it("titles, counts and links the current path, and switching paths only replaces
     "href",
     "/?date=2025-09-30&moment=p2",
   );
-  await user.click(within(fork(2)).getByRole("button", { name: "U2" }));
+  await user.click(within(fork(2)).getByRole("button", { name: "第 1 支" }));
   expect(
     screen.getByRole("heading", { level: 1, name: "第 1 支" }),
   ).toBeInTheDocument();
@@ -274,7 +271,7 @@ it("renames only the current path and corrects the source of the whole conversat
     { title: "海边周末", source: "gemini" },
   ]);
   // The sibling branch keeps its own title.
-  await user.click(within(fork(2)).getByRole("button", { name: "U3" }));
+  await user.click(within(fork(2)).getByRole("button", { name: "第 3 支" }));
   expect(
     await screen.findByRole("heading", { level: 1, name: "第 3 支" }),
   ).toBeInTheDocument();
@@ -388,7 +385,7 @@ it("lists the read path's messages by their server lines, and a jump keeps its m
     window.dispatchEvent(new WheelEvent("wheel"));
     await waitFor(() => expect(current()).toBe(5));
 
-    await user.click(within(fork(4)).getByRole("button", { name: "U4" }));
+    await user.click(within(fork(4)).getByRole("button", { name: "第 2 支" }));
     expect(lines()).toEqual(
       ["U1", "A1", "U3", "A3", "U4", "A4"].map((id) => `目录 ${id}`),
     );
