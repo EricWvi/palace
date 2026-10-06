@@ -16,7 +16,7 @@ Palace 的产品方向是按发生时间组织个人的 Moment（时刻），通
 ## 常用入口
 
 - [Web 本地开发与验证](frontend/开发与验证.md)
-- [对话](features/conversations/README.md)与[分支管理](features/conversations/分支与路径.md)
+- [对话](features/conversations/README.md)与[分支](features/conversations/分支与路径.md)
 - [认证系统](server/认证系统.md)与[环境变量](server/环境变量.md)
 - [API 契约生成与检查](server/README.md#api-契约)
 - [正式 OpenAPI](../contracts/openapi.json)

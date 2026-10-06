@@ -21,7 +21,7 @@ import {
 import { BranchManager } from "./branch-manager";
 import { ErrorState } from "./error-state";
 import { MoreMenu } from "./more-menu";
-import type { ImportResult } from "./import-dialog";
+import { ImportDialog, type ImportResult } from "./import-dialog";
 
 // The reading page is the only place a conversation is managed; the timeline only links here.
 export function ConversationMenu({
@@ -38,9 +38,9 @@ export function ConversationMenu({
   onImported: (result: ImportResult, occurredAt: number) => void;
   onDeleted: () => void;
 }) {
-  const [action, setAction] = useState<"edit" | "branches" | "delete" | null>(
-    null,
-  );
+  const [action, setAction] = useState<
+    "update" | "branches" | "edit" | "delete" | null
+  >(null);
   const [title, setTitle] = useState(path.title);
   const [chosen, setChosen] = useState<Source>(source);
   const client = useQueryClient();
@@ -84,7 +84,11 @@ export function ConversationMenu({
     <>
       <MoreMenu
         label="管理对话"
+        // Most frequent first, the one that cannot be undone last. Updating the branch being read
+        // is what a reader comes back for, so it needs no detour through 管理分支.
         actions={[
+          { label: "更新分支", onSelect: () => setAction("update") },
+          { label: "管理分支", onSelect: () => setAction("branches") },
           {
             label: "编辑对话",
             onSelect: () => {
@@ -94,7 +98,6 @@ export function ConversationMenu({
               setAction("edit");
             },
           },
-          { label: "分支管理", onSelect: () => setAction("branches") },
           {
             label: "删除对话",
             onSelect: () => {
@@ -104,6 +107,19 @@ export function ConversationMenu({
           },
         ]}
       />
+      {action === "update" && (
+        <ImportDialog
+          open
+          mode={{ kind: "update", conversationId, source, path }}
+          onOpenChange={(open) => {
+            if (!open) setAction(null);
+          }}
+          onImported={(result, occurredAt) => {
+            setAction(null);
+            onImported(result, occurredAt);
+          }}
+        />
+      )}
       {action === "branches" && (
         <BranchManager
           conversationId={conversationId}

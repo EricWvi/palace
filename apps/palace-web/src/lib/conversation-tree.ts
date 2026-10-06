@@ -28,12 +28,6 @@ export function resolvePaths(detail: Detail): ResolvedPath[] {
     });
 }
 
-export interface UserNode {
-  message: Message;
-  parentId: string | null;
-  paths: ConversationPath[];
-}
-
 export interface BranchChoice {
   key: string;
   label: string;
@@ -82,35 +76,4 @@ export function branchChoices(
     choices.get(`path:${path.id}`)!.label =
       endings.length > 1 ? `在此结束 · ${path.session_id}` : "在此结束";
   return [...choices.values()];
-}
-
-// Project each endpoint onto its last user ancestor, including endpoints inside longer paths.
-export function userTree(paths: ResolvedPath[]): {
-  nodes: UserNode[];
-  withoutUser: ConversationPath[];
-} {
-  const nodes = new Map<string, UserNode>();
-  const children = new Map<string | null, string[]>();
-  const withoutUser: ConversationPath[] = [];
-  for (const { path, messages } of paths) {
-    let parent: string | null = null;
-    for (const message of messages) {
-      if (message.role !== "user") continue;
-      if (!nodes.has(message.id)) {
-        nodes.set(message.id, { message, parentId: parent, paths: [] });
-        children.set(parent, [...(children.get(parent) ?? []), message.id]);
-      }
-      parent = message.id;
-    }
-    if (parent) nodes.get(parent)!.paths.push(path);
-    else withoutUser.push(path);
-  }
-  const ordered: UserNode[] = [];
-  const stack = [...(children.get(null) ?? [])].reverse();
-  while (stack.length) {
-    const id = stack.pop()!;
-    ordered.push(nodes.get(id)!);
-    stack.push(...[...(children.get(id) ?? [])].reverse());
-  }
-  return { nodes: ordered, withoutUser };
 }

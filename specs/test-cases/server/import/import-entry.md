@@ -1,12 +1,12 @@
 # 导入入口与成功落点核心测试用例
 
-当前决策：[从时刻页日期菜单导入对话](../../../decisions/server/import/20261004-import-from-day-menu-and-open-reading-page.md)。导入的校验、幂等与事务语义见[明确目标的线性导入](linear-path-import.md)；菜单的显示与键盘规则见[文字导航与时刻地址](../../web/navigation/text-nav-and-day-routes.md#hover-menus-must-stay-reachable-by-keyboard-and-touch)。
+当前决策：[从时刻页日期菜单导入对话](../../../decisions/server/import/20261004-import-from-day-menu-and-open-reading-page.md)，更新入口由[分支管理改为分支列表](../../../decisions/server/conversation/20261006-branch-list-and-update-from-title-menu.md) D1 放宽。导入的校验、幂等与事务语义见[明确目标的线性导入](linear-path-import.md)；菜单的显示与键盘规则见[文字导航与时刻地址](../../web/navigation/text-nav-and-day-routes.md#hover-menus-must-stay-reachable-by-keyboard-and-touch)。
 
 ## New imports must start from the day menu with the viewed day as default
 
 风险：在过去某天补录时默认时间仍是今天，导入的对话落到错误日期；或导入入口出现在多处。前置：时间线分别浏览今天和过去某天。触发：从日期标题旁的菜单选择“导入对话”，不改时间直接提交；再把日期和时间改成其他值后提交。
 
-必须成立：浏览今天时默认发生时间为当前本地时间，浏览其他日期时为该日期加上当前本地时刻；提交的 `occurred_at` 等于表单中用户确认的值；点击 `···` 不会打开日期选择器。新建导入只能从日期菜单发起，分支与追加只能从阅读页的分支管理发起。禁止服务端或前端在提交后改写用户确认的时间。
+必须成立：浏览今天时默认发生时间为当前本地时间，浏览其他日期时为该日期加上当前本地时刻；提交的 `occurred_at` 等于表单中用户确认的值；点击 `···` 不会打开日期选择器。新建导入只能从日期菜单发起，新建分支只能从阅读页的管理分支发起，追加更新只能从阅读页的标题菜单“更新分支”或管理分支发起。禁止服务端或前端在提交后改写用户确认的时间。
 
 验证义务与证据：
 

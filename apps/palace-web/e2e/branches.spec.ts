@@ -4,7 +4,7 @@ import type { Message, Detail } from "../src/lib/api";
 // Core test cases:
 // - `specs/test-cases/server/conversation/message-tree.md#shared-and-internal-endpoint-paths-must-remain-independently-manageable`
 // - `specs/test-cases/server/conversation/message-tree.md#fork-selection-must-resolve-to-one-real-source-session`
-test("nested forks, internal endpoints, branch forms and mixed-language tree labels", async ({
+test("nested forks, internal endpoints, the branch list and its update form", async ({
   page,
 }) => {
   const chains = [
@@ -91,78 +91,35 @@ test("nested forks, internal endpoints, branch forms and mixed-language tree lab
   );
   await page.getByRole("heading", { level: 1 }).hover();
   await page.getByRole("button", { name: "管理对话" }).click();
-  await page.getByRole("menuitem", { name: "分支管理" }).click();
-  const manager = page.getByRole("dialog", { name: "分支管理" });
-  await expect(manager.locator(".branch-node-text")).toHaveCount(5);
-  await expect(manager.locator(".react-flow__edge")).toHaveCount(4);
-  const root = manager.locator('.react-flow__node[data-id="U1"]');
-  const child = manager.locator('.react-flow__node[data-id="U3"]');
-  await expect(root).toBeVisible();
-  expect((await root.boundingBox())!.y).toBeLessThan(
-    (await child.boundingBox())!.y,
-  );
-  const rootActions = root.locator(".branch-node-buttons").first();
-  await expect(rootActions).toHaveCSS("opacity", "0");
-  await root.hover();
-  await expect(rootActions).toHaveCSS("opacity", "1");
+  await expect(page.getByRole("menuitem")).toHaveText([
+    "更新分支",
+    "管理分支",
+    "编辑对话",
+    "删除对话",
+  ]);
+  await page.getByRole("menuitem", { name: "管理分支" }).click();
+  const manager = page.getByRole("dialog", { name: "管理分支" });
+  // One row per path, newest update first (ties by id, descending), whatever the tree's shape.
+  await expect(manager.locator(".branch-title")).toHaveText([
+    "第 3 支",
+    "第 2 支",
+    "第 5 支",
+    "第 4 支",
+    "第 1 支",
+  ]);
   await page.screenshot({ path: "/tmp/palace-branches-desktop.png" });
-  await manager.getByRole("button", { name: "适应画布" }).hover();
-  await expect(rootActions).toHaveCSS("opacity", "0");
-  await manager.getByRole("button", { name: "更新分支 s4" }).focus();
-  await expect(rootActions).toHaveCSS("opacity", "1");
-  await expect(
-    manager.getByRole("button", { name: "更新分支 s4" }),
-  ).toBeVisible();
-  await expect(
-    manager.getByRole("button", { name: "更新分支 s5" }),
-  ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await manager.getByRole("button", { name: "适应画布" }).click();
-  expect(
-    await manager.evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      return {
-        left: rect.left >= 0,
-        right: rect.right <= innerWidth,
-        width: rect.width,
-        scrollWidth: element.scrollWidth,
-        clientWidth: element.clientWidth,
-      };
-    }),
-  ).toEqual({
-    left: true,
-    right: true,
-    width: 358,
-    scrollWidth: 356,
-    clientWidth: 356,
-  });
-  const label = manager.locator(".branch-node-text").first();
-  expect(
-    await label.evaluate((element) => {
-      const style = getComputedStyle(element);
-      return {
-        whiteSpace: style.whiteSpace,
-        overflow: style.overflow,
-        ellipsis: style.textOverflow,
-        clipped: element.scrollWidth > element.clientWidth,
-      };
-    }),
-  ).toEqual({
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    ellipsis: "ellipsis",
-    clipped: true,
-  });
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  const box = await manager.boundingBox();
+  expect(box!.x >= 0 && box!.x + box!.width <= 390).toBe(true);
   await page.screenshot({
     path: "/tmp/palace-branches-mobile.png",
     fullPage: true,
   });
-  await manager.locator('.react-flow__node[data-id="U4"]').hover();
   await manager.getByRole("button", { name: "更新分支 s2" }).click();
   const update = page.getByRole("dialog", { name: "更新分支" });
   await expect(update.getByLabel("标题")).toHaveValue("第 2 支");

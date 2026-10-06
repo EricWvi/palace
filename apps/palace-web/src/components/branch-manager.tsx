@@ -1,5 +1,7 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
+import { Tooltip } from "radix-ui";
 import {
   Dialog,
   DialogContent,
@@ -21,12 +23,11 @@ import {
   type ConversationPath,
   type Source,
 } from "@/lib/api";
-import { resolvePaths, userTree } from "@/lib/conversation-tree";
+import { resolvePaths } from "@/lib/conversation-tree";
 
-const BranchGraph = lazy(() =>
-  import("./branch-graph").then((module) => ({ default: module.BranchGraph })),
-);
-
+// Every path of the conversation as one row: its title, then the two things done to a path.
+// Rows follow the reading page's default order, newest update first, so the branch the page
+// opens on by default heads the list.
 export function BranchManager({
   conversationId,
   source,
@@ -63,10 +64,13 @@ export function BranchManager({
       setDeleting(null);
     },
   });
-  const tree = useMemo(
-    () => (detail.data ? userTree(resolvePaths(detail.data)) : null),
+  const paths = useMemo(
+    () =>
+      detail.data ? resolvePaths(detail.data).map(({ path }) => path) : [],
     [detail.data],
   );
+  // The last path goes with its conversation, through 删除对话, never on its own.
+  const canDelete = paths.length > 1;
   return (
     <Dialog
       open
@@ -74,10 +78,9 @@ export function BranchManager({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="branch-dialog">
+      <DialogContent className="branch-dialog" aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>分支管理</DialogTitle>
-          <DialogDescription>每个 Session 是一条完整的分支。</DialogDescription>
+          <DialogTitle>管理分支</DialogTitle>
         </DialogHeader>
         {detail.isPending ? (
           <p role="status">正在加载分支…</p>
@@ -88,38 +91,88 @@ export function BranchManager({
           />
         ) : (
           <>
-            <Suspense
-              fallback={
-                <div className="branch-graph-loading" role="status">
-                  正在绘制对话树…
-                </div>
-              }
-            >
-              <BranchGraph
-                tree={tree!}
-                canDelete={detail.data!.paths.length > 1}
-                onUpdate={(path) =>
-                  setForm({ kind: "update", conversationId, source, path })
-                }
-                onDelete={(path) => {
-                  deletion.reset();
-                  setDeleting(path);
-                }}
-              />
-            </Suspense>
-            {detail.data!.paths.length === 1 && (
-              <p className="field-hint">最后一个分支请通过“删除对话”移除。</p>
-            )}
-            <div className="branch-toolbar">
-              <p>拖动画布移动 · 滚轮缩放</p>
+            {/* Adding a branch belongs to the list as a whole, so it heads the list beside the
+                count rather than trailing after the last row. */}
+            <div className="branch-list-head">
+              <span>{paths.length} 个分支</span>
               <Button
+                variant="ghost"
+                size="sm"
                 onClick={() =>
                   setForm({ kind: "branch", conversationId, source, title })
                 }
               >
+                <Plus />
                 新建分支
               </Button>
             </div>
+            <ul className="branch-list" aria-label="分支">
+              {paths.map((path) => (
+                <li key={path.id}>
+                  <div className="branch-text">
+                    <span className="branch-title" title={path.title}>
+                      {path.title}
+                    </span>
+                    {/* Branches start with the title they were made from, so the session and
+                        length are what tell two of the same name apart. */}
+                    <span className="branch-meta" title={path.session_id}>
+                      {path.session_id} · {path.message_count} 条消息
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`更新分支 ${path.session_id}`}
+                    onClick={() =>
+                      setForm({ kind: "update", conversationId, source, path })
+                    }
+                  >
+                    更新
+                  </Button>
+                  {canDelete ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`删除分支 ${path.session_id}`}
+                      onClick={() => {
+                        deletion.reset();
+                        setDeleting(path);
+                      }}
+                    >
+                      删除
+                    </Button>
+                  ) : (
+                    // A disabled button takes no pointer or focus, so the reason it is off sits
+                    // on a wrapper that does, and only shows when asked for.
+                    <Tooltip.Provider delayDuration={150}>
+                      <Tooltip.Root>
+                        <Tooltip.Trigger asChild>
+                          <span className="disabled-hint" tabIndex={0}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`删除分支 ${path.session_id}`}
+                              disabled
+                            >
+                              删除
+                            </Button>
+                          </span>
+                        </Tooltip.Trigger>
+                        <Tooltip.Portal>
+                          <Tooltip.Content
+                            className="help-tip"
+                            side="top"
+                            sideOffset={6}
+                          >
+                            最后一个分支请通过“删除对话”移除。
+                          </Tooltip.Content>
+                        </Tooltip.Portal>
+                      </Tooltip.Root>
+                    </Tooltip.Provider>
+                  )}
+                </li>
+              ))}
+            </ul>
           </>
         )}
         {form && (
@@ -146,7 +199,8 @@ export function BranchManager({
             <DialogHeader>
               <DialogTitle>删除分支？</DialogTitle>
               <DialogDescription>
-                将删除 {deleting?.session_id}，其他分支共享的消息会保留。
+                {deleting &&
+                  `将删除“${deleting.title}”（${deleting.session_id}），其他分支共享的消息会保留。`}
               </DialogDescription>
             </DialogHeader>
             {deletion.isError && <ErrorState error={deletion.error} />}

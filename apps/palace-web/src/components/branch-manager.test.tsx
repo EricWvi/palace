@@ -6,32 +6,6 @@ import { expect, it, vi } from "vitest";
 import { BranchManager } from "./branch-manager";
 import { testRequest, requestPath } from "@/lib/test-request";
 import type { Detail } from "@/lib/api";
-import type { ComponentType, ReactNode } from "react";
-
-// Browser tests cover the measured canvas; these tests exercise real cards and form actions.
-vi.mock("@xyflow/react", () => ({
-  ReactFlow: ({
-    nodes,
-    nodeTypes,
-    children,
-  }: {
-    nodes: { id: string; data: unknown }[];
-    nodeTypes: { branch: ComponentType<{ data: unknown }> };
-    children: ReactNode;
-  }) => (
-    <div>
-      {nodes.map((node) => (
-        <nodeTypes.branch key={node.id} data={node.data} />
-      ))}
-      {children}
-    </div>
-  ),
-  Background: () => null,
-  Controls: () => null,
-  Handle: () => null,
-  Position: { Top: "top", Bottom: "bottom" },
-  BackgroundVariant: { Dots: "dots" },
-}));
 
 const detail: Detail = {
   conversation: {
@@ -104,8 +78,8 @@ const detail: Detail = {
     },
   ],
 };
-function setup() {
-  let current = structuredClone(detail);
+function setup(initial: Detail = detail) {
+  let current = structuredClone(initial);
   const imported = vi.fn();
   const fetch = vi
     .spyOn(globalThis, "fetch")
@@ -152,17 +126,31 @@ function setup() {
   return { fetch, imported, user: userEvent.setup() };
 }
 // Core test case: `specs/test-cases/server/conversation/message-tree.md#shared-and-internal-endpoint-paths-must-remain-independently-manageable`
-it("projects user nodes and exposes separate actions for internal and identical path endpoints", async () => {
+it("lists every path newest first, telling same-named branches apart by session", async () => {
   setup();
-  await screen.findByText("后续问题");
-  expect(screen.getByText(detail.messages[0].content)).toHaveClass(
-    "branch-node-text",
-  );
-  expect(screen.queryByText("隐藏的回答")).not.toBeInTheDocument();
-  for (const session of ["s1", "s2", "s3"])
+  const list = await screen.findByRole("list", { name: "分支" });
+  expect(
+    within(list)
+      .getAllByRole("listitem")
+      .map((item) => [
+        item.querySelector(".branch-title")!.textContent,
+        item.querySelector(".branch-meta")!.textContent,
+      ]),
+  ).toEqual([
+    ["长的一支", "s1 · 3 条消息"],
+    ["短的一支", "s2 · 2 条消息"],
+    ["同样的一支", "s3 · 2 条消息"],
+  ]);
+  // Messages are not listed: a path is managed by its title, not by what was said in it.
+  expect(screen.queryByText("后续问题")).toBeNull();
+  for (const session of ["s1", "s2", "s3"]) {
     expect(
       screen.getByRole("button", { name: `更新分支 ${session}` }),
     ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: `删除分支 ${session}` }),
+    ).toBeEnabled();
+  }
 });
 // Core test case: `specs/test-cases/server/import/linear-path-import.md#every-import-must-carry-a-valid-path-title`
 it("creates a branch named after the path being read, with the source locked to the conversation", async () => {
@@ -265,4 +253,23 @@ it("confirms path deletion then refreshes the tree", async () => {
     ).not.toBeInTheDocument(),
   );
   expect(screen.getByRole("button", { name: "更新分支 s3" })).toBeEnabled();
+});
+
+// Core test case: `specs/test-cases/server/conversation/reading-page.md#deleting-a-path-must-remove-its-moment-and-keep-reading-the-remaining-tree`
+it("keeps the last path undeletable and explains why only when asked", async () => {
+  const { user } = setup({ ...detail, paths: [detail.paths[0]] });
+  const remove = await screen.findByRole("button", { name: "删除分支 s1" });
+  expect(remove).toBeDisabled();
+  expect(screen.queryByText("最后一个分支请通过“删除对话”移除。")).toBeNull();
+  // The disabled button cannot take focus, so the keyboard reaches its wrapper instead.
+  for (
+    let step = 0;
+    step < 6 && document.activeElement !== remove.parentElement;
+    step++
+  )
+    await user.tab();
+  expect(remove.parentElement).toHaveFocus();
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(
+    "最后一个分支请通过“删除对话”移除。",
+  );
 });

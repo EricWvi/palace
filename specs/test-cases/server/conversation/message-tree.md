@@ -64,7 +64,7 @@
 
 必须成立：共享祖先保留，两个短路径拥有独立 ID；删除不能影响其他 Owner；最后一个 Path 通过删除 Conversation 移除。禁止残留没有内容的卡片。
 
-证据：Covered — `paths::deletion_preserves_shared_messages_and_owner_boundaries`（真实 PostgreSQL）。`components/branch-manager.test.tsx` 验证内部节点和相同路径操作；`e2e/branches.spec.ts` 验证实际浏览器投影、移动端边界及文本省略。
+证据：Covered — `paths::deletion_preserves_shared_messages_and_owner_boundaries`（真实 PostgreSQL）。`components/branch-manager.test.tsx::lists every path newest first, telling same-named branches apart by session` 验证分支列表为内部末端和相同路径的 Path 各列一行并各有操作；`e2e/branches.spec.ts` 验证真实浏览器中五条 Path 的列表顺序与窄屏边界。分支列表的规则见[分支管理改为分支列表](../../../decisions/server/conversation/20261006-branch-list-and-update-from-title-menu.md) D2，不变量 3。
 
 ## Fork selection must resolve to one real source session
 

@@ -4,32 +4,6 @@ import { address, mountApp } from "@/test-app";
 import type { Detail, Message } from "@/lib/api";
 import type { components } from "@/lib/generated/api";
 import { requestPath, testRequest } from "@/lib/test-request";
-import type { ComponentType, ReactNode } from "react";
-
-// Browser tests cover the measured canvas; here the branch cards render without layout.
-vi.mock("@xyflow/react", () => ({
-  ReactFlow: ({
-    nodes,
-    nodeTypes,
-    children,
-  }: {
-    nodes: { id: string; data: unknown }[];
-    nodeTypes: { branch: ComponentType<{ data: unknown }> };
-    children: ReactNode;
-  }) => (
-    <div>
-      {nodes.map((node) => (
-        <nodeTypes.branch key={node.id} data={node.data} />
-      ))}
-      {children}
-    </div>
-  ),
-  Background: () => null,
-  Controls: () => null,
-  Handle: () => null,
-  Position: { Top: "top", Bottom: "bottom" },
-  BackgroundVariant: { Dots: "dots" },
-}));
 
 const chains = [
   ["U1", "A1", "U2", "A2"],
@@ -220,7 +194,49 @@ it("keeps conversation management in the title menu, destructive last", async ()
   await user.keyboard("{Enter}");
   expect(
     screen.getAllByRole("menuitem").map((item) => item.textContent),
-  ).toEqual(["编辑对话", "分支管理", "删除对话"]);
+  ).toEqual(["更新分支", "管理分支", "编辑对话", "删除对话"]);
+});
+
+// Core test cases:
+// - `specs/test-cases/server/conversation/reading-page.md#conversation-management-must-live-only-in-the-reading-page-title-menu`
+// - `specs/test-cases/server/import/import-entry.md#successful-import-must-open-the-reading-page-dated-to-the-submitted-occurrence`
+it("updates the branch being read straight from the title menu", async () => {
+  const { fetch, router, user } = setup(
+    "/conversations/tree?path=p2&date=2025-09-30",
+  );
+  const fallback = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (url, options) =>
+    testRequest(url).method === "PUT"
+      ? Response.json({
+          import_id: "i",
+          conversation_id: "tree",
+          path_id: "p2",
+          head_message_id: "A4",
+          created: 0,
+          reused: 0,
+        })
+      : fallback(url, options),
+  );
+  await screen.findByRole("heading", { level: 1, name: "第 2 支" });
+  await choose(user, "更新分支");
+  const form = await screen.findByRole("dialog", { name: "更新分支" });
+  expect(within(form).getByLabelText("标题")).toHaveValue("第 2 支");
+  expect(within(form).getByLabelText("Session ID")).toHaveValue("s2");
+  expect(
+    within(form).getByRole("button", { name: "选择对话发生日期" }),
+  ).toHaveTextContent("2025 年 10 月 02 日");
+  await user.upload(
+    within(form).getByLabelText("对话文件"),
+    new File(['[{"role":"user","content":"U1"}]'], "update.json"),
+  );
+  await user.click(within(form).getByRole("button", { name: "保存更新" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  const call = fetch.mock.calls.find(
+    ([url]) => testRequest(url).method === "PUT",
+  )!;
+  expect(requestPath(call[0])).toBe("/api/conversations/tree/paths/p2");
+  // The way back now leads to the day the update was filed under.
+  expect(address(router)).toBe("/conversations/tree?path=p2&date=2025-10-02");
 });
 
 // Core test case: `specs/test-cases/server/conversation/reading-page.md#editing-must-update-the-current-path-title-and-the-conversation-source-everywhere`
@@ -280,7 +296,7 @@ it.each([
 it("falls back to a remaining path after deleting the one being read, keeping the day", async () => {
   const { router, user } = setup("/conversations/tree?path=p3&date=2025-09-30");
   await screen.findByRole("heading", { level: 1, name: "第 3 支" });
-  await choose(user, "分支管理");
+  await choose(user, "管理分支");
   await user.click(await screen.findByRole("button", { name: "删除分支 s3" }));
   await user.click(screen.getByRole("button", { name: "确认删除分支" }));
   await waitFor(() =>
@@ -317,7 +333,7 @@ it("switches to an imported branch and dates the way back to its occurrence", as
         })
       : fallback(url, options),
   );
-  await choose(user, "分支管理");
+  await choose(user, "管理分支");
   await user.click(await screen.findByRole("button", { name: "新建分支" }));
   const form = await screen.findByRole("dialog", { name: "新建分支" });
   // A branch starts with the title of the path being read, and may be renamed.

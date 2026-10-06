@@ -837,62 +837,64 @@ ol.messages {
   text-decoration: underline;
 }
 
-/* Branch management shows the tree on a canvas wide enough to read it. */
+/* Branch management: one row per path, a long list scrolls inside the dialog. */
 .branch-dialog {
-  width: 1000px;
-  max-width: calc(100vw - 32px);
   max-height: calc(100dvh - 40px);
   overflow-y: auto;
 }
 
-.branch-node-text,
-.path-session {
+.branch-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.branch-list li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.branch-text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
   min-width: 0;
+}
+
+.branch-title,
+.branch-meta {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.branch-node-text {
-  max-width: min(32ch, 100%);
-  margin: 0;
+.branch-title {
+  color: var(--text);
+  font-size: var(--font-size-sm);
 }
 
-.path-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  margin-top: 4px;
-}
-
-.path-session {
-  flex: 1;
+.branch-meta {
   color: var(--text-3);
   font-size: var(--font-size-xs);
 }
 
-.path-actions button {
-  flex-shrink: 0;
-}
-
-.branch-toolbar {
+.branch-list-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-}
-
-.branch-toolbar p {
   color: var(--text-3);
   font-size: var(--font-size-xs);
 }
 
-.branch-graph-loading {
-  display: grid;
-  place-items: center;
-  height: clamp(340px, 58dvh, 620px);
-  color: var(--text-3);
+/* Help cursor over a control that is off, to say a reason is one hover away. */
+.disabled-hint {
+  display: inline-flex;
+  border-radius: var(--radius-md);
+  cursor: help;
 }
 
 @media (max-width: 720px) {
