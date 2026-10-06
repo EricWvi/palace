@@ -167,12 +167,12 @@ test("nested forks, internal endpoints, branch forms and mixed-language tree lab
   const update = page.getByRole("dialog", { name: "更新分支" });
   await expect(update.getByLabel("标题")).toHaveValue("第 2 支");
   await expect(update.getByLabel("来源")).toBeDisabled();
-  await expect(update.getByLabel("Session ID")).toBeDisabled();
+  await expect(update.getByLabel("Session ID", { exact: true })).toBeDisabled();
   await expect(
     update.getByRole("button", { name: "选择对话发生日期" }),
   ).toHaveText("2024 年 03 月 05 日");
   await update.getByLabel("对话发生时间", { exact: true }).fill("10:45");
-  await update.getByLabel("选择对话 JSON 文件").setInputFiles({
+  await update.getByLabel("对话文件", { exact: true }).setInputFiles({
     name: "updated.json",
     mimeType: "application/json",
     buffer: Buffer.from('[{"role":"user","content":"U1"}]'),

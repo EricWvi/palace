@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DateTimePicker } from "./date-time-picker";
 import { ErrorState } from "./error-state";
+import { FieldHelp } from "./field-help";
+import { FileDrop } from "./file-drop";
 import {
   api,
   apiData,
@@ -37,8 +39,10 @@ export type ImportMode =
       source: Source;
       path: ConversationPath;
     };
+// A new conversation needs no explanation beyond its fields; branch and update imports carry a
+// rule about the uploaded history that the reader must know before choosing the file.
 const headings = {
-  conversation: ["导入对话", "上传对话的 JSON 文件，并为它命名。"],
+  conversation: ["导入对话", null],
   branch: [
     "新建分支",
     "上传完整 JSON，必须与已有分支共享到某条回复为止的开头。",
@@ -61,10 +65,16 @@ export function ImportDialog({
   const [title, description] = headings[mode.kind];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="import-dialog">
+      <DialogContent
+        className="import-dialog"
+        // Radix warns about a dialog without a description unless told there is none on purpose.
+        {...(description === null && { "aria-describedby": undefined })}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          {description !== null && (
+            <DialogDescription>{description}</DialogDescription>
+          )}
         </DialogHeader>
         {open && (
           <ImportForm
@@ -222,7 +232,14 @@ function ImportForm({
           </select>
         </div>
         <div>
-          <Label htmlFor="session">Session ID</Label>
+          <div className="field-label">
+            <Label htmlFor="session">Session ID</Label>
+            <FieldHelp label="Session ID">
+              {mode.kind === "update"
+                ? "Session ID 保持不变。"
+                : "同一来源的 Session ID 不可重复。"}
+            </FieldHelp>
+          </div>
           <Input
             id="session"
             disabled={mode.kind === "update"}
@@ -231,40 +248,34 @@ function ImportForm({
             onChange={(e) => setSession(e.target.value)}
             placeholder="对话网址最后一段的 ID"
           />
-          <p className="field-hint">
-            {mode.kind === "update"
-              ? "Session ID 保持不变。"
-              : "同一来源的 Session ID 不可重复。"}
-          </p>
         </div>
         <div>
           <Label>发生时间</Label>
           <DateTimePicker value={date} onChange={setDate} />
-          <p className="field-hint">
-            本地时区 · {Intl.DateTimeFormat().resolvedOptions().timeZone}
-          </p>
         </div>
         <div>
-          <Label htmlFor="history">{file?.name ?? "选择对话 JSON 文件"}</Label>
-          <Input
+          <div className="field-label">
+            <Label htmlFor="history">对话文件</Label>
+            <FieldHelp label="对话文件">
+              <p>仅支持 JSON · 最大 8 MiB</p>
+              <p>格式示例：</p>
+              <pre>
+                {
+                  '[{"role":"user","content":"你好"},\n {"role":"assistant","content":"你好！"}]'
+                }
+              </pre>
+            </FieldHelp>
+          </div>
+          <FileDrop
             id="history"
-            type="file"
             accept=".json,application/json"
-            onChange={(e) => {
-              setFile(e.target.files?.[0] ?? null);
+            file={file}
+            onFile={(next) => {
+              setFile(next);
               mutation.reset();
             }}
           />
-          <p className="field-hint">仅支持 JSON · 最大 8 MiB</p>
         </div>
-        <details className="format-help">
-          <summary>JSON 格式示例</summary>
-          <pre>
-            {
-              '[{"role":"user","content":"你好"},\n {"role":"assistant","content":"你好！"}]'
-            }
-          </pre>
-        </details>
         {mutation.isError && <ErrorState error={mutation.error} />}
         <Button type="submit" className="submit-import">
           {mutation.isPending

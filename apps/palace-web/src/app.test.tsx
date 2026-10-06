@@ -234,7 +234,7 @@ it("imports from the day menu at the viewed day and opens the reading page dated
   const file = new File(['[{"role":"user","content":"hello"}]'], "chat.json", {
     type: "application/json",
   });
-  await user.upload(within(dialog).getByLabelText("选择对话 JSON 文件"), file);
+  await user.upload(within(dialog).getByLabelText("对话文件"), file);
   await user.click(within(dialog).getByRole("button", { name: "导入" }));
   expect(
     await screen.findByRole("heading", { level: 1, name: "我的收藏" }),
@@ -287,7 +287,7 @@ it("rejects malformed JSON before sending and keeps the form for correction", as
   await user.type(await screen.findByLabelText("Session ID"), "s");
   await user.type(screen.getByLabelText("标题"), "保留标题");
   await user.upload(
-    screen.getByLabelText("选择对话 JSON 文件"),
+    screen.getByLabelText("对话文件"),
     new File(["{"], "bad.json", { type: "application/json" }),
   );
   await user.click(screen.getByRole("button", { name: "导入" }));
@@ -322,7 +322,7 @@ it("reuses an idempotency key on retry after an ambiguous failure", async () => 
   await user.type(await screen.findByLabelText("Session ID"), "s");
   await user.type(screen.getByLabelText("标题"), "retry");
   await user.upload(
-    screen.getByLabelText("选择对话 JSON 文件"),
+    screen.getByLabelText("对话文件"),
     new File(['[{"role":"user","content":"x"}]'], "chat.json"),
   );
   await user.click(screen.getByRole("button", { name: "导入" }));

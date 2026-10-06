@@ -324,7 +324,7 @@ it("switches to an imported branch and dates the way back to its occurrence", as
   expect(within(form).getByLabelText("标题")).toHaveValue("第 1 支");
   await user.type(within(form).getByLabelText("Session ID"), "s9");
   await user.upload(
-    within(form).getByLabelText("选择对话 JSON 文件"),
+    within(form).getByLabelText("对话文件"),
     new File(['[{"role":"user","content":"U1"}]'], "branch.json"),
   );
   await user.click(within(form).getByRole("button", { name: "导入分支" }));

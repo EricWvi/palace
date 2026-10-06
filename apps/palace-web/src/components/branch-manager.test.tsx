@@ -177,7 +177,7 @@ it("creates a branch named after the path being read, with the source locked to 
   await user.type(within(form).getByLabelText("Session ID"), "s4");
   const history = '[{"role":"user","content":"hello"}]';
   await user.upload(
-    within(form).getByLabelText("选择对话 JSON 文件"),
+    within(form).getByLabelText("对话文件"),
     new File([history], "branch.json"),
   );
   await user.click(within(form).getByRole("button", { name: "导入分支" }));
@@ -221,7 +221,7 @@ it("updates with the path's own title and occurrence time without sending identi
   expect(within(form).getByLabelText("标题")).toHaveValue("长的一支");
   const history = '[{"role":"user","content":"hello"}]';
   await user.upload(
-    within(form).getByLabelText("选择对话 JSON 文件"),
+    within(form).getByLabelText("对话文件"),
     new File([history], "update.json"),
   );
   await user.click(within(form).getByRole("button", { name: "保存更新" }));

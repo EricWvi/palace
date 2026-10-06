@@ -183,11 +183,11 @@ header.top nav > a:hover::after {
 }
 
 .empty-day h2 {
-  margin: 28px 0 0;
+  margin: 40px 0 0;
   /* Secondary ink: the line accompanies the picture rather than calling out over it. */
   color: var(--text-2);
   font-family: var(--font-display);
-  font-size: var(--font-size-3xl);
+  font-size: var(--font-size-xl);
   font-weight: 400;
 }
 
@@ -666,16 +666,117 @@ ol.messages {
   border: 0;
 }
 
-.import-fields label {
+.import-fields [data-slot="label"] {
   margin-bottom: 8px;
 }
 
+/* A label with its help mark; the row takes over the label's gap to the field. */
+.field-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.field-label [data-slot="label"] {
+  margin-bottom: 0;
+}
+
+.field-help {
+  display: inline-flex;
+  color: var(--text-3);
+  border-radius: var(--radius-round);
+}
+
+.field-help:hover {
+  color: var(--text-2);
+}
+
+.field-help svg {
+  width: 14px;
+  height: 14px;
+}
+
+.help-tip {
+  z-index: 60;
+  max-width: min(440px, calc(100vw - 32px));
+  overflow-x: auto;
+  padding: 8px 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.08);
+  color: var(--text-2);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+
+.help-tip p {
+  margin: 0;
+}
+
+/* Examples keep their own line breaks; the tip grows to fit them rather than rewrapping. */
+.help-tip pre {
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+  white-space: pre;
+}
+
+/* The file field as a dashed box: browse on click, take a file dropped onto it. */
+.file-drop {
+  display: grid;
+  gap: 4px;
+  padding: 18px 16px;
+  background: var(--bg-sunken);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+
+.file-drop:hover,
+.file-drop[data-over] {
+  border-color: var(--text-3);
+}
+
+.file-drop[data-over] {
+  background: var(--accent-soft);
+}
+
+/* The real input is hidden inside, so its keyboard focus is shown on the box. */
+.file-drop:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.file-drop-main {
+  color: var(--text);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.file-drop-sub {
+  color: var(--text-3);
+  font-size: var(--font-size-xs);
+}
+
+/*
+ * The native arrow ignores padding and hugs the right edge, so the select draws its own: a
+ * chevron inset like the text. Data URIs cannot read tokens; the stroke is --text-3, whose light
+ * and dark values are within a shade of each other, so one picture serves both themes.
+ */
 .select-input {
   display: block;
   width: 100%;
   height: 36px;
-  padding: 0 12px;
-  background: var(--bg-sunken);
+  padding: 0 36px 0 12px;
+  appearance: none;
+  background: var(--bg-sunken)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a867c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text);
@@ -709,16 +810,6 @@ ol.messages {
 
 .date-time > input {
   width: 120px;
-}
-
-.format-help {
-  color: var(--text-3);
-  font-size: var(--font-size-xs);
-}
-
-.format-help pre {
-  margin-top: 8px;
-  white-space: pre-wrap;
 }
 
 .submit-import {

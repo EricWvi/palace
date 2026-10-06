@@ -207,14 +207,14 @@ test("a day, its conversation, an import filed on another day, and the way back"
     dialog.getByRole("button", { name: "选择对话发生日期" }),
   ).toHaveText("2025 年 09 月 30 日");
   await dialog.getByLabel("标题").fill("思考的下一步");
-  await dialog.getByLabel("Session ID").fill("next-step");
+  await dialog.getByLabel("Session ID", { exact: true }).fill("next-step");
   await dialog.getByRole("button", { name: "选择对话发生日期" }).click();
   const day = await page.evaluate(() =>
     new Date(2025, 8, 2).toLocaleDateString(),
   );
   await page.locator(`[data-day="${day}"]`).click();
   await dialog.getByLabel("对话发生时间", { exact: true }).fill("09:30");
-  await dialog.getByLabel("选择对话 JSON 文件").setInputFiles({
+  await dialog.getByLabel("对话文件", { exact: true }).setInputFiles({
     name: "conversation.json",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify([{ role: "user", content: "你好" }])),
