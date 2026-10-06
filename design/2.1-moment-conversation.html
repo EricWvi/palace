@@ -353,12 +353,21 @@
       color: var(--text-2);
     }
 
+    /*
+     * The reader's place keeps the full sunken ground; a line under the pointer or keyboard gets
+     * half of it, so the two never look alike. No token sits between the panel and the sunken
+     * ground in both themes (--bg is lighter in light and darker in dark), so it is mixed.
+     */
     .toc-panel a:hover,
-    .toc-panel a:focus-visible,
+    .toc-panel a:focus-visible {
+      background: color-mix(in srgb, var(--bg-sunken) 50%, transparent);
+      color: var(--text);
+      outline: none;
+    }
+
     .toc-panel a[aria-current="true"] {
       background: var(--bg-sunken);
       color: var(--text);
-      outline: none;
     }
 
     .message {
