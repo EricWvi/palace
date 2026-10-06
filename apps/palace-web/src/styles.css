@@ -224,10 +224,11 @@ header.top nav > a:hover::after {
   }
 }
 
+/* Items sit inset from the edge as rounded rows, so a highlight never touches the border. */
 .menu {
   z-index: 40;
   min-width: 128px;
-  padding: 6px 0;
+  padding: 6px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -237,7 +238,8 @@ header.top nav > a:hover::after {
 }
 
 .menu [role="menuitem"] {
-  padding: 6px 16px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
   color: var(--text-2);
   cursor: pointer;
   outline: none;
