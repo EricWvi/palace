@@ -628,7 +628,12 @@ ol.messages {
   font-size: var(--font-size-sm);
 }
 
+/*
+ * The separator is drawn inside the option it precedes, so as an inline box it would carry
+ * the current option's underline; an inline-block takes no decoration from its parent.
+ */
 .fork .options > * + *::before {
+  display: inline-block;
   content: "·";
   margin: 0 8px;
   color: var(--text-3);
