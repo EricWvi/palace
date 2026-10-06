@@ -535,6 +535,11 @@ ol.messages {
   overflow-wrap: anywhere;
 }
 
+/* A jump from the table of contents leaves some air above the message it lands on. */
+.message {
+  scroll-margin-top: 32px;
+}
+
 .message.user .body {
   padding: 14px 18px;
   background: var(--bg-sunken);
@@ -959,4 +964,106 @@ ol.messages {
   .date-time {
     flex-wrap: wrap;
   }
+}
+
+/*
+ * Table of contents for the reading page: one tick per message, the reader's turns longer to
+ * match the sunken ground that marks them in the text. Pointing at the ticks, or tabbing into
+ * them, opens the same list as one line per message. Below 900px the margin beside the 760px
+ * sheet has no room for it, so it is not shown at all.
+ */
+.toc {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .toc {
+    position: fixed;
+    top: 50%;
+    right: 20px;
+    z-index: 30;
+    display: block;
+    transform: translateY(-50%);
+  }
+}
+
+.toc-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 9px;
+  max-height: 70vh;
+  padding: 8px 0 8px 12px;
+  overflow: hidden;
+}
+
+.toc-rail span {
+  flex: none;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--text-3);
+  opacity: 0.45;
+}
+
+.toc-rail span.user {
+  width: 16px;
+}
+
+.toc-rail span[data-current] {
+  background: var(--text);
+  opacity: 1;
+}
+
+.toc-panel {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 260px;
+  max-height: 70vh;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.08);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  /* A short grace before closing, so a pointer that slips off the edge does not lose it. */
+  transition: opacity 0.15s 0.2s;
+}
+
+.toc:hover .toc-panel,
+.toc:focus-within .toc-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.toc-panel a {
+  display: block;
+  padding: 6px 10px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toc-panel a.user {
+  color: var(--text-2);
+}
+
+.toc-panel a:hover,
+.toc-panel a:focus-visible,
+.toc-panel a[aria-current="true"] {
+  background: var(--bg-sunken);
+  color: var(--text);
+  outline: none;
 }

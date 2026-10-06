@@ -47,6 +47,9 @@ pub(crate) struct Message {
     pub parent_message_id: Option<Uuid>,
     pub role: Role,
     pub content: String,
+    /// The opening words of `content` as plain text, at most a few dozen characters, for the
+    /// reading page's table of contents; derived on each read, never stored.
+    pub toc_line: String,
     /// Ordering integer, not a timestamp; i64 values are not generally lossless JS numbers.
     pub created_order: i64,
 }
@@ -59,6 +62,7 @@ impl From<palace_domain::Message> for Message {
             conversation_id: value.conversation_id,
             parent_message_id: value.parent_message_id,
             role: value.role.into(),
+            toc_line: palace_domain::toc_line(&value.content),
             content: value.content,
             created_order: value.created_order,
         }

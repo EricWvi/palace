@@ -33,6 +33,7 @@ test("nested forks, internal endpoints, the branch list and its update form", as
                 owner_id: "owner",
                 conversation_id: "tree",
                 parent_message_id: chain[index - 1] ?? null,
+                toc_line: id,
                 created_order: index,
               },
             ] as const,

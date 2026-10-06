@@ -32,6 +32,7 @@ const detail: Detail = {
       owner_id: "owner",
       conversation_id: "new",
       parent_message_id: null,
+      toc_line: "",
       created_order: 1,
     },
   ],

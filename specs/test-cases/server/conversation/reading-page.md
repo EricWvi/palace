@@ -1,6 +1,6 @@
 # 对话阅读页核心测试用例
 
-当前决策：[对话在摘星阅读页阅读与管理](../../../decisions/server/conversation/20261004-reading-page-owns-conversation-actions.md)，菜单项与分支列表见[分支管理改为分支列表](../../../decisions/server/conversation/20261006-branch-list-and-update-from-title-menu.md)，标题归属见[标题从 Conversation 移到 Path](../../../decisions/server/conversation/20261005-title-belongs-to-path.md)。分叉选择的 Path 解析规则沿用 [Conversation 树与 Session Path](message-tree.md#fork-selection-must-resolve-to-one-real-source-session)；返回链接与来源日期见[文字导航与时刻地址](../../web/navigation/text-nav-and-day-routes.md)。
+当前决策：[对话在摘星阅读页阅读与管理](../../../decisions/server/conversation/20261004-reading-page-owns-conversation-actions.md)，菜单项与分支列表见[分支管理改为分支列表](../../../decisions/server/conversation/20261006-branch-list-and-update-from-title-menu.md)，标题归属见[标题从 Conversation 移到 Path](../../../decisions/server/conversation/20261005-title-belongs-to-path.md)，消息目录见[阅读页右侧加消息目录](../../../decisions/server/conversation/20261006-message-toc-on-the-reading-page.md)。分叉选择的 Path 解析规则沿用 [Conversation 树与 Session Path](message-tree.md#fork-selection-must-resolve-to-one-real-source-session)；返回链接与来源日期见[文字导航与时刻地址](../../web/navigation/text-nav-and-day-routes.md)。
 
 ## Reading page header must describe the current path
 
@@ -80,3 +80,22 @@
 | 最后一条 Path 只能通过删除对话移除 | Covered | `paths::deletion_preserves_shared_messages_and_owner_boundaries`（真实 PostgreSQL，服务端规则）、`components/branch-manager.test.tsx::keeps the last path undeletable and explains why only when asked`（界面禁用与提示） |
 
 决策依据：D5，不变量 5。
+
+## The message TOC must list every message of the current path by its opening
+
+风险：目录列出的消息与正文不一致（漏条、混入其他分支、切换分支后不更新），目录行露出 Markdown 标记或原始 HTML，长回答让每次读取的解析成本无界；点击一条后亮起的是另一条，或浮层在指针离开后仍然展开。前置：一个有分叉的 Conversation；一条接近末尾是短问题、最后是长回答的 Path；一条开头含标记、原始 HTML 和超长内容的消息。触发：打开阅读页，滚动，指向目录并点击接近末尾的一行，移开指针，再自行滚动；切换分支；把窗口缩到 900px 以下。
+
+必须成立：目录按正文顺序列出当前 Path 的每条消息各一次，切换分支后随之更新；每行文字等于该消息的 `toc_line`，它只由 `content` 开头 256 字节转成的纯文本组成，短开场后的正文仍在其中，至多 48 个字符，截断时以“…”收尾；滚动时当前标记跟随读到的消息；点击一行后跳到该消息并把它标为当前，直到读者自行滚动；用指针点击不留焦点，指针离开后浮层关闭；跳转不修改地址；窗口窄于 900px 时不显示目录。禁止目录行包含原始 HTML 或闭合的 Markdown 标记，禁止点击后标记落到相邻消息。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| `toc_line` 的纯文本化、截断与只解析开头 | Covered | `palace-domain::excerpt::tests::lines_up_a_message_by_its_opening_words`、`palace-domain::excerpt::tests::lines_up_only_the_head_of_a_long_message` |
+| 消息接口返回 `toc_line` | Covered | `palace-backend::http::contract::tests::dto_conversions_preserve_existing_payloads`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（详情响应整体比较，原始 HTML 不进入 `toc_line`） |
+| 目录行集合、顺序来自 `toc_line`，随分支切换 | Covered | `pages/conversation.test.tsx::lists the read path's messages by their server lines, and a jump keeps its mark until the reader scrolls` |
+| 跳转固定当前标记直到读者滚动，点击不留焦点 | Covered | `pages/conversation.test.tsx::lists the read path's messages by their server lines, and a jump keeps its mark until the reader scrolls`、`e2e/message-toc.spec.ts`（真实 Chromium，接近底部跳转） |
+| 滚动时标记跟随、指针离开后浮层关闭、窄屏不显示 | Covered | `e2e/message-toc.spec.ts` |
+
+决策依据：20261006 消息目录 D1、D2，不变量 1–5。
+

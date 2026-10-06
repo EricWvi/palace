@@ -255,6 +255,116 @@
       text-underline-offset: 4px;
     }
 
+    /*
+     * Table of contents: one tick per message of the path being read, pinned
+     * to the right edge so a long transcript can be skimmed and jumped. The
+     * reader's turns get the longer tick, matching the sunken ground that
+     * marks them in the text. Pointing at the ticks, or tabbing into them,
+     * opens the same list as one line per message; the line is the opening of
+     * the message, cut with an ellipsis. Only shown where the margin beside
+     * the sheet has room for it.
+     */
+    .toc {
+      display: none;
+    }
+
+    @media (min-width: 900px) {
+      .toc {
+        display: block;
+        position: fixed;
+        top: 50%;
+        right: 20px;
+        z-index: 1;
+        transform: translateY(-50%);
+      }
+    }
+
+    .toc-rail {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 9px;
+      max-height: 70vh;
+      padding: 8px 0 8px 12px;
+      overflow: hidden;
+    }
+
+    .toc-rail span {
+      width: 10px;
+      height: 2px;
+      flex: none;
+      border-radius: 1px;
+      background: var(--text-3);
+      opacity: .45;
+      transition: opacity .15s, width .15s;
+    }
+
+    .toc-rail span.user {
+      width: 16px;
+    }
+
+    .toc-rail span[data-current] {
+      background: var(--text);
+      opacity: 1;
+    }
+
+    .toc-panel {
+      position: absolute;
+      top: 50%;
+      right: 0;
+      width: 260px;
+      max-height: 70vh;
+      margin: 0;
+      padding: 6px;
+      overflow-y: auto;
+      list-style: none;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgb(0 0 0 / .08);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-50%);
+      /* A short grace before closing, so a pointer that slips off the edge does not lose it. */
+      transition: opacity .15s .2s;
+    }
+
+    .toc:hover .toc-panel,
+    .toc:focus-within .toc-panel {
+      opacity: 1;
+      pointer-events: auto;
+      transition-delay: 0s;
+    }
+
+    .toc-panel a {
+      display: block;
+      padding: 6px 10px;
+      overflow: hidden;
+      border-radius: var(--radius-sm);
+      color: var(--text-3);
+      text-decoration: none;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .toc-panel a.user {
+      color: var(--text-2);
+    }
+
+    .toc-panel a:hover,
+    .toc-panel a:focus-visible,
+    .toc-panel a[aria-current="true"] {
+      background: var(--bg-sunken);
+      color: var(--text);
+      outline: none;
+    }
+
+    .message {
+      scroll-margin-top: 32px;
+    }
+
     @media (max-width: 720px) {
       header.conversation {
         margin-top: 41px;
@@ -299,6 +409,11 @@
 
     <ol class="messages" id="messages"></ol>
   </main>
+
+  <div class="toc" role="navigation" aria-label="消息目录">
+    <div class="toc-rail" id="toc-rail" aria-hidden="true"></div>
+    <ol class="toc-panel" id="toc-panel"></ol>
+  </div>
 
   <script>
     // Sample tree: a shared trunk, then two Paths that part at the seventh user turn.
@@ -400,8 +515,79 @@
       return text.length > 14 ? `${text.slice(0, 14)}…` : text;
     };
 
-    const message = ([role, html]) =>
-      `<li class="message ${role}"><div class="who">${speakers[role]}</div><div class="body">${html}</div></li>`;
+    const message = ([role, html], index) =>
+      `<li class="message ${role}" id="m-${index}"><div class="who">${speakers[role]}</div><div class="body">${html}</div></li>`;
+
+    // The server will send each message's opening already stripped of Markdown;
+    // here the prototype flattens its own HTML the same way.
+    const opening = (html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 48);
+
+    const rail = document.getElementById("toc-rail");
+    const panel = document.getElementById("toc-panel");
+    const renderToc = (messages) => {
+      rail.innerHTML = messages.map(([role]) => `<span class="${role}"></span>`).join("");
+      panel.innerHTML = messages
+        .map(([role, html], index) =>
+          `<li><a class="${role}" href="#m-${index}" title="${opening(html)}">${opening(html)}</a></li>`)
+        .join("");
+      markCurrent();
+    };
+
+    // The current message is the last one whose top has passed the upper third of the
+    // window; at the very bottom it is the last message, however short.
+    // A jump names its target outright: a short message near the end may never reach that
+    // line, and must not lose the mark to its neighbour. The pin holds until the reader
+    // scrolls on their own.
+    let pinned = null;
+    const markCurrent = () => {
+      const items = [...list.querySelectorAll(".message")];
+      const line = innerHeight / 3;
+      let current = 0;
+      items.forEach((item, index) => {
+        if (item.getBoundingClientRect().top <= line) current = index;
+      });
+      if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2) current = items.length - 1;
+      if (pinned !== null) current = pinned;
+      [...rail.children].forEach((tick, index) => tick.toggleAttribute("data-current", index === current));
+      [...panel.querySelectorAll("a")].forEach((link, index) =>
+        link.setAttribute("aria-current", String(index === current)));
+    };
+    let pending = false;
+    addEventListener("scroll", () => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        pending = false;
+        markCurrent();
+      });
+    }, { passive: true });
+
+    // A long list opens on the reader's place, not on its first line.
+    const centerCurrent = () => {
+      const link = panel.querySelector('[aria-current="true"]');
+      if (link) panel.scrollTop = link.offsetTop - (panel.clientHeight - link.offsetHeight) / 2;
+    };
+    document.querySelector(".toc").addEventListener("mouseenter", centerCurrent);
+
+    // Jumping is reading too, so it replaces nothing in history and keeps the path in the address.
+    panel.addEventListener("click", (e) => {
+      const link = e.target.closest("a");
+      if (!link) return;
+      e.preventDefault();
+      pinned = [...panel.querySelectorAll("a")].indexOf(link);
+      markCurrent();
+      document.querySelector(link.getAttribute("href")).scrollIntoView({ behavior: "smooth" });
+    });
+    // A click must not leave focus on the line, or :focus-within keeps the list open after the
+    // pointer leaves. Keyboard users still land on it with Enter and keep it open.
+    panel.addEventListener("mousedown", (e) => e.preventDefault());
+    for (const type of ["wheel", "touchmove", "keydown"]) {
+      addEventListener(type, () => {
+        if (pinned === null) return;
+        pinned = null;
+        markCurrent();
+      }, { passive: true });
+    }
 
     const render = () => {
       const options = Object.entries(branches)
@@ -411,7 +597,10 @@
         })
         .join("");
       const fork = `<li class="fork">此处分为 ${Object.keys(branches).length} 支：<span class="options">${options}</span></li>`;
-      list.innerHTML = trunk.map(message).join("") + fork + branches[path].map(message).join("");
+      const messages = [...trunk, ...branches[path]];
+      list.innerHTML =
+        trunk.map(message).join("") + fork + branches[path].map((m, i) => message(m, trunk.length + i)).join("");
+      renderToc(messages);
       document.getElementById("title").textContent = titles[path];
       document.title = titles[path];
       document.getElementById("count").textContent = `${trunk.length + branches[path].length} 条消息`;

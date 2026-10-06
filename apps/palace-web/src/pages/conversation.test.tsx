@@ -23,6 +23,7 @@ function tree(): Detail {
         owner_id: "owner",
         conversation_id: "tree",
         parent_message_id: chain[index - 1] ?? null,
+        toc_line: `目录 ${id}`,
         created_order: index,
       }),
     );
@@ -349,4 +350,50 @@ it("switches to an imported branch and dates the way back to its occurrence", as
   const day = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   expect(address(router)).toBe(`/conversations/tree?path=p5&date=${day}`);
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+});
+
+// Core test case: `specs/test-cases/server/conversation/reading-page.md#the-message-toc-must-list-every-message-of-the-current-path-by-its-opening`
+it("lists the read path's messages by their server lines, and a jump keeps its mark until the reader scrolls", async () => {
+  const scrolled = vi.fn();
+  // jsdom lays nothing out, so it has no scrollIntoView of its own.
+  Element.prototype.scrollIntoView = function (this: Element) {
+    scrolled(this.id);
+  };
+  try {
+    const { user } = setup("/conversations/tree?path=p3");
+    const toc = await screen.findByRole("navigation", { name: "消息目录" });
+    const lines = () =>
+      within(toc)
+        .getAllByRole("link")
+        .map((link) => link.textContent);
+    expect(lines()).toEqual(
+      ["U1", "A1", "U3", "A3", "U5", "A5"].map((id) => `目录 ${id}`),
+    );
+    const current = () =>
+      within(toc)
+        .getAllByRole("link")
+        .findIndex((link) => link.getAttribute("aria-current") === "true");
+    // Nothing is laid out, so every message has passed the reading line and the last one is read.
+    await waitFor(() => expect(current()).toBe(5));
+
+    const target = within(toc).getByRole("link", { name: "目录 U3" });
+    await user.click(target);
+    expect(scrolled).toHaveBeenCalledWith("message-U3");
+    expect(current()).toBe(2);
+    // The click leaves no focus behind to hold the list open once the pointer leaves.
+    expect(target).not.toHaveFocus();
+    window.dispatchEvent(new Event("scroll"));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(current()).toBe(2);
+    window.dispatchEvent(new WheelEvent("wheel"));
+    await waitFor(() => expect(current()).toBe(5));
+
+    await user.click(within(fork(4)).getByRole("button", { name: "U4" }));
+    expect(lines()).toEqual(
+      ["U1", "A1", "U3", "A3", "U4", "A4"].map((id) => `目录 ${id}`),
+    );
+  } finally {
+    // @ts-expect-error jsdom has none to restore.
+    delete Element.prototype.scrollIntoView;
+  }
 });

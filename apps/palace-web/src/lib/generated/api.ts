@@ -403,6 +403,11 @@ export interface components {
        */
       parent_message_id: string | null;
       role: components["schemas"]["Role"];
+      /**
+       * @description The opening words of `content` as plain text, at most a few dozen characters, for the
+       *     reading page's table of contents; derived on each read, never stored.
+       */
+      toc_line: string;
     };
     /** @description One timeline entry; `kind` selects the card fields that follow. */
     Moment: components["schemas"]["ConversationMoment"] & {

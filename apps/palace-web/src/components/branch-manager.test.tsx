@@ -21,6 +21,7 @@ const detail: Detail = {
       parent_message_id: null,
       role: "user",
       content: "Shared 共同问题很长的标题 mixed English 中文".repeat(4),
+      toc_line: "",
       created_order: 1,
     },
     {
@@ -30,6 +31,7 @@ const detail: Detail = {
       parent_message_id: "u1",
       role: "assistant",
       content: "隐藏的回答",
+      toc_line: "",
       created_order: 2,
     },
     {
@@ -39,6 +41,7 @@ const detail: Detail = {
       parent_message_id: "a1",
       role: "user",
       content: "后续问题",
+      toc_line: "",
       created_order: 3,
     },
   ],

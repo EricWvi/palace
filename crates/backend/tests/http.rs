@@ -78,6 +78,7 @@ fn request(
 /// - `specs/test-cases/server/owner/owner-isolation.md#a-browser-session-secret-must-remain-opaque-and-resistant-to-fixation`
 /// - `specs/test-cases/server/owner/owner-isolation.md#local-session-revocation-must-take-effect-before-external-logout-succeeds`
 /// - `specs/test-cases/server/moment/timeline-loading.md#day-outline-must-list-the-timelines-moments-in-the-same-order`
+/// - `specs/test-cases/server/conversation/reading-page.md#the-message-toc-must-list-every-message-of-the-current-path-by-its-opening`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {
@@ -328,7 +329,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
     assert_eq!(
         tree,
-        serde_json::json!({"conversation":{"id":result["conversation_id"],"owner_id":sessions[0].owner.id,"source":"chatgpt"},"messages":[{"id":result["head_message_id"],"owner_id":sessions[0].owner.id,"conversation_id":result["conversation_id"],"parent_message_id":null,"role":"user","content":"<script>alert(1)</script>\r\n","created_order":1}],"paths":[{"id":result["path_id"],"title":"t","session_id":"s","head_message_id":result["head_message_id"],"message_count":1,"occurred_at":1700000000000_i64,"created_at":tree["paths"][0]["created_at"],"updated_at":tree["paths"][0]["updated_at"],"original_link":format!("{source_url}s")}]})
+        serde_json::json!({"conversation":{"id":result["conversation_id"],"owner_id":sessions[0].owner.id,"source":"chatgpt"},"messages":[{"id":result["head_message_id"],"owner_id":sessions[0].owner.id,"conversation_id":result["conversation_id"],"parent_message_id":null,"role":"user","content":"<script>alert(1)</script>\r\n","toc_line":"","created_order":1}],"paths":[{"id":result["path_id"],"title":"t","session_id":"s","head_message_id":result["head_message_id"],"message_count":1,"occurred_at":1700000000000_i64,"created_at":tree["paths"][0]["created_at"],"updated_at":tree["paths"][0]["updated_at"],"original_link":format!("{source_url}s")}]})
     );
     assert_eq!(source_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
     source_server.abort();

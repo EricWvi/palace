@@ -2555,6 +2555,7 @@
           "parent_message_id",
           "role",
           "content",
+          "toc_line",
           "created_order"
         ],
         "properties": {
@@ -2588,6 +2589,10 @@
           },
           "role": {
             "$ref": "#/components/schemas/Role"
+          },
+          "toc_line": {
+            "type": "string",
+            "description": "The opening words of `content` as plain text, at most a few dozen characters, for the\nreading page's table of contents; derived on each read, never stored."
           }
         }
       },

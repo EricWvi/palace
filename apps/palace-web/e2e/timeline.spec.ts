@@ -20,6 +20,7 @@ function serve(page: Page) {
             parent_message_id: null,
             role: "user",
             content: "这个周末想出去走走，最好在海边。",
+            toc_line: "",
             created_order: 1,
           },
           {
@@ -29,6 +30,7 @@ function serve(page: Page) {
             parent_message_id: "q",
             role: "assistant",
             content: "## 三个选择\n\n- **Half Moon Bay**\n- **Point Reyes**",
+            toc_line: "",
             created_order: 2,
           },
         ],
@@ -99,6 +101,7 @@ function serve(page: Page) {
               parent_message_id: null,
               role: "user",
               content: "你好",
+              toc_line: "",
               created_order: 1,
             },
           ],

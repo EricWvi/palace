@@ -14,6 +14,7 @@ import { backLabel, dayOf, dayParam, parseDay } from "@/lib/day";
 import { PathFork } from "@/components/path-fork";
 import { ErrorState } from "@/components/error-state";
 import { ConversationMenu } from "@/components/conversation-menu";
+import { MessageToc, messageAnchor } from "@/components/message-toc";
 
 // 摘星's reading page for one conversation. `path` picks the branch; `date` says the reader came
 // from that day in 时刻, which decides where "back" and deletion lead.
@@ -102,7 +103,10 @@ export function ConversationPage() {
       <ol className="messages">
         {selected.messages.map((message, index) => (
           <Fragment key={message.id}>
-            <li className={`message ${message.role}`}>
+            <li
+              id={messageAnchor(message)}
+              className={`message ${message.role}`}
+            >
               <div className="who">
                 {message.role === "user" ? "你" : source}
               </div>
@@ -140,6 +144,7 @@ export function ConversationPage() {
           </Fragment>
         ))}
       </ol>
+      <MessageToc messages={selected.messages} />
     </>
   );
 }

@@ -60,6 +60,8 @@ fn contract_covers_operations_and_special_wire_types() {
 }
 
 /// Full-object comparisons protect existing fields while removing direct DB/domain serialization.
+/// Core test case:
+/// - `specs/test-cases/server/conversation/reading-page.md#the-message-toc-must-list-every-message-of-the-current-path-by-its-opening`
 #[test]
 fn dto_conversions_preserve_existing_payloads() {
     let id = Uuid::nil();
@@ -90,9 +92,12 @@ fn dto_conversions_preserve_existing_payloads() {
         content: "  内容\r\n".into(),
         created_order: 1,
     };
+    // The wire adds the table-of-contents line beside the persisted fields.
+    let mut expected = serde_json::to_value(message.clone()).unwrap();
+    expected["toc_line"] = json!("内容");
     assert_eq!(
-        serde_json::to_value(dto::Message::from(message.clone())).unwrap(),
-        serde_json::to_value(message).unwrap()
+        serde_json::to_value(dto::Message::from(message)).unwrap(),
+        expected
     );
     // The wire flattens the persisted kind into a `kind` tag beside the card fields.
     let moment = palace_db::Moment {
