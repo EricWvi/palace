@@ -132,6 +132,16 @@ it("marks only 时刻, keeps other sections out of reach, and links cards to the
   });
 });
 
+it("leaves focus off 时刻 when it is clicked, so stepping days rings nothing", async () => {
+  mockApi();
+  const { router, user } = mountApp(
+    "/conversations/c1?path=p1&date=2025-09-30",
+  );
+  await user.click(await screen.findByRole("link", { name: "时刻" }));
+  expect(address(router)).toBe("/");
+  expect(screen.getByRole("link", { name: "时刻" })).not.toHaveFocus();
+});
+
 // Core test case: `specs/test-cases/web/navigation/text-nav-and-day-routes.md#day-timeline-address-must-restore-the-viewed-day`
 it("restores the day from the address, falls back to today, and steps days in place", async () => {
   mockApi();

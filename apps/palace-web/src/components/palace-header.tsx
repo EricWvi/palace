@@ -14,7 +14,16 @@ export function PalaceHeader({ active }: { active?: Section }) {
         {sections.map((section) => {
           const current = section === active ? "page" : undefined;
           return section === "时刻" ? (
-            <Link key={section} to="/" aria-current={current}>
+            <Link
+              key={section}
+              to="/"
+              aria-current={current}
+              // The bar outlives every page, so a link Chrome focused on click would keep focus
+              // after navigating, and the next shortcut key (← → stepping days) would ring it as
+              // :focus-visible. A click therefore leaves focus alone, as Safari does natively;
+              // Tab still reaches the link.
+              onMouseDown={(event) => event.preventDefault()}
+            >
               {section}
             </Link>
           ) : (

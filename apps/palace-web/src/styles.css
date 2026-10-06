@@ -43,7 +43,7 @@
 }
 
 .sheet {
-  max-width: 896px;
+  max-width: 760px;
   margin: 0 auto;
   padding: 44px 24px 72px;
 }
@@ -203,6 +203,13 @@ header.top nav > a:hover::after {
   font-size: var(--font-size-lg);
   letter-spacing: 2px;
   line-height: 1;
+  /*
+   * The row aligns on the baseline, where middle dots sit at the x-height of this small face and
+   * read as sunk beside a large title. Lifting by an em of its own size keeps the dots near the
+   * title's lowercase middle at every title size.
+   */
+  position: relative;
+  top: -0.3em;
   opacity: 0;
   transition: opacity 0.15s;
 }
