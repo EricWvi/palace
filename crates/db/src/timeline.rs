@@ -1,5 +1,5 @@
 use crate::{Database, DbError, OwnerScope};
-use palace_domain::{InputError, InputErrorKind, Role, Source, excerpt};
+use palace_domain::{EXCERPT_SOURCE_CHARS, InputError, InputErrorKind, Role, Source, excerpt};
 use serde::Serialize;
 use sqlx::Row;
 use std::collections::HashMap;
@@ -152,10 +152,11 @@ async fn conversation_cards(
     if ids.is_empty() {
         return Ok(HashMap::new());
     }
-    // Walk each path from its head to the root carrying only ids, then read the content of the
-    // two messages nearest the root; a long path never loads its whole text.
-    let rows = sqlx::query("WITH RECURSIVE chain(path_id,id,parent_message_id,depth) AS (SELECT p.id,m.id,m.parent_message_id,0 FROM conversation_path p JOIN message m ON m.owner_id=p.owner_id AND m.id=p.head_message_id WHERE p.owner_id=$1 AND p.id=ANY($2) UNION ALL SELECT c.path_id,m.id,m.parent_message_id,c.depth+1 FROM chain c JOIN message m ON m.owner_id=$1 AND m.id=c.parent_message_id), ranked AS (SELECT path_id,id,row_number() OVER (PARTITION BY path_id ORDER BY depth DESC) AS position FROM chain) SELECT r.path_id,m.role,m.content FROM ranked r JOIN message m ON m.owner_id=$1 AND m.id=r.id WHERE r.position<=2 ORDER BY r.path_id,r.position")
-        .bind(owner.id()).bind(ids).fetch_all(&mut **tx).await?;
+    // Walk each path from its head to the root carrying only ids, then read the head of the
+    // two messages nearest the root; neither a long path nor a long answer loads its whole text.
+    // `left` counts characters, so the cut never splits one.
+    let rows = sqlx::query("WITH RECURSIVE chain(path_id,id,parent_message_id,depth) AS (SELECT p.id,m.id,m.parent_message_id,0 FROM conversation_path p JOIN message m ON m.owner_id=p.owner_id AND m.id=p.head_message_id WHERE p.owner_id=$1 AND p.id=ANY($2) UNION ALL SELECT c.path_id,m.id,m.parent_message_id,c.depth+1 FROM chain c JOIN message m ON m.owner_id=$1 AND m.id=c.parent_message_id), ranked AS (SELECT path_id,id,row_number() OVER (PARTITION BY path_id ORDER BY depth DESC) AS position FROM chain) SELECT r.path_id,m.role,left(m.content,$3) AS content FROM ranked r JOIN message m ON m.owner_id=$1 AND m.id=r.id WHERE r.position<=2 ORDER BY r.path_id,r.position")
+        .bind(owner.id()).bind(ids).bind(EXCERPT_SOURCE_CHARS as i32).fetch_all(&mut **tx).await?;
     let mut excerpts: HashMap<Uuid, Vec<ExcerptLine>> = HashMap::new();
     for row in rows {
         let role: Role = serde_json::from_value(serde_json::Value::String(row.try_get("role")?))

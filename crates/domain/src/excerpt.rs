@@ -4,6 +4,12 @@ use pulldown_cmark::{Event, Options, Parser, TagEnd};
 /// Longest preview kept from one message, counted in Unicode scalar values.
 pub const EXCERPT_CHARS: usize = 120;
 
+/// How much of a message the timeline reads to build its preview, in Unicode scalar values.
+///
+/// The database hands over only this head, so a long answer costs neither transfer nor parsing;
+/// four times the preview leaves room for the markup around its words.
+pub const EXCERPT_SOURCE_CHARS: usize = 512;
+
 /// Longest table-of-contents line kept from one message, counted in Unicode scalar values.
 ///
 /// The table of contents shows one line per message in a narrow panel that cuts with an ellipsis anyway,
@@ -20,7 +26,9 @@ const TOC_SOURCE_BYTES: usize = 256;
 /// Reduces Markdown to the words a reader would see, so every client shows the same preview.
 ///
 /// The server does this once instead of sending whole messages: a card needs a few dozen
-/// characters, and a long answer would otherwise make the timeline response unbounded.
+/// characters, and a long answer would otherwise make the timeline response unbounded. Callers
+/// pass the first [`EXCERPT_SOURCE_CHARS`] of a message; syntax left open at that cut shows up
+/// literally, which only reaches the preview when almost all of the head is invisible markup.
 pub fn excerpt(markdown: &str) -> String {
     cut(&plain_text(markdown), EXCERPT_CHARS)
 }

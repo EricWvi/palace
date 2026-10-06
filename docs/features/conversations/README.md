@@ -16,7 +16,7 @@
 | `title` | 这条 Path 的标题 |
 | `source` | 所属 Conversation 的来源 |
 | `message_count` | 从根到这条 Path 末端的消息数 |
-| `excerpt` | Path 开头至多两条消息，服务端去掉 Markdown 后截取前 120 个字符 |
+| `excerpt` | Path 开头至多两条消息，服务端只读每条正文的前 512 个字符，去掉 Markdown 后截取前 120 个字符 |
 
 卡片显示为 `[ 对话 ] 标题`、`来源 · N 条消息` 和两行摘录。点击标题进入摘星的阅读页
 `/conversations/:id?path=<Path ID>&date=<当天>`；对话在时间线上不原地展开。

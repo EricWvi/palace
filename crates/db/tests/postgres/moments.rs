@@ -4,7 +4,8 @@ use palace_db::{
     MomentOutline, Owner,
 };
 use palace_domain::{
-    ImportInput, ImportLimits, ImportRequest, ImportTarget, PathInput, Role, SessionId, Source,
+    EXCERPT_CHARS, EXCERPT_SOURCE_CHARS, ImportInput, ImportLimits, ImportRequest, ImportTarget,
+    PathInput, Role, SessionId, Source,
 };
 use pretty_assertions::assert_eq;
 use sqlx::PgPool;
@@ -448,6 +449,17 @@ async fn conversation_cards_summarize_their_own_path() {
         .await
         .unwrap();
     let single = create(&db, &owner, "single", &["只有一句"], 1002).await;
+    // An invisible link target longer than the head the timeline reads: the words after it are
+    // never loaded, and the link left open at the cut stays literal.
+    let target = format!("https://x.test/{}", "a".repeat(EXCERPT_SOURCE_CHARS));
+    let hidden = create(
+        &db,
+        &owner,
+        "hidden",
+        &[&format!("[开头]({target}) 后面")],
+        1003,
+    )
+    .await;
     db.update_path_metadata(
         owner.scope(),
         first.conversation_id,
@@ -515,6 +527,26 @@ async fn conversation_cards_summarize_their_own_path() {
                     excerpt: vec![ExcerptLine {
                         role: Role::User,
                         text: "只有一句".into(),
+                    }],
+                }
+            ),
+            card(
+                hidden.path_id,
+                1003,
+                ConversationCard {
+                    conversation_id: hidden.conversation_id,
+                    title: "title hidden".into(),
+                    source: Source::Chatgpt,
+                    message_count: 1,
+                    excerpt: vec![ExcerptLine {
+                        role: Role::User,
+                        text: format!(
+                            "{}…",
+                            format!("[开头]({target}")
+                                .chars()
+                                .take(EXCERPT_CHARS)
+                                .collect::<String>()
+                        ),
                     }],
                 }
             ),
