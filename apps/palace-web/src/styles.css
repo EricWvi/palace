@@ -207,6 +207,16 @@ header.top nav > a:hover::after {
   transition: opacity 0.15s;
 }
 
+/* Where focus rests after a pointer closes a menu: focusable, but never seen. */
+.focus-rest {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  outline: none;
+}
+
 .reveals-more:hover .more,
 .more:focus-visible,
 .more[data-state="open"] {
