@@ -147,6 +147,50 @@ header.top nav > a:hover::after {
   color: var(--text-3);
 }
 
+/* An empty day: the illustration centered, with one line under it. */
+.empty-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 74px 0 0;
+  text-align: center;
+}
+
+/*
+ * A background rather than an <img>, so each theme downloads only its own picture. The picture's
+ * margin fades to transparent, so it sits on whatever ground the theme gives it.
+ *
+ * Both pictures carry their weight to the right of their geometric center, so 54px of space on
+ * the right nudges what the eye reads as the middle back over the line beneath. Narrow screens
+ * drop it: there the picture fills the width, and the space would only shrink it off-center.
+ */
+.empty-day-art {
+  width: 440px;
+  max-width: 100%;
+  margin-right: 54px;
+  aspect-ratio: 4096 / 2394;
+  background: url("./assets/empty-day-light.webp") center / contain no-repeat;
+}
+
+[data-theme="dark"] .empty-day-art {
+  background-image: url("./assets/empty-day-dark.webp");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .empty-day-art {
+    background-image: url("./assets/empty-day-dark.webp");
+  }
+}
+
+.empty-day h2 {
+  margin: 28px 0 0;
+  /* Secondary ink: the line accompanies the picture rather than calling out over it. */
+  color: var(--text-2);
+  font-family: var(--font-display);
+  font-size: var(--font-size-3xl);
+  font-weight: 400;
+}
+
 /*
  * Rare actions hide behind a mark that appears only while the pointer is over the area they act
  * on. Keyboard focus and an open menu keep it visible; touch screens have no hover, so there it
@@ -744,6 +788,10 @@ ol.messages {
 @media (max-width: 720px) {
   .sheet {
     padding: 20px 16px 48px;
+  }
+
+  .empty-day-art {
+    margin-right: 0;
   }
 
   /* The ornament would push the nav into scrolling; narrow layouts are only kept from breaking. */

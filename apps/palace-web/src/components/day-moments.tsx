@@ -166,9 +166,7 @@ export function DayMoments({
   }, [settled, onSettled]);
 
   if (rows.length === 0)
-    return moments !== undefined || outline !== undefined ? (
-      <p className="quiet-note">这一天还没有记录。</p>
-    ) : null;
+    return moments !== undefined || outline !== undefined ? <EmptyDay /> : null;
   return (
     <ol ref={list} className="timeline" aria-busy={moments === undefined}>
       {rows.map((row) => (
@@ -180,6 +178,17 @@ export function DayMoments({
         />
       ))}
     </ol>
+  );
+}
+
+// A day with nothing yet: the illustration follows the theme through CSS, so only the one on
+// screen is ever downloaded.
+function EmptyDay() {
+  return (
+    <section className="empty-day">
+      <div className="empty-day-art" aria-hidden="true" />
+      <h2>这一天还没有记录。</h2>
+    </section>
   );
 }
 
