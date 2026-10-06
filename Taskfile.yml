@@ -10,15 +10,53 @@ tasks:
     cmds:
       - task --list
 
+  ###################################################
+  ############## Install Dependencies ###############
+  ###################################################
+
+  install:frontend:
+    desc: Install locked frontend dependencies (Node 24+)
+    cmds:
+      - npm ci
+
   install:crates:
     desc: Install dependencies for all Rust workspace packages
     cmds:
       - cargo fetch
 
+  ###################################################
+  ################## API Contract ###################
+  ###################################################
+
+  api:export:
+    desc: Export the production OpenAPI contract without database or OIDC services
+    cmds:
+      - node scripts/export-openapi.mjs
+
+  api:generate:
+    desc: Export OpenAPI and generate browser API types
+    cmds:
+      - task: api:export
+      - node scripts/generate-api-types.mjs
+
+  api:check:
+    desc: Check generated OpenAPI and browser types without writing files
+    cmds:
+      - node scripts/check-api-generated.mjs
+
+  ###################################################
+  ############## Clean and Build Tasks ##############
+  ###################################################
+
   build:
     desc: Build all Rust workspace packages
     cmds:
       - cargo build --workspace
+
+  build:frontend:
+    desc: Build the frontend static dist
+    cmds:
+      - npm run build
 
   build:test:
     desc: Precompile Rust workspace checks and test targets
@@ -39,11 +77,27 @@ tasks:
       - task: format:crates
       - task: format:frontend
 
+  format:frontend:
+    desc: Format frontend source and configuration
+    cmds:
+      - npm run format
+
   format:crates:
     desc: Format all Rust workspace packages
     silent: true
     cmds:
       - cargo fmt --all
+
+  lint:
+    desc: Run all linters
+    cmds:
+      - task: lint:frontend
+      - task: lint:crates
+
+  lint:frontend:
+    desc: Typecheck and lint frontend source
+    cmds:
+      - npm run lint
 
   lint:crates:
     desc: Run linters on all crates packages
@@ -54,19 +108,6 @@ tasks:
       - cargo fmt --all -- --check
       - cargo clippy --workspace --all-features -- -D warnings
 
-  test:crates:
-    desc: Run all Rust workspace package test suites
-    env:
-      CARGO_INCREMENTAL: "0"
-    cmds:
-      - task: lint:crates
-      - cargo test --workspace --all-features
-
-  lint:
-    desc: Run all linters
-    cmds:
-      - task: lint:frontend
-      - task: lint:crates
   test:
     desc: Run all workspace lint and unit tests (container tests are ignored)
     cmds:
@@ -75,11 +116,76 @@ tasks:
       - task: test:crates
       - task: test:api
 
+  test:frontend:
+    desc: Run frontend tests with clean stderr
+    cmds:
+      - npm test
+
+  test:crates:
+    desc: Run all Rust workspace package test suites
+    env:
+      CARGO_INCREMENTAL: "0"
+    cmds:
+      - task: lint:crates
+      - cargo test --workspace --all-features
+
+  test:api:
+    desc: Run offline API generation, schema, route and validation-tool checks
+    cmds:
+      - task: api:check
+      - task: test:api-schema
+      - task: test:api-toolchain
+      - node --test scripts/api-checks.test.mjs
+      - cargo test -p palace-backend contract_covers_operations --lib
+
+  test:api-schema:
+    desc: Validate production OpenAPI schemas and local references
+    cmds:
+      - node scripts/check-api-schema.mjs
+
+  test:api-toolchain:
+    desc: Verify OpenAPI generation, schema validation and typed multipart without services
+    cmds:
+      - node scripts/check-contract-toolchain.mjs
+
+  ###################################################
+  ########### Container and Browser Tests ###########
+  ###################################################
+
   test:integration:
     desc: Run ignored PostgreSQL tests using locally prepared images
     cmds:
       - cargo test -p palace-db --test postgres -- --ignored
       - task: test:api-http
+
+  test:api-http:
+    desc: Validate real Router responses against OpenAPI using existing PostgreSQL image
+    cmds:
+      - cargo test -p palace-backend --test http -- --ignored
+
+  test:contract:
+    desc: Run ignored Authelia protocol tests using locally prepared images
+    cmds:
+      - cargo test -p palace-backend authelia_authorization -- --ignored
+
+  test:test-server:
+    desc: Verify test server database persistence and fixed-user HTTP access
+    cmds:
+      - cargo test -p palace-server --features test-server --bin palace-test-server -- --ignored
+
+  test:browser:
+    desc: Run Chromium frontend regressions against an isolated Vite server
+    cmds:
+      - npm run test:browser -w apps/palace-web
+
+  ###################################################
+  ############# Run Development Servers #############
+  ###################################################
+
+  run:web:
+    desc: Start the Vite frontend development server
+    cmds:
+      - npm run dev
 
   run:server:
     desc: Run the Palace HTTP server with deployment environment configuration
@@ -92,83 +198,3 @@ tasks:
       PALACE_ORIGIN: '{{.PALACE_ORIGIN | default "http://127.0.0.1:5173"}}'
     cmds:
       - cargo run -p palace-server --features test-server --bin palace-test-server
-
-  test:test-server:
-    desc: Verify test server database persistence and fixed-user HTTP access
-    cmds:
-      - cargo test -p palace-server --features test-server --bin palace-test-server -- --ignored
-
-  test:contract:
-    desc: Run ignored Authelia protocol tests using locally prepared images
-    cmds:
-      - cargo test -p palace-backend authelia_authorization -- --ignored
-
-  api:check:
-    desc: Check generated OpenAPI and browser types without writing files
-    cmds:
-      - node scripts/check-api-generated.mjs
-
-  test:api:
-    desc: Run offline API generation, schema, route and validation-tool checks
-    cmds:
-      - task: api:check
-      - task: test:api-schema
-      - task: test:api-toolchain
-      - node --test scripts/api-checks.test.mjs
-      - cargo test -p palace-backend contract_covers_operations --lib
-
-  test:api-http:
-    desc: Validate real Router responses against OpenAPI using existing PostgreSQL image
-    cmds:
-      - cargo test -p palace-backend --test http -- --ignored
-
-  test:api-toolchain:
-    desc: Verify OpenAPI generation, schema validation and typed multipart without services
-    cmds:
-      - node scripts/check-contract-toolchain.mjs
-
-  api:export:
-    desc: Export the production OpenAPI contract without database or OIDC services
-    cmds:
-      - node scripts/export-openapi.mjs
-
-  api:generate:
-    desc: Export OpenAPI and generate browser API types
-    cmds:
-      - task: api:export
-      - node scripts/generate-api-types.mjs
-
-  test:api-schema:
-    desc: Validate production OpenAPI schemas and local references
-    cmds:
-      - node scripts/check-api-schema.mjs
-
-  install:frontend:
-    desc: Install locked frontend dependencies (Node 24+)
-    cmds:
-      - npm ci
-  run:web:
-    desc: Start the Vite frontend development server
-    cmds:
-      - npm run dev
-  build:frontend:
-    desc: Build the frontend static dist
-    cmds:
-      - npm run build
-  format:frontend:
-    desc: Format frontend source and configuration
-    cmds:
-      - npm run format
-  lint:frontend:
-    desc: Typecheck and lint frontend source
-    cmds:
-      - npm run lint
-  test:browser:
-    desc: Run Chromium frontend regressions against an isolated Vite server
-    cmds:
-      - npm run test:browser -w apps/palace-web
-
-  test:frontend:
-    desc: Run frontend tests with clean stderr
-    cmds:
-      - npm test
