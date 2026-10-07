@@ -19,26 +19,21 @@ mod moments;
 #[path = "postgres/paths.rs"]
 mod paths;
 
-/// Requires the prepared image before testcontainers can attempt its pull-on-missing fallback.
+/// Starts an isolated database whose container Ryuk removes even if the test process is killed.
 async fn database() -> (ContainerAsync<GenericImage>, Database, PgPool) {
-    let present = std::process::Command::new("docker")
-        .args(["image", "inspect", "postgres:17-alpine"])
-        .output()
-        .unwrap();
-    assert!(
-        present.status.success(),
-        "postgres:17-alpine must already exist; image downloads are not allowed"
-    );
-    let container = GenericImage::new("postgres", "17-alpine")
-        .with_exposed_port(5432.tcp())
-        .with_wait_for(WaitFor::message_on_stderr(
-            "database system is ready to accept connections",
-        ))
-        .with_env_var("POSTGRES_PASSWORD", "palace-test")
-        .with_env_var("POSTGRES_DB", "palace")
-        .start()
-        .await
-        .unwrap();
+    let container = palace_testkit::reaped(
+        GenericImage::new("postgres", "17-alpine")
+            .with_exposed_port(5432.tcp())
+            .with_wait_for(WaitFor::message_on_stderr(
+                "database system is ready to accept connections",
+            )),
+    )
+    .unwrap()
+    .with_env_var("POSTGRES_PASSWORD", "palace-test")
+    .with_env_var("POSTGRES_DB", "palace")
+    .start()
+    .await
+    .unwrap();
     let host = container.get_host().await.unwrap();
     let port = container
         .get_host_port_ipv4(/*internal_port*/ 5432)

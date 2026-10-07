@@ -23,6 +23,7 @@ thiserror = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+palace-testkit = { workspace = true }
 testcontainers = { workspace = true }
 tokio = { workspace = true }
 pretty_assertions = { workspace = true }

@@ -5,6 +5,7 @@ members = [
     "crates/db",
     "crates/domain",
     "crates/logging",
+    "crates/testkit",
     "xtask",
 ]
 resolver = "2"
@@ -26,6 +27,7 @@ palace-backend = { path = "crates/backend" }
 palace-db = { path = "crates/db" }
 palace-domain = { path = "crates/domain" }
 palace-logging = { path = "crates/logging" }
+palace-testkit = { path = "crates/testkit" }
 
 # External
 aes-gcm = "0.10"

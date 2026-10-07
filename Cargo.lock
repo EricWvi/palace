@@ -2032,6 +2032,7 @@ dependencies = [
  "palace-db",
  "palace-domain",
  "palace-logging",
+ "palace-testkit",
  "pretty_assertions",
  "reqwest",
  "serde",
@@ -2055,6 +2056,7 @@ dependencies = [
  "email_address",
  "hmac",
  "palace-domain",
+ "palace-testkit",
  "pretty_assertions",
  "serde",
  "serde_json",
@@ -2120,6 +2122,16 @@ dependencies = [
  "tower-http",
  "tracing",
  "url",
+ "uuid",
+]
+
+[[package]]
+name = "palace-testkit"
+version = "0.0.0"
+dependencies = [
+ "pretty_assertions",
+ "testcontainers",
+ "thiserror 2.0.20",
  "uuid",
 ]
 

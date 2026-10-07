@@ -12,15 +12,6 @@ use testcontainers::{
 #[tokio::test]
 #[ignore = "requires prepared authelia/authelia:4.39.20 image and Docker/Podman socket"]
 async fn authelia_authorization_refresh_and_revocation_contract() {
-    assert!(
-        std::process::Command::new("docker")
-            .args(["image", "inspect", "authelia/authelia:4.39.20"])
-            .output()
-            .unwrap()
-            .status
-            .success(),
-        "prepare Authelia 4.39.20; downloads are forbidden"
-    );
     let reservation = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = reservation.local_addr().unwrap().port();
     drop(reservation);
@@ -32,26 +23,29 @@ async fn authelia_authorization_refresh_and_revocation_contract() {
     let config = include_str!("../../tests/fixtures/authelia/configuration.yml")
         .replace("@PORT@", &port.to_string())
         .replace("@SIGNING_KEY@", &signer);
-    let container = GenericImage::new("authelia/authelia", "4.39.20")
-        .with_exposed_port(9091.tcp())
-        .with_wait_for(WaitFor::message_on_stdout("Listening for TLS connections"))
-        .with_mapped_port(port, 9091.tcp())
-        .with_copy_to("/config/configuration.yml", config.into_bytes())
-        .with_copy_to(
-            "/config/users.yml",
-            include_bytes!("../../tests/fixtures/authelia/users.yml").to_vec(),
-        )
-        .with_copy_to(
-            "/config/tls-cert.pem",
-            include_bytes!("../../tests/fixtures/authelia/tls-cert.pem").to_vec(),
-        )
-        .with_copy_to(
-            "/config/tls-key.pem",
-            include_bytes!("../../tests/fixtures/authelia/tls-key.pem").to_vec(),
-        )
-        .start()
-        .await
-        .unwrap();
+    let container = palace_testkit::reaped(
+        GenericImage::new("authelia/authelia", "4.39.20")
+            .with_exposed_port(9091.tcp())
+            .with_wait_for(WaitFor::message_on_stdout("Listening for TLS connections")),
+    )
+    .unwrap()
+    .with_mapped_port(port, 9091.tcp())
+    .with_copy_to("/config/configuration.yml", config.into_bytes())
+    .with_copy_to(
+        "/config/users.yml",
+        include_bytes!("../../tests/fixtures/authelia/users.yml").to_vec(),
+    )
+    .with_copy_to(
+        "/config/tls-cert.pem",
+        include_bytes!("../../tests/fixtures/authelia/tls-cert.pem").to_vec(),
+    )
+    .with_copy_to(
+        "/config/tls-key.pem",
+        include_bytes!("../../tests/fixtures/authelia/tls-key.pem").to_vec(),
+    )
+    .start()
+    .await
+    .unwrap();
     let issuer = format!("https://auth.palace.test:{port}");
     let cert = reqwest::Certificate::from_pem(include_bytes!(
         "../../tests/fixtures/authelia/tls-cert.pem"

@@ -85,24 +85,18 @@ fn request(
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {
-    assert!(
-        std::process::Command::new("docker")
-            .args(["image", "inspect", "postgres:17-alpine"])
-            .output()
-            .unwrap()
-            .status
-            .success(),
-        "prepare postgres:17-alpine; downloads are forbidden"
-    );
-    let container = GenericImage::new("postgres", "17-alpine")
-        .with_exposed_port(5432.tcp())
-        .with_wait_for(WaitFor::message_on_stderr(
-            "database system is ready to accept connections",
-        ))
-        .with_env_var("POSTGRES_PASSWORD", "test")
-        .start()
-        .await
-        .unwrap();
+    let container = palace_testkit::reaped(
+        GenericImage::new("postgres", "17-alpine")
+            .with_exposed_port(5432.tcp())
+            .with_wait_for(WaitFor::message_on_stderr(
+                "database system is ready to accept connections",
+            )),
+    )
+    .unwrap()
+    .with_env_var("POSTGRES_PASSWORD", "test")
+    .start()
+    .await
+    .unwrap();
     let host = container.get_host().await.unwrap();
     let port = container
         .get_host_port_ipv4(/*internal_port*/ 5432)
@@ -531,23 +525,18 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn http_sync_round_propagates_records_and_tombstones() {
     use palace_domain::Record;
-    assert!(
-        std::process::Command::new("docker")
-            .args(["image", "inspect", "postgres:17-alpine"])
-            .output()
-            .unwrap()
-            .status
-            .success()
-    );
-    let container = GenericImage::new("postgres", "17-alpine")
-        .with_exposed_port(5432.tcp())
-        .with_wait_for(WaitFor::message_on_stderr(
-            "database system is ready to accept connections",
-        ))
-        .with_env_var("POSTGRES_PASSWORD", "test")
-        .start()
-        .await
-        .unwrap();
+    let container = palace_testkit::reaped(
+        GenericImage::new("postgres", "17-alpine")
+            .with_exposed_port(5432.tcp())
+            .with_wait_for(WaitFor::message_on_stderr(
+                "database system is ready to accept connections",
+            )),
+    )
+    .unwrap()
+    .with_env_var("POSTGRES_PASSWORD", "test")
+    .start()
+    .await
+    .unwrap();
     let host = container.get_host().await.unwrap();
     let port = container
         .get_host_port_ipv4(/*internal_port*/ 5432)

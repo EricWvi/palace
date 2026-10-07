@@ -51,6 +51,8 @@ Rust 生产模块以 500 行为建议目标、800 行为硬上限，测试专属
 
 `task test:integration` 显式执行默认 `#[ignore]` 的 testcontainers PostgreSQL 测试。测试先检查本地 `postgres:17-alpine`，不存在即失败，不主动调用镜像拉取。测试沿用 `DOCKER_HOST`，支持指向 Podman 的 Docker API socket；每次使用独立容器和数据库，不依赖开发数据。
 
+测试容器统一经 `palace-testkit` 创建。testcontainers-rs 没有资源回收器，容器只在句柄 Drop 时删除，测试进程被信号结束就会残留。`palace-testkit` 在每个测试进程首次建容器时用本地 `testcontainers/ryuk:0.14.0` 启动一个 Ryuk（`--rm`，挂载 `DOCKER_HOST` 指向的 unix socket），给该进程的所有测试容器打上同一个 `org.testcontainers.session-id` label，并保持一条 TCP 连接直到进程退出。无论进程正常结束、Ctrl-C 还是 SIGKILL，连接断开约 10 秒后 Ryuk 都会删除带该 label 的容器并退出。Ryuk 镜像同样必须事先存在，`TESTCONTAINERS_RYUK_DISABLED` 对这些测试不起作用。
+
 ## 长期 Session
 
 Session 不设绝对或空闲过期；每次受保护请求查持久化状态，到 24 小时必须复核，时钟回拨也触发复核。refresh/UserInfo 经 `IdentityProvider` 注入，网络调用只持有会话行锁，不持有业务发布锁。并发请求复用已提交的刷新结果。
@@ -117,7 +119,7 @@ SQLite 本地持久化由 Android 原生客户端实现；本仓库不再提供 
 
 身份映射、claims 校验、email 缺失或变化、issuer/subject 冲突等大多数认证场景，用测试签发的 token 和固定 JWKS 在单元测试里验证，快速且失败原因明确。真实 Authelia 只用于协议契约和少量完整登录链路。
 
-`task test:contract` 使用已有 `authelia/authelia:4.39.20` 和 testcontainers 验证真实账号登录、用户授权、Authorization Code、UserInfo、refresh 和 revocation。所有测试账号、client、签名密钥和 TLS 文件位于 `crates/backend/tests/fixtures/authelia/` 及 OIDC 单元测试目录，只用于本地独立容器。测试自己注入 fixture CA 和本地 DNS 解析，不修改系统 hosts、不关闭生产 TLS 验证。
+`task test:contract` 使用已有 `authelia/authelia:4.39.20`、`testcontainers/ryuk:0.14.0` 和 testcontainers 验证真实账号登录、用户授权、Authorization Code、UserInfo、refresh 和 revocation。所有测试账号、client、签名密钥和 TLS 文件位于 `crates/backend/tests/fixtures/authelia/` 及 OIDC 单元测试目录，只用于本地独立容器。测试自己注入 fixture CA 和本地 DNS 解析，不修改系统 hosts、不关闭生产 TLS 验证。
 
 Authelia 的 ID token 不必包含 email；Palace 在验证 ID token 后，通过 subject 匹配的 UserInfo 获取当前 email，登录和复核共用该边界。测试实际经过 offline_access 授权页面对应的 consent API，未依赖开发机已有登录或生产账号。
 
