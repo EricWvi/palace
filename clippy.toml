@@ -1,0 +1,3 @@
+# Tests should fail immediately when fixture setup or assertions fail.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true

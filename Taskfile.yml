@@ -63,7 +63,7 @@ tasks:
     env:
       CARGO_INCREMENTAL: "0"
     cmds:
-      - cargo clippy --workspace --all-features -- -D warnings
+      - cargo clippy --workspace --all-targets --all-features -- -D warnings
       - cargo test --workspace --all-features --no-run
 
   clean:debug:
@@ -100,13 +100,13 @@ tasks:
       - npm run lint
 
   lint:crates:
-    desc: Run linters on all crates packages
+    desc: Run linters on all Rust workspace targets, including tests
     env:
       CARGO_INCREMENTAL: "0"
     silent: true
     cmds:
       - cargo fmt --all -- --check
-      - cargo clippy --workspace --all-features -- -D warnings
+      - cargo clippy --workspace --all-targets --all-features -- -D warnings
 
   test:
     desc: Run all workspace lint and unit tests (container tests are ignored)

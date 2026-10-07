@@ -1,3 +1,6 @@
+// Integration-test helpers should fail immediately when setup fails.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use palace_db::{Database, DbError};
 use palace_domain::{ImportInput, ImportLimits, ImportRequest, Source};
 use pretty_assertions::assert_eq;

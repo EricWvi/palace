@@ -75,7 +75,7 @@ mod tests {
         let encrypted = key.seal(id, "refresh").unwrap();
         assert_eq!(key.open(id, &encrypted).unwrap(), "refresh");
         assert!(key.open(Uuid::now_v7(), &encrypted).is_err());
-        let mut tampered = encrypted.clone();
+        let mut tampered = encrypted;
         *tampered.last_mut().unwrap() ^= 1;
         assert!(key.open(id, &tampered).is_err());
         assert_ne!(

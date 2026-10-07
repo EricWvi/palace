@@ -225,7 +225,7 @@ mod tests {
             parent_message_id: Some(a.id),
             content: "B".into(),
             created_order: 2,
-            ..a.clone()
+            ..a
         };
         assert_eq!(
             read_path(&c, &[a.clone(), b.clone()], b.id).unwrap(),
