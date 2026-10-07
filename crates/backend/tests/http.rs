@@ -266,6 +266,44 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
             .collect();
         assert_eq!(outline, serde_json::Value::Array(projected));
     }
+    // Day JSON is gzip-encoded only when the client offers gzip, and decodes to the plain body.
+    let mut encodings = Vec::new();
+    for accept in [None, Some("gzip, deflate, br")] {
+        let mut request = request(
+            "GET",
+            "/api/timeline?start=1700000000000&end=1700000000001",
+            &cookie,
+            "https://palace.test",
+            "application/json",
+            String::new(),
+        );
+        if let Some(accept) = accept {
+            request
+                .headers_mut()
+                .insert("accept-encoding", accept.parse().unwrap());
+        }
+        let response = app.clone().oneshot(request).await.unwrap();
+        let encoding = response
+            .headers()
+            .get("content-encoding")
+            .map(|value| value.to_str().unwrap().to_owned());
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
+        let mut body = String::new();
+        if encoding.is_some() {
+            std::io::Read::read_to_string(&mut flate2::read::GzDecoder::new(&bytes[..]), &mut body)
+                .unwrap();
+        } else {
+            body = String::from_utf8(bytes.to_vec()).unwrap();
+        }
+        encodings.push((encoding, body));
+    }
+    assert_eq!(
+        encodings,
+        vec![
+            (None, encodings[0].1.clone()),
+            (Some("gzip".to_owned()), encodings[0].1.clone()),
+        ]
+    );
     // Both day endpoints reject the same ranges with the same error.
     for range in [
         "start=5&end=5",

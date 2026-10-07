@@ -3,12 +3,14 @@ use axum::{
     Router,
     body::{Body, to_bytes},
     extract::{MatchedPath, Request},
+    http::header::CONTENT_ENCODING,
     middleware::{Next, from_fn},
     response::Response,
 };
+use flate2::read::GzDecoder;
 use serde_json::{Value, json};
 use std::{
-    io::Write,
+    io::{Read, Write},
     path::Path,
     process::{Command, Stdio},
     sync::{Arc, Mutex},
@@ -42,9 +44,22 @@ impl Capture {
                     .iter()
                     .map(|(name, value)| (name.to_string(), json!(value.to_str().unwrap())))
                     .collect();
+                // The contract describes the JSON payload, so a gzip-encoded body is validated decoded.
+                let mut body = String::new();
+                if parts
+                    .headers
+                    .get(CONTENT_ENCODING)
+                    .is_some_and(|value| value == "gzip")
+                {
+                    GzDecoder::new(&bytes[..])
+                        .read_to_string(&mut body)
+                        .unwrap();
+                } else {
+                    body = String::from_utf8(bytes.to_vec()).unwrap();
+                }
                 capture.0.lock().unwrap().push(json!({
                     "method": method, "path": path, "status": parts.status.as_u16(),
-                    "headers": headers, "body": String::from_utf8(bytes.to_vec()).unwrap(),
+                    "headers": headers, "body": body,
                 }));
                 Response::from_parts(parts, Body::from(bytes))
             }

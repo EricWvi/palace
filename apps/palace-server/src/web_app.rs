@@ -1,4 +1,4 @@
-//! Serves the built web app with cache headers that follow how each file is named.
+//! Serves the built web app gzip-compressed, with cache headers that follow how each file is named.
 use axum::{
     Router,
     http::{HeaderValue, StatusCode, header::CACHE_CONTROL},
@@ -6,7 +6,10 @@ use axum::{
     response::Response,
 };
 use std::path::Path;
-use tower_http::services::{ServeDir, ServeFile};
+use tower_http::{
+    compression::CompressionLayer,
+    services::{ServeDir, ServeFile},
+};
 
 /// Routes `assets/` and every other path of the built web app.
 ///
@@ -25,9 +28,12 @@ pub(crate) fn web_app(dist: &Path) -> Router {
             ServeDir::new(dist).fallback(ServeFile::new(dist.join("index.html"))),
         )
         .layer(map_response(revalidate));
+    // Outermost, so the cache headers above apply to both encodings of a file; the layer adds
+    // `Vary: Accept-Encoding` and leaves 304s, ranges and images uncompressed.
     Router::new()
         .nest_service("/assets", assets)
         .fallback_service(pages)
+        .layer(CompressionLayer::new())
 }
 /// Marks a found hashed file as immutable; errors stay uncached.
 async fn cache_forever(mut response: Response) -> Response {
@@ -51,9 +57,14 @@ async fn revalidate(mut response: Response) -> Response {
 mod tests {
     use super::*;
     use axum::body::Body;
-    use axum::http::Request;
+    use axum::http::{
+        Request,
+        header::{ACCEPT_ENCODING, CONTENT_ENCODING, IF_MODIFIED_SINCE, LAST_MODIFIED, VARY},
+    };
+    use flate2::read::GzDecoder;
     use http_body_util::BodyExt;
     use pretty_assertions::assert_eq;
+    use std::io::Read;
     use tower::ServiceExt;
 
     /// Hashed assets are immutable, missing assets are plain 404s, and every page revalidates.
@@ -108,5 +119,59 @@ mod tests {
                 ("/favicon-light.png", 200, no_cache, "icon".to_owned()),
             ]
         );
+    }
+
+    /// A gzip-capable browser gets the compressed file under the same cache policy, keyed by
+    /// `Vary`, and revalidating that file still answers a bodiless, unencoded 304.
+    #[tokio::test]
+    async fn compressed_assets_keep_their_cache_policy() {
+        let dist = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dist.path().join("assets")).unwrap();
+        let script = "console.log('palace');\n".repeat(64);
+        std::fs::write(dist.path().join("assets").join("app-1a2b.js"), &script).unwrap();
+        let app = web_app(dist.path());
+        let response = app
+            .clone()
+            .oneshot(
+                Request::get("/assets/app-1a2b.js")
+                    .header(ACCEPT_ENCODING, "gzip")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let headers = [CACHE_CONTROL, CONTENT_ENCODING, VARY]
+            .map(|name| response.headers()[name].to_str().unwrap().to_owned());
+        let last_modified = response.headers()[LAST_MODIFIED].clone();
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
+        let mut body = String::new();
+        GzDecoder::new(&bytes[..])
+            .read_to_string(&mut body)
+            .unwrap();
+        assert_eq!(
+            (headers, body),
+            (
+                [
+                    "public, max-age=31536000, immutable".to_owned(),
+                    "gzip".to_owned(),
+                    "accept-encoding".to_owned(),
+                ],
+                script,
+            )
+        );
+        let revalidated = app
+            .oneshot(
+                Request::get("/assets/app-1a2b.js")
+                    .header(ACCEPT_ENCODING, "gzip")
+                    .header(IF_MODIFIED_SINCE, last_modified)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let status = revalidated.status().as_u16();
+        let encoding = revalidated.headers().get(CONTENT_ENCODING).cloned();
+        let body = revalidated.into_body().collect().await.unwrap().to_bytes();
+        assert_eq!((status, encoding, body.len()), (304, None, 0));
     }
 }

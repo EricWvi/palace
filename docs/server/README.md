@@ -93,9 +93,9 @@ docker run --publish 8080:8080 --env-file .env palace:local
 | `DELETE /api/conversations/{id}/paths/{path_id}` | 删除分支及其 Moment，并清理不再共享的消息 |
 | `DELETE /api/conversations/{id}` | 删除整个对话及全部分支、Moment、消息 |
 
-server 托管 `PALACE_WEB_DIST` 时，`/assets/*` 下带内容哈希的文件返回 `Cache-Control: public, max-age=31536000, immutable`，找不到时直接 404；其余前端路径（含 `index.html` 和前端路由回退，状态码 200）返回 `no-cache`。
+server 托管 `PALACE_WEB_DIST` 时，`/assets/*` 下带内容哈希的文件返回 `Cache-Control: public, max-age=31536000, immutable`，找不到时直接 404；其余前端路径（含 `index.html` 和前端路由回退，状态码 200）返回 `no-cache`。前端文件同样按 `Accept-Encoding` 动态 gzip 压缩（图片除外），压缩与未压缩版本共用上述缓存策略，并以 `Vary: Accept-Encoding` 区分；304 重新验证响应不带响应体也不压缩。
 
-所有写请求必须携带严格匹配 `PALACE_ORIGIN` 的 Origin。业务请求没有 ownerId 授权参数。安全 cookie 使用 `__Host-` 前缀、Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain，持久期 180 天并滚动续期。业务响应为 `application/json` 且禁止缓存；原始 Markdown 作为 JSON 字符串返回，server 不提供 HTML 渲染。展示端必须安全渲染，不能将字符串直接写入 innerHTML。
+所有写请求必须携带严格匹配 `PALACE_ORIGIN` 的 Origin。业务请求没有 ownerId 授权参数。安全 cookie 使用 `__Host-` 前缀、Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain，持久期 180 天并滚动续期。业务响应为 `application/json` 且禁止缓存；请求带 `Accept-Encoding: gzip` 时，业务响应按 gzip 压缩返回（`Content-Encoding: gzip`，过小的响应体保持原样），登录相关的 `/auth/*` 不压缩；原始 Markdown 作为 JSON 字符串返回，server 不提供 HTML 渲染。展示端必须安全渲染，不能将字符串直接写入 innerHTML。
 
 ## 独立记录同步
 

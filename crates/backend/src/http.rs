@@ -23,6 +23,7 @@ use handlers::*;
 use palace_db::{CredentialKey, Database, IdentityProvider, IdentityTokens, ProviderError};
 use palace_domain::{ImportLimits, SourceLinks};
 use std::{future::Future, sync::Arc};
+use tower_http::compression::CompressionLayer;
 
 /// Separates HTTP authentication orchestration from actual Authelia transport for focused tests.
 pub trait LoginProvider: IdentityProvider {
@@ -98,7 +99,10 @@ fn business_router(server: BusinessServer) -> Router {
             Router::new()$(.route(routes::$path, axum::routing::$method($module::$handler)))*
         };
     }
+    // Timeline and conversation JSON carries whole chat histories and compresses well; the
+    // layer only answers gzip when the client offers it and skips tiny bodies.
     routes::business_routes!(mount)
         .layer(DefaultBodyLimit::max(limit))
+        .layer(CompressionLayer::new())
         .with_state(Arc::new(server))
 }
