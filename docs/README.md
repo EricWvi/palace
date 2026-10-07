@@ -19,7 +19,8 @@ Palace 的产品方向是按发生时间组织个人的 Moment（时刻），通
 - [对话](features/conversations/README.md)与[分支](features/conversations/分支与路径.md)
 - [认证系统](server/认证系统.md)与[环境变量](server/环境变量.md)
 - [API 契约生成与检查](server/README.md#api-契约)
+- [Rust 代码规模检查](server/Rust代码规模检查.md)
 - [正式 OpenAPI](../contracts/openapi.json)
 
-运行 `task --list` 查看工程任务。CI 检查由 Taskfile 编排，GitHub Actions 只做构建。
+运行 `task --list` 查看工程任务。Taskfile 编排 lint 与测试；GitHub Actions 只做构建与发布。
 已批准的设计决策与核心测试义务保存在 `specs/`；本目录解释产品方向与当前实现。

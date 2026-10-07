@@ -16,6 +16,7 @@ RUN apk add --no-cache build-base perl
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates crates
 COPY apps/palace-server apps/palace-server
+COPY xtask xtask
 RUN cargo build --release --locked -p palace-server
 
 FROM alpine:latest AS runtime

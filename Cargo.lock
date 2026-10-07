@@ -2124,6 +2124,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "palace-xtask"
+version = "0.0.0"
+dependencies = [
+ "pretty_assertions",
+ "proc-macro2",
+ "serde",
+ "serde_json",
+ "syn 2.0.119",
+ "tempfile",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

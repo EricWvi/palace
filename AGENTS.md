@@ -29,9 +29,13 @@ In the crates folder where the rust code lives:
 - Do not create small helper methods that are referenced only once.
 - Avoid large modules:
   - Prefer adding new modules instead of growing existing ones.
-  - Target Rust modules under 500 LoC, excluding tests.
-  - If a file exceeds roughly 800 LoC, add new functionality in a new module instead of extending
-    the existing file unless there is a strong documented reason not to.
+  - Target production Rust modules at 500 nonblank lines or fewer, including comments; the hard
+    limit is 800. `task check:rust-size` excludes test-only syntax and rejects oversized modules.
+  - Split new responsibilities instead of growing an oversized module. Existing reviewed
+    exceptions in `xtask/rust-size-baseline.json` must not grow; lower their recorded line count
+    after reductions and remove them when deleted or within the hard limit.
+  - When addressing a size-check failure or maintaining an exception, read
+    [Rust module size policy](docs/server/Rust代码规模检查.md) for counting and baseline rules.
   - When extracting code from a large module, move the related tests and module/type docs toward
     the new implementation so the invariants stay close to the code that owns them.
 - Use local time instead of UTC time.

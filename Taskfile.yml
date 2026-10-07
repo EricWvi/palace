@@ -48,6 +48,16 @@ tasks:
   ############## Clean and Build Tasks ##############
   ###################################################
 
+  check:rust-size:
+    desc: Check production Rust module size and ratcheting legacy exceptions
+    cmds:
+      - cargo xtask check-rust-size
+
+  report:rust-size:
+    desc: Report production Rust module size and owning crates without changing the baseline
+    cmds:
+      - cargo xtask report-rust-size
+
   build:
     desc: Build all Rust workspace packages
     cmds:
@@ -63,6 +73,7 @@ tasks:
     env:
       CARGO_INCREMENTAL: "0"
     cmds:
+      - task: check:rust-size
       - cargo clippy --workspace --all-targets --all-features -- -D warnings
       - cargo test --workspace --all-features --no-run
 
@@ -106,6 +117,7 @@ tasks:
     silent: true
     cmds:
       - cargo fmt --all -- --check
+      - task: check:rust-size
       - cargo clippy --workspace --all-targets --all-features -- -D warnings
 
   test:
