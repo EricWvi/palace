@@ -333,30 +333,34 @@ ol.timeline {
 }
 
 /*
- * Placeholders: the shape of a card in quiet blocks that breathe together, never a sweeping
- * shimmer. A placeholder grows into its card in the same item; while it does, the item clips its
- * content to the animated height and the placeholder fades out over the arriving card.
+ * Placeholders: the shape of what is loading in quiet blocks that breathe together, never a
+ * sweeping shimmer. In 时刻 a placeholder grows into its card in the same item; while it does, the
+ * item clips its content to the animated height and the placeholder fades out over the arriving
+ * card.
  */
+.skeleton {
+  animation: breathe 1.6s ease-in-out infinite;
+}
+
 .moment .skeleton {
   display: block;
-  animation: breathe 1.6s ease-in-out infinite;
 }
 
 /*
  * Each bar is one line box of the text it stands in for, so a placeholder is exactly as tall as
- * a card whose title fits one line and whose excerpt has two lines: the same font sizes, line
+ * the text it precedes when every line of that text fits one line: the same font sizes, line
  * height, margins and padding. The visible block sits in the middle of that line box. It is
  * drawn in the border tone, not the sunken one: in dark the sunken tone is darker than the page,
  * so a title bar in it reads as a hole rather than as text.
  */
-.moment .skeleton .bar {
+.skeleton .bar {
   display: flex;
   align-items: center;
   height: 1lh;
 }
 
 /* Centred by the flex line rather than a margin, which would collapse through the bar. */
-.moment .skeleton .bar::after {
+.skeleton .bar::after {
   content: "";
   flex: 1;
   height: 1em;
@@ -429,7 +433,7 @@ ol.timeline {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .moment .skeleton {
+  .skeleton {
     animation: none;
   }
 }
@@ -493,6 +497,21 @@ header.conversation h1 {
   font-size: var(--font-size-3xl);
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
+}
+
+/*
+ * Stands in for the title and the line of facts only: the way back is absolutely placed, and the
+ * transcript below has no length to predict, so the header lands where the real one will.
+ */
+header.conversation .skeleton .bar.head {
+  width: 36%;
+  font-size: var(--font-size-3xl);
+}
+
+header.conversation .skeleton .bar.meta {
+  width: 30%;
+  margin: 2px 0 0;
+  font-size: var(--font-size-md);
 }
 
 /*

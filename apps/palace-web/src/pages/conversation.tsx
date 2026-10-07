@@ -48,11 +48,32 @@ export function ConversationPage() {
     if (title) document.title = title;
   }, [title]);
 
+  // The way back needs only the address, so it shows before the conversation arrives. Until then
+  // the moment to return to is the requested path, which links from 时刻 always name.
+  const momentId = selected?.path.id ?? wanted;
+  const back = from && (
+    <Link
+      className="back"
+      to={`/?date=${dayParam(from)}${momentId ? `&moment=${momentId}` : ""}`}
+    >
+      {backLabel(from)}
+    </Link>
+  );
+
+  // The title and facts are drawn as bars in the header's own box, so the page does not shift
+  // when the conversation arrives; the bars mean nothing to a screen reader, the status does.
   if (detail.isPending)
     return (
-      <p role="status" className="quiet-note">
-        正在加载对话…
-      </p>
+      <header className="conversation">
+        {back}
+        <p role="status" className="sr-only">
+          正在加载对话…
+        </p>
+        <div className="skeleton" aria-hidden="true">
+          <span className="bar head" />
+          <span className="bar meta" />
+        </div>
+      </header>
     );
   if (detail.isError)
     return (
@@ -63,14 +84,7 @@ export function ConversationPage() {
   return (
     <>
       <header className="conversation">
-        {from && (
-          <Link
-            className="back"
-            to={`/?date=${dayParam(from)}&moment=${selected.path.id}`}
-          >
-            {backLabel(from)}
-          </Link>
-        )}
+        {back}
         <div className="title-row reveals-more">
           <h1>{selected.path.title}</h1>
           <ConversationMenu

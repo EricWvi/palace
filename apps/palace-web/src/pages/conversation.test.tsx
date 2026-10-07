@@ -394,3 +394,27 @@ it("lists the read path's messages by their server lines, and a jump keeps its m
     delete Element.prototype.scrollIntoView;
   }
 });
+
+it("holds the header's place with a hidden skeleton until the conversation arrives", async () => {
+  let arrive!: (response: Response) => void;
+  vi.spyOn(globalThis, "fetch").mockImplementation(
+    () => new Promise((resolve) => (arrive = resolve)),
+  );
+  mountApp("/conversations/tree?path=p2&date=2025-10-02");
+  const status = await screen.findByRole("status");
+  expect(screen.getByRole("link", { name: /10 月 2 日/ })).toHaveAttribute(
+    "href",
+    "/?date=2025-10-02&moment=p2",
+  );
+  expect(status).toHaveTextContent("正在加载对话…");
+  expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+  expect(status.closest("header")?.querySelector(".skeleton")).toHaveAttribute(
+    "aria-hidden",
+    "true",
+  );
+  arrive(Response.json(tree()));
+  expect(
+    await screen.findByRole("heading", { name: "第 2 支" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+});
