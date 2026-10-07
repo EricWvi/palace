@@ -29,6 +29,18 @@ const validators = new Map(
 const uuid = "00000000-0000-0000-0000-000000000001";
 const record = { id: uuid, updatedAt: 0, isDeleted: false, body: null };
 const published = { ownerId: uuid, serverVersion: "9007199254740993", record };
+const message = {
+  id: uuid,
+  owner_id: uuid,
+  conversation_id: uuid,
+  parent_message_id: null,
+  role: "user",
+  content: "",
+  toc_line: "",
+  created_order: 1,
+};
+const { parent_message_id: _parent, ...messageWithoutParent } = message;
+const { toc_line: _tocLine, ...messageWithoutTocLine } = message;
 for (const [name, valid, invalid] of [
   [
     "Cursor",
@@ -45,26 +57,12 @@ for (const [name, valid, invalid] of [
   ],
   [
     "Message",
+    [message, { ...message, content: "内容", toc_line: "内容" }],
     [
-      {
-        id: uuid,
-        owner_id: uuid,
-        conversation_id: uuid,
-        parent_message_id: null,
-        role: "user",
-        content: "",
-        created_order: 1,
-      },
-    ],
-    [
-      {
-        id: uuid,
-        owner_id: uuid,
-        conversation_id: uuid,
-        role: "user",
-        content: "",
-        created_order: 1,
-      },
+      messageWithoutParent,
+      messageWithoutTocLine,
+      { ...message, toc_line: null },
+      { ...message, toc_line: 42 },
     ],
   ],
   [

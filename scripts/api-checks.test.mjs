@@ -98,6 +98,7 @@ test("real-response selection validates nested nullable fields and exact string 
     parent_message_id: null,
     role: "user",
     content: "",
+    toc_line: "",
     created_order: 1,
   };
   const sample = {
@@ -111,6 +112,16 @@ test("real-response selection validates nested nullable fields and exact string 
   const { parent_message_id: _parent, ...missing } = message;
   assert.equal(_parent, null);
   assert.throws(() => validate({ ...sample, body: JSON.stringify([missing]) }));
+  const { toc_line: _tocLine, ...missingTocLine } = message;
+  assert.equal(_tocLine, "");
+  for (const invalid of [
+    missingTocLine,
+    { ...message, toc_line: null },
+    { ...message, toc_line: 42 },
+  ])
+    assert.throws(() =>
+      validate({ ...sample, body: JSON.stringify([invalid]) }),
+    );
   validate({
     ...sample,
     path: "/api/sync",
