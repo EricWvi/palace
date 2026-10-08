@@ -33,10 +33,11 @@ const loadCalendar = () => import("@/components/day-calendar");
 const DayCalendar = lazy(() =>
   loadCalendar().then((module) => ({ default: module.DayCalendar })),
 );
+// The import dialog carries its own date picker and calendar, too much to fetch on the click
+// that opens it: the "···" in front of it starts the fetch as soon as it is approached.
+const loadImportDialog = () => import("@/components/import-dialog");
 const ImportDialog = lazy(() =>
-  import("@/components/import-dialog").then((module) => ({
-    default: module.ImportDialog,
-  })),
+  loadImportDialog().then((module) => ({ default: module.ImportDialog })),
 );
 
 export function TimelinePage() {
@@ -132,6 +133,7 @@ export function TimelinePage() {
         </Popover>
         <MoreMenu
           label="当天操作"
+          onApproach={() => void loadImportDialog()}
           actions={[{ label: "导入对话", onSelect: () => setImporting(true) }]}
         />
       </header>

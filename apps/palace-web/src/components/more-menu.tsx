@@ -12,10 +12,14 @@ export interface MenuAction {
 export function MoreMenu({
   label,
   actions,
+  onApproach,
   children,
 }: {
   label: string;
   actions: MenuAction[];
+  // Runs when a pointer or focus reaches the trigger, before the menu opens, so an action can
+  // start fetching what it needs while the reader is still choosing.
+  onApproach?: () => void;
   children?: ReactNode;
 }) {
   // Whichever input last drove the menu decides where focus goes when it closes.
@@ -27,6 +31,8 @@ export function MoreMenu({
       <DropdownMenu.Trigger
         className="more"
         aria-label={label}
+        onPointerEnter={onApproach}
+        onFocus={onApproach}
         onPointerDown={() => (input.current = "pointer")}
         onKeyDown={() => (input.current = "keyboard")}
       >

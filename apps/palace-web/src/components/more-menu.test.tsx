@@ -46,3 +46,19 @@ it("returns focus to the trigger when the keyboard drove the menu", async () => 
   expect(screen.queryByRole("menu")).toBeNull();
   await waitFor(() => expect(trigger).toHaveFocus());
 });
+
+it("reports a pointer or focus reaching the trigger before the menu opens", () => {
+  const approaches: string[] = [];
+  render(
+    <MoreMenu
+      label="当天操作"
+      actions={[{ label: "导入对话", onSelect() {} }]}
+      onApproach={() => approaches.push("approach")}
+    />,
+  );
+  const trigger = screen.getByRole("button", { name: "当天操作" });
+  fireEvent.pointerEnter(trigger);
+  fireEvent.focus(trigger);
+  expect(approaches).toEqual(["approach", "approach"]);
+  expect(screen.queryByRole("menu")).toBeNull();
+});
