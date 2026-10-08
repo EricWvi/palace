@@ -9,6 +9,8 @@
 | [0-palette.html](0-palette.html) | 色板：浅色与深色主题的 token、对比度和界面样例 |
 | [1-prototype.html](1-prototype.html) | 时间线：按天浏览 Moment，卡片原地展开详情 |
 | [2.1-moment-conversation.html](2.1-moment-conversation.html) | 摘星中的对话阅读页：从时间线的对话标题进入，含分支切换与返回当天 |
+| [3.1-stars.html](3.1-stars.html) | 摘星入口页：左侧笔记、文章、对话三类，右侧按年分组的目录式列表；`/` 搜索，`n` 新建笔记 |
+| [3.2-stars-note.html](3.2-stars-note.html) | 笔记详情页（文章沿用同一布局）：默认阅读，进入编辑后原页面所见即所得，「完成」退出 |
 
 ## 共享代码
 
@@ -21,6 +23,8 @@
 | [components.css](components.css) | 多个原型共用的应用组件：页面容器 `.sheet`、页头、导航、元信息行 `.meta` |
 | [ornament.js](ornament.js) | 原型和 React 共用的装饰 SVG 路径与 viewBox；[ornament.d.ts](ornament.d.ts) 提供 TypeScript 类型 |
 | [shared.js](shared.js) | 共用的 HTML 结构，目前提供 `<palace-header>` |
+| [variant-switcher.js](variant-switcher.js) | 底部浮条 `<variant-switcher>`：在同一页面的多个设计变体间切换，变体写在 `?variant=` 里，← → 也能切换 |
+| [3-stars-data.js](3-stars-data.js) | 3.x 摘星原型共用的示例对话、笔记与文章 |
 
 新原型的 `<head>` 按这个顺序引入（只用到 token 的页面，比如色板，可以只引入前两个）：
 

@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<!--
+  Note page. Opens for reading; `e` or the menu turns the same rendered page
+  editable, and 完成 (or Esc, ⌘↵) turns it back.
+  ?note=<id> picks a sample note from 3-stars-data.js; ?note=new starts an
+  empty one in editing. The header is the reading page's (2.1), so an article
+  reuses this layout without the editing.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>笔记</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="components.css">
+  <script src="ornament.js"></script>
+  <script src="shared.js"></script>
+  <script src="3-stars-data.js"></script>
+  <style>
+    /* Same position and face as the conversation title in 2.1. */
+    header.note {
+      position: relative;
+      margin-top: 70px;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    h1 {
+      min-width: 0;
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: var(--font-size-3xl);
+      letter-spacing: -0.01em;
+    }
+
+    h1:focus,
+    .prose:focus {
+      outline: none;
+    }
+
+    h1:empty::before {
+      content: "无标题";
+      color: var(--text-3);
+    }
+
+    /* Rare actions behind a hover-only mark, as on the reading page; hidden while editing. */
+    .manage {
+      position: relative;
+      flex: none;
+    }
+
+    .manage[hidden] {
+      display: none;
+    }
+
+    .more {
+      color: var(--text-3);
+      font-size: var(--font-size-lg);
+      letter-spacing: 2px;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+
+    .title-row:hover .more,
+    .more:focus-visible,
+    .more[aria-expanded="true"] {
+      opacity: 1;
+    }
+
+    @media (hover: none) {
+      .more {
+        opacity: 1;
+      }
+    }
+
+    .menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 1;
+      min-width: 128px;
+      margin: 0;
+      padding: 6px;
+      list-style: none;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgb(0 0 0 / .08);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .menu[hidden] {
+      display: none;
+    }
+
+    .menu button {
+      display: block;
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      text-align: left;
+      color: var(--text-2);
+    }
+
+    .menu button:hover {
+      background: var(--bg-sunken);
+      color: var(--text);
+    }
+
+    /*
+     * The way out of editing: a word, not a toolbar, pinned to the right of
+     * the title row so a long or changing title never moves it.
+     */
+    .done {
+      flex: none;
+      margin-left: auto;
+      color: var(--accent);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-md);
+    }
+
+    .done:hover {
+      color: var(--accent-hover);
+    }
+
+    .done[hidden] {
+      display: none;
+    }
+
+    /* The user's own words in the system face, as on the reading page. */
+    .prose {
+      margin-top: 54px;
+      font-family: var(--font-content);
+      font-size: var(--font-size-base);
+      line-height: 1.75;
+    }
+
+    .prose> :first-child {
+      margin-top: 0;
+    }
+
+    .prose p,
+    .prose ul,
+    .prose ol,
+    .prose pre,
+    .prose blockquote {
+      margin: 0 0 14px;
+    }
+
+    .prose ul,
+    .prose ol {
+      padding-left: 22px;
+    }
+
+    .prose h2 {
+      margin: 32px 0 8px;
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+    }
+
+    .prose code {
+      padding: 1px 5px;
+      background: var(--bg-sunken);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: var(--font-size-sm);
+    }
+
+    .prose pre {
+      padding: 14px 18px;
+      overflow-x: auto;
+      background: var(--bg-sunken);
+      border-radius: var(--radius-md);
+      line-height: 1.6;
+    }
+
+    .prose pre code {
+      padding: 0;
+      background: none;
+    }
+
+    .prose blockquote {
+      padding-left: 16px;
+      border-left: 2px solid var(--border);
+      color: var(--text-2);
+    }
+
+    .prose:empty::before {
+      content: "写点什么…";
+      color: var(--text-3);
+    }
+
+    @media (max-width: 720px) {
+      header.note {
+        margin-top: 41px;
+      }
+
+      h1 {
+        font-size: var(--font-size-2xl);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="sheet">
+    <palace-header active="摘星"></palace-header>
+    <header class="note">
+      <div class="title-row">
+        <h1 id="title"></h1>
+        <div class="manage" id="manage">
+          <button class="more" id="more" aria-label="笔记操作" aria-haspopup="menu" aria-expanded="false"
+            aria-controls="menu">···</button>
+          <ul class="menu" id="menu" role="menu" hidden>
+            <li role="none"><button role="menuitem" data-action="edit">编辑笔记</button></li>
+            <li role="none"><button role="menuitem" data-action="delete">删除笔记</button></li>
+          </ul>
+        </div>
+        <button class="done" id="done" hidden>完成</button>
+      </div>
+      <p class="meta" id="meta"></p>
+    </header>
+    <div class="prose" id="prose"></div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const id = params.get("note");
+    const found = globalThis.starsData.notes.find((n) => n.id === id);
+    const isNew = !found && id === "new";
+    const note = found ?? (isNew ? { title: "", body: "", updated: null } : globalThis.starsData.notes[1]);
+
+    const esc = (s) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+    const inline = (s) => esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+
+    // Just enough Markdown for the samples: headings, lists, quotes, fenced code, paragraphs.
+    const markdown = (src) => {
+      const lines = src.split("\n");
+      const out = [];
+      let i = 0;
+      const run = (test) => {
+        const taken = [];
+        while (i < lines.length && test(lines[i])) taken.push(lines[i++]);
+        return taken;
+      };
+      while (i < lines.length) {
+        const line = lines[i];
+        if (!line.trim()) {
+          i++;
+        } else if (line.startsWith("```")) {
+          i++;
+          const code = run((l) => !l.startsWith("```"));
+          i++;
+          out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`);
+        } else if (/^#{1,3} /.test(line)) {
+          i++;
+          out.push(`<h2>${inline(line.replace(/^#+ /, ""))}</h2>`);
+        } else if (line.startsWith("- ")) {
+          out.push(`<ul>${run((l) => l.startsWith("- ")).map((l) => `<li>${inline(l.slice(2))}</li>`).join("")}</ul>`);
+        } else if (line.startsWith("> ")) {
+          out.push(`<blockquote>${run((l) => l.startsWith("> ")).map((l) => inline(l.slice(2))).join("<br>")}</blockquote>`);
+        } else {
+          out.push(`<p>${run((l) => l.trim() && !/^(#|- |> |```)/.test(l)).map(inline).join("<br>")}</p>`);
+        }
+      }
+      return out.join("");
+    };
+
+    const title = document.getElementById("title");
+    const prose = document.getElementById("prose");
+    const meta = document.getElementById("meta");
+    const manage = document.getElementById("manage");
+    const more = document.getElementById("more");
+    const menu = document.getElementById("menu");
+    const done = document.getElementById("done");
+
+    title.textContent = note.title;
+    prose.innerHTML = markdown(note.body);
+    document.title = note.title || "无标题";
+
+    let editing = false;
+    let updated = note.updated;
+    let saving = false;
+
+    const updatedText = () => {
+      if (!updated) return "刚刚";
+      const [, m, d] = updated.split("-").map(Number);
+      return `${m} 月 ${d} 日`;
+    };
+    // Editing has no other chrome, so the meta line is where the mode and saving show.
+    const renderMeta = () => {
+      const words = prose.textContent.replace(/\s/g, "").length;
+      meta.innerHTML = editing
+        ? `<span>编辑中</span><span>${saving ? "保存中…" : "已保存"}</span>`
+        : `<span>更新于 ${updatedText()}</span><span>${words.toLocaleString()} 字</span>`;
+    };
+
+    // Reading and editing are one rendered page; only editability and the title-row control change.
+    const setEditing = (on) => {
+      editing = on;
+      title.contentEditable = on ? "plaintext-only" : "false";
+      prose.contentEditable = String(on);
+      manage.hidden = on;
+      done.hidden = !on;
+      menu.hidden = true;
+      more.setAttribute("aria-expanded", "false");
+      if (!on) {
+        title.blur();
+        prose.blur();
+      }
+      renderMeta();
+    };
+
+    const startEditing = () => {
+      setEditing(true);
+      prose.focus();
+      const range = document.createRange();
+      range.selectNodeContents(prose);
+      range.collapse(false);
+      getSelection().removeAllRanges();
+      getSelection().addRange(range);
+    };
+
+    const finishEditing = () => {
+      clearTimeout(timer);
+      saving = false;
+      setEditing(false);
+    };
+
+    // Changes save on a pause in typing; 完成 only leaves editing, it is not a save button.
+    let timer;
+    const autosave = () => {
+      saving = true;
+      updated = null;
+      renderMeta();
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        saving = false;
+        renderMeta();
+      }, 700);
+    };
+
+    setEditing(isNew);
+    if (isNew) title.focus();
+
+    title.addEventListener("input", () => {
+      document.title = title.textContent || "无标题";
+      autosave();
+    });
+    prose.addEventListener("input", autosave);
+
+    // The title is one line: Enter moves on to the text instead of breaking it.
+    title.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      prose.focus();
+    });
+
+    more.addEventListener("click", () => {
+      menu.hidden = !menu.hidden;
+      more.setAttribute("aria-expanded", String(!menu.hidden));
+    });
+    menu.addEventListener("click", (e) => {
+      const action = e.target.closest("[data-action]")?.dataset.action;
+      if (action === "edit") startEditing();
+      if (action === "delete") location.href = "3.1-stars.html?kind=notes";
+    });
+    document.addEventListener("click", (e) => {
+      if (e.target.closest(".manage")) return;
+      menu.hidden = true;
+      more.setAttribute("aria-expanded", "false");
+    });
+    done.addEventListener("click", finishEditing);
+
+    document.addEventListener("keydown", (e) => {
+      if (editing) {
+        if (e.key === "Escape" || (e.key === "Enter" && (e.metaKey || e.ctrlKey))) {
+          e.preventDefault();
+          finishEditing();
+        }
+        return;
+      }
+      if (e.key === "Escape" && !menu.hidden) {
+        menu.hidden = true;
+        more.focus();
+        return;
+      }
+      if (e.key === "e" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        startEditing();
+      }
+    });
+  </script>
+</body>
+
+</html>
