@@ -200,11 +200,6 @@ tasks:
       - npm run dev
 
   run:server:
-    desc: Run the Palace HTTP server with deployment environment configuration
-    cmds:
-      - cargo run -p palace-server
-
-  run:test-server:
     desc: Run single-user Palace with a persistent PostgreSQL testcontainer
     env:
       PALACE_ORIGIN: '{{.PALACE_ORIGIN | default "http://127.0.0.1:5173"}}'

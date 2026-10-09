@@ -106,7 +106,7 @@ Conversation 名称取该 Conversation 中 `created_at, id` 最小的现存 Path
 
 ## 风险与持久化约束
 
-删除 `conversation.title` 不可逆。迁移在同一事务中先复制、再校验 `NOT NULL`，失败时整体回滚；开发机上 `task run:test-server` 会对本地数据执行它，需要旧数据时先备份。
+删除 `conversation.title` 不可逆。迁移在同一事务中先复制、再校验 `NOT NULL`，失败时整体回滚；开发机上 `task run:server` 会对本地数据执行它，需要旧数据时先备份。
 
 导入回执 `conversation_import.result` 不含标题，无需改写；但已保存的 `input_digest` 按旧规则计算，不含标题，上线后用旧幂等键重试会得到冲突。幂等键由前端在每次提交时生成，重试只发生在同一次提交的几秒内，因此不为旧摘要保留兼容计算。
 
