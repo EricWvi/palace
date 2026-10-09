@@ -54,16 +54,16 @@
 
 风险：删除后停在已不存在的对话上，后退又回到它；或从某天进入的读者被带回今天。前置：分别以带 `date`、不带 `date` 的地址打开同一类阅读页。触发：从标题菜单删除对话并确认；再准备一次删除失败的响应。
 
-必须成立：带 `date` 时以替换历史记录的方式跳到 `/?date=…`，不带时跳到 `/`；跳转后浏览器后退不会回到已删除对话的地址；删除失败时留在原页、显示错误并可重试。禁止删除成功后历史记录的当前条目仍指向该对话。
+必须成立：带 `date` 时以替换历史记录的方式跳到 `/?date=…`，不带时跳到 `/conversations`（[摘星决策](../../../decisions/web/stars/0-contents-page-with-kind-column.md) D6）；跳转后浏览器后退不会回到已删除对话的地址；删除失败时留在原页、显示错误并可重试。禁止删除成功后历史记录的当前条目仍指向该对话。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 按有无 `date` 选择落点，并以替换方式跳转 | Covered | `pages/conversation.test.tsx::after deleting %s, replaces the page with %s`、`e2e/timeline.spec.ts` |
+| 按有无 `date` 选择落点，并以替换方式跳转 | Partial | `pages/conversation.test.tsx::after deleting %s, replaces the page with %s`、`e2e/timeline.spec.ts`（带 `date` 的落点；不带 `date` 时仍断言落到 `/`，摘星决策实现时改为 `/conversations`） |
 | 删除失败留在原页并可重试 | Missing | — |
 
-决策依据：D4，不变量 4。
+决策依据：D4，不变量 4；摘星决策 D6。
 
 ## Deleting a path must remove its moment and keep reading the remaining tree
 

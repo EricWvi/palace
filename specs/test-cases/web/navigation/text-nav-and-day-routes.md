@@ -1,21 +1,21 @@
 # 文字导航与时刻地址核心测试用例
 
-当前决策：[以五个文字导航组织 Web](../../../decisions/web/navigation/0-text-nav-day-routes-and-moment-opening.md)，日期标题的日历见[日期标题打开应用内日历](../../../decisions/web/navigation/20261007-day-heading-opens-the-app-calendar.md)。对话阅读页自身的行为见[对话阅读页](../../server/conversation/reading-page.md)。
+当前决策：[以五个文字导航组织 Web](../../../decisions/web/navigation/0-text-nav-day-routes-and-moment-opening.md)，日期标题的日历见[日期标题打开应用内日历](../../../decisions/web/navigation/20261007-day-heading-opens-the-app-calendar.md)，摘星变为可点击见[摘星入口是目录式列表](../../../decisions/web/stars/0-contents-page-with-kind-column.md)。对话阅读页自身的行为见[对话阅读页](../../server/conversation/reading-page.md)。
 
 ## Navigation must mark only the owning section and keep inert items out of reach
 
 风险：未上线的导航项可以被点击或 Tab 到，进入不存在的页面；或阅读页与时刻同时被标记为当前项，读者无法判断自己在哪里。前置：分别打开时间线和对话阅读页。触发：用鼠标点击、键盘 Tab 遍历导航，并读取无障碍树。
 
-必须成立：时间线上只有“时刻”带 `aria-current="page"`，阅读页上只有“摘星”带；“时刻”是链接并进入今天的时间线；行事、旅途、摘星、回响照常显示文字，但没有 `href`，悬停不出现下划线，也不进入 Tab 顺序。禁止出现两个当前项、点不动的项获得焦点，或因无内容而隐藏导航项。
+必须成立：时间线上只有“时刻”带 `aria-current="page"`，阅读页上只有“摘星”带；“时刻”是链接并进入今天的时间线，“摘星”是链接并进入 `/conversations`（摘星决策 D1，细节见[摘星入口页](../stars/contents-page.md#stars-navigation-must-open-the-conversation-list-and-keep-unopened-kinds-inert)）；行事、旅途、回响照常显示文字，但没有 `href`，悬停不出现下划线，也不进入 Tab 顺序。禁止出现两个当前项、点不动的项获得焦点，或因无内容而隐藏导航项。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 当前项随页面所属导航变化，任一时刻至多一项 | Covered | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`、`pages/conversation.test.tsx::titles, counts and links the current path, and switching paths only replaces the address` |
-| 不可点击项不是链接、不进入 Tab 顺序、悬停无下划线 | Partial | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`（链接与 Tab 顺序）；悬停下划线只由 CSS 选择器限定在链接上，没有直接测试 |
+| 不可点击项不是链接、不进入 Tab 顺序、悬停无下划线 | Partial | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`（链接与 Tab 顺序，但仍把摘星当作不可点击项断言，摘星决策实现时需改为断言摘星是链接）；悬停下划线只由 CSS 选择器限定在链接上，没有直接测试 |
 
-决策依据：D1，不变量 1、2。
+决策依据：D1，不变量 1、2；摘星决策 D1。
 
 ## Day timeline address must restore the viewed day
 
