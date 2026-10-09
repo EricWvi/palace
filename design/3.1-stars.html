@@ -3,7 +3,7 @@
 
 <!--
   摘星 entry page: a book's contents page. ?kind= picks the list
-  (notes / articles / conversations); `/` searches it, `n` starts a note.
+  (notes / articles / conversations); `/` opens search (Enter runs it), `n` starts a note.
 -->
 
 <head>
@@ -288,13 +288,15 @@
       renderList();
     });
 
-    search.addEventListener("input", () => {
-      query = search.value.trim();
-      renderList();
-    });
 
     document.addEventListener("keydown", (e) => {
       if (e.target === search) {
+        // Only Enter runs a search: typing, including IME composition, leaves the list alone.
+        if (e.key === "Enter" && !e.isComposing) {
+          query = search.value.trim();
+          renderList();
+          return;
+        }
         if (e.key !== "Escape") return;
         // Escape empties the search first, then puts it away.
         if (search.value) {
