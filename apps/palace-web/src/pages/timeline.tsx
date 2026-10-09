@@ -1,14 +1,8 @@
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { outlineOptions, timelineOptions } from "@/lib/api";
+import { preloadable } from "@/lib/preloadable";
 import {
   addDays,
   dayHeading,
@@ -29,16 +23,16 @@ import {
 
 // The calendar is fetched on first approach to the date, and the import form brings it along;
 // most visits never open either.
-const loadCalendar = () => import("@/components/day-calendar");
-const DayCalendar = lazy(() =>
-  loadCalendar().then((module) => ({ default: module.DayCalendar })),
+const calendar = preloadable(() =>
+  import("@/components/day-calendar").then((module) => module.DayCalendar),
 );
+const DayCalendar = calendar.Component;
 // The import dialog carries its own date picker and calendar, too much to fetch on the click
 // that opens it: the "···" in front of it starts the fetch as soon as it is approached.
-const loadImportDialog = () => import("@/components/import-dialog");
-const ImportDialog = lazy(() =>
-  loadImportDialog().then((module) => ({ default: module.ImportDialog })),
+const importDialog = preloadable(() =>
+  import("@/components/import-dialog").then((module) => module.ImportDialog),
 );
+const ImportDialog = importDialog.Component;
 
 export function TimelinePage() {
   const [params, setParams] = useSearchParams();
@@ -100,8 +94,8 @@ export function TimelinePage() {
                 className="date"
                 // The heading must still read as the date, not only as a control.
                 aria-label={`${dayHeading(day)}，选择日期`}
-                onPointerEnter={() => void loadCalendar()}
-                onFocus={() => void loadCalendar()}
+                onPointerEnter={() => void calendar.preload()}
+                onFocus={() => void calendar.preload()}
                 onPointerDown={() => (opened.current = "pointer")}
                 onKeyDown={() => (opened.current = "keyboard")}
                 // A click must not leave focus on the date, or the arrow keys that step days
@@ -133,7 +127,7 @@ export function TimelinePage() {
         </Popover>
         <MoreMenu
           label="当天操作"
-          onApproach={() => void loadImportDialog()}
+          onApproach={() => void importDialog.preload()}
           actions={[{ label: "导入对话", onSelect: () => setImporting(true) }]}
         />
       </header>
