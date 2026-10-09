@@ -5,6 +5,23 @@
 
 // Regenerate with task api:generate. Browser supplies Origin; binary parts accept Blob/File.
 export interface paths {
+  "/api/conversations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Lists the owner's conversation paths for 摘星, newest change first, one page at a time. */
+    get: operations["conversations"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/conversations/{id}": {
     parameters: {
       query?: never;
@@ -266,6 +283,25 @@ export interface components {
       messages: components["schemas"]["Message"][];
       paths: components["schemas"]["ConversationPath"][];
     };
+    /** @description One path of a conversation, shown under its own title. */
+    ConversationListItem: {
+      /** Format: uuid */
+      conversation_id: string;
+      /**
+       * Format: uuid
+       * @description Path id, equal to the id of the path's conversation moment.
+       */
+      id: string;
+      /** @description Source of the whole conversation. */
+      source: components["schemas"]["Source"];
+      /** @description Title of this path. */
+      title: string;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the path's last import or append.
+       */
+      updated_at: number;
+    };
     /** @description A conversation moment is one path of a conversation tree. */
     ConversationMoment: {
       /** Format: uuid */
@@ -291,6 +327,18 @@ export interface components {
       source: components["schemas"]["Source"];
       /** @description Title of this path. */
       title: string;
+    };
+    /** @description One page of the 摘星 conversation list. */
+    ConversationPage: {
+      /** @description Paths, most recently imported or appended first. */
+      items: components["schemas"]["ConversationListItem"][];
+      /** @description Opaque token for the next page; null on the last page. */
+      next_cursor: string | null;
+      /**
+       * Format: int64
+       * @description Number of paths the owner has, regardless of `q`.
+       */
+      total: number;
     };
     ConversationPath: {
       /**
@@ -541,6 +589,81 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  conversations: {
+    parameters: {
+      query?: {
+        /** @description Case-insensitive literal substring of a path title or of a message on the path; blank means no search. */
+        q?: string;
+        /** @description `next_cursor` from the previous page. */
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Up to 50 paths ordered by last update, then id, both descending */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ConversationPage"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity, source session or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
   conversation: {
     parameters: {
       query?: never;

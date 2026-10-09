@@ -12,6 +12,8 @@ use testcontainers::{
 };
 use uuid::Uuid;
 
+#[path = "postgres/conversation_list.rs"]
+mod conversation_list;
 #[path = "postgres/import_times.rs"]
 mod import_times;
 #[path = "postgres/moments.rs"]

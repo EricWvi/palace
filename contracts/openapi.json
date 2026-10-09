@@ -9,6 +9,121 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/api/conversations": {
+      "get": {
+        "tags": [
+          "conversation_list"
+        ],
+        "summary": "Lists the owner's conversation paths for 摘星, newest change first, one page at a time.",
+        "operationId": "conversations",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Case-insensitive literal substring of a path title or of a message on the path; blank means no search.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "`next_cursor` from the previous page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Up to 50 paths ordered by last update, then id, both descending",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Identity, source session or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/conversations/{id}": {
       "get": {
         "tags": [
@@ -2268,6 +2383,41 @@
           }
         }
       },
+      "ConversationListItem": {
+        "type": "object",
+        "description": "One path of a conversation, shown under its own title.",
+        "required": [
+          "id",
+          "conversation_id",
+          "title",
+          "source",
+          "updated_at"
+        ],
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Path id, equal to the id of the path's conversation moment."
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source",
+            "description": "Source of the whole conversation."
+          },
+          "title": {
+            "type": "string",
+            "description": "Title of this path."
+          },
+          "updated_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the path's last import or append."
+          }
+        }
+      },
       "ConversationMoment": {
         "type": "object",
         "description": "A conversation moment is one path of a conversation tree.",
@@ -2314,6 +2464,36 @@
           "title": {
             "type": "string",
             "description": "Title of this path."
+          }
+        }
+      },
+      "ConversationPage": {
+        "type": "object",
+        "description": "One page of the 摘星 conversation list.",
+        "required": [
+          "items",
+          "next_cursor",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationListItem"
+            },
+            "description": "Paths, most recently imported or appended first."
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque token for the next page; null on the last page."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of paths the owner has, regardless of `q`."
           }
         }
       },

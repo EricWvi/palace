@@ -86,6 +86,14 @@ pub(crate) struct TimelineRange {
 }
 #[derive(Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]
+pub(crate) struct ConversationListQuery {
+    /// Case-insensitive literal substring of a path title or of a message on the path; blank means no search.
+    pub q: Option<String>,
+    /// `next_cursor` from the previous page.
+    pub cursor: Option<String>,
+}
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub(crate) struct Pull {
     pub cursor: Cursor,
     #[param(minimum = 1, maximum = 1000)]

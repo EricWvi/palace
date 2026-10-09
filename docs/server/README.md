@@ -91,6 +91,7 @@ docker run --publish 8080:8080 --env-file .env palace:local
 | `POST /api/import/file` | multipart 同名字段；history 为文件原始字节 |
 | `GET /api/timeline?start=&end=` | 调用方本地日期区间内的 Moment，按发生时间排序，含卡片字段 |
 | `GET /api/timeline/outline?start=&end=` | 同一区间内 Moment 的 `id` 与 `kind`，顺序与时间线一致，不读详情 |
+| `GET /api/conversations?q=&cursor=` | 摘星的对话列表：每条 Path 一行，按最后导入或追加时间倒序，每页 50 条，`total` 为全部 Path 数；`q` 按字面子串匹配 Path 标题或该 Path 上的消息 |
 | `GET /api/conversations/{id}` | 对话、消息树、各 Path 标题和受控来源链接 |
 | `GET /api/conversations/{id}/paths/{path_id}` | 来源 Path 对应的完整祖先路径 |
 | `POST /api/conversations/{id}/paths` | 在已有树中新建带标题的分支，JSON 不接受来源 |
@@ -98,6 +99,8 @@ docker run --publish 8080:8080 --env-file .env palace:local
 | `PUT /api/conversations/{id}/paths/{path_id}/metadata` | 修改该 Path 的标题和整个对话的来源 |
 | `DELETE /api/conversations/{id}/paths/{path_id}` | 删除分支及其 Moment，并清理不再共享的消息 |
 | `DELETE /api/conversations/{id}` | 删除整个对话及全部分支、Moment、消息 |
+
+对话列表以 `(updated_at, id)` keyset 分页，`next_cursor` 是不透明字符串，原样传回即取下一页；中途有新导入不会让已有条目重复或丢失。搜索用 `ILIKE` 实现，`%`、`_`、`\` 按字面量匹配；消息正文上有 `pg_trgm` 的 GIN 索引（`0011_conversation_list.sql` 创建扩展，数据库 owner 即可执行），少于 3 个字符的关键词无法用索引加速但结果不变。中文要进入 trigram，数据库的 `LC_CTYPE` 不能是 `C`。
 
 server 托管 `PALACE_WEB_DIST` 时，`/assets/*` 下带内容哈希的文件返回 `Cache-Control: public, max-age=31536000, immutable`，找不到时直接 404；其余前端路径（含 `index.html` 和前端路由回退，状态码 200）返回 `no-cache`。前端文件同样按 `Accept-Encoding` 动态 gzip 压缩（图片除外），压缩与未压缩版本共用上述缓存策略，并以 `Vary: Accept-Encoding` 区分；304 重新验证响应不带响应体也不压缩。
 

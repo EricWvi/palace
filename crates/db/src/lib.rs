@@ -1,5 +1,10 @@
 //! PostgreSQL transactions enforce owner boundaries independently of HTTP inputs.
 mod conversation_delete;
+mod conversation_list;
+pub use conversation_list::{
+    CONVERSATION_PAGE_SIZE, ConversationListItem, ConversationListRequest, ConversationPage,
+    PathCursor, SearchTerm,
+};
 mod conversation_tree;
 pub use conversation_tree::{ConversationDetail, ConversationPath};
 mod import;
