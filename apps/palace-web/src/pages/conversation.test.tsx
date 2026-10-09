@@ -78,6 +78,8 @@ function setup(route: string) {
         return Response.json({ id: pathId ?? "tree" });
       }
       if (path.startsWith("/api/timeline")) return Response.json([]);
+      if (path === "/api/conversations")
+        return Response.json({ items: [], next_cursor: null, total: 0 });
       return Response.json(current);
     });
   return { fetch, ...mountApp(route) };
@@ -101,7 +103,7 @@ it("deleting a conversation invalidates the outlines of the days it was on", asy
   await choose(user, "删除对话");
   const dialog = await screen.findByRole("dialog", { name: "删除对话？" });
   await user.click(within(dialog).getByRole("button", { name: "删除对话" }));
-  await waitFor(() => expect(address(router)).toBe("/"));
+  await waitFor(() => expect(address(router)).toBe("/conversations"));
   await waitFor(() =>
     expect(client.getQueryState(outline)?.isInvalidated).toBe(true),
   );
@@ -277,10 +279,12 @@ it("renames only the current path and corrects the source of the whole conversat
   ).toBeInTheDocument();
 });
 
-// Core test case: `specs/test-cases/server/conversation/reading-page.md#deleting-a-conversation-must-return-to-where-the-reader-came-from`
+// Core test cases:
+// - `specs/test-cases/server/conversation/reading-page.md#deleting-a-conversation-must-return-to-where-the-reader-came-from`
+// - `specs/test-cases/web/stars/contents-page.md#returning-to-the-list-must-restore-the-search-and-drop-stale-rows`
 it.each([
   ["/conversations/tree?path=p1&date=2025-09-30", "/?date=2025-09-30"],
-  ["/conversations/tree?path=p1", "/"],
+  ["/conversations/tree?path=p1", "/conversations"],
 ])("after deleting %s, replaces the page with %s", async (route, landing) => {
   const { router, user } = setup(route);
   await choose(user, "删除对话");

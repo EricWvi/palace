@@ -1,3 +1,4 @@
+import { infiniteQueryOptions, type QueryClient } from "@tanstack/react-query";
 import createClient from "openapi-fetch";
 import type { components, paths } from "./generated/api";
 
@@ -8,6 +9,8 @@ export type MomentOutline = components["schemas"]["MomentOutline"];
 export type Message = components["schemas"]["Message"];
 export type Detail = components["schemas"]["ConversationDetail"];
 export type ConversationPath = components["schemas"]["ConversationPath"];
+export type ConversationListItem =
+  components["schemas"]["ConversationListItem"];
 export const sources: Record<Source, string> = {
   chatgpt: "ChatGPT",
   gemini: "Gemini",
@@ -103,4 +106,24 @@ export function conversationOptions(id: string) {
     queryFn: () =>
       apiData(api.GET("/api/conversations/{id}", { params: { path: { id } } })),
   };
+}
+
+// 摘星's conversation list, one cursor page at a time; each search keeps its own pages.
+export function conversationListOptions(q: string) {
+  return infiniteQueryOptions({
+    queryKey: ["conversations", q],
+    queryFn: ({ pageParam }) =>
+      apiData(
+        api.GET("/api/conversations", {
+          params: { query: { q: q || undefined, cursor: pageParam } },
+        }),
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
+  });
+}
+// After any import, rename or deletion the list is dropped rather than refetched in place: an
+// old page shown while the new one loads would briefly offer a deleted path or an old title.
+export function forgetConversationList(client: QueryClient) {
+  client.removeQueries({ queryKey: ["conversations"] });
 }

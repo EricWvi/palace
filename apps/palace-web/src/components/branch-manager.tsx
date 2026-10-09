@@ -20,6 +20,7 @@ import {
   api,
   apiData,
   conversationOptions,
+  forgetConversationList,
   type ConversationPath,
   type Source,
 } from "@/lib/api";
@@ -55,6 +56,7 @@ export function BranchManager({
       ),
     onSuccess: async () => {
       // The page falls back to a remaining path once the deleted one is gone from the tree.
+      forgetConversationList(client);
       await Promise.all([
         client.invalidateQueries({
           queryKey: ["conversation", conversationId],

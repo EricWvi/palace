@@ -95,6 +95,7 @@ afterEach(() => {
 // - `specs/test-cases/web/navigation/text-nav-and-day-routes.md#navigation-must-mark-only-the-owning-section-and-keep-inert-items-out-of-reach`
 // - `specs/test-cases/web/navigation/text-nav-and-day-routes.md#each-moment-kind-must-open-in-exactly-one-way`
 // - `specs/test-cases/server/moment/moment-timeline.md#conversation-cards-must-summarize-their-own-path`
+// - `specs/test-cases/web/stars/contents-page.md#stars-navigation-must-open-the-conversation-list-and-keep-unopened-kinds-inert`
 it("marks only 时刻, keeps other sections out of reach, and links cards to the reading page", async () => {
   const fetch = mockApi();
   const { user } = mountApp("/?date=2025-09-30");
@@ -102,16 +103,23 @@ it("marks only 时刻, keeps other sections out of reach, and links cards to the
   const nav = screen.getByRole("navigation", { name: "主导航" });
   expect(within(nav).getAllByRole("link")).toEqual([
     within(nav).getByRole("link", { name: "时刻" }),
+    within(nav).getByRole("link", { name: "摘星" }),
   ]);
+  expect(within(nav).getByRole("link", { name: "摘星" })).toHaveAttribute(
+    "href",
+    "/conversations",
+  );
   expect(within(nav).getByRole("link", { name: "时刻" })).toHaveAttribute(
     "aria-current",
     "page",
   );
   for (const section of ["行事", "旅途", "摘星", "回响"])
     expect(within(nav).getByText(section)).not.toHaveAttribute("aria-current");
-  // Tabbing from the start reaches 时刻, then the date; inert words are skipped.
+  // Tabbing from the start reaches 时刻 and 摘星, then the date; inert words are skipped.
   await user.tab();
   expect(document.activeElement).toHaveTextContent("时刻");
+  await user.tab();
+  expect(document.activeElement).toHaveTextContent("摘星");
   await user.tab();
   expect(document.activeElement).toHaveAccessibleName("Sep 30, 2025，选择日期");
   expect(within(card).getByRole("link")).toHaveAttribute(

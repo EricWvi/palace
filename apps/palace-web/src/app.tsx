@@ -2,16 +2,20 @@ import { lazy, Suspense, useEffect } from "react";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { PalaceHeader, type Section } from "./components/palace-header";
 import { TimelinePage } from "./pages/timeline";
+const StarsPage = lazy(() =>
+  import("./pages/stars").then((module) => ({ default: module.StarsPage })),
+);
 const ConversationPage = lazy(() =>
   import("./pages/conversation").then((module) => ({
     default: module.ConversationPage,
   })),
 );
 
-// Each page belongs to one section of the top bar; a conversation is read in 摘星.
+// Each page belongs to one section of the top bar; conversations are listed and read in 摘星.
 function sectionOf(pathname: string): Section | undefined {
   if (pathname === "/") return "时刻";
-  if (pathname.startsWith("/conversations/")) return "摘星";
+  if (pathname === "/conversations" || pathname.startsWith("/conversations/"))
+    return "摘星";
   return undefined;
 }
 
@@ -27,6 +31,7 @@ export function App() {
       <Suspense fallback={null}>
         <Routes>
           <Route path="/" element={<TimelinePage />} />
+          <Route path="/conversations" element={<StarsPage />} />
           <Route path="/conversations/:id" element={<ConversationPage />} />
           <Route
             path="*"

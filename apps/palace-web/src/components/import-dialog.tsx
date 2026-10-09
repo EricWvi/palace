@@ -18,6 +18,7 @@ import { FileDrop } from "./file-drop";
 import {
   api,
   apiData,
+  forgetConversationList,
   serializeImport,
   sources,
   type Source,
@@ -189,6 +190,7 @@ function ImportForm({
       );
     },
     onSuccess: async (result) => {
+      forgetConversationList(client);
       await Promise.all([
         client.invalidateQueries({ queryKey: ["timeline"] }),
         client.invalidateQueries({

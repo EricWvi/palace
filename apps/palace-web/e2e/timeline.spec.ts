@@ -171,10 +171,10 @@ test("a day, its conversation, an import filed on another day, and the way back"
   await page.goto("/?date=2025-09-30");
   const card = page.getByRole("link", { name: /计划周末出行/ });
   await expect(card).toBeVisible();
-  // Only 时刻 is a link; the other sections are words.
+  // Only 时刻 and 摘星 are links; the other sections are words.
   await expect(
     page.getByRole("navigation", { name: "主导航" }).getByRole("link"),
-  ).toHaveText(["时刻"]);
+  ).toHaveText(["时刻", "摘星"]);
 
   // The day menu shows only while the pointer is over the date.
   const dayMenu = page.getByRole("button", { name: "当天操作" });

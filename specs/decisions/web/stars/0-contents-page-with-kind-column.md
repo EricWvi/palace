@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 date: 2026-10-09
 ---
 
@@ -7,7 +7,7 @@ date: 2026-10-09
 
 「摘星」导航变为可点击，进入摘星的入口页。页面像一本书的目录：左侧一列内容类型「笔记 / 文章 / 对话」，右侧是当前类型的条目，按年分组，每条一行，标题后以点线连到日期。第一版只有「对话」可以打开，笔记和文章照常显示但不可点击。对话列表一行代表一条 Path，显示该 Path 的标题，与时间线上的对话 Moment 一一对应；同一 Conversation 的多条 Path 各占一行。服务端新增分页的对话列表接口，支持按 Path 标题和 Path 上的消息内容搜索；按 `/` 打开搜索，回车执行。
 
-当前为 `approved`，核心测试用例见[摘星入口页](../../../test-cases/web/stars/contents-page.md)。这是 `web/stars` 的根决策，没有前序 ADR；它修改[Web 导航根决策](../navigation/0-text-nav-day-routes-and-moment-opening.md)的 D1（摘星不可点击）与 D3（没有来源日期时的落点），解决了该决策“本决策未解决的问题”中的“摘星入口页”。视觉参照为 `design/3.1-stars.html`；笔记详情页的参照 `design/3.2-stars-note.html` 不在本决策范围内。
+当前为 `implemented`，核心测试用例见[摘星入口页](../../../test-cases/web/stars/contents-page.md)。这是 `web/stars` 的根决策，没有前序 ADR；它修改[Web 导航根决策](../navigation/0-text-nav-day-routes-and-moment-opening.md)的 D1（摘星不可点击）与 D3（没有来源日期时的落点），解决了该决策“本决策未解决的问题”中的“摘星入口页”。视觉参照为 `design/3.1-stars.html`；笔记详情页的参照 `design/3.2-stars-note.html` 不在本决策范围内。
 
 ## 问题与约束
 
@@ -99,18 +99,14 @@ PostgreSQL advisory lock 的用法  Gemini ················ 10.0
 
 搜索放在服务端，是因为消息正文只在服务端，单条可达 1 MiB，不能为了搜索把它们下发到浏览器。子串匹配而不是全文检索，是因为 PostgreSQL 内置的分词不切中文。
 
-子串匹配用 `ILIKE` 实现，并在这一版就为消息正文建 trigram 索引：
+子串匹配用 `ILIKE` 实现，消息正文上建有 `pg_trgm` 的 GIN 索引 `message_content_trgm`（迁移 `0011_conversation_list.sql`）：
 
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE INDEX message_content_trgm ON message USING gin (content gin_trgm_ops);
-```
-
-- 索引建在 `message.content` 上，即原始 Markdown，不新增去掉标记的纯文本列。子串搜索几乎不受 `**`、反引号一类标记影响；代价是链接地址等不可见文字也能被搜到，换来的是不需要在导入时多写一列、也不需要回填现有消息。
-- 不扫描全部消息正文，是因为它们是库里最大的数据。标题表小，只用 `ILIKE` 扫描，不建索引。
-- 关键词中的 `%`、`_` 与 `\` 按字面量转义后再拼成 `%关键词%`，用户输入不会成为通配符。
-- 索引只影响速度，不影响结果：少于 3 个字符的关键词（如两个汉字）提取不出 trigram，PostgreSQL 退回全索引扫描，结果仍由 `ILIKE` 复核。中文字符要计入 trigram，数据库的 `LC_CTYPE` 不能是 `C`；当前 `postgres:17-alpine` 默认的 `en_US.utf8` 满足这一点。
-- `pg_trgm` 自 PostgreSQL 13 起是 trusted 扩展，数据库 owner 即可在迁移中创建，不需要超级用户。
+- 索引建在 `message.content` 上，即原始 Markdown，不新增去掉标记的纯文本列。子串搜索几乎不受 `**`、反引号一类标记影响；代价是链接地址等不可见文字也能被搜到，换来的是导入时不多写一列、现有消息不需要回填。
+- 正文是库里最大的数据，因此要用索引；Path 标题表小，只用 `ILIKE` 扫描。
+- 关键词中的 `%`、`_` 与 `\` 按字面量转义，用户输入不会成为通配符。
+- 索引只影响速度，不影响结果：少于 3 个字符的关键词（如两个汉字）提取不出 trigram，结果仍由 `ILIKE` 决定。中文字符要计入 trigram，数据库的 `LC_CTYPE` 不能是 `C`。
+- `pg_trgm` 是 trusted 扩展，数据库 owner 即可在迁移中创建，不需要超级用户。
+- 匹配消息时不从每条 Path 向根回溯，而是从命中的消息沿子消息向下展开：Path 的末端是命中消息本身或其后代时，这条 Path 匹配。只访问命中消息下面的子树。
 
 ## D5：对话列表接口
 
@@ -121,34 +117,19 @@ CREATE INDEX message_content_trgm ON message USING gin (content gin_trgm_ops);
 | `q` | 可选，搜索关键词，语义见 D4；去除首尾空白后为空，视同未提供 |
 | `cursor` | 可选，上一页返回的 `next_cursor` |
 
-响应：
-
-```json
-{
-  "items": [
-    {
-      "id": "<Path ID>",
-      "conversation_id": "<Conversation ID>",
-      "title": "改去 Point Reyes",
-      "source": "chatgpt",
-      "updated_at": "2026-10-07T21:14:03+08:00"
-    }
-  ],
-  "next_cursor": "…",
-  "total": 9
-}
-```
+响应为 `{ items, next_cursor, total }`，`items` 的每一项是 `{ id, conversation_id, title, source, updated_at }`，`updated_at` 是 epoch 毫秒，与其他接口的时间字段一致。
 
 - `id` 是 Path ID，也是对应对话 Moment 的 ID；字段命名与时间线的对话卡片一致（对话 Moment 卡片字段 D1）。`title` 与 `updated_at` 来自 Path，`source` 来自 Conversation，查询时派生，不另外保存。
-- 每页 50 条，按 D3 的顺序以 keyset 分页：游标编码最后一行 Path 的 `(updated_at, id)`，没有下一页时 `next_cursor` 为 `null`。用 keyset 而不用偏移量，是因为浏览时可能有新导入，偏移量会让条目在两页之间重复或丢失。
-- `total` 是该 owner 的 Path 总数，不受 `q` 影响，供类型列显示条数；它与列表不加搜索时的行数相同。
+- 每页 50 条，按 D3 的顺序以 keyset 分页：`next_cursor` 是不透明字符串，编码最后一行 Path 的 `(updated_at, id)`，客户端原样传回；没有下一页时为 `null`，无法解析的游标返回 400。Path 的 `updated_at` 以毫秒精度保存，游标不丢精度。用 keyset 而不用偏移量，是因为浏览时可能有新导入，偏移量会让条目在两页之间重复或丢失。
+- `total` 是该 owner 的 Path 总数，不受 `q` 影响，供类型列显示条数；它与列表不加搜索时的行数相同。条数与当页在同一个只读快照中读取，不会被并发导入拆开。
 - 前端滚动到列表末尾时加载下一页。
 
 ## D6：从阅读页回到摘星
 
 - 没有 `date` 的对话阅读页（从摘星或直接链接进入），删除整个对话后进入 `/conversations`，替换当前历史记录，后退不会回到已删除的对话。
-- 从摘星进入阅读页后按浏览器后退，回到原来的列表：`q` 由地址恢复，已加载的页面和滚动位置由前端缓存恢复。
-- 在阅读页删除单条 Path、删除整个对话，或编辑标题与来源后，列表缓存随之失效；回到列表时不出现已删除的行，也不显示旧标题。
+- 从列表打开的阅读页从顶部开始，不沿用列表的滚动位置。
+- 从摘星进入阅读页后按浏览器后退，回到原来的列表：`q` 由地址恢复，已加载的页面和滚动位置由前端缓存恢复（滚动位置按浏览历史条目记录）。
+- 导入、删除单条 Path、删除整个对话，或编辑标题与来源后，列表缓存被丢弃而不是在原处重新请求；回到列表时重新从第一页加载，不出现已删除的行，也不显示旧标题。代价是这种情况下回到列表不再恢复滚动位置：缓存里的行已经不可信，旧的偏移也对不上新的行。
 - 从摘星进入的阅读页不显示返回链接，与导航根决策 D3 一致：返回链接只说明“回到哪一天”，摘星没有日期可写，浏览器后退已经足够。
 
 ## 不变量
@@ -184,10 +165,8 @@ CREATE INDEX message_content_trgm ON message USING gin (content gin_trgm_ops);
 - **摘星链接的落点**：有多种类型以后，是否回到上次停留的类型。
 - **跨类型搜索**：第一版只搜当前类型。
 
-## 落地顺序
+## 落地与验收
 
-1. **列表接口**：实现 D5，包括按 Path 的 keyset 分页、`total` 与 `q` 搜索，以及启用 `pg_trgm` 并创建 `message_content_trgm` 索引的迁移。完成条件是真实 PostgreSQL 测试覆盖不变量 4–7：每条 Path 恰好出现一次、排序与分页的不重不漏、owner 隔离和搜索匹配范围。这一步不改变任何界面。
-2. **入口页**：实现 D1–D3 与 D6，导航中摘星变为可点击，类型列中只有对话可以打开。完成条件是组件测试覆盖不变量 1–3，Chromium 测试覆盖后退时恢复滚动位置、删除后的落点。
-3. **搜索**：实现 D4 的 `/` 输入框、回车执行与 `?q=`。单独成一步，使入口页可以先上线，搜索的交互细节可以单独评审。
+`palace-db` 的 `conversation_list` 实现 D4、D5 的查询，`palace-backend` 的 `GET /api/conversations` 把它暴露给 Web；迁移 `0011_conversation_list.sql` 创建列表顺序索引、`pg_trgm` 扩展与正文 trigram 索引。`apps/palace-web` 新增 `StarsPage` 承担 `/conversations`，导航中的摘星改为链接，没有 `date` 的阅读页删除后落到 `/conversations`。
 
-从第 2 步起，「摘星」从不可点击变为可点击，没有 `date` 的对话阅读页删除后落到 `/conversations` 而不是 `/`；时刻页、对话阅读页的其他行为不变。
+真实 PostgreSQL 测试覆盖不变量 4–7，组件测试覆盖不变量 1–3 与搜索交互，Chromium 测试覆盖分页加载、后退恢复滚动位置与删除后的落点。证据见核心测试用例。

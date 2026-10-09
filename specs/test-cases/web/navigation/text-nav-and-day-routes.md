@@ -13,7 +13,7 @@
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 当前项随页面所属导航变化，任一时刻至多一项 | Covered | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`、`pages/conversation.test.tsx::titles, counts and links the current path, and switching paths only replaces the address` |
-| 不可点击项不是链接、不进入 Tab 顺序、悬停无下划线 | Partial | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`（链接与 Tab 顺序，但仍把摘星当作不可点击项断言，摘星决策实现时需改为断言摘星是链接）；悬停下划线只由 CSS 选择器限定在链接上，没有直接测试 |
+| 不可点击项不是链接、不进入 Tab 顺序、悬停无下划线 | Partial | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`（链接与 Tab 顺序，含摘星是链接）；悬停下划线只由 CSS 选择器限定在链接上，没有直接测试 |
 
 决策依据：D1，不变量 1、2；摘星决策 D1。
 

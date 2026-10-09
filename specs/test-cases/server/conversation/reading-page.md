@@ -60,7 +60,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 按有无 `date` 选择落点，并以替换方式跳转 | Partial | `pages/conversation.test.tsx::after deleting %s, replaces the page with %s`、`e2e/timeline.spec.ts`（带 `date` 的落点；不带 `date` 时仍断言落到 `/`，摘星决策实现时改为 `/conversations`） |
+| 按有无 `date` 选择落点，并以替换方式跳转 | Covered | `pages/conversation.test.tsx::after deleting %s, replaces the page with %s`、`e2e/timeline.spec.ts`（带 `date`）、`e2e/stars.spec.ts::deleting a conversation opened from the list returns to a list without it`（不带 `date`） |
 | 删除失败留在原页并可重试 | Missing | — |
 
 决策依据：D4，不变量 4；摘星决策 D6。

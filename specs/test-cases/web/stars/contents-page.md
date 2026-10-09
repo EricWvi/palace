@@ -2,8 +2,6 @@
 
 当前决策：[摘星入口是目录式列表](../../../decisions/web/stars/0-contents-page-with-kind-column.md)。导航的当前项与不可点击项的通用规则见[文字导航与时刻地址](../navigation/text-nav-and-day-routes.md#navigation-must-mark-only-the-owning-section-and-keep-inert-items-out-of-reach)；阅读页删除后的落点见[对话阅读页](../../server/conversation/reading-page.md#deleting-a-conversation-must-return-to-where-the-reader-came-from)。
 
-决策已 `approved`，尚未实现，以下验证义务暂无证据。
-
 ## Stars navigation must open the conversation list and keep unopened kinds inert
 
 风险：摘星仍点不动，或进入后找不到对话列表；尚未开放的笔记、文章可以被点击或 Tab 到，进入不存在的页面。前置：已登录，有若干对话。触发：点击顶部导航的「摘星」；用键盘 Tab 遍历左侧类型列；分别打开 `/conversations` 与 `/conversations/:id`，读取无障碍树。
@@ -14,9 +12,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 摘星链接指向 `/conversations`，列表页与阅读页上只有摘星是当前项 | Missing | — |
-| 类型列的顺序、当前类型与条数 | Missing | — |
-| 尚未开放的类型不是链接、不进入 Tab 顺序、不显示条数 | Missing | — |
+| 摘星链接指向 `/conversations`，列表页与阅读页上只有摘星是当前项 | Covered | `pages/stars.test.tsx::opens the conversation list from 摘星, where only 对话 is open among the kinds`、`app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page` |
+| 类型列的顺序、当前类型与条数 | Covered | `pages/stars.test.tsx::opens the conversation list from 摘星, where only 对话 is open among the kinds` |
+| 尚未开放的类型不是链接、不进入 Tab 顺序、不显示条数 | Covered | `pages/stars.test.tsx::opens the conversation list from 摘星, where only 对话 is open among the kinds` |
 
 决策依据：D1、D2，不变量 1、2。
 
@@ -30,9 +28,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 同一 Conversation 的每条 Path 各占一行，行上的标题、来源与日期来自该 Path | Missing | — |
-| 行的链接携带该 Path 的 ID 且不带 `date`，打开后页首标题与行一致 | Missing | — |
-| 日期与年份分组按浏览器本地时区计算 | Missing | — |
+| 同一 Conversation 的每条 Path 各占一行，行上的标题、来源与日期来自该 Path | Covered | `pages/stars.test.tsx::lists each path on its own line by year and opens exactly that path at the top`、`crates/db/tests/postgres/conversation_list.rs::conversation_list_must_page_every_path_exactly_once_in_order`（真实 PostgreSQL）（分支行的字段） |
+| 行的链接携带该 Path 的 ID 且不带 `date`，打开后页首标题与行一致 | Covered | `pages/stars.test.tsx::lists each path on its own line by year and opens exactly that path at the top` |
+| 日期与年份分组按浏览器本地时区计算 | Covered | `pages/stars.test.tsx::lists each path on its own line by year and opens exactly that path at the top`（以本地时间构造跨年的数据） |
 
 决策依据：D3，不变量 3。
 
@@ -46,9 +44,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 逐页取完后每条 Path 恰好出现一次，顺序与并列时的次序正确 | Missing | — |
-| 翻页途中新增 Path 不造成重复或遗漏 | Missing | — |
-| `total` 等于 Path 总数且不受 `q` 影响；各字段来自该 Path 与其 Conversation | Missing | — |
+| 逐页取完后每条 Path 恰好出现一次，顺序与并列时的次序正确 | Covered | `crates/db/tests/postgres/conversation_list.rs::conversation_list_must_page_every_path_exactly_once_in_order`（真实 PostgreSQL）（10 条同时间的 Path 跨在分页边界上） |
+| 翻页途中新增 Path 不造成重复或遗漏 | Covered | `crates/db/tests/postgres/conversation_list.rs::conversation_list_must_page_every_path_exactly_once_in_order`（真实 PostgreSQL） |
+| `total` 等于 Path 总数且不受 `q` 影响；各字段来自该 Path 与其 Conversation | Covered | `crates/db/tests/postgres/conversation_list.rs::conversation_list_must_page_every_path_exactly_once_in_order`（真实 PostgreSQL）、`crates/db/tests/postgres/conversation_list.rs::conversation_list_must_stay_within_the_owner`（真实 PostgreSQL）（无结果的搜索仍返回全部条数）、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 PostgreSQL 与真实 Router） |
 
 决策依据：D5，不变量 4、5。证据只能来自真实 PostgreSQL。
 
@@ -62,7 +60,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 列表、`total` 与搜索结果都只来自当前 owner | Missing | — |
+| 列表、`total` 与搜索结果都只来自当前 owner | Covered | `crates/db/tests/postgres/conversation_list.rs::conversation_list_must_stay_within_the_owner`（真实 PostgreSQL）、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 PostgreSQL 与真实 Router） |
 
 决策依据：D5，不变量 6。证据只能来自真实 PostgreSQL。
 
@@ -76,10 +74,10 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 只有回车执行搜索并写入 `?q=`，空关键词与 Esc 清除搜索，再按 Esc 收起 | Missing | — |
-| 匹配范围是该 Path 的标题与该 Path 上的消息，共享前缀命中所有共享它的 Path | Missing | — |
-| `%`、`_`、`\` 按字面量匹配，少于 3 个字符的中文关键词结果正确 | Missing | — |
-| 标题匹配高亮，无结果时的提示 | Missing | — |
+| 只有回车执行搜索并写入 `?q=`，空关键词与 Esc 清除搜索，再按 Esc 收起 | Covered | `pages/stars.test.tsx::searches only on Enter, in place, and clears with Escape before putting the field away` |
+| 匹配范围是该 Path 的标题与该 Path 上的消息，共享前缀命中所有共享它的 Path | Covered | `crates/db/tests/postgres/conversation_list.rs::search_must_match_only_the_paths_own_title_and_messages`（真实 PostgreSQL） |
+| `%`、`_`、`\` 按字面量匹配，少于 3 个字符的中文关键词结果正确 | Covered | `crates/db/tests/postgres/conversation_list.rs::search_must_match_only_the_paths_own_title_and_messages`（真实 PostgreSQL）、`crates/db/src/conversation_list.rs::search_terms_are_trimmed_and_escaped_literally`（转义规则单元测试） |
+| 标题匹配高亮，无结果时的提示 | Covered | `pages/stars.test.tsx::searches only on Enter, in place, and clears with Escape before putting the field away` |
 
 决策依据：D4，不变量 7。匹配范围、转义与短关键词的义务只能以真实 PostgreSQL 为证据。
 
@@ -87,14 +85,14 @@
 
 风险：从阅读页后退时丢失搜索与滚动位置，读者要重新找；或在阅读页删除、改名后，回到列表仍看到已删除的行或旧标题。前置：列表已加载多页并带 `?q=`，滚动到中部；从其中一行进入阅读页。触发：直接按浏览器后退；再次进入，分别删除当前 Path、删除整个对话、编辑标题后再回到列表。
 
-必须成立：后退回到同一组搜索结果、已加载的页面与原来的滚动位置；从摘星进入的阅读页不显示返回链接；删除整个对话后以替换历史记录的方式进入 `/conversations`，后退不会回到已删除的对话；删除单条 Path 或编辑标题、来源后，回到列表时不出现已删除的行，也不显示旧标题。禁止回到列表时停在顶部或丢失 `q`，禁止列表缓存在删除或编辑后继续生效。
+必须成立：后退回到同一组搜索结果、已加载的页面与原来的滚动位置；从列表打开的阅读页从顶部开始，且不显示返回链接；删除整个对话后以替换历史记录的方式进入 `/conversations`，后退不会回到已删除的对话；删除单条 Path 或编辑标题、来源后，回到列表时重新加载，不出现已删除的行，也不显示旧标题（此时不恢复滚动位置）。禁止没有改动时回到列表停在顶部或丢失 `q`，禁止列表缓存在删除或编辑后继续生效。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 后退恢复 `q`、已加载的页面与滚动位置（真实 Chromium） | Missing | — |
-| 没有 `date` 的阅读页删除对话后替换为 `/conversations` | Missing | — |
-| 删除 Path、删除对话、编辑元数据后列表缓存失效 | Missing | — |
+| 后退恢复 `q`、已加载的页面与滚动位置（真实 Chromium） | Covered | `e2e/stars.spec.ts::opens a row at the top and comes back to where the list was left`（真实 Chromium）、`pages/stars.test.tsx::comes back to the same search, and drops the rows of a conversation deleted meanwhile`（`q` 与搜索框） |
+| 没有 `date` 的阅读页删除对话后替换为 `/conversations` | Covered | `pages/stars.test.tsx::comes back to the same search, and drops the rows of a conversation deleted meanwhile`、`e2e/stars.spec.ts::deleting a conversation opened from the list returns to a list without it`（真实 Chromium）、`pages/conversation.test.tsx::after deleting %s, replaces the page with %s` |
+| 删除 Path、删除对话、编辑元数据后列表缓存失效 | Partial | `pages/stars.test.tsx::comes back to the same search, and drops the rows of a conversation deleted meanwhile`、`e2e/stars.spec.ts::deleting a conversation opened from the list returns to a list without it`（真实 Chromium）（删除对话）；删除单条 Path、编辑元数据与导入只由同一个 `forgetConversationList` 调用保证，没有直接测试 |
 
 决策依据：D6。

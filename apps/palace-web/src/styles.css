@@ -919,6 +919,154 @@ ol.messages {
   cursor: help;
 }
 
+/*
+ * 摘星 entry: a contents page. The kinds stand in a column on the left and stay in view while
+ * the list scrolls; the list starts at the height of 时刻's date and the reading page's title.
+ */
+.contents {
+  display: grid;
+  /* minmax keeps a long title from widening the column instead of being cut with an ellipsis. */
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 48px;
+  margin-top: 70px;
+}
+
+.kinds {
+  position: sticky;
+  top: 32px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+}
+
+.kinds > * {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--text-3);
+  text-decoration: none;
+}
+
+.kinds > a:hover {
+  color: var(--text-2);
+}
+
+.kinds > [aria-current="page"] {
+  color: var(--text);
+}
+
+.kinds small {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  color: var(--text-3);
+}
+
+/* Absent until `/`; an underline rather than a box. */
+.contents .search {
+  display: block;
+  width: 100%;
+  margin: 0 0 24px;
+  padding: 6px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-md);
+}
+
+.contents .search:focus {
+  border-bottom-color: var(--text-3);
+}
+
+.contents .search::placeholder {
+  color: var(--text-3);
+}
+
+.contents .search::-webkit-search-cancel-button {
+  display: none;
+}
+
+.contents .search[hidden] {
+  display: none;
+}
+
+.contents .year h2 {
+  margin: 0 0 12px;
+  color: var(--text-3);
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: 400;
+}
+
+.contents .year + .year h2 {
+  margin-top: 40px;
+}
+
+.contents .year ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* One line per path, dotted leaders running from the title to its date. */
+.contents .entry {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.contents .entry-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+}
+
+.contents .entry:hover .entry-title {
+  color: var(--accent-hover);
+}
+
+.contents mark {
+  background: var(--accent-soft);
+  color: inherit;
+  border-radius: 2px;
+}
+
+.contents .entry-aside {
+  flex: none;
+  color: var(--text-3);
+  font-size: var(--font-size-xs);
+}
+
+.contents .leader {
+  flex: 1;
+  min-width: 24px;
+  border-bottom: 1px dotted var(--text-3);
+  opacity: 0.6;
+}
+
+.contents .entry-date {
+  flex: none;
+  color: var(--text-3);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.contents .empty {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+}
+
 @media (max-width: 720px) {
   .sheet {
     padding: 20px 16px 48px;
@@ -976,6 +1124,23 @@ ol.messages {
 
   .date-time {
     flex-wrap: wrap;
+  }
+
+  /* Only kept from breaking: the kinds become a row above the list. */
+  .contents {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    margin-top: 41px;
+  }
+
+  .kinds {
+    position: static;
+    flex-direction: row;
+    gap: 20px;
+  }
+
+  .kinds > * {
+    gap: 6px;
   }
 }
 

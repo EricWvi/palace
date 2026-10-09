@@ -1,7 +1,8 @@
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useLayoutEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Link,
+  useLocation,
   useNavigate,
   useParams,
   useSearchParams,
@@ -28,6 +29,12 @@ export function ConversationPage() {
   const selected = paths.find(({ path }) => path.id === wanted) ?? paths[0];
   const from = parseDay(params.get("date"));
   const conversation = detail.data?.conversation;
+  // A row of 摘星's list asks to start at the top; the list keeps its own offset for going back.
+  const { state } = useLocation();
+  const top = (state as { top?: boolean } | null)?.top;
+  useLayoutEffect(() => {
+    if (top) window.scrollTo(0, 0);
+  }, [top, id]);
 
   // Branch changes replace the entry: the reader is still on the same page, and back should lead
   // to the day, not through every branch looked at.
@@ -95,8 +102,9 @@ export function ConversationPage() {
             onImported={(result, occurredAt) =>
               show(result.path_id, dayParam(dayOf(occurredAt)))
             }
+            // Without a day the reader came from 摘星 or a bare link, so 摘星 takes them back.
             onDeleted={() =>
-              navigate(from ? `/?date=${dayParam(from)}` : "/", {
+              navigate(from ? `/?date=${dayParam(from)}` : "/conversations", {
                 replace: true,
               })
             }

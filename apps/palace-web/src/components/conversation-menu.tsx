@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   api,
   apiData,
+  forgetConversationList,
   sources,
   type ConversationPath,
   type Source,
@@ -44,11 +45,13 @@ export function ConversationMenu({
   const [title, setTitle] = useState(path.title);
   const [chosen, setChosen] = useState<Source>(source);
   const client = useQueryClient();
-  const refresh = () =>
-    Promise.all([
+  const refresh = () => {
+    forgetConversationList(client);
+    return Promise.all([
       client.invalidateQueries({ queryKey: ["conversation", conversationId] }),
       client.invalidateQueries({ queryKey: ["timeline"] }),
     ]);
+  };
   const update = useMutation({
     mutationFn: () => {
       if (!title.trim()) throw new Error("请填写标题。");
@@ -77,6 +80,7 @@ export function ConversationMenu({
       setAction(null);
       onDeleted();
       client.removeQueries({ queryKey: ["conversation", conversationId] });
+      forgetConversationList(client);
       await client.invalidateQueries({ queryKey: ["timeline"] });
     },
   });
