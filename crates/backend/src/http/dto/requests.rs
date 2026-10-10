@@ -1,6 +1,7 @@
 use super::common::{Cursor, Source};
 use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
+use uuid::Uuid;
 
 /// Original history JSON is a string here, not an embedded message array.
 #[derive(Deserialize, ToSchema)]
@@ -60,13 +61,24 @@ pub(crate) struct NewPath {
 pub(crate) struct UpdatePath {
     /// Replaces the path title. Nonblank after trimming; at most 1024 UTF-8 bytes.
     pub title: String,
-    /// Full historical prefix plus appended messages as original JSON text; TextImport limits apply.
+    /// How history relates to the path; the server never infers it from the content.
+    pub history_mode: HistoryMode,
+    /// Required for delta and rejected for full: the path head the client saw, compared under the write lock.
+    pub base_head_message_id: Option<Uuid>,
+    /// Original JSON text; TextImport limits apply. Full: the whole existing history plus appended
+    /// messages. Delta: only the new messages, placed after the current head.
     pub history: String,
     /// Unix epoch milliseconds selected by the user.
     #[schema(minimum = -62135596800000_i64, maximum = 253402300799999_i64)]
     pub occurred_at: i64,
     /// Nonblank; at most 128 UTF-8 bytes, scoped to the owner.
     pub idempotency_key: String,
+}
+#[derive(Clone, Copy, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum HistoryMode {
+    Full,
+    Delta,
 }
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]

@@ -20,6 +20,8 @@
 
 ## Path updates must retain the entire historical prefix
 
+本用例覆盖 `history_mode=full`；`delta` 模式见[增量更新](delta-update.md)。
+
 风险：更新或并发过期请求改写历史、时间先于内容提交。前置：已有路径；触发：追加、只改发生时间、截短、改写、旧前缀更新。
 
 必须成立：只接受相同完整历史及其延长；请求必须携带合法标题，成功后替换该 Path 的标题，其他 Path 不变；失败保留所有消息、标题和时间；创建时间不变，成功更新刷新更新时间。禁止修改 Session、来源。

@@ -5,7 +5,7 @@ use palace_db::{
 };
 use palace_domain::{
     EXCERPT_CHARS, EXCERPT_SOURCE_CHARS, ImportInput, ImportLimits, ImportRequest, ImportTarget,
-    PathInput, Role, SessionId, Source,
+    PathInput, Role, SessionId, Source, UpdateHistory,
 };
 use pretty_assertions::assert_eq;
 use sqlx::PgPool;
@@ -90,6 +90,7 @@ fn append(
             conversation_id: result.conversation_id,
             path_id: result.path_id,
             title: "appended".into(),
+            history: UpdateHistory::Full,
         },
         PathInput {
             history: history(contents),

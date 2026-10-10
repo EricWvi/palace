@@ -8,6 +8,7 @@ pub(crate) enum ErrorCode {
     OriginRejected,
     IdentityOrRequestConflict,
     SessionAlreadyExists,
+    PathHeadMoved,
     NotFound,
     IdentityUnavailable,
     PersistenceFailed,

@@ -37,6 +37,8 @@ pub enum DbError {
     Conflict,
     #[error("this source session already belongs to a conversation path")]
     DuplicateSession,
+    #[error("the path head moved since the delta update was prepared")]
+    StaleHead,
     #[error("record is unavailable in this owner scope")]
     NotFound,
     #[error("owner or identity is disabled")]

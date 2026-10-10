@@ -251,6 +251,7 @@ it("opens the day menu from the keyboard and returns focus on Escape", async () 
 // - `specs/test-cases/server/import/import-entry.md#new-imports-must-start-from-the-day-menu-with-the-viewed-day-as-default`
 // - `specs/test-cases/server/import/import-entry.md#successful-import-must-open-the-reading-page-dated-to-the-submitted-occurrence`
 // - `specs/test-cases/server/moment/timeline-loading.md#skeletons-must-appear-only-while-a-day-has-no-cards-to-show`
+// - `specs/test-cases/server/import/delta-update.md#the-new-messages-only-switch-must-default-off-in-update-mode-only`
 it("imports from the day menu at the viewed day and opens the reading page dated to it", async () => {
   const fetch = mockApi();
   const { router, client, user } = mountApp("/?date=2025-09-30");
@@ -261,6 +262,8 @@ it("imports from the day menu at the viewed day and opens the reading page dated
   expect(client.getQueryState(outline)?.isInvalidated).toBe(false);
   await openImport(user);
   const dialog = await screen.findByRole("dialog", { name: "导入对话" });
+  // Uploading only new messages needs a path to append to.
+  expect(within(dialog).queryByRole("switch")).toBeNull();
   const now = new Date();
   expect(
     within(dialog).getByRole("button", { name: "选择对话发生日期" }),

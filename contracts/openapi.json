@@ -659,7 +659,7 @@
         "tags": [
           "path_management"
         ],
-        "summary": "Updates keep the session identity fixed, may rename the path, and validate the full historical prefix in the transaction.",
+        "summary": "Updates keep the session identity fixed, may rename the path, and either validate the full historical prefix or append a delta after the head the client saw.",
         "operationId": "update",
         "parameters": [
           {
@@ -773,7 +773,7 @@
             }
           },
           "409": {
-            "description": "Identity, source session or idempotency conflict",
+            "description": "Identity, idempotency conflict, or path_head_moved when a delta's base head is no longer the path head",
             "content": {
               "application/json": {
                 "schema": {
@@ -2575,6 +2575,7 @@
           "origin_rejected",
           "identity_or_request_conflict",
           "session_already_exists",
+          "path_head_moved",
           "not_found",
           "identity_unavailable",
           "persistence_failed"
@@ -2649,6 +2650,13 @@
           }
         },
         "additionalProperties": false
+      },
+      "HistoryMode": {
+        "type": "string",
+        "enum": [
+          "full",
+          "delta"
+        ]
       },
       "ImportResult": {
         "type": "object",
@@ -3052,14 +3060,27 @@
         "type": "object",
         "required": [
           "title",
+          "history_mode",
           "history",
           "occurred_at",
           "idempotency_key"
         ],
         "properties": {
+          "base_head_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Required for delta and rejected for full: the path head the client saw, compared under the write lock."
+          },
           "history": {
             "type": "string",
-            "description": "Full historical prefix plus appended messages as original JSON text; TextImport limits apply."
+            "description": "Original JSON text; TextImport limits apply. Full: the whole existing history plus appended\nmessages. Delta: only the new messages, placed after the current head."
+          },
+          "history_mode": {
+            "$ref": "#/components/schemas/HistoryMode",
+            "description": "How history relates to the path; the server never infers it from the content."
           },
           "idempotency_key": {
             "type": "string",

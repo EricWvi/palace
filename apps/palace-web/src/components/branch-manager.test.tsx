@@ -155,11 +155,15 @@ it("lists every path newest first, telling same-named branches apart by session"
     ).toBeEnabled();
   }
 });
-// Core test case: `specs/test-cases/server/import/linear-path-import.md#every-import-must-carry-a-valid-path-title`
+// Core test cases:
+// - `specs/test-cases/server/import/linear-path-import.md#every-import-must-carry-a-valid-path-title`
+// - `specs/test-cases/server/import/delta-update.md#the-new-messages-only-switch-must-default-off-in-update-mode-only`
 it("creates a branch named after the path being read, with the source locked to the conversation", async () => {
   const { fetch, imported, user } = setup();
   await user.click(await screen.findByRole("button", { name: "新建分支" }));
   const form = await screen.findByRole("dialog", { name: "新建分支" });
+  // Without the full history there is no fork point to place a branch at.
+  expect(within(form).queryByRole("switch")).toBeNull();
   const title = within(form).getByLabelText("标题");
   expect(title).toHaveValue("正在读的一支");
   expect(within(form).getByLabelText("来源")).toBeDisabled();
@@ -236,6 +240,7 @@ it("updates with the path's own title and occurrence time without sending identi
     "/api/conversations/tree/paths/long",
     {
       title: "长的一支",
+      history_mode: "full",
       history,
       occurred_at: detail.paths[0].occurred_at,
       idempotency_key: expect.any(String),

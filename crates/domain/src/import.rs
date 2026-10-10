@@ -75,7 +75,17 @@ pub enum ImportTarget {
         conversation_id: Uuid,
         path_id: Uuid,
         title: String,
+        history: UpdateHistory,
     },
+}
+/// Says how an update's history relates to the path, because the same JSON means different writes in each mode.
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case", tag = "mode")]
+pub enum UpdateHistory {
+    /// Repeats every existing message before the appended ones, so the prefix check also rejects stale requests.
+    Full,
+    /// Holds only new messages; the head the user saw anchors them because the messages themselves cannot.
+    Delta { base_head_message_id: Uuid },
 }
 impl ImportTarget {
     /// Every operation names the path it writes, so each target carries that path's title.
@@ -327,6 +337,7 @@ mod tests {
                     conversation_id: Uuid::nil(),
                     path_id: Uuid::nil(),
                     title: title.into(),
+                    history: UpdateHistory::Full,
                 },
                 PathInput {
                     history: br#"[{"role":"user","content":"x"}]"#.to_vec(),
@@ -358,6 +369,43 @@ mod tests {
             parse("renamed").unwrap().digest()
         );
         assert_eq!(parse("first").unwrap(), parse("first").unwrap());
+    }
+    /// The same JSON writes different messages in each mode, so neither may stand in as a retry of the other.
+    /// Core test case:
+    /// - `specs/test-cases/server/import/delta-update.md#idempotency-keys-must-not-cross-history-modes`
+    #[test]
+    fn update_history_mode_and_base_head_are_part_of_idempotency() {
+        let parse = |history| {
+            ImportRequest::parse_target(
+                ImportTarget::Update {
+                    conversation_id: Uuid::nil(),
+                    path_id: Uuid::nil(),
+                    title: "t".into(),
+                    history,
+                },
+                PathInput {
+                    history: br#"[{"role":"user","content":"x"}]"#.to_vec(),
+                    idempotency_key: "k".into(),
+                    occurred_at: 0,
+                },
+                ImportLimits::default(),
+            )
+            .unwrap()
+            .digest()
+            .to_vec()
+        };
+        let digests = [
+            parse(UpdateHistory::Full),
+            parse(UpdateHistory::Delta {
+                base_head_message_id: Uuid::nil(),
+            }),
+            parse(UpdateHistory::Delta {
+                base_head_message_id: Uuid::max(),
+            }),
+        ];
+        assert_ne!(digests[0], digests[1]);
+        assert_ne!(digests[1], digests[2]);
+        assert_ne!(digests[0], digests[2]);
     }
     /// Retains exact Markdown, empty messages, extra-field tolerance and consecutive user messages.
     #[test]

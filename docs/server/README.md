@@ -95,7 +95,7 @@ docker run --publish 8080:8080 --env-file .env palace:local
 | `GET /api/conversations/{id}` | 对话、消息树、各 Path 标题和受控来源链接 |
 | `GET /api/conversations/{id}/paths/{path_id}` | 来源 Path 对应的完整祖先路径 |
 | `POST /api/conversations/{id}/paths` | 在已有树中新建带标题的分支，JSON 不接受来源 |
-| `PUT /api/conversations/{id}/paths/{path_id}` | 上传完整历史，只允许追加；可同时修改标题和发生时间 |
+| `PUT /api/conversations/{id}/paths/{path_id}` | 上传完整历史（`full`，只允许追加）或只上传新增消息（`delta`，接在客户端所见末端后）；可同时修改标题和发生时间 |
 | `PUT /api/conversations/{id}/paths/{path_id}/metadata` | 修改该 Path 的标题和整个对话的来源 |
 | `DELETE /api/conversations/{id}/paths/{path_id}` | 删除分支及其 Moment，并清理不再共享的消息 |
 | `DELETE /api/conversations/{id}` | 删除整个对话及全部分支、Moment、消息 |

@@ -239,6 +239,77 @@ it("updates the branch being read straight from the title menu", async () => {
   expect(address(router)).toBe("/conversations/tree?path=p2&date=2025-10-02");
 });
 
+// Core test case: `specs/test-cases/server/import/delta-update.md#the-new-messages-only-switch-must-default-off-in-update-mode-only`
+it("uploads only new messages after the head being read, and forgets the choice on reopening", async () => {
+  const { fetch, user } = setup("/conversations/tree?path=p2&date=2025-09-30");
+  const fallback = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (url, options) =>
+    testRequest(url).method === "PUT"
+      ? Response.json({ error: "path_head_moved", login: "" }, { status: 409 })
+      : fallback(url, options),
+  );
+  await screen.findByRole("heading", { level: 1, name: "第 2 支" });
+  await choose(user, "更新分支");
+  let form = await screen.findByRole("dialog", { name: "更新分支" });
+  const toggle = within(form).getByRole("switch", { name: "仅上传新增消息" });
+  expect(toggle).not.toBeChecked();
+  await user.click(toggle);
+  expect(form).toHaveAccessibleDescription(
+    "只上传新增消息，会接在当前第 6 条消息之后。",
+  );
+  const history = '[{"role":"user","content":"U6"}]';
+  await user.upload(
+    within(form).getByLabelText("对话文件"),
+    new File([history], "delta.json"),
+  );
+  await user.click(within(form).getByRole("button", { name: "保存更新" }));
+  expect(
+    await within(form).findByText(
+      "这条分支在别处有了新的更新，请刷新页面后重试。",
+    ),
+  ).toBeInTheDocument();
+  const call = fetch.mock.calls.find(
+    ([url]) => testRequest(url).method === "PUT",
+  )!;
+  expect(await testRequest(call[0]).clone().json()).toEqual({
+    title: "第 2 支",
+    history_mode: "delta",
+    base_head_message_id: "A4",
+    history,
+    occurred_at: new Date(2025, 9, 2, 9, 30).getTime(),
+    idempotency_key: expect.any(String),
+  });
+  // Switching back is a different request: the stale error goes away and the retry gets a new key.
+  await user.click(toggle);
+  expect(
+    within(form).queryByText("这条分支在别处有了新的更新，请刷新页面后重试。"),
+  ).toBeNull();
+  await user.click(within(form).getByRole("button", { name: "保存更新" }));
+  await within(form).findByText(
+    "这条分支在别处有了新的更新，请刷新页面后重试。",
+  );
+  const [first, second] = await Promise.all(
+    fetch.mock.calls
+      .filter(([url]) => testRequest(url).method === "PUT")
+      .map(([url]) => testRequest(url).clone().json()),
+  );
+  expect([second.history_mode, second.idempotency_key]).toEqual([
+    "full",
+    expect.not.stringMatching(first.idempotency_key),
+  ]);
+  await user.click(toggle);
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await choose(user, "更新分支");
+  form = await screen.findByRole("dialog", { name: "更新分支" });
+  expect(
+    within(form).getByRole("switch", { name: "仅上传新增消息" }),
+  ).not.toBeChecked();
+  expect(form).toHaveAccessibleDescription(
+    "上传完整 JSON，只能在原有消息之后追加。",
+  );
+});
+
 // Core test case: `specs/test-cases/server/conversation/reading-page.md#editing-must-update-the-current-path-title-and-the-conversation-source-everywhere`
 it("renames only the current path and corrects the source of the whole conversation", async () => {
   const { fetch, user } = setup("/conversations/tree?path=p1");

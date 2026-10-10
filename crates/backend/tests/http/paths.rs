@@ -30,7 +30,7 @@ async fn call(
         serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap();
     (status, body)
 }
-/// Covers branch titles, path metadata edits, unique source links, append-only updates, owner
+/// Covers branch titles, path metadata edits, unique source links, full and delta updates, owner
 /// isolation and deletion.
 /// Core test cases:
 /// - `specs/test-cases/server/import/linear-path-import.md#every-import-must-carry-a-valid-path-title`
@@ -39,6 +39,8 @@ async fn call(
 /// - `specs/test-cases/server/conversation/message-tree.md#metadata-correction-must-atomically-preserve-conversation-tree-identities`
 /// - `specs/test-cases/server/import/linear-path-import.md#path-updates-must-retain-the-entire-historical-prefix`
 /// - `specs/test-cases/server/import/linear-path-import.md#import-receipts-and-tree-mutations-must-commit-atomically`
+/// - `specs/test-cases/server/import/delta-update.md#updates-must-declare-their-history-mode`
+/// - `specs/test-cases/server/import/delta-update.md#delta-updates-must-reject-a-stale-base-head-atomically`
 pub(super) async fn exercise_path_lifecycle(app: &Router, cookie: &str, foreign: &str) {
     let history = r#"[{"role":"user","content":"U1"},{"role":"assistant","content":"A1"}]"#;
     let root = json!({"title":"branches","source":"chatgpt","session_id":"http-root","history":history,"occurred_at":1000,"idempotency_key":"http-root"});
@@ -152,15 +154,56 @@ pub(super) async fn exercise_path_lifecycle(app: &Router, cookie: &str, foreign:
             .starts_with("https://gemini.google.com/app/")
     }));
     let path_url = format!("{branch_url}/{}", second["path_id"].as_str().unwrap());
-    let update = json!({"title":"continued","history":format!("{},{{\"role\":\"user\",\"content\":\"U2\"}}]",&history[..history.len()-1]),"occurred_at":3000,"idempotency_key":"http-update"});
-    assert_eq!(
-        call(app, cookie, "PUT", &path_url, update).await.0,
-        StatusCode::OK
-    );
-    let short = json!({"title":"continued","history":history,"occurred_at":4000,"idempotency_key":"http-truncate"});
+    let update = json!({"title":"continued","history_mode":"full","history":format!("{},{{\"role\":\"user\",\"content\":\"U2\"}}]",&history[..history.len()-1]),"occurred_at":3000,"idempotency_key":"http-update"});
+    let (status, updated) = call(app, cookie, "PUT", &path_url, update).await;
+    assert_eq!(status, StatusCode::OK);
+    let short = json!({"title":"continued","history_mode":"full","history":history,"occurred_at":4000,"idempotency_key":"http-truncate"});
     assert_eq!(
         call(app, cookie, "PUT", &path_url, short).await.0,
         StatusCode::BAD_REQUEST
+    );
+    // The mode is declared, never inferred, and only a delta carries the head it was built on.
+    let new_turn = r#"[{"role":"assistant","content":"A2"}]"#;
+    let delta = json!({"title":"continued","history_mode":"delta","base_head_message_id":updated["head_message_id"],"history":new_turn,"occurred_at":5000,"idempotency_key":"http-delta"});
+    let mut unanchored = delta.clone();
+    unanchored
+        .as_object_mut()
+        .unwrap()
+        .remove("base_head_message_id");
+    let mut anchored_full = delta.clone();
+    anchored_full["history_mode"] = json!("full");
+    let mut undeclared = delta.clone();
+    undeclared.as_object_mut().unwrap().remove("history_mode");
+    for (invalid, message) in [
+        (unanchored, "required with delta history"),
+        (anchored_full, "only allowed with delta history"),
+    ] {
+        assert_eq!(
+            call(app, cookie, "PUT", &path_url, invalid).await,
+            (
+                StatusCode::BAD_REQUEST,
+                json!({"kind":"field","path":"base_head_message_id","message":message})
+            )
+        );
+    }
+    assert_eq!(
+        call(app, cookie, "PUT", &path_url, undeclared).await.0,
+        StatusCode::BAD_REQUEST
+    );
+    let mut stale = delta.clone();
+    stale["base_head_message_id"] = second["head_message_id"].clone();
+    stale["idempotency_key"] = json!("http-stale");
+    assert_eq!(
+        call(app, cookie, "PUT", &path_url, stale).await,
+        (
+            StatusCode::CONFLICT,
+            json!({"error":"path_head_moved","login":""})
+        )
+    );
+    let (status, appended) = call(app, cookie, "PUT", &path_url, delta).await;
+    assert_eq!(
+        (status, &appended["created"], &appended["reused"]),
+        (StatusCode::OK, &json!(1), &json!(0))
     );
     assert_eq!(
         call(app, foreign, "DELETE", &path_url, json!({})).await.0,
@@ -187,7 +230,7 @@ pub(super) async fn exercise_path_lifecycle(app: &Router, cookie: &str, foreign:
             .as_array()
             .unwrap()
             .len(),
-        3
+        4
     );
     assert_eq!(
         call(app, cookie, "DELETE", &path_url, json!({})).await.0,

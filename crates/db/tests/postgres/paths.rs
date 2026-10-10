@@ -2,6 +2,7 @@ use super::database;
 use palace_db::DbError;
 use palace_domain::{
     ImportInput, ImportLimits, ImportRequest, ImportTarget, PathInput, SessionId, Source,
+    UpdateHistory,
 };
 use pretty_assertions::assert_eq;
 use uuid::Uuid;
@@ -66,7 +67,7 @@ async fn migration_retains_existing_linear_conversations() {
 }
 
 /// Alternating messages make the shared assistant boundary explicit in each fixture.
-fn history(contents: &[&str]) -> Vec<u8> {
+pub(super) fn history(contents: &[&str]) -> Vec<u8> {
     serde_json::to_vec(&contents.iter().enumerate().map(|(i, content)| {
         serde_json::json!({"role":if i % 2 == 0 {"user"} else {"assistant"},"content":content})
     }).collect::<Vec<_>>()).unwrap()
@@ -128,7 +129,7 @@ async fn default_path_follows_updates_while_moments_follow_occurrence() {
     );
 }
 /// Creates a root import without sharing identity between separate test conversations.
-fn create(session: &str, contents: &[&str]) -> ImportRequest {
+pub(super) fn create(session: &str, contents: &[&str]) -> ImportRequest {
     ImportRequest::parse(
         ImportInput {
             title: "tree".into(),
@@ -161,10 +162,11 @@ fn update(conversation_id: Uuid, path_id: Uuid) -> ImportTarget {
         conversation_id,
         path_id,
         title: "tree".into(),
+        history: UpdateHistory::Full,
     }
 }
 /// Builds a fresh external identity for a branch of one existing tree, titled after its session.
-fn branch(id: Uuid, session: &str, contents: &[&str]) -> ImportRequest {
+pub(super) fn branch(id: Uuid, session: &str, contents: &[&str]) -> ImportRequest {
     change(
         ImportTarget::Branch {
             conversation_id: id,
@@ -500,6 +502,7 @@ async fn updates_are_append_only_and_retries_preserve_path_metadata() {
         conversation_id: first.conversation_id,
         path_id: first.path_id,
         title: "renamed".into(),
+        history: UpdateHistory::Full,
     };
     let input = change(
         renamed.clone(),

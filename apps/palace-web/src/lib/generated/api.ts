@@ -66,7 +66,7 @@ export interface paths {
     };
     /** Exposes one validated ancestor path without inferring turns or role alternation. */
     get: operations["path"];
-    /** Updates keep the session identity fixed, may rename the path, and validate the full historical prefix in the transaction. */
+    /** Updates keep the session identity fixed, may rename the path, and either validate the full historical prefix or append a delta after the head the client saw. */
     put: operations["update"];
     post?: never;
     /** Deletes only one source path while preserving shared ancestors and other paths. */
@@ -380,6 +380,7 @@ export interface components {
       | "origin_rejected"
       | "identity_or_request_conflict"
       | "session_already_exists"
+      | "path_head_moved"
       | "not_found"
       | "identity_unavailable"
       | "persistence_failed";
@@ -409,6 +410,8 @@ export interface components {
       /** @description Nonblank; at most 1024 UTF-8 bytes. */
       title: string;
     };
+    /** @enum {string} */
+    HistoryMode: "full" | "delta";
     ImportResult: {
       /** Format: uuid */
       conversation_id: string;
@@ -557,8 +560,18 @@ export interface components {
       title: string;
     };
     UpdatePath: {
-      /** @description Full historical prefix plus appended messages as original JSON text; TextImport limits apply. */
+      /**
+       * Format: uuid
+       * @description Required for delta and rejected for full: the path head the client saw, compared under the write lock.
+       */
+      base_head_message_id?: string | null;
+      /**
+       * @description Original JSON text; TextImport limits apply. Full: the whole existing history plus appended
+       *     messages. Delta: only the new messages, placed after the current head.
+       */
       history: string;
+      /** @description How history relates to the path; the server never infers it from the content. */
+      history_mode: components["schemas"]["HistoryMode"];
       /** @description Nonblank; at most 128 UTF-8 bytes, scoped to the owner. */
       idempotency_key: string;
       /**
@@ -1092,7 +1105,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Identity, source session or idempotency conflict */
+      /** @description Identity, idempotency conflict, or path_head_moved when a delta's base head is no longer the path head */
       409: {
         headers: {
           [name: string]: unknown;

@@ -63,7 +63,19 @@ export function ImportDialog({
   // Receives the submitted occurrence time, which decides the day the reader returns to.
   onImported: (result: ImportResult, occurredAt: number) => void;
 }) {
-  const [title, description] = headings[mode.kind];
+  // Whether an update uploads only new messages. It lives here because it changes the description,
+  // and it switches off on every opening: forgetting it on would append a later full history twice.
+  const [delta, setDelta] = useState(false);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setDelta(false);
+  }
+  const [title, fullDescription] = headings[mode.kind];
+  const description =
+    mode.kind === "update" && delta
+      ? `只上传新增消息，会接在当前第 ${mode.path.message_count} 条消息之后。`
+      : fullDescription;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -80,6 +92,8 @@ export function ImportDialog({
         {open && (
           <ImportForm
             mode={mode}
+            delta={delta}
+            onDeltaChange={setDelta}
             onImported={(result, occurredAt) => {
               onOpenChange(false);
               onImported(result, occurredAt);
@@ -92,9 +106,13 @@ export function ImportDialog({
 }
 function ImportForm({
   mode,
+  delta,
+  onDeltaChange,
   onImported,
 }: {
   mode: ImportMode;
+  delta: boolean;
+  onDeltaChange: (delta: boolean) => void;
   onImported: (result: ImportResult, occurredAt: number) => void;
 }) {
   const [source, setSource] = useState<Source>(
@@ -148,6 +166,7 @@ function ImportForm({
         mode.kind,
         mode.kind === "conversation" ? null : mode.conversationId,
         mode.kind === "update" ? mode.path.id : null,
+        delta,
       ]);
       const key = attempt?.fingerprint === fingerprint ? attempt.key : uuidv7();
       setAttempt({ fingerprint, key });
@@ -171,7 +190,14 @@ function ImportForm({
             params: {
               path: { id: mode.conversationId, path_id: mode.path.id },
             },
-            body: input,
+            // A delta names the head it was read against, so the server can refuse it if the path moved.
+            body: delta
+              ? {
+                  ...input,
+                  history_mode: "delta",
+                  base_head_message_id: mode.path.head_message_id,
+                }
+              : { ...input, history_mode: "full" },
           }),
         );
       }
@@ -267,6 +293,24 @@ function ImportForm({
                 }
               </pre>
             </FieldHelp>
+            {mode.kind === "update" && (
+              <span className="delta-toggle">
+                <Label htmlFor="delta">仅上传新增消息</Label>
+                <button
+                  type="button"
+                  role="switch"
+                  id="delta"
+                  className="switch"
+                  aria-checked={delta}
+                  onClick={() => {
+                    onDeltaChange(!delta);
+                    mutation.reset();
+                  }}
+                >
+                  <span className="switch-thumb" />
+                </button>
+              </span>
+            )}
           </div>
           <FileDrop
             id="history"

@@ -51,6 +51,8 @@ export async function apiData<T>(
     if (typeof error === "object" && error !== null) {
       if ("error" in error && error.error === "session_already_exists") {
         message = "该来源已有相同的 Session ID，请检查来源或对应对话。";
+      } else if ("error" in error && error.error === "path_head_moved") {
+        message = "这条分支在别处有了新的更新，请刷新页面后重试。";
       } else if (
         "path" in error &&
         typeof error.path === "string" &&

@@ -4,6 +4,7 @@ import type { Message, Detail } from "../src/lib/api";
 // Core test cases:
 // - `specs/test-cases/server/conversation/message-tree.md#shared-and-internal-endpoint-paths-must-remain-independently-manageable`
 // - `specs/test-cases/server/conversation/message-tree.md#fork-selection-must-resolve-to-one-real-source-session`
+// - `specs/test-cases/server/import/delta-update.md#the-new-messages-only-switch-must-default-off-in-update-mode-only`
 test("nested forks, internal endpoints, the branch list and its update form", async ({
   page,
 }) => {
@@ -129,6 +130,19 @@ test("nested forks, internal endpoints, the branch list and its update form", as
     update.getByRole("button", { name: "选择对话发生日期" }),
   ).toHaveText("2024 年 03 月 05 日");
   await update.getByLabel("对话发生时间", { exact: true }).fill("10:45");
+  // The switch shares the file row with its label and help mark, and must still fit a phone.
+  const toggle = update.getByRole("switch", { name: "仅上传新增消息" });
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await toggle.click();
+  await expect(update).toContainText("会接在当前第 6 条消息之后");
+  await expect(toggle).toHaveCSS("background-color", "rgb(184, 74, 36)");
+  const row = await update
+    .locator(".field-label", { has: page.getByRole("switch") })
+    .boundingBox();
+  const dialog = await update.boundingBox();
+  expect(row!.x + row!.width <= dialog!.x + dialog!.width).toBe(true);
+  expect(row!.height < 32).toBe(true);
+  await page.screenshot({ path: "/tmp/palace-delta-update-mobile.png" });
   await update.getByLabel("对话文件", { exact: true }).setInputFiles({
     name: "updated.json",
     mimeType: "application/json",
@@ -152,6 +166,8 @@ test("nested forks, internal endpoints, the branch list and its update form", as
   const expectedDate = new Date(2024, 2, 5, 10, 45).getTime();
   expect(request.postDataJSON()).toEqual({
     title: "第 2 支",
+    history_mode: "delta",
+    base_head_message_id: "A4",
     history: '[{"role":"user","content":"U1"}]',
     occurred_at: expectedDate,
     idempotency_key: expect.any(String),

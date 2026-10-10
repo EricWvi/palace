@@ -4,7 +4,7 @@ use axum::{
     extract::{Path, State},
 };
 use palace_domain::{
-    ImportRequest, ImportTarget, InputError, InputErrorKind, PathInput, SessionId,
+    ImportRequest, ImportTarget, InputError, InputErrorKind, PathInput, SessionId, UpdateHistory,
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -55,7 +55,7 @@ pub(super) async fn create(
             .into(),
     ))
 }
-/// Updates keep the session identity fixed, may rename the path, and validate the full historical prefix in the transaction.
+/// Updates keep the session identity fixed, may rename the path, and either validate the full historical prefix or append a delta after the head the client saw.
 #[utoipa::path(
     put, path = routes::PATH, operation_id = "update",
     request_body = dto::UpdatePath,
@@ -67,7 +67,7 @@ pub(super) async fn create(
         (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 403, description = "Origin rejected", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 404, description = "Resource unavailable in owner scope", body = dto::ErrorResponse, content_type = "application/json"),
-        (status = 409, description = "Identity, source session or idempotency conflict", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 409, description = "Identity, idempotency conflict, or path_head_moved when a delta's base head is no longer the path head", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 413, description = "Input capacity exceeded", body = dto::InputErrorResponse, content_type = "application/json"),
         (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 503, description = "Identity provider temporarily unavailable", body = dto::ErrorResponse, content_type = "application/json"),
@@ -80,11 +80,35 @@ pub(super) async fn update(
     body: Result<Json<dto::UpdatePath>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Json<dto::ImportResult>, ApiError> {
     let Json(body) = body.map_err(json_error)?;
+    // The wire keeps a flat optional field; the domain only receives a delta that carries its anchor.
+    let history = match (body.history_mode, body.base_head_message_id) {
+        (dto::HistoryMode::Full, None) => UpdateHistory::Full,
+        (dto::HistoryMode::Delta, Some(base_head_message_id)) => UpdateHistory::Delta {
+            base_head_message_id,
+        },
+        (dto::HistoryMode::Full, Some(_)) => {
+            return Err(InputError::new(
+                InputErrorKind::Field,
+                "base_head_message_id",
+                "only allowed with delta history",
+            )
+            .into());
+        }
+        (dto::HistoryMode::Delta, None) => {
+            return Err(InputError::new(
+                InputErrorKind::Field,
+                "base_head_message_id",
+                "required with delta history",
+            )
+            .into());
+        }
+    };
     let input = ImportRequest::parse_target(
         ImportTarget::Update {
             conversation_id,
             path_id,
             title: body.title,
+            history,
         },
         PathInput {
             history: body.history.into_bytes(),
