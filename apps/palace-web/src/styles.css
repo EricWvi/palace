@@ -554,67 +554,68 @@ ol.messages {
   border-radius: var(--radius-md);
 }
 
-.body > :first-child {
+/* Markdown typography for every page that shows Markdown (MarkdownContent), not only messages. */
+.markdown > :first-child {
   margin-top: 0;
 }
 
-.body > :last-child {
+.markdown > :last-child {
   margin-bottom: 0;
 }
 
-.body p,
-.body ul,
-.body ol,
-.body pre,
-.body blockquote,
-.body table {
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown .code-block,
+.markdown blockquote,
+.markdown table {
   margin: 0 0 12px;
 }
 
-.body ul,
-.body ol {
+.markdown ul,
+.markdown ol {
   padding-left: 22px;
   list-style: revert;
 }
 
-.body h1,
-.body h2,
-.body h3,
-.body h4 {
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
   margin: 20px 0 6px;
   font-size: var(--font-size-base);
   font-weight: 600;
 }
 
-.body strong {
+.markdown strong {
   font-weight: 600;
 }
 
-.body a {
+.markdown a {
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-.body table {
+.markdown table {
   display: block;
   overflow-x: auto;
   border-collapse: collapse;
 }
 
-.body th,
-.body td {
+.markdown th,
+.markdown td {
   padding: 6px 28px 6px 0;
   border-bottom: 1px solid var(--border);
   text-align: left;
 }
 
-.body th {
+.markdown th {
   color: var(--text-2);
   font-weight: 500;
 }
 
-.body pre {
+.markdown pre {
   padding: 14px 18px;
   overflow-x: auto;
   background: var(--bg-sunken);
@@ -623,7 +624,78 @@ ol.messages {
   font-size: var(--font-size-sm);
 }
 
-.body :not(pre) > code {
+/* Holds the copy button outside the scrolling <pre>, so it stays in the corner. */
+.markdown .code-block {
+  position: relative;
+}
+
+.markdown .code-block > pre {
+  margin: 0;
+}
+
+.copy-code {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.copy-code:hover {
+  color: var(--text-2);
+}
+
+.code-block:hover .copy-code,
+.copy-code:focus-visible {
+  opacity: 1;
+}
+
+/* Without hover the button would never be reachable, so it stays, quietly. */
+@media (hover: none) {
+  .copy-code {
+    opacity: 0.6;
+  }
+}
+
+/* Five syntax classes from the code tokens; everything else keeps the body colour. */
+.markdown .hljs-keyword,
+.markdown .hljs-built_in,
+.markdown .hljs-selector-tag,
+.markdown .hljs-name {
+  color: var(--code-keyword);
+}
+
+.markdown .hljs-string,
+.markdown .hljs-regexp,
+.markdown .hljs-attr,
+.markdown .hljs-attribute,
+.markdown .hljs-symbol {
+  color: var(--code-string);
+}
+
+.markdown .hljs-comment,
+.markdown .hljs-quote,
+.markdown .hljs-meta {
+  color: var(--code-comment);
+}
+
+.markdown .hljs-number,
+.markdown .hljs-literal {
+  color: var(--code-literal);
+}
+
+.markdown .hljs-title,
+.markdown .hljs-type {
+  color: var(--code-name);
+}
+
+.markdown :not(pre) > code {
   padding: 1px 4px;
   background: var(--bg-sunken);
   border-radius: var(--radius-sm);
@@ -631,7 +703,7 @@ ol.messages {
   font-size: 0.92em;
 }
 
-.body blockquote {
+.markdown blockquote {
   padding-left: 14px;
   border-left: 3px solid var(--border);
   color: var(--text-2);

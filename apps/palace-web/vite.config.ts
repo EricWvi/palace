@@ -7,6 +7,22 @@ import { preloadFirstPaintFont } from "./vite/preload-font.ts";
 export default defineConfig({
   plugins: [react(), tailwindcss(), preloadFirstPaintFont()],
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            // Highlighting is most of the Markdown weight and changes only on upgrades; its own
+            // chunk keeps one cached copy across every page that shows Markdown, whatever they ship.
+            {
+              name: "highlight",
+              test: /node_modules[\\/](highlight\.js|lowlight|rehype-highlight)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     strictPort: true,

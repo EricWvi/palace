@@ -54,6 +54,12 @@
   --success: #3f6b4f;
   --success-soft: #e3ebe4;
   --on-accent: #fffefb;
+  /* Code syntax: five classes only, each at least 4.5:1 on --bg-sunken. */
+  --code-keyword: #a6401c;
+  --code-string: #3d6a4c;
+  --code-comment: #6e6a60;
+  --code-literal: #8a5a12;
+  --code-name: #335b7a;
 }
 
 /*
@@ -76,6 +82,11 @@
   --success: #7fb08f;
   --success-soft: #24302a;
   --on-accent: #1f1e1c;
+  --code-keyword: #e58560;
+  --code-string: #86b896;
+  --code-comment: #8f8a7f;
+  --code-literal: #d6a764;
+  --code-name: #8fb4d0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -95,5 +106,10 @@
     --success: #7fb08f;
     --success-soft: #24302a;
     --on-accent: #1f1e1c;
+    --code-keyword: #e58560;
+    --code-string: #86b896;
+    --code-comment: #8f8a7f;
+    --code-literal: #d6a764;
+    --code-name: #8fb4d0;
   }
 }

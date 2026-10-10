@@ -7,8 +7,6 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { conversationOptions, sources } from "@/lib/api";
 import { resolvePaths } from "@/lib/conversation-tree";
 import { backLabel, dayOf, dayParam, parseDay } from "@/lib/day";
@@ -16,9 +14,18 @@ import { PathFork } from "@/components/path-fork";
 import { ErrorState } from "@/components/error-state";
 import { ConversationMenu } from "@/components/conversation-menu";
 import { MessageToc, messageAnchor } from "@/components/message-toc";
+import {
+  MarkdownContent,
+  type ImagePolicy,
+} from "@/components/markdown-content";
+
+// Imported messages are third-party content: showing them must not fetch anything on the reader's behalf.
+// Module-level, so the memoized content never sees a new policy object.
+const imported: ImagePolicy = { kind: "placeholder" };
 
 // 摘星's reading page for one conversation. `path` picks the branch; `date` says the reader came
 // from that day in 时刻, which decides where "back" and deletion lead.
+
 export function ConversationPage() {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
@@ -133,27 +140,7 @@ export function ConversationPage() {
                 {message.role === "user" ? "你" : source}
               </div>
               <div className="body">
-                <Markdown
-                  remarkPlugins={[remarkGfm]}
-                  skipHtml
-                  components={{
-                    img: ({ alt }) => (
-                      <span className="quiet">[图片：{alt || "未加载"}]</span>
-                    ),
-                    a: ({ children, href, title }) => (
-                      <a
-                        href={href}
-                        title={title}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {children}
-                      </a>
-                    ),
-                  }}
-                >
-                  {message.content}
-                </Markdown>
+                <MarkdownContent content={message.content} images={imported} />
                 {!message.content && <span className="quiet">（空消息）</span>}
               </div>
             </li>
