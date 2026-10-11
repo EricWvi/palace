@@ -20,9 +20,9 @@
 
 ## Every row must open the path whose title and date it shows
 
-风险：行上写着一个标题，点开却是另一条 Path；或同一 Conversation 的分支被合并成一行，其他分支在目录中消失。前置：一个 Conversation 有两条标题不同、更新时间不同的 Path，另一个 Conversation 只有一条 Path。触发：打开 `/conversations`，点击每一行。
+风险：行上写着一个标题，点开却是另一条 Path；或同一 Conversation 的分支被合并成一行，其他分支在目录中消失。前置：一个 Conversation 有两条标题不同、发生时间不同的 Path，另一个 Conversation 只有一条 Path。触发：打开 `/conversations`，点击每一行。
 
-必须成立：列表中有三行，每行显示自己 Path 的标题、Conversation 的来源，以及该 Path 的 `updated_at`（本地时区 `MM.DD`），并按本地时区的年份分组；点击一行进入 `/conversations/:conversation_id?path=<该 Path ID>`，不带 `date`，阅读页页首标题等于行上的标题。禁止一行代表整个 Conversation，禁止行上的标题来自另一条 Path，禁止链接省略 `path` 而交给默认 Path 选择规则。
+必须成立：列表中有三行，每行显示自己 Path 的标题、Conversation 的来源，以及该 Path 对话 Moment 的 `occurred_at`（本地时区 `MM.DD`），并按本地时区的年份分组；点击一行进入 `/conversations/:conversation_id?path=<该 Path ID>`，不带 `date`，阅读页页首标题等于行上的标题。禁止一行代表整个 Conversation，禁止行上的标题来自另一条 Path，禁止链接省略 `path` 而交给默认 Path 选择规则。
 
 验证义务与证据：
 
@@ -36,15 +36,16 @@
 
 ## Conversation list must page every path exactly once in order
 
-风险：分页时条目重复或遗漏，浏览途中有新导入时尤其如此；`total` 与实际行数不一致。前置：真实 PostgreSQL；当前 owner 有多于一页（50 条）的 Path，其中若干条 `updated_at` 相同。触发：不带 `q` 逐页请求 `GET /api/conversations` 直到 `next_cursor` 为 `null`；在取完第一页后导入一条新的 Path，再继续取后续页。
+风险：分页时条目重复或遗漏，浏览途中有新导入时尤其如此；`total` 与实际行数不一致。前置：真实 PostgreSQL；当前 owner 有多于一页（50 条）的 Path，各 Path 的 `occurred_at` 顺序与导入顺序相反，其中若干条 `occurred_at` 相同。触发：不带 `q` 逐页请求 `GET /api/conversations` 直到 `next_cursor` 为 `null`；在取完第一页后导入一条新的 Path，再继续取后续页。
 
-必须成立：各页拼接后，当前 owner 的每条 Path 恰好出现一次，顺序与 `updated_at DESC, id DESC` 一致，`updated_at` 相同时按 Path ID 降序；中途导入的新 Path 不使已有条目在两页之间重复或丢失；`total` 等于该 owner 的 Path 总数，且不受 `q` 影响；每项的 `id` 是 Path ID（即对话 Moment 的 ID），`conversation_id`、`title`、`source`、`updated_at` 与该 Path 及其 Conversation 一致。禁止使用偏移量分页，禁止 `items` 中出现同一 Path 两次。
+必须成立：各页拼接后，当前 owner 的每条 Path 恰好出现一次，顺序与对话 Moment 的 `occurred_at DESC, id DESC` 一致而不是导入顺序，`occurred_at` 相同时按 Path ID 降序；中途导入的新 Path 不使已有条目在两页之间重复或丢失；`total` 等于该 owner 的 Path 总数，且不受 `q` 影响；每项的 `id` 是 Path ID（即对话 Moment 的 ID），`conversation_id`、`title`、`source` 与该 Path 及其 Conversation 一致，`occurred_at` 等于该 Path 对话 Moment 的时间。禁止使用偏移量分页，禁止 `items` 中出现同一 Path 两次。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 逐页取完后每条 Path 恰好出现一次，顺序与并列时的次序正确 | Covered | `crates/db/tests/postgres/conversation_list.rs::conversation_list_must_page_every_path_exactly_once_in_order`（真实 PostgreSQL）（10 条同时间的 Path 跨在分页边界上） |
+| 库中时间恰好是整毫秒，游标还原出的时间与原值相等；早期带微秒的数据经迁移截断，之后写入微秒被拒绝 | Covered | `crates/db/tests/postgres/import_times.rs::timestamps_are_truncated_to_milliseconds_and_kept_there`（真实 PostgreSQL）、`crates/db/tests/postgres/import_times.rs::epoch_milliseconds_convert_to_whole_milliseconds`（真实 PostgreSQL） |
 | 翻页途中新增 Path 不造成重复或遗漏 | Covered | `crates/db/tests/postgres/conversation_list.rs::conversation_list_must_page_every_path_exactly_once_in_order`（真实 PostgreSQL） |
 | `total` 等于 Path 总数且不受 `q` 影响；各字段来自该 Path 与其 Conversation | Covered | `crates/db/tests/postgres/conversation_list.rs::conversation_list_must_page_every_path_exactly_once_in_order`（真实 PostgreSQL）、`crates/db/tests/postgres/conversation_list.rs::conversation_list_must_stay_within_the_owner`（真实 PostgreSQL）（无结果的搜索仍返回全部条数）、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 PostgreSQL 与真实 Router） |
 

@@ -146,9 +146,9 @@ export function StarsPage() {
                     <span className="leader" aria-hidden="true" />
                     <time
                       className="entry-date"
-                      dateTime={new Date(item.updated_at).toISOString()}
+                      dateTime={new Date(item.occurred_at).toISOString()}
                     >
-                      {monthDay(item.updated_at)}
+                      {monthDay(item.occurred_at)}
                     </time>
                   </Link>
                 </li>
@@ -204,11 +204,11 @@ export function StarsPage() {
   );
 }
 
-// Groups rows under the local calendar year of their last change, keeping list order.
+// Groups rows under the local calendar year of their moment, keeping list order.
 function byYear(items: ConversationListItem[]) {
   const years: [number, ConversationListItem[]][] = [];
   for (const item of items) {
-    const year = new Date(item.updated_at).getFullYear();
+    const year = new Date(item.occurred_at).getFullYear();
     const last = years.at(-1);
     if (last?.[0] === year) last[1].push(item);
     else years.push([year, [item]]);

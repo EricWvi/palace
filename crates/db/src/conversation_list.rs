@@ -7,8 +7,8 @@ use uuid::Uuid;
 /// Rows per page; one more is read to learn whether another page follows.
 pub const CONVERSATION_PAGE_SIZE: i64 = 50;
 
-/// One row of the 摘星 conversation list: a path, named by its own title and dated by its last
-/// import or append, so the row shows exactly what opening it will show.
+/// One row of the 摘星 conversation list: a path, named by its own title and dated by its
+/// moment, so the row shows what opening it will show, on the day the timeline shows it.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ConversationListItem {
     /// Path id, equal to the id of the path's conversation moment.
@@ -16,8 +16,8 @@ pub struct ConversationListItem {
     pub conversation_id: Uuid,
     pub title: String,
     pub source: Source,
-    /// Unix epoch milliseconds; paths store `updated_at` truncated to milliseconds.
-    pub updated_at: i64,
+    /// Unix epoch milliseconds of the path's moment; stored times are whole milliseconds.
+    pub occurred_at: i64,
 }
 
 /// One page of the list plus what the page around it needs.
@@ -30,18 +30,18 @@ pub struct ConversationPage {
     pub total: i64,
 }
 
-/// The position after the last row of a page: the list order is `(updated_at, id)` descending,
+/// The position after the last row of a page: the list order is `(occurred_at, id)` descending,
 /// so the next page starts strictly below it and rows inserted meanwhile cannot shift it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PathCursor {
-    pub updated_at: i64,
+    pub occurred_at: i64,
     pub id: Uuid,
 }
 
 impl fmt::Display for PathCursor {
     /// Writes the opaque token clients send back unchanged.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}_{}", self.updated_at, self.id)
+        write!(f, "{}_{}", self.occurred_at, self.id)
     }
 }
 
@@ -51,9 +51,9 @@ impl FromStr for PathCursor {
     /// Accepts only tokens this server could have written.
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         let invalid = || InputError::new(InputErrorKind::Field, "cursor", "expected a list cursor");
-        let (updated_at, id) = value.split_once('_').ok_or_else(invalid)?;
+        let (occurred_at, id) = value.split_once('_').ok_or_else(invalid)?;
         Ok(Self {
-            updated_at: updated_at.parse().map_err(|_| invalid())?,
+            occurred_at: occurred_at.parse().map_err(|_| invalid())?,
             id: id.parse().map_err(|_| invalid())?,
         })
     }
@@ -93,16 +93,18 @@ pub struct ConversationListRequest {
     pub after: Option<PathCursor>,
 }
 
-const LIST: &str = "SELECT p.id,p.conversation_id,p.title,c.source,(extract(epoch FROM p.updated_at)*1000)::bigint AS updated_at FROM conversation_path p JOIN conversation c ON c.owner_id=p.owner_id AND c.id=p.conversation_id WHERE p.owner_id=$1 AND ($2::bigint IS NULL OR (p.updated_at,p.id)<(to_timestamp($2::bigint/1000.0),$3)) ORDER BY p.updated_at DESC,p.id DESC LIMIT $4";
+// Rows are walked from the moment side: its per-kind index yields them in list order, and each
+// path and conversation is one primary-key lookup.
+const LIST: &str = "SELECT p.id,p.conversation_id,p.title,c.source,(extract(epoch FROM m.occurred_at)*1000)::bigint AS occurred_at FROM moment m JOIN conversation_path p ON p.owner_id=m.owner_id AND p.id=m.id JOIN conversation c ON c.owner_id=p.owner_id AND c.id=p.conversation_id WHERE m.owner_id=$1 AND m.kind='conversation' AND ($2::bigint IS NULL OR (m.occurred_at,m.id)<(to_timestamp($2::bigint/1000.0),$3)) ORDER BY m.occurred_at DESC,m.id DESC LIMIT $4";
 
 // A message on a path is an ancestor-or-self of the path's head, so instead of walking every
 // path up to its root, walk down from the matching messages: a path matches when its head is
 // one of them or below one. Only subtrees under a match are visited, and the trigram index
 // narrows the matches themselves.
-const SEARCH: &str = "WITH RECURSIVE hit(conversation_id,id) AS (SELECT conversation_id,id FROM message WHERE owner_id=$1 AND content ILIKE $5 UNION SELECT m.conversation_id,m.id FROM hit h JOIN message m ON m.owner_id=$1 AND m.conversation_id=h.conversation_id AND m.parent_message_id=h.id) SELECT p.id,p.conversation_id,p.title,c.source,(extract(epoch FROM p.updated_at)*1000)::bigint AS updated_at FROM conversation_path p JOIN conversation c ON c.owner_id=p.owner_id AND c.id=p.conversation_id WHERE p.owner_id=$1 AND ($2::bigint IS NULL OR (p.updated_at,p.id)<(to_timestamp($2::bigint/1000.0),$3)) AND (p.title ILIKE $5 OR EXISTS(SELECT 1 FROM hit h WHERE h.conversation_id=p.conversation_id AND h.id=p.head_message_id)) ORDER BY p.updated_at DESC,p.id DESC LIMIT $4";
+const SEARCH: &str = "WITH RECURSIVE hit(conversation_id,id) AS (SELECT conversation_id,id FROM message WHERE owner_id=$1 AND content ILIKE $5 UNION SELECT m.conversation_id,m.id FROM hit h JOIN message m ON m.owner_id=$1 AND m.conversation_id=h.conversation_id AND m.parent_message_id=h.id) SELECT p.id,p.conversation_id,p.title,c.source,(extract(epoch FROM m.occurred_at)*1000)::bigint AS occurred_at FROM moment m JOIN conversation_path p ON p.owner_id=m.owner_id AND p.id=m.id JOIN conversation c ON c.owner_id=p.owner_id AND c.id=p.conversation_id WHERE m.owner_id=$1 AND m.kind='conversation' AND ($2::bigint IS NULL OR (m.occurred_at,m.id)<(to_timestamp($2::bigint/1000.0),$3)) AND (p.title ILIKE $5 OR EXISTS(SELECT 1 FROM hit h WHERE h.conversation_id=p.conversation_id AND h.id=p.head_message_id)) ORDER BY m.occurred_at DESC,m.id DESC LIMIT $4";
 
 impl Database {
-    /// Lists one page of the owner's paths, newest change first, optionally limited to paths
+    /// Lists one page of the owner's paths, latest moment first, optionally limited to paths
     /// whose title or messages contain the search term.
     pub async fn conversation_list(
         &self,
@@ -123,7 +125,7 @@ impl Database {
         let pattern = request.search.as_ref().map(SearchTerm::like_pattern);
         let query = sqlx::query(if pattern.is_some() { SEARCH } else { LIST })
             .bind(owner.id())
-            .bind(request.after.map(|cursor| cursor.updated_at))
+            .bind(request.after.map(|cursor| cursor.occurred_at))
             .bind(request.after.map(|cursor| cursor.id))
             .bind(CONVERSATION_PAGE_SIZE + 1);
         let query = match pattern {
@@ -144,14 +146,14 @@ impl Database {
                     conversation_id: row.try_get("conversation_id")?,
                     title: row.try_get("title")?,
                     source,
-                    updated_at: row.try_get("updated_at")?,
+                    occurred_at: row.try_get("occurred_at")?,
                 })
             })
             .collect::<Result<Vec<_>, DbError>>()?;
         let next_cursor = if items.len() as i64 > CONVERSATION_PAGE_SIZE {
             items.truncate(CONVERSATION_PAGE_SIZE as usize);
             items.last().map(|last| PathCursor {
-                updated_at: last.updated_at,
+                occurred_at: last.occurred_at,
                 id: last.id,
             })
         } else {
@@ -190,7 +192,7 @@ mod tests {
     #[test]
     fn cursors_round_trip_and_reject_foreign_tokens() {
         let cursor = PathCursor {
-            updated_at: 1_759_843_443_123,
+            occurred_at: 1_759_843_443_123,
             id: Uuid::from_u128(7),
         };
         assert_eq!(cursor.to_string().parse::<PathCursor>(), Ok(cursor));

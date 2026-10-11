@@ -49,6 +49,8 @@ Rust 生产模块以 500 行为建议目标、800 行为硬上限，测试专属
 
 导入在事务级 advisory lock 内完成来源定位、最长完全相同前缀复用、Moment 写入和 Import 审计记录。幂等键在 Owner 内唯一，相同请求重试返回原结果，换内容或标题复用键返回冲突。每条 Path 是一个对话 Moment：`moment` 表持有身份、类型和发生时间，详情表以 `(owner_id, id, kind)` 外键引用它，延迟约束触发器保证 Moment 不会缺少详情。消息结构在数据库中不可改写，父节点必须先存在，防止自引用、多节点环和跨对话引用。
 
+数据库里的 `timestamptz` 一律只保存到毫秒：接口以 epoch 毫秒传递时间，客户端读到的值原样传回（如分页游标）时能与库中的值精确相等。每个时间列都有 `CHECK(col = date_trunc('milliseconds', col))`；数据库时钟写入用 `date_trunc('milliseconds', now())`，客户端给出的毫秒用 `to_timestamp(ms/1000.0)` 换算，结果恰好落在整毫秒上。
+
 `task test:integration` 显式执行默认 `#[ignore]` 的 testcontainers PostgreSQL 测试。测试先检查本地 `postgres:17-alpine`，不存在即失败，不主动调用镜像拉取。测试沿用 `DOCKER_HOST`，支持指向 Podman 的 Docker API socket；每次使用独立容器和数据库，不依赖开发数据。
 
 测试容器统一经 `palace-testkit` 创建。testcontainers-rs 没有资源回收器，容器只在句柄 Drop 时删除，测试进程被信号结束就会残留。`palace-testkit` 在每个测试进程首次建容器时用本地 `testcontainers/ryuk:0.14.0` 启动一个 Ryuk（`--rm`，挂载 `DOCKER_HOST` 指向的 unix socket），给该进程的所有测试容器打上同一个 `org.testcontainers.session-id` label，并保持一条 TCP 连接直到进程退出。无论进程正常结束、Ctrl-C 还是 SIGKILL，连接断开约 10 秒后 Ryuk 都会删除带该 label 的容器并退出。Ryuk 镜像同样必须事先存在，`TESTCONTAINERS_RYUK_DISABLED` 对这些测试不起作用。
@@ -91,7 +93,7 @@ docker run --publish 8080:8080 --env-file .env palace:local
 | `POST /api/import/file` | multipart 同名字段；history 为文件原始字节 |
 | `GET /api/timeline?start=&end=` | 调用方本地日期区间内的 Moment，按发生时间排序，含卡片字段 |
 | `GET /api/timeline/outline?start=&end=` | 同一区间内 Moment 的 `id` 与 `kind`，顺序与时间线一致，不读详情 |
-| `GET /api/conversations?q=&cursor=` | 摘星的对话列表：每条 Path 一行，按最后导入或追加时间倒序，每页 50 条，`total` 为全部 Path 数；`q` 按字面子串匹配 Path 标题或该 Path 上的消息 |
+| `GET /api/conversations?q=&cursor=` | 摘星的对话列表：每条 Path 一行，按对话 Moment 的 `occurred_at` 倒序，每页 50 条，`total` 为全部 Path 数；`q` 按字面子串匹配 Path 标题或该 Path 上的消息 |
 | `GET /api/conversations/{id}` | 对话、消息树、各 Path 标题和受控来源链接 |
 | `GET /api/conversations/{id}/paths/{path_id}` | 来源 Path 对应的完整祖先路径 |
 | `POST /api/conversations/{id}/paths` | 在已有树中新建带标题的分支，JSON 不接受来源 |

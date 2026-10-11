@@ -39,6 +39,7 @@ In the crates folder where the rust code lives:
   - When extracting code from a large module, move the related tests and module/type docs toward
     the new implementation so the invariants stay close to the code that owns them.
 - Use local time instead of UTC time.
+- Store every database `timestamptz` at millisecond precision, matching the epoch-millisecond API: write the database clock as `date_trunc('milliseconds', now())`, and give each new time column a `CHECK(col = date_trunc('milliseconds', col))`.
 - Use palace-logging wrapper macros instead of `tracing` macros. Use `palace_logging::clock::now_local` instead of `OffsetDateTime::now_local()`.
 
 ## Tests

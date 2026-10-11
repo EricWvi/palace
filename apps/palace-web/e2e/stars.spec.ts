@@ -8,7 +8,7 @@ function serve(page: Page) {
     conversation_id: `c${i}`,
     title: `对话 ${i}`,
     source: "chatgpt",
-    updated_at: new Date(2026, 9, 1, 12).getTime() - i * 3_600_000,
+    occurred_at: new Date(2026, 9, 1, 12).getTime() - i * 3_600_000,
   }));
   const detail = (row: ConversationListItem): Detail => ({
     conversation: {
@@ -35,9 +35,9 @@ function serve(page: Page) {
         session_id: row.id,
         head_message_id: `m${row.id}`,
         message_count: 1,
-        occurred_at: row.updated_at,
-        created_at: row.updated_at,
-        updated_at: row.updated_at,
+        occurred_at: row.occurred_at,
+        created_at: row.occurred_at,
+        updated_at: row.occurred_at,
         original_link: `https://chatgpt.com/c/${row.id}`,
       },
     ],

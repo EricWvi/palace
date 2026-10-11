@@ -98,7 +98,7 @@ async fn search(db: &Database, owner: &Owner, term: &str) -> Vec<Uuid> {
 /// Every path id of an owner in the order the list promises.
 async fn expected_order(pool: &PgPool, owner: &Owner) -> Vec<Uuid> {
     sqlx::query_scalar(
-        "SELECT id FROM conversation_path WHERE owner_id=$1 ORDER BY updated_at DESC,id DESC",
+        "SELECT id FROM moment WHERE owner_id=$1 AND kind='conversation' ORDER BY occurred_at DESC,id DESC",
     )
     .bind(owner.id)
     .fetch_all(pool)
@@ -106,8 +106,9 @@ async fn expected_order(pool: &PgPool, owner: &Owner) -> Vec<Uuid> {
     .unwrap()
 }
 
-/// Keyset pages cover every path exactly once, in `(updated_at, id)` order, ties included, even
-/// when a path is imported between two page requests.
+/// Keyset pages cover every path exactly once, in `(occurred_at, id)` order of the paths'
+/// moments rather than their import order, ties included, even when a path is imported between
+/// two page requests.
 /// Core test case:
 /// - `specs/test-cases/web/stars/contents-page.md#conversation-list-must-page-every-path-exactly-once-in-order`
 /// - `specs/test-cases/web/stars/contents-page.md#every-row-must-open-the-path-whose-title-and-date-it-shows`
@@ -141,21 +142,37 @@ async fn conversation_list_must_page_every_path_exactly_once_in_order() {
         &["U", "A", "U2"],
     )
     .await;
-    // Ties on updated_at straddle the page boundary, so only the id can order them.
+    // Occurrence runs against import order: the earliest import happened last, so a list that
+    // still sorted by update time would come out reversed.
+    sqlx::query("WITH ranked AS (SELECT id,row_number() OVER (ORDER BY updated_at,id) AS n FROM conversation_path WHERE owner_id=$1) UPDATE moment m SET occurred_at='2026-01-01 00:00:00+00'::timestamptz-ranked.n*interval '1 hour' FROM ranked WHERE m.id=ranked.id")
+        .bind(owner.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    // Ties on occurred_at straddle the page boundary, so only the id can order them.
     // Copying the 46th row's time onto the next nine keeps them at positions 46..55.
-    sqlx::query("WITH ordered AS (SELECT id,updated_at FROM conversation_path WHERE owner_id=$1 ORDER BY updated_at DESC,id DESC OFFSET 45 LIMIT 10) UPDATE conversation_path SET updated_at=(SELECT max(updated_at) FROM ordered) WHERE id IN (SELECT id FROM ordered)")
+    sqlx::query("WITH ordered AS (SELECT id,occurred_at FROM moment WHERE owner_id=$1 ORDER BY occurred_at DESC,id DESC OFFSET 45 LIMIT 10) UPDATE moment SET occurred_at=(SELECT max(occurred_at) FROM ordered) WHERE id IN (SELECT id FROM ordered)")
         .bind(owner.id)
         .execute(&pool)
         .await
         .unwrap();
     let expected = expected_order(&pool, &owner).await;
-    let tied: Vec<i64> = sqlx::query_scalar("SELECT count(*) FROM conversation_path WHERE owner_id=$1 GROUP BY updated_at HAVING count(*)>1")
-        .bind(owner.id)
-        .fetch_all(&pool)
-        .await
-        .unwrap();
-    // Imports landing in the same millisecond may add incidental ties; the forced group must exist.
-    assert!(tied.contains(&10), "{tied:?}");
+    let by_update: Vec<Uuid> = sqlx::query_scalar(
+        "SELECT id FROM conversation_path WHERE owner_id=$1 ORDER BY updated_at DESC,id DESC",
+    )
+    .bind(owner.id)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_ne!(expected, by_update);
+    let tied: Vec<i64> = sqlx::query_scalar(
+        "SELECT count(*) FROM moment WHERE owner_id=$1 GROUP BY occurred_at HAVING count(*)>1",
+    )
+    .bind(owner.id)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(tied, vec![10]);
 
     let page = db
         .conversation_list(owner.scope(), &ConversationListRequest::default())
@@ -163,9 +180,14 @@ async fn conversation_list_must_page_every_path_exactly_once_in_order() {
         .unwrap();
     assert_eq!(page.items.len() as i64, CONVERSATION_PAGE_SIZE);
     assert_eq!(page.total, expected.len() as i64);
-    // A path imported between two requests sorts before the cursor, so later pages neither
-    // repeat nor skip the rows that existed when browsing started.
-    create(&db, &owner, "late", "late", &["U", "A"]).await;
+    // A path imported between two requests with a newer time sorts before the cursor, so later
+    // pages neither repeat nor skip the rows that existed when browsing started.
+    let late = create(&db, &owner, "late", "late", &["U", "A"]).await;
+    sqlx::query("UPDATE moment SET occurred_at='2027-01-01 00:00:00+00' WHERE id=$1")
+        .bind(late.path_id)
+        .execute(&pool)
+        .await
+        .unwrap();
     let mut seen: Vec<Uuid> = page.items.iter().map(|item| item.id).collect();
     let mut request = ConversationListRequest {
         search: None,
@@ -187,8 +209,8 @@ async fn conversation_list_must_page_every_path_exactly_once_in_order() {
         .into_iter()
         .find(|row| row.id == forked.path_id)
         .unwrap();
-    let updated_at: i64 = sqlx::query_scalar(
-        "SELECT (extract(epoch FROM updated_at)*1000)::bigint FROM conversation_path WHERE id=$1",
+    let occurred_at: i64 = sqlx::query_scalar(
+        "SELECT (extract(epoch FROM occurred_at)*1000)::bigint FROM moment WHERE id=$1",
     )
     .bind(forked.path_id)
     .fetch_one(&pool)
@@ -201,7 +223,7 @@ async fn conversation_list_must_page_every_path_exactly_once_in_order() {
             conversation_id: first.conversation_id,
             title: "fork".into(),
             source: Source::Gemini,
-            updated_at,
+            occurred_at,
         }
     );
 }
@@ -300,7 +322,7 @@ async fn search_must_match_only_the_paths_own_title_and_messages() {
         (literal.path_id, "02"),
         (plain.path_id, "01"),
     ] {
-        sqlx::query("UPDATE conversation_path SET updated_at=('2026-10-'||$2||' 00:00:00+00')::timestamptz WHERE id=$1")
+        sqlx::query("UPDATE moment SET occurred_at=('2026-10-'||$2||' 00:00:00+00')::timestamptz WHERE id=$1")
             .bind(id)
             .bind(at)
             .execute(&pool)

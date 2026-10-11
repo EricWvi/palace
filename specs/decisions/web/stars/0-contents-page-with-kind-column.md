@@ -27,9 +27,10 @@ date: 2026-10-09
 | D3：有 `date` 时显示返回链接，返回与删除后的落点是 `/?date=…` | 继承，不变 |
 | D5：低频操作收进悬停才出现的 `···` 菜单 | 继承；摘星入口页没有低频操作，不放菜单 |
 | [对话阅读页](../../server/conversation/20261004-reading-page-owns-conversation-actions.md)：删除整个对话后回到进入来源 | 继承；来源是摘星时回到 `/conversations` |
-| [Path 选择规则](../../server/conversation/20260919-conversation-tree-and-session-paths.md)：没有指定 Path 时打开 `updated_at DESC, id DESC` 第一条 | 继承，不变；列表行的链接总是指定 Path，不经过这条规则，见 D3 |
+| [Path 选择规则](../../server/conversation/20260919-conversation-tree-and-session-paths.md)：没有指定 Path 时打开 `updated_at DESC, id DESC` 第一条 | 继承，不变；列表行的链接总是指定 Path，不经过这条规则，列表也不按这个顺序排，见 D3 |
 | [标题归属](../../server/conversation/20261005-title-belongs-to-path.md)：标题属于 Path；需要以 Conversation 为单位显示名称时，取最早创建的 Path 的标题 | 继承；列表行是 Path，直接显示它自己的标题，不需要 Conversation 名称，见 D3 |
-| [对话 Moment 卡片字段](../../server/moment/20261004-conversation-moment-card-fields.md)：一张卡片对应一条 Path，显示 Path 标题与 Conversation 来源 | 继承；列表行与卡片是同一条 Path 的两种呈现，标题与来源的来源相同，见 D3 |
+| [对话 Moment 卡片字段](../../server/moment/20261004-conversation-moment-card-fields.md)：一张卡片对应一条 Path，显示 Path 标题与 Conversation 来源 | 继承；列表行与卡片是同一条 Path 的两种呈现，标题、来源与时间的来源都相同，见 D3 |
+| [Moment 根决策](../../server/moment/0-moment-supertype-and-typed-details.md) 不变量 3：时间线定位时间只保存在 `moment` 中 | 继承；列表的日期与顺序直接读 `moment.occurred_at`，详情表不冗余一份，见 D5 |
 
 ## D1：地址与导航
 
@@ -74,12 +75,13 @@ PostgreSQL advisory lock 的用法  Gemini ················ 10.0
 | 标题 | 该 Path 的标题，用展示字体（`--font-display`，18px）；过长时以省略号截断 |
 | 来源 | Conversation 的来源名称，小字浅色，紧跟标题 |
 | 点线 | 从来源延伸到日期，填满中间的空白 |
-| 日期 | 该 Path 的 `updated_at`，按浏览器本地时区显示为 `MM.DD` |
+| 日期 | 该 Path 对应对话 Moment 的 `occurred_at`，按浏览器本地时区显示为 `MM.DD` |
 | 年份标题 | 同一年的条目归到一个年份标题下，年份也按本地时区计算 |
 
-- 列表按 Path 的 `updated_at DESC`、Path ID 降序排列，与阅读页选择默认 Path 的顺序相同。
+- 列表按对话 Moment 的 `occurred_at DESC`、Path ID 降序排列。日期因此与时间线一致：一行写着哪天，这条 Path 在时刻里就落在哪天。
+- 不用 Path 的 `updated_at`：它是服务端写入时间，补导旧对话或导入时选了过去的时间，目录上就会写成导入那天，和时间线对不上。阅读页选默认 Path 仍按 `updated_at`，但列表行总是指定 Path，两个顺序不需要一致。
 - 点击一行进入 `/conversations/:conversation_id?path=<Path ID>`，不带 `date`。
-- 同一 Conversation 的几条 Path 不合并，也不排在一起，各自按更新时间落在自己的位置。分支往往讨论不同的事，标题也不同；把它们当作各自独立的条目，与时间线上各自出现在不同日期的做法一致。
+- 同一 Conversation 的几条 Path 不合并，也不排在一起，各自按发生时间落在自己的位置。分支往往讨论不同的事，标题也不同；把它们当作各自独立的条目，与时间线上各自出现在不同日期的做法一致。
 - 同名的分支（新建分支默认沿用原标题）会出现几行标题相同的条目，靠日期区分，不加 Session ID 一类的后缀。它们点开后在同一个阅读页中，分叉处的文字已经负责区分（对话阅读页 D2）；目录里多一个后缀，只会让所有行都更嘈杂。
 - 不显示消息数和摘录。目录只回答“是哪一篇、什么时候”；摘录常常是寒暄，读起来很吵（与对话阅读页 D2 不用消息开头给分支命名同理），消息数进入阅读页就能看到。
 
@@ -117,10 +119,10 @@ PostgreSQL advisory lock 的用法  Gemini ················ 10.0
 | `q` | 可选，搜索关键词，语义见 D4；去除首尾空白后为空，视同未提供 |
 | `cursor` | 可选，上一页返回的 `next_cursor` |
 
-响应为 `{ items, next_cursor, total }`，`items` 的每一项是 `{ id, conversation_id, title, source, updated_at }`，`updated_at` 是 epoch 毫秒，与其他接口的时间字段一致。
+响应为 `{ items, next_cursor, total }`，`items` 的每一项是 `{ id, conversation_id, title, source, occurred_at }`，`occurred_at` 是 epoch 毫秒，与其他接口的时间字段一致。
 
-- `id` 是 Path ID，也是对应对话 Moment 的 ID；字段命名与时间线的对话卡片一致（对话 Moment 卡片字段 D1）。`title` 与 `updated_at` 来自 Path，`source` 来自 Conversation，查询时派生，不另外保存。
-- 每页 50 条，按 D3 的顺序以 keyset 分页：`next_cursor` 是不透明字符串，编码最后一行 Path 的 `(updated_at, id)`，客户端原样传回；没有下一页时为 `null`，无法解析的游标返回 400。Path 的 `updated_at` 以毫秒精度保存，游标不丢精度。用 keyset 而不用偏移量，是因为浏览时可能有新导入，偏移量会让条目在两页之间重复或丢失。
+- `id` 是 Path ID，也是对应对话 Moment 的 ID；字段命名与时间线的对话卡片一致（对话 Moment 卡片字段 D1）。`title` 来自 Path，`occurred_at` 来自 Moment，`source` 来自 Conversation，查询时派生，不另外保存。查询从 `moment` 出发，沿索引 `moment_kind_recent(owner_id, kind, occurred_at DESC, id DESC)` 按列表顺序取行，每行再按主键找 Path 与 Conversation；一页 50 行的 join 很便宜，不值得为它在 Path 上冗余一份时间。索引带 `kind`，以后时间线上有了别的类型，对话列表也不必跳过它们。
+- 每页 50 条，按 D3 的顺序以 keyset 分页：`next_cursor` 是不透明字符串，编码最后一行的 `(occurred_at, id)`，客户端原样传回；没有下一页时为 `null`，无法解析的游标返回 400。游标以毫秒编码时间，所以库中的时间必须恰好是整毫秒：否则还原出的时间与原值不等，进位时最后一行会在下一页重复，舍去时同一毫秒内的行会被漏掉。迁移 `0012_millisecond_timestamps.sql` 把所有 `timestamptz` 截到毫秒（早期导入用 `now()` 写入，带微秒），并以 `CHECK` 约束保持。用 keyset 而不用偏移量，是因为浏览时可能有新导入，偏移量会让条目在两页之间重复或丢失。
 - `total` 是该 owner 的 Path 总数，不受 `q` 影响，供类型列显示条数；它与列表不加搜索时的行数相同。条数与当页在同一个只读快照中读取，不会被并发导入拆开。
 - 前端滚动到列表末尾时加载下一页。
 
@@ -138,7 +140,8 @@ PostgreSQL advisory lock 的用法  Gemini ················ 10.0
 2. 尚未开放的类型不是链接，也不进入 Tab 顺序。
 3. 列表中的每一行恰好对应一条 Path，点开后阅读页展示的就是这条 Path，页首标题等于行上的标题。
 4. 不加搜索时，当前 owner 的每条 Path 在列表中恰好出现一次。
-5. 列表顺序与 Path 的 `updated_at DESC, id DESC` 一致，分页之间不重复、不遗漏。
+5. 列表顺序与对话 Moment 的 `occurred_at DESC, id DESC` 一致，分页之间不重复、不遗漏。
+8. 每一行的日期等于该 Path 对话 Moment 的 `occurred_at`，与它在时间线上的位置一致。
 6. 列表接口只返回当前 owner 的 Path，搜索也不会匹配到其他 owner 的标题或消息。
 7. 搜索结果中的每一行，其 Path 的标题或该 Path 上至少一条消息包含关键词。
 
@@ -148,6 +151,9 @@ PostgreSQL advisory lock 的用法  Gemini ················ 10.0
 | --- | --- | --- |
 | 类型作为页面标题（「对话 笔记 文章」三个大字）+ 两行条目按月分组（原型变体 A） | 层级清楚，可以放来源和摘要 | 一屏条目少，找东西要多滚动；Eric 在原型评审中选了目录式 |
 | 搜索优先，三类混合列表加 `[ 类型 ]` 前缀（原型变体 C） | 一个入口找所有内容 | 与时刻的时间线重复；按更新时间混排时，改得最勤的笔记会把对话和文章挤到后面 |
+| 按 Path 的 `updated_at` 排序并显示它 | 与阅读页选默认 Path 的顺序相同，不用 join `moment` | `updated_at` 是导入时刻，补导旧对话时目录日期与时间线不一致，违反不变量 8 |
+| 在 `conversation_path` 上冗余一份 `occurred_at` | 列表只查一张表 | 违反 Moment 根决策不变量 3；追加导入要双写两处，一页 50 次主键查找的 join 省不了多少 |
+| 数据保留微秒，游标改为编码微秒 | 不需要改写已有数据 | 只修好了这一个游标；其他把毫秒传回数据库比较的地方仍会踩同样的坑，统一毫秒精度一次解决 |
 | 一行代表一个 Conversation，显示默认 Path 的标题 | 同名分支不会重复出现，行数更少 | 其他分支在目录中消失；分支更新后行的名字随之改变 |
 | 一行代表一个 Conversation，显示最早 Path 的标题（沿用标题归属决策） | 名字稳定 | 点开的默认 Path 标题可能不同，违反不变量 3；其他分支同样消失 |
 | 同一 Conversation 的 Path 排在一起，缩进显示分支 | 看得出哪些是同一棵树的分支 | 目录里出现树形结构，违背一行一条的目录样式；排序不再只按时间，较旧的分支会被拉到新条目旁边 |
@@ -167,6 +173,6 @@ PostgreSQL advisory lock 的用法  Gemini ················ 10.0
 
 ## 落地与验收
 
-`palace-db` 的 `conversation_list` 实现 D4、D5 的查询，`palace-backend` 的 `GET /api/conversations` 把它暴露给 Web；迁移 `0011_conversation_list.sql` 创建列表顺序索引、`pg_trgm` 扩展与正文 trigram 索引。`apps/palace-web` 新增 `StarsPage` 承担 `/conversations`，导航中的摘星改为链接，没有 `date` 的阅读页删除后落到 `/conversations`。
+`palace-db` 的 `conversation_list` 实现 D4、D5 的查询，`palace-backend` 的 `GET /api/conversations` 把它暴露给 Web；迁移 `0011_conversation_list.sql` 创建 `pg_trgm` 扩展与正文 trigram 索引，`0012_millisecond_timestamps.sql` 把时间统一到毫秒，`0013_conversation_list_by_occurrence.sql` 以 `moment_kind_recent` 取代原先按 Path `updated_at` 排序的索引。`apps/palace-web` 新增 `StarsPage` 承担 `/conversations`，导航中的摘星改为链接，没有 `date` 的阅读页删除后落到 `/conversations`。
 
-真实 PostgreSQL 测试覆盖不变量 4–7，组件测试覆盖不变量 1–3 与搜索交互，Chromium 测试覆盖分页加载、后退恢复滚动位置与删除后的落点。证据见核心测试用例。
+真实 PostgreSQL 测试覆盖不变量 4–8，组件测试覆盖不变量 1–3 与搜索交互，Chromium 测试覆盖分页加载、后退恢复滚动位置与删除后的落点。证据见核心测试用例。

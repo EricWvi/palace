@@ -292,15 +292,15 @@ export interface components {
        * @description Path id, equal to the id of the path's conversation moment.
        */
       id: string;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the path's moment, the time it has on the timeline.
+       */
+      occurred_at: number;
       /** @description Source of the whole conversation. */
       source: components["schemas"]["Source"];
       /** @description Title of this path. */
       title: string;
-      /**
-       * Format: int64
-       * @description Unix epoch milliseconds of the path's last import or append.
-       */
-      updated_at: number;
     };
     /** @description A conversation moment is one path of a conversation tree. */
     ConversationMoment: {
@@ -330,7 +330,7 @@ export interface components {
     };
     /** @description One page of the 摘星 conversation list. */
     ConversationPage: {
-      /** @description Paths, most recently imported or appended first. */
+      /** @description Paths, latest moment first. */
       items: components["schemas"]["ConversationListItem"][];
       /** @description Opaque token for the next page; null on the last page. */
       next_cursor: string | null;

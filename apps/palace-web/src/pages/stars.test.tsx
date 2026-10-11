@@ -11,13 +11,13 @@ const row = (
   id: string,
   conversation: string,
   title: string,
-  updated: number,
+  occurred: number,
 ): ConversationListItem => ({
   id,
   conversation_id: conversation,
   title,
   source: "chatgpt",
-  updated_at: updated,
+  occurred_at: occurred,
 });
 const rows = [
   row("p2", "c1", "改去 Point Reyes", at(2026, 10, 7)),
@@ -44,9 +44,9 @@ function detail(paths: ConversationListItem[]): Detail {
       title: path.title,
       session_id: path.id,
       head_message_id: "m1",
-      occurred_at: path.updated_at,
-      created_at: path.updated_at,
-      updated_at: path.updated_at,
+      occurred_at: path.occurred_at,
+      created_at: path.occurred_at,
+      updated_at: path.occurred_at,
       message_count: 1,
       original_link: `https://chatgpt.com/c/${path.id}`,
     })),

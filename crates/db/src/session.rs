@@ -162,7 +162,7 @@ impl Database {
             sqlx::query("SAVEPOINT email_update")
                 .execute(&mut *tx)
                 .await?;
-            let updated=sqlx::query("UPDATE owner SET email=$2,normalized_email=$3,updated_at=now() WHERE id=$1 AND NOT disabled")
+            let updated=sqlx::query("UPDATE owner SET email=$2,normalized_email=$3,updated_at=date_trunc('milliseconds',now()) WHERE id=$1 AND NOT disabled")
                 .bind(owner_id).bind(&tokens.email).bind(normalize_email(&tokens.email)?).execute(&mut *tx).await;
             if updated.as_ref().is_err_and(|e| {
                 e.as_database_error()

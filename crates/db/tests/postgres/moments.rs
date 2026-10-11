@@ -140,7 +140,7 @@ async fn every_moment_must_have_exactly_one_detail_of_its_own_kind() {
     // A moment without a detail cannot commit.
     let mut tx = pool.begin().await.unwrap();
     sqlx::query(
-        "INSERT INTO moment(id,owner_id,kind,occurred_at) VALUES($1,$2,'conversation',now())",
+        "INSERT INTO moment(id,owner_id,kind,occurred_at) VALUES($1,$2,'conversation',date_trunc('milliseconds',now()))",
     )
     .bind(Uuid::now_v7())
     .bind(owner.id)
@@ -185,7 +185,7 @@ async fn every_moment_must_have_exactly_one_detail_of_its_own_kind() {
     let stolen = Uuid::now_v7();
     let mut tx = pool.begin().await.unwrap();
     sqlx::query(
-        "INSERT INTO moment(id,owner_id,kind,occurred_at) VALUES($1,$2,'conversation',now())",
+        "INSERT INTO moment(id,owner_id,kind,occurred_at) VALUES($1,$2,'conversation',date_trunc('milliseconds',now()))",
     )
     .bind(stolen)
     .bind(owner.id)

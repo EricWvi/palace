@@ -6,7 +6,7 @@ use uuid::Uuid;
 /// One page of the 摘星 conversation list.
 #[derive(Serialize, ToSchema)]
 pub(crate) struct ConversationPage {
-    /// Paths, most recently imported or appended first.
+    /// Paths, latest moment first.
     pub items: Vec<ConversationListItem>,
     /// Opaque token for the next page; null on the last page.
     #[schema(required = true)]
@@ -24,8 +24,8 @@ pub(crate) struct ConversationListItem {
     pub title: String,
     /// Source of the whole conversation.
     pub source: Source,
-    /// Unix epoch milliseconds of the path's last import or append.
-    pub updated_at: i64,
+    /// Unix epoch milliseconds of the path's moment, the time it has on the timeline.
+    pub occurred_at: i64,
 }
 impl From<palace_db::ConversationPage> for ConversationPage {
     /// Encodes the cursor as the opaque token clients send back unchanged.
@@ -39,7 +39,7 @@ impl From<palace_db::ConversationPage> for ConversationPage {
                     conversation_id: item.conversation_id,
                     title: item.title,
                     source: item.source.into(),
-                    updated_at: item.updated_at,
+                    occurred_at: item.occurred_at,
                 })
                 .collect(),
             next_cursor: value.next_cursor.map(|cursor| cursor.to_string()),

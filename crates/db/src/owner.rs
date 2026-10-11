@@ -57,9 +57,9 @@ impl Database {
         if conflict {
             return Err(DbError::Conflict);
         }
-        sqlx::query("INSERT INTO owner(id,email,normalized_email) VALUES($1,$2,$3) ON CONFLICT(id) DO UPDATE SET email=$2,normalized_email=$3,updated_at=now()")
+        sqlx::query("INSERT INTO owner(id,email,normalized_email) VALUES($1,$2,$3) ON CONFLICT(id) DO UPDATE SET email=$2,normalized_email=$3,updated_at=date_trunc('milliseconds',now())")
             .bind(id).bind(email).bind(normalized).execute(&mut *tx).await?;
-        sqlx::query("INSERT INTO owner_identity(id,owner_id,issuer,subject) VALUES($1,$2,$3,$4) ON CONFLICT(issuer,subject) DO UPDATE SET last_seen_at=now()")
+        sqlx::query("INSERT INTO owner_identity(id,owner_id,issuer,subject) VALUES($1,$2,$3,$4) ON CONFLICT(issuer,subject) DO UPDATE SET last_seen_at=date_trunc('milliseconds',now())")
             .bind(identity_id).bind(id).bind(issuer).bind(subject).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(Owner {
