@@ -1482,6 +1482,222 @@
         ]
       }
     },
+    "/api/notes": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Lists the notes for 摘星, latest date first, one page at a time.",
+        "operationId": "notes",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Case-insensitive literal substring of a note's title or file; blank means no search.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "`next_cursor` from the previous page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Up to 50 notes ordered by date, then id, both descending",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Identity, source session or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider or note search temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/notes/{id}": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Opens one note listed in the library.",
+        "operationId": "note",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Note id; its `/` separators are percent-encoded as one segment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such note in the library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Identity, source session or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/sync": {
       "get": {
         "tags": [
@@ -2578,6 +2794,7 @@
           "path_head_moved",
           "not_found",
           "identity_unavailable",
+          "search_unavailable",
           "persistence_failed"
         ]
       },
@@ -2869,6 +3086,86 @@
           }
         },
         "additionalProperties": false
+      },
+      "NoteDetail": {
+        "type": "object",
+        "description": "A note opened for reading.",
+        "required": [
+          "id",
+          "title",
+          "occurred_at",
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Markdown body without the frontmatter."
+          },
+          "id": {
+            "type": "string"
+          },
+          "occurred_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the note's frontmatter `date`."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "NoteListItem": {
+        "type": "object",
+        "description": "One note as the list shows it.",
+        "required": [
+          "id",
+          "title",
+          "occurred_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Path of the note's file in the notes folder, without `.md`, separated by `/`."
+          },
+          "occurred_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the note's frontmatter `date`."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "NotePage": {
+        "type": "object",
+        "description": "One page of the 摘星 note list.",
+        "required": [
+          "items",
+          "next_cursor",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NoteListItem"
+            },
+            "description": "Notes, latest date first."
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque token for the next page; null on the last page."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of notes in the library, regardless of `q`."
+          }
+        }
       },
       "Owner": {
         "type": "object",

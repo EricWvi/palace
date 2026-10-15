@@ -11,6 +11,7 @@ export type Detail = components["schemas"]["ConversationDetail"];
 export type ConversationPath = components["schemas"]["ConversationPath"];
 export type ConversationListItem =
   components["schemas"]["ConversationListItem"];
+export type NoteListItem = components["schemas"]["NoteListItem"];
 export const sources: Record<Source, string> = {
   chatgpt: "ChatGPT",
   gemini: "Gemini",
@@ -123,6 +124,33 @@ export function conversationListOptions(q: string) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.next_cursor ?? undefined,
   });
+}
+// 摘星's note list. Notes change outside Palace, so nothing here invalidates it; a fresh visit
+// refetches it like any other query.
+export function noteListOptions(q: string) {
+  return infiniteQueryOptions({
+    queryKey: ["notes", q],
+    queryFn: ({ pageParam }) =>
+      apiData(
+        api.GET("/api/notes", {
+          params: { query: { q: q || undefined, cursor: pageParam } },
+        }),
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
+  });
+}
+// One note; its id holds `/` and travels as a single encoded path segment.
+export function noteOptions(id: string) {
+  return {
+    queryKey: ["note", id],
+    queryFn: () =>
+      apiData(api.GET("/api/notes/{id}", { params: { path: { id } } })),
+  };
+}
+// The note page's address keeps the id's `/` as path separators and encodes each segment.
+export function notePath(id: string) {
+  return `/notes/${id.split("/").map(encodeURIComponent).join("/")}`;
 }
 // After any import, rename or deletion the list is dropped rather than refetched in place: an
 // old page shown while the new one loads would briefly offer a deleted path or an old title.

@@ -127,6 +127,7 @@ tasks:
       - task: test:frontend
       - task: test:crates
       - task: test:api
+      - task: test:scripts
 
   test:frontend:
     desc: Run frontend tests with clean stderr
@@ -149,6 +150,11 @@ tasks:
       - task: test:api-toolchain
       - node --test scripts/api-checks.test.mjs
       - cargo test -p palace-backend contract_covers_operations --lib
+
+  test:scripts:
+    desc: Run tests of repository scripts, such as the 摘星 notes cache builder (needs rg)
+    cmds:
+      - node --test scripts/notes-cache.test.ts
 
   test:api-schema:
     desc: Validate production OpenAPI schemas and local references

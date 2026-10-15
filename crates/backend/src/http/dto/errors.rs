@@ -11,6 +11,7 @@ pub(crate) enum ErrorCode {
     PathHeadMoved,
     NotFound,
     IdentityUnavailable,
+    SearchUnavailable,
     PersistenceFailed,
 }
 #[derive(Serialize, ToSchema)]

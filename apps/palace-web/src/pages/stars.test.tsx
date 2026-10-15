@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { address, mountApp } from "@/test-app";
-import type { ConversationListItem, Detail } from "@/lib/api";
+import type { ConversationListItem, Detail, NoteListItem } from "@/lib/api";
 import { requestPath, testRequest } from "@/lib/test-request";
 
 // Local wall-clock times, so years and `MM.DD` do not depend on the test machine's zone.
@@ -23,6 +23,14 @@ const rows = [
   row("p2", "c1", "改去 Point Reyes", at(2026, 10, 7)),
   row("p3", "c2", "PostgreSQL advisory lock", at(2026, 10, 5)),
   row("p1", "c1", "计划周末出行", at(2025, 12, 30)),
+];
+const notes: NoteListItem[] = [
+  {
+    id: "rust/advisory-lock",
+    title: "advisory lock 的用法",
+    occurred_at: at(2026, 10, 6),
+  },
+  { id: "旅行/周末", title: "周末", occurred_at: at(2026, 9, 30) },
 ];
 function detail(paths: ConversationListItem[]): Detail {
   return {
@@ -61,6 +69,8 @@ function serve() {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const request = testRequest(url);
     const path = requestPath(url);
+    if (path === "/api/notes")
+      return Response.json({ items: notes, next_cursor: null, total: 2 });
     if (path === "/api/conversations") {
       const query = Object.fromEntries(new URL(request.url).searchParams);
       queries.push(query);
@@ -95,38 +105,43 @@ const titles = () =>
     (title) => title.textContent,
   );
 
-// Core test case: `specs/test-cases/web/stars/contents-page.md#stars-navigation-must-open-the-conversation-list-and-keep-unopened-kinds-inert`
-it("opens the conversation list from 摘星, where only 对话 is open among the kinds", async () => {
+// Core test case: `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert`
+it("opens the note list from 摘星, where notes and conversations are open and articles stay inert", async () => {
   serve();
   const { router, user } = mountApp("/?date=2025-09-30");
   await user.click(await screen.findByRole("link", { name: "摘星" }));
-  expect(address(router)).toBe("/conversations");
+  expect(address(router)).toBe("/notes");
   // The page loads lazily; the bar moves to 摘星 together with it.
   const kinds = await screen.findByRole("navigation", { name: "摘星分类" });
   const top = screen.getByRole("navigation", { name: "主导航" });
-  expect(
-    [...top.querySelectorAll("[aria-current]")].map((item) => item.textContent),
-  ).toEqual(["摘星"]);
-
+  const current = () =>
+    [...document.querySelectorAll("[aria-current]")].map(
+      (item) => item.textContent,
+    );
   await waitFor(() =>
     expect([...kinds.children].map((kind) => kind.textContent)).toEqual([
-      "笔记",
+      "笔记2",
       "文章",
       "对话3",
     ]),
   );
+  expect(current()).toEqual(["摘星", "笔记2"]);
   expect(within(kinds).getAllByRole("link")).toEqual([
+    within(kinds).getByRole("link", { name: "笔记2" }),
     within(kinds).getByRole("link", { name: "对话3" }),
   ]);
-  expect(within(kinds).getByRole("link")).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
-  // Tabbing through the page goes from the top bar straight to 对话, past the unopened kinds.
-  for (const name of ["时刻", "摘星", "对话3"]) {
+  // Tabbing through the page goes from the top bar to the open kinds, past 文章.
+  for (const name of ["时刻", "摘星", "笔记2", "对话3"]) {
     await user.tab();
     expect(document.activeElement).toHaveAccessibleName(name);
   }
+
+  await user.click(within(kinds).getByRole("link", { name: "对话3" }));
+  expect(address(router)).toBe("/conversations");
+  await waitFor(() => expect(current()).toEqual(["摘星", "对话3"]));
+  expect(
+    [...top.querySelectorAll("[aria-current]")].map((item) => item.textContent),
+  ).toEqual(["摘星"]);
 });
 
 // Core test case: `specs/test-cases/web/stars/contents-page.md#every-row-must-open-the-path-whose-title-and-date-it-shows`
@@ -209,7 +224,9 @@ it("searches only on Enter, in place, and clears with Escape before putting the 
   expect(field).not.toHaveFocus();
 });
 
-// Core test case: `specs/test-cases/web/stars/contents-page.md#returning-to-the-list-must-restore-the-search-and-drop-stale-rows`
+// Core test cases:
+// - `specs/test-cases/web/stars/contents-page.md#returning-to-the-list-must-restore-the-search-and-drop-stale-rows`
+// - `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert`
 it("comes back to the same search, and drops the rows of a conversation deleted meanwhile", async () => {
   const { queries } = serve();
   const { router, user } = mountApp("/conversations?q=e");

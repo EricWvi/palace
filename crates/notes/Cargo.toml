@@ -1,0 +1,28 @@
+[package]
+name = "palace-notes"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "palace_notes"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+palace-domain = { workspace = true }
+palace-logging = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+notify = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["fs", "process"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+serde_json = { workspace = true }

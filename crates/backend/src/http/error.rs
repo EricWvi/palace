@@ -16,6 +16,7 @@ pub(super) enum ApiError {
     StaleHead,
     NotFound,
     Unavailable,
+    SearchUnavailable,
     Internal,
 }
 impl From<InputError> for ApiError {
@@ -57,6 +58,16 @@ impl From<ProviderError> for ApiError {
         }
     }
 }
+impl From<palace_notes::NotesError> for ApiError {
+    /// A failed search is the server's fault, never the reader's input; partial results are not sent.
+    fn from(value: palace_notes::NotesError) -> Self {
+        match value {
+            palace_notes::NotesError::Input(e) => Self::Input(e),
+            palace_notes::NotesError::NotFound => Self::NotFound,
+            palace_notes::NotesError::SearchFailed => Self::SearchUnavailable,
+        }
+    }
+}
 impl IntoResponse for ApiError {
     /// Returns stable machine-readable categories without sensitive implementation details.
     fn into_response(self) -> Response {
@@ -85,6 +96,11 @@ impl IntoResponse for ApiError {
             Self::Unavailable => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 ErrorCode::IdentityUnavailable,
+                "",
+            ),
+            Self::SearchUnavailable => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                ErrorCode::SearchUnavailable,
                 "",
             ),
             Self::Internal => (

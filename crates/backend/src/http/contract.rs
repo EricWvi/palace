@@ -1,5 +1,7 @@
 //! Offline contract assembly; operation metadata lives beside the real handlers.
-use super::{business, conversation_list, handlers, path_management, security, sync, timeline};
+use super::{
+    business, conversation_list, handlers, notes, path_management, security, sync, timeline,
+};
 use utoipa::{
     OpenApi,
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
@@ -26,6 +28,8 @@ use utoipa::{
         path_management::delete,
         path_management::delete_conversation,
         path_management::update_metadata,
+        notes::list,
+        notes::note,
         sync::upload,
         sync::pull,
         handlers::login,

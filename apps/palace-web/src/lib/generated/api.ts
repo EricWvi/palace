@@ -144,6 +144,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/notes": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Lists the notes for 摘星, latest date first, one page at a time. */
+    get: operations["notes"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/notes/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Opens one note listed in the library. */
+    get: operations["note"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/sync": {
     parameters: {
       query?: never;
@@ -383,6 +417,7 @@ export interface components {
       | "path_head_moved"
       | "not_found"
       | "identity_unavailable"
+      | "search_unavailable"
       | "persistence_failed";
     ErrorResponse: {
       error: components["schemas"]["ErrorCode"];
@@ -490,6 +525,41 @@ export interface components {
       session_id: string;
       /** @description Title of the new path. Nonblank after trimming; at most 1024 UTF-8 bytes. */
       title: string;
+    };
+    /** @description A note opened for reading. */
+    NoteDetail: {
+      /** @description Markdown body without the frontmatter. */
+      content: string;
+      id: string;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the note's frontmatter `date`.
+       */
+      occurred_at: number;
+      title: string;
+    };
+    /** @description One note as the list shows it. */
+    NoteListItem: {
+      /** @description Path of the note's file in the notes folder, without `.md`, separated by `/`. */
+      id: string;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the note's frontmatter `date`.
+       */
+      occurred_at: number;
+      title: string;
+    };
+    /** @description One page of the 摘星 note list. */
+    NotePage: {
+      /** @description Notes, latest date first. */
+      items: components["schemas"]["NoteListItem"][];
+      /** @description Opaque token for the next page; null on the last page. */
+      next_cursor: string | null;
+      /**
+       * Format: int64
+       * @description Number of notes in the library, regardless of `q`.
+       */
+      total: number;
     };
     Owner: {
       email: string;
@@ -1557,6 +1627,153 @@ export interface operations {
       };
       /** @description Authentication required */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity, source session or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  notes: {
+    parameters: {
+      query?: {
+        /** @description Case-insensitive literal substring of a note's title or file; blank means no search. */
+        q?: string;
+        /** @description `next_cursor` from the previous page. */
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Up to 50 notes ordered by date, then id, both descending */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotePage"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity, source session or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider or note search temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  note: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Note id; its `/` separators are percent-encoded as one segment */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NoteDetail"];
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description No such note in the library */
+      404: {
         headers: {
           [name: string]: unknown;
         };

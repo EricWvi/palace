@@ -12,7 +12,7 @@ pub(crate) async fn run(
     key: CredentialKey,
     provider: OidcProvider,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let timezone = std::env::var("PALACE_TIMEZONE")
+    let timezone: chrono_tz::Tz = std::env::var("PALACE_TIMEZONE")
         .unwrap_or_else(|_| "Asia/Shanghai".into())
         .parse()?;
     let _logging = init_logging(LoggingConfig::new(
@@ -21,6 +21,7 @@ pub(crate) async fn run(
         timezone,
     ))?;
     let database = Database::connect(database_url).await?;
+    let (notes, _watch) = crate::notes::notes_from_env(timezone)?;
     let address = std::env::var("PALACE_LISTEN").unwrap_or_else(|_| "127.0.0.1:8080".into());
     let listener = tokio::net::TcpListener::bind(&address).await?;
     let worker_db = database.clone();
@@ -51,6 +52,7 @@ pub(crate) async fn run(
         origin,
         links: SourceLinks::standard()?,
         limits: ImportLimits::default(),
+        notes,
         now: now_seconds,
     })
     .merge(crate::web_app::web_app(&web_dist));

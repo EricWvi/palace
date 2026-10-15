@@ -48,3 +48,16 @@ fn origin_and_opaque_cookie_boundaries() {
         ))
     );
 }
+
+/// A note search that cannot finish is the server's failure, reported as unavailable.
+/// Core test case:
+/// - `specs/test-cases/web/stars/notes.md#note-search-must-match-literally-and-stay-within-the-index`
+#[test]
+fn failed_note_search_is_unavailable() {
+    use axum::response::IntoResponse;
+    let response = super::ApiError::from(palace_notes::NotesError::SearchFailed).into_response();
+    assert_eq!(
+        response.status(),
+        axum::http::StatusCode::SERVICE_UNAVAILABLE
+    );
+}

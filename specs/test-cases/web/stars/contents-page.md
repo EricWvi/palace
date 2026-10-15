@@ -1,24 +1,6 @@
 # 摘星入口页核心测试用例
 
-当前决策：[摘星入口是目录式列表](../../../decisions/web/stars/0-contents-page-with-kind-column.md)。导航的当前项与不可点击项的通用规则见[文字导航与时刻地址](../navigation/text-nav-and-day-routes.md#navigation-must-mark-only-the-owning-section-and-keep-inert-items-out-of-reach)；阅读页删除后的落点见[对话阅读页](../../server/conversation/reading-page.md#deleting-a-conversation-must-return-to-where-the-reader-came-from)。
-
-## Stars navigation must open the conversation list and keep unopened kinds inert
-
-> 已被修改：[笔记来自挂载的 Markdown 文件夹](../../../decisions/web/stars/20261014-notes-from-mounted-folder.md)（approved）把摘星改为指向 `/notes` 并开放笔记，新承诺见[摘星笔记](notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert)。该决策实现前，下面的证据仍描述当前行为；实现后本用例只保留对话列表页的部分。
-
-风险：摘星仍点不动，或进入后找不到对话列表；尚未开放的笔记、文章可以被点击或 Tab 到，进入不存在的页面。前置：已登录，有若干对话。触发：点击顶部导航的「摘星」；用键盘 Tab 遍历左侧类型列；分别打开 `/conversations` 与 `/conversations/:id`，读取无障碍树。
-
-必须成立：「摘星」是指向 `/conversations` 的链接；在 `/conversations` 与 `/conversations/:id` 上，导航中只有摘星带 `aria-current="page"`。类型列自上而下为「笔记」「文章」「对话」，「对话」带 `aria-current="page"` 并显示条数；「笔记」「文章」照常显示文字，但没有 `href`、不进入 Tab 顺序、不显示条数。禁止隐藏尚未开放的类型，禁止用 `?kind=` 选择类型。
-
-验证义务与证据：
-
-| 验证义务 | 状态 | 代表性证据 |
-| --- | --- | --- |
-| 摘星链接指向 `/conversations`，列表页与阅读页上只有摘星是当前项 | Covered | `pages/stars.test.tsx::opens the conversation list from 摘星, where only 对话 is open among the kinds`、`app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page` |
-| 类型列的顺序、当前类型与条数 | Covered | `pages/stars.test.tsx::opens the conversation list from 摘星, where only 对话 is open among the kinds` |
-| 尚未开放的类型不是链接、不进入 Tab 顺序、不显示条数 | Covered | `pages/stars.test.tsx::opens the conversation list from 摘星, where only 对话 is open among the kinds` |
-
-决策依据：D1、D2，不变量 1、2。
+当前决策：[摘星入口是目录式列表](../../../decisions/web/stars/0-contents-page-with-kind-column.md)，其中摘星链接与类型列由[笔记来自挂载的 Markdown 文件夹](../../../decisions/web/stars/20261014-notes-from-mounted-folder.md)修改，相应用例见[摘星笔记](notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert)。导航的当前项与不可点击项的通用规则见[文字导航与时刻地址](../navigation/text-nav-and-day-routes.md#navigation-must-mark-only-the-owning-section-and-keep-inert-items-out-of-reach)；阅读页删除后的落点见[对话阅读页](../../server/conversation/reading-page.md#deleting-a-conversation-must-return-to-where-the-reader-came-from)。
 
 ## Every row must open the path whose title and date it shows
 

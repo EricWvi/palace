@@ -30,9 +30,13 @@ async fn fixed_user_http_reuses_owner_without_login_or_cookies() {
             .unwrap();
     let database = Database::connect(&postgres.url).await.unwrap();
     let origin = "http://127.0.0.1:8080";
-    let app = palace_backend::fixed_user_router(database.clone(), origin.into())
-        .await
-        .unwrap();
+    let app = palace_backend::fixed_user_router(
+        database.clone(),
+        origin.into(),
+        std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
+    )
+    .await
+    .unwrap();
     let me = json_response(
         &app,
         Request::builder()
@@ -94,9 +98,13 @@ async fn fixed_user_http_reuses_owner_without_login_or_cookies() {
     )
     .await;
 
-    let rebuilt = palace_backend::fixed_user_router(database.clone(), origin.into())
-        .await
-        .unwrap();
+    let rebuilt = palace_backend::fixed_user_router(
+        database.clone(),
+        origin.into(),
+        std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
+    )
+    .await
+    .unwrap();
     assert_eq!(
         json_response(
             &rebuilt,

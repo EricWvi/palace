@@ -21,7 +21,8 @@ RUN cargo build --release --locked -p palace-server
 
 FROM alpine:latest AS runtime
 
-RUN apk add --no-cache ca-certificates \
+# ripgrep searches the mounted 摘星 notes folder.
+RUN apk add --no-cache ca-certificates ripgrep \
     && adduser -D --uid 10001 palace
 
 WORKDIR /app

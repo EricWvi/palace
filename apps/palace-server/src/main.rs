@@ -1,3 +1,4 @@
+mod notes;
 mod runtime;
 mod server;
 mod web_app;

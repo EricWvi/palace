@@ -1,3 +1,4 @@
+mod notes;
 mod postgres;
 mod runtime;
 
@@ -6,7 +7,7 @@ use palace_logging::{LogLevel, LogOutput, LoggingConfig, init_logging, palace_in
 /// Serves a fixed local owner over HTTP while retaining PostgreSQL data between runs.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let timezone = std::env::var("PALACE_TIMEZONE")
+    let timezone: chrono_tz::Tz = std::env::var("PALACE_TIMEZONE")
         .unwrap_or_else(|_| "Asia/Shanghai".into())
         .parse()?;
     let _logging = init_logging(LoggingConfig::new(
@@ -41,7 +42,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = async {
         let database = palace_db::Database::connect(&postgres.url).await?;
         palace_info!(message="PostgreSQL debug port published",port=15432,database="palace",username="postgres");
-        let app = palace_backend::fixed_user_router(database, origin.clone()).await?;
+        let (notes, _watch) = notes::notes_from_env(timezone)?;
+        let app = palace_backend::fixed_user_router(database, origin.clone(), notes).await?;
         palace_info!(message="Palace single-user test server listening",address=%address,origin=%origin);
         axum::serve(listener, app).with_graceful_shutdown(runtime::shutdown()).await?;
         Ok::<(), Box<dyn std::error::Error>>(())

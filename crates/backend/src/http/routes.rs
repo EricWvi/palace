@@ -10,6 +10,8 @@ pub(super) const CONVERSATIONS: &str = "/api/conversations";
 pub(super) const CONVERSATION: &str = "/api/conversations/{id}";
 pub(super) const PATHS: &str = "/api/conversations/{id}/paths";
 pub(super) const PATH: &str = "/api/conversations/{id}/paths/{path_id}";
+pub(super) const NOTES: &str = "/api/notes";
+pub(super) const NOTE: &str = "/api/notes/{id}";
 pub(super) const PATH_METADATA: &str = "/api/conversations/{id}/paths/{path_id}/metadata";
 pub(super) const LOGIN: &str = "/auth/login";
 pub(super) const CALLBACK: &str = "/auth/callback";
@@ -45,6 +47,8 @@ macro_rules! business_routes {
             put PATH => path_management::update,
             delete PATH => path_management::delete,
             put PATH_METADATA => path_management::update_metadata,
+            get NOTES => notes::list,
+            get NOTE => notes::note,
         }
     };
 }

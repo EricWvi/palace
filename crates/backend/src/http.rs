@@ -11,6 +11,7 @@ mod path_management;
 #[cfg(feature = "test-server")]
 pub use fixed_user::fixed_user_router;
 mod handlers;
+mod notes;
 mod security;
 mod sync;
 #[cfg(test)]
@@ -23,6 +24,7 @@ use error::ApiError;
 use handlers::*;
 use palace_db::{CredentialKey, Database, IdentityProvider, IdentityTokens, ProviderError};
 use palace_domain::{ImportLimits, SourceLinks};
+use palace_notes::NoteLibrary;
 use std::{future::Future, sync::Arc};
 use tower_http::compression::CompressionLayer;
 
@@ -55,6 +57,7 @@ pub struct Server<P> {
     pub origin: String,
     pub links: SourceLinks,
     pub limits: ImportLimits,
+    pub notes: Arc<NoteLibrary>,
     pub now: fn() -> i64,
 }
 /// Builds authenticated JSON/file endpoints with bounded bodies and no client-supplied owner scope.
@@ -63,6 +66,7 @@ pub fn router<P: LoginProvider + 'static>(server: Server<P>) -> Router {
         database: server.database.clone(),
         links: server.links.clone(),
         limits: server.limits,
+        notes: server.notes.clone(),
     });
     let server = Arc::new(server);
     let business = business.route_layer(axum::middleware::from_fn_with_state(
@@ -84,6 +88,7 @@ struct BusinessServer {
     database: Database,
     links: SourceLinks,
     limits: ImportLimits,
+    notes: Arc<NoteLibrary>,
 }
 
 /// Shares the complete business API between authenticated deployment and local single-user testing.

@@ -15,6 +15,7 @@ test-server = []
 [dependencies]
 palace-db = { workspace = true }
 palace-domain = { workspace = true }
+palace-notes = { workspace = true }
 openidconnect = { workspace = true }
 reqwest = { workspace = true }
 axum = { workspace = true }
@@ -35,5 +36,7 @@ testcontainers = { workspace = true }
 sqlx = { workspace = true }
 chrono = { workspace = true }
 pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+chrono-tz = { workspace = true }
 tower = { workspace = true }
 http-body-util = { workspace = true }

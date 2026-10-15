@@ -6,7 +6,7 @@
 
 风险：未上线的导航项可以被点击或 Tab 到，进入不存在的页面；或阅读页与时刻同时被标记为当前项，读者无法判断自己在哪里。前置：分别打开时间线和对话阅读页。触发：用鼠标点击、键盘 Tab 遍历导航，并读取无障碍树。
 
-必须成立：时间线上只有“时刻”带 `aria-current="page"`，阅读页上只有“摘星”带；“时刻”是链接并进入今天的时间线，“摘星”是链接并进入 `/conversations`（摘星决策 D1，细节见[摘星入口页](../stars/contents-page.md#stars-navigation-must-open-the-conversation-list-and-keep-unopened-kinds-inert)）；行事、旅途、回响照常显示文字，但没有 `href`，悬停不出现下划线，也不进入 Tab 顺序。禁止出现两个当前项、点不动的项获得焦点，或因无内容而隐藏导航项。
+必须成立：时间线上只有“时刻”带 `aria-current="page"`，阅读页上只有“摘星”带；“时刻”是链接并进入今天的时间线，“摘星”是链接并进入 `/notes`（笔记决策 D1，细节见[摘星笔记](../stars/notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert)）；行事、旅途、回响照常显示文字，但没有 `href`，悬停不出现下划线，也不进入 Tab 顺序。禁止出现两个当前项、点不动的项获得焦点，或因无内容而隐藏导航项。
 
 验证义务与证据：
 

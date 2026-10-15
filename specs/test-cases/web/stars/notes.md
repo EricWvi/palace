@@ -1,6 +1,6 @@
 # 摘星笔记核心测试用例
 
-当前决策：[笔记来自挂载的 Markdown 文件夹](../../../decisions/web/stars/20261014-notes-from-mounted-folder.md)。列表样式、搜索交互与后退恢复沿用[摘星入口页](contents-page.md)的用例；本文件只记录笔记引入的新承诺。决策尚未实现，所有证据当前为 `Missing`。
+当前决策：[笔记来自挂载的 Markdown 文件夹](../../../decisions/web/stars/20261014-notes-from-mounted-folder.md)。列表样式、搜索交互与后退恢复沿用[摘星入口页](contents-page.md)的用例；本文件只记录笔记引入的新承诺。
 
 ## Stars navigation must open the note list and keep articles inert
 
@@ -12,9 +12,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 摘星指向 `/notes`，笔记与对话的列表页、详情页上只有摘星是当前项 | Missing | 无 |
-| 类型列中笔记与对话可打开并显示条数，文章保持不可达 | Missing | 无 |
-| 对话删除后的落点仍是 `/conversations` | Partial | `pages/conversation.test.tsx::after deleting %s, replaces the page with %s`（现有行为，摘星改指向后需复核） |
+| 摘星指向 `/notes`，笔记与对话的列表页、详情页上只有摘星是当前项 | Covered | `pages/stars.test.tsx::opens the note list from 摘星, where notes and conversations are open and articles stay inert`、`app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`、`pages/note.test.tsx::lists notes by date and opens one at the top, to read only` |
+| 类型列中笔记与对话可打开并显示条数，文章保持不可达 | Covered | `pages/stars.test.tsx::opens the note list from 摘星, where notes and conversations are open and articles stay inert` |
+| 对话删除后的落点仍是 `/conversations` | Covered | `pages/stars.test.tsx::comes back to the same search, and drops the rows of a conversation deleted meanwhile`、`pages/conversation.test.tsx::after deleting %s, replaces the page with %s` |
 
 决策依据：D1，不变量 1。
 
@@ -28,9 +28,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 不同 Owner 的笔记响应相同，未登录被拒绝（真实 Router） | Missing | 无 |
-| 只读挂载下所有笔记功能正常 | Missing | 无 |
-| 笔记页没有任何改变笔记的入口 | Missing | 无 |
+| 不同 Owner 的笔记响应相同，未登录被拒绝（真实 Router） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 PostgreSQL 与真实 Router，经 `tests/http/notes.rs::exercise_notes`） |
+| 只读挂载下所有笔记功能正常 | Covered | `crates/notes/tests/notes.rs::notes_work_on_a_folder_the_server_cannot_write`（真实文件系统，文件夹与文件去掉写权限） |
+| 笔记页没有任何改变笔记的入口 | Covered | `pages/note.test.tsx::lists notes by date and opens one at the top, to read only`（页面上没有任何按钮）；服务端只挂载两个 `GET` 路由，由 `http/contract/tests.rs::contract_covers_operations_and_special_wire_types` 的路由清单比对 |
 
 决策依据：D2、D3，不变量 2、3。
 
@@ -44,9 +44,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 逐页取完后每篇恰好一次，按 `date` 与 ID 排序，与 mtime 无关 | Missing | 无 |
-| 只有日期的 `date` 按 `PALACE_TIMEZONE` 换算 | Missing | 无 |
-| 翻页途中替换 cache 不重复、不遗漏；`total` 不受 `q` 影响；坏游标返回 400 | Missing | 无 |
+| 逐页取完后每篇恰好一次，按 `date` 与 ID 排序，与 mtime 无关 | Covered | `crates/notes/tests/notes.rs::note_list_must_page_every_indexed_note_exactly_once_by_its_date`（真实文件系统，同一天十篇跨过分页边界）、`crates/notes/src/cache.rs::index_orders_by_date_and_reads_days_in_the_deployment_zone`；顺序只由 cache 决定，列表不读取文件系统时间 |
+| 只有日期的 `date` 按 `PALACE_TIMEZONE` 换算 | Covered | `crates/notes/src/cache.rs::index_orders_by_date_and_reads_days_in_the_deployment_zone` |
+| 翻页途中替换 cache 不重复、不遗漏；`total` 不受 `q` 影响；坏游标返回 400 | Covered | `crates/notes/tests/notes.rs::note_list_must_page_every_indexed_note_exactly_once_by_its_date`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 Router，坏游标）、`crates/notes/src/page.rs::cursors_round_trip_and_refuse_foreign_tokens` |
 
 决策依据：D4、D6，不变量 4、5。
 
@@ -60,9 +60,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 枚举结果与 rg 一致，不在 git 仓库内时仍应用 `.gitignore`（真实 ripgrep） | Missing | 无 |
-| 不合格 frontmatter 全部报告、非零退出、不改动原 cache | Missing | 无 |
-| cache 原子替换，只收集 `title` 与 `date` | Missing | 无 |
+| 枚举结果与 rg 一致，不在 git 仓库内时仍应用 `.gitignore`（真实 ripgrep） | Covered | `scripts/notes-cache.test.ts::collects the title and date of exactly the notes ripgrep sees`（真实 ripgrep，临时目录不在 git 仓库内） |
+| 不合格 frontmatter 全部报告、非零退出、不改动原 cache | Covered | `scripts/notes-cache.test.ts::reports every invalid note and keeps the previous cache` |
+| cache 原子替换，只收集 `title` 与 `date` | Covered | `scripts/notes-cache.test.ts::replaces the cache without leaving a temporary file behind`、`scripts/notes-cache.test.ts::collects the title and date of exactly the notes ripgrep sees`（`tag` 不进入 cache） |
 
 决策依据：D4、D5，不变量 7。
 
@@ -76,9 +76,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| rename 替换被检测到并整体替换索引（真实文件系统） | Missing | 无 |
-| 轮询兜底在没有文件事件时生效 | Missing | 无 |
-| 损坏、未知版本、缺失时保留上一份索引；无 cache 或未配置时以空索引启动 | Missing | 无 |
+| rename 替换被检测到并整体替换索引（真实文件系统） | Covered | `crates/notes/tests/notes.rs::cache_reload_must_swap_the_whole_index_and_keep_it_when_the_cache_is_broken`（真实文件事件，等待索引变化而不是固定时长） |
+| 轮询兜底在没有文件事件时生效 | Covered | `crates/notes/tests/notes.rs::cache_reload_must_swap_the_whole_index_and_keep_it_when_the_cache_is_broken`（直接触发一次轮询；stamp 未变时不重新加载） |
+| 损坏、未知版本、缺失时保留上一份索引；无 cache 或未配置时以空索引启动 | Covered | `crates/notes/tests/notes.rs::cache_reload_must_swap_the_whole_index_and_keep_it_when_the_cache_is_broken`、`crates/notes/src/cache.rs::index_refuses_a_cache_with_any_unusable_entry` |
 
 决策依据：D5，不变量 9。
 
@@ -92,9 +92,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 标题与正文按不区分大小写的字面量匹配，特殊字符与 `-` 开头的关键词安全（真实 ripgrep） | Missing | 无 |
-| 不在 git 仓库内时仍应用 `.gitignore`，结果是当前索引的子集（真实 ripgrep） | Missing | 无 |
-| rg 超时或不可执行时返回 5xx | Missing | 无 |
+| 标题与正文按不区分大小写的字面量匹配，特殊字符与 `-` 开头的关键词安全（真实 ripgrep） | Covered | `crates/notes/tests/notes.rs::note_search_must_match_literally_and_stay_within_the_index`（真实 ripgrep） |
+| 不在 git 仓库内时仍应用 `.gitignore`，结果是当前索引的子集（真实 ripgrep） | Covered | `crates/notes/tests/notes.rs::note_search_must_match_literally_and_stay_within_the_index`（真实 ripgrep）、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 Router，未入 cache 的文件不出现） |
+| rg 超时或不可执行时返回 5xx | Covered | `crates/notes/tests/notes.rs::note_search_fails_whole_when_ripgrep_cannot_finish`（不存在的程序、永不退出的程序）、`crates/backend/src/http/tests.rs::failed_note_search_is_unavailable`（映射为 503） |
 
 决策依据：D6，不变量 6、7。正文匹配的义务只能以真实 ripgrep 为直接证据。
 
@@ -108,8 +108,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 路径穿越、绝对路径、不在索引中的 ID 全部 404，读不到秘密文件（真实文件系统与真实 Router） | Missing | 无 |
-| 正文去掉 frontmatter 且读取最新文件内容，已删除文件返回 404 | Missing | 无 |
-| 含 `/` 与中文的 ID 在前端路由与接口间往返一致，笔记页版式与无返回链接 | Missing | 无 |
+| 路径穿越、绝对路径、不在索引中的 ID 全部 404，读不到秘密文件（真实文件系统与真实 Router） | Covered | `crates/notes/tests/notes.rs::note_page_must_read_only_files_listed_in_the_index`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 Router，`../secret`）、`crates/notes/src/cache.rs::ids_name_only_files_below_the_folder`（cache 中的越界 ID 被拒绝） |
+| 正文去掉 frontmatter 且读取最新文件内容，已删除文件返回 404 | Covered | `crates/notes/tests/notes.rs::note_page_must_read_only_files_listed_in_the_index`、`crates/notes/src/library.rs::body_leaves_out_the_frontmatter` |
+| 含 `/` 与中文的 ID 在前端路由与接口间往返一致，笔记页版式与无返回链接 | Covered | `pages/note.test.tsx::lists notes by date and opens one at the top, to read only`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 Router 解码 `%2F`） |
 
 决策依据：D4、D7，不变量 8。

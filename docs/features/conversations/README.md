@@ -23,8 +23,8 @@
 
 ## 摘星中的对话列表
 
-`/conversations` 是摘星的入口页，规则见 `specs/decisions/web/stars/`。左侧一列类型「笔记 / 文章 / 对话」，
-目前只有对话可以打开，并显示全部 Path 的条数。右侧每条 Path 一行：标题、来源、点线和 `MM.DD`，
+`/conversations` 是摘星中的对话列表，规则见 `specs/decisions/web/stars/`；摘星链接本身进入[笔记](../notes/README.md)列表。左侧一列类型「笔记 / 文章 / 对话」，
+笔记与对话可以打开并显示各自的条数。右侧每条 Path 一行：标题、来源、点线和 `MM.DD`，
 日期与顺序取这条 Path 在时间线上的时间（对话 Moment 的发生时间），倒序排列，按本地年份分组。同一对话的分支各占一行；点击打开
 `/conversations/:id?path=<Path ID>`，不带 `date`，因此阅读页不显示返回链接。
 

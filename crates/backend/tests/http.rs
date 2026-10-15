@@ -21,6 +21,8 @@ use tower::ServiceExt;
 mod contract;
 #[path = "http/inputs.rs"]
 mod inputs;
+#[path = "http/notes.rs"]
+mod notes;
 
 #[path = "http/paths.rs"]
 mod paths;
@@ -84,6 +86,10 @@ fn request(
 /// - `specs/test-cases/server/conversation/reading-page.md#the-message-toc-must-list-every-message-of-the-current-path-by-its-opening`
 /// - `specs/test-cases/web/stars/contents-page.md#conversation-list-must-stay-within-the-owner`
 /// - `specs/test-cases/web/stars/contents-page.md#conversation-list-must-page-every-path-exactly-once-in-order`
+/// - `specs/test-cases/web/stars/notes.md#notes-must-be-read-only-and-readable-by-every-signed-in-user`
+/// - `specs/test-cases/web/stars/notes.md#note-list-must-page-every-indexed-note-exactly-once-by-its-date`
+/// - `specs/test-cases/web/stars/notes.md#note-search-must-match-literally-and-stay-within-the-index`
+/// - `specs/test-cases/web/stars/notes.md#note-page-must-read-only-files-listed-in-the-index`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {
@@ -148,6 +154,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     let mut links = SourceLinks::standard().unwrap();
     links.chatgpt = url::Url::parse(&source_url).unwrap();
     let capture = contract::Capture::default();
+    let (_notes_folder, library) = notes::library();
     let app = capture.attach(router(Server {
         database: db,
         provider: Provider,
@@ -158,6 +165,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
             bytes: 1024,
             ..Default::default()
         },
+        notes: library,
         now,
     }));
     let history = r#"[{"role":"user","content":"<script>alert(1)</script>\r\n","extra":123}]"#;
@@ -333,14 +341,8 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     }
     // The 摘星 list shows each path under its own title, only to its owner; a blank search is no
     // search, and a cursor this server never wrote is a field error.
-    let updated_at: i64 = sqlx::query_scalar(
-        "SELECT (extract(epoch FROM updated_at)*1000)::bigint FROM conversation_path WHERE id=$1",
-    )
-    .bind(uuid::Uuid::parse_str(result["path_id"].as_str().unwrap()).unwrap())
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    let mine = serde_json::json!({"items":[{"id":result["path_id"],"conversation_id":result["conversation_id"],"title":"t","source":"chatgpt","updated_at":updated_at}],"next_cursor":null,"total":1});
+    // Rows are dated by their moment, the time the import gave them on the timeline.
+    let mine = serde_json::json!({"items":[{"id":result["path_id"],"conversation_id":result["conversation_id"],"title":"t","source":"chatgpt","occurred_at":1700000000000_i64}],"next_cursor":null,"total":1});
     for (uri, credential, status, expected) in [
         (
             "/api/conversations",
@@ -504,6 +506,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     }
     let counts:(i64,i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM conversation),(SELECT count(*) FROM message),(SELECT count(*) FROM conversation_import)").fetch_one(&pool).await.unwrap();
     assert_eq!(counts, (1, 1, 1));
+    notes::exercise_notes(&app, &cookie, &foreign).await;
     paths::exercise_path_lifecycle(&app, &cookie, &foreign).await;
     inputs::exercise_contract_boundaries(&app, &cookie, &foreign, &pool, &sessions[0].owner).await;
     let anonymous = app
@@ -635,6 +638,7 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         origin: origin.clone(),
         links: SourceLinks::standard().unwrap(),
         limits: ImportLimits::default(),
+        notes: std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
         now,
     }));
     let server = tokio::spawn(async move {

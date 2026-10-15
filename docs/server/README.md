@@ -94,6 +94,8 @@ docker run --publish 8080:8080 --env-file .env palace:local
 | `GET /api/timeline?start=&end=` | 调用方本地日期区间内的 Moment，按发生时间排序，含卡片字段 |
 | `GET /api/timeline/outline?start=&end=` | 同一区间内 Moment 的 `id` 与 `kind`，顺序与时间线一致，不读详情 |
 | `GET /api/conversations?q=&cursor=` | 摘星的对话列表：每条 Path 一行，按对话 Moment 的 `occurred_at` 倒序，每页 50 条，`total` 为全部 Path 数；`q` 按字面子串匹配 Path 标题或该 Path 上的消息 |
+| `GET /api/notes?q=&cursor=` | 摘星的笔记列表，来自挂载的笔记文件夹，所有已登录用户相同；见[笔记](../features/notes/README.md) |
+| `GET /api/notes/{id}` | 一篇笔记去掉 frontmatter 的正文；`{id}` 中的 `/` 编码为 `%2F` |
 | `GET /api/conversations/{id}` | 对话、消息树、各 Path 标题和受控来源链接 |
 | `GET /api/conversations/{id}/paths/{path_id}` | 来源 Path 对应的完整祖先路径 |
 | `POST /api/conversations/{id}/paths` | 在已有树中新建带标题的分支，JSON 不接受来源 |

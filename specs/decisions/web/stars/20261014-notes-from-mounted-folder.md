@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 date: 2026-10-14
 ---
 
@@ -7,7 +7,7 @@ date: 2026-10-14
 
 摘星开放「笔记」。笔记不存数据库，而是一个由 Eric 在 Palace 之外维护的 Markdown 文件夹，挂载进容器。Palace 提供一个 TypeScript 脚本，把每篇笔记 frontmatter 中的 `title`、`date` 收集成一个 cache 文件，放在笔记文件夹根目录；服务端只监听这一个文件，变动时整体替换内存中的笔记索引。笔记列表由内存索引提供，按 `date` 倒序；搜索由容器内的 ripgrep 扫描笔记文件夹完成；笔记页的样式沿用对话阅读页，读取的是 Markdown 文件本身。Palace 不新建、不编辑、不删除笔记。摘星导航改为指向 `/notes`。
 
-当前为 `approved`，方案已通过评审，尚未实现；核心测试用例见[摘星笔记](../../../test-cases/web/stars/notes.md)。本决策基于[摘星入口页根决策](0-contents-page-with-kind-column.md)，开放其中预留的笔记类型；涉及 `apps/palace-web` 的摘星与笔记页、`palace-backend` 的笔记接口、`palace-server` 的配置与运行时、`Dockerfile`，以及新增的 cache 生成脚本。笔记的 tag 与层级、文章类型、旧数据库中 Quick Note 等内容的迁移不在本决策范围内。
+当前为 `implemented`，核心测试用例见[摘星笔记](../../../test-cases/web/stars/notes.md)。本决策基于[摘星入口页根决策](0-contents-page-with-kind-column.md)，开放其中预留的笔记类型；涉及 `apps/palace-web` 的摘星与笔记页、`palace-backend` 的笔记接口、`palace-server` 的配置与运行时、`Dockerfile`，以及新增的 cache 生成脚本。笔记的 tag 与层级、文章类型、旧数据库中 Quick Note 等内容的迁移不在本决策范围内。
 
 ## 问题与约束
 
@@ -60,7 +60,8 @@ date: 2026-10-14
 
 ## D4：笔记的身份与 frontmatter
 
-- 笔记 ID 是 Markdown 文件相对笔记文件夹根目录的路径去掉 `.md` 后缀，分隔符统一为 `/`，例如 `rust/advisory-lock`。前端地址中每一段分别做 URL 编码。
+- 笔记 ID 是 Markdown 文件相对笔记文件夹根目录的路径去掉 `.md` 后缀，分隔符统一为 `/`，例如 `rust/advisory-lock`。前端地址 `/notes/<id>` 中每一段分别做 URL 编码；接口 `/api/notes/{id}` 中整个 ID 是一个路径段，`/` 编码为 `%2F`。
+- 服务端加载 cache 时检查每个 ID：空段、`.`、`..`、反斜杠或会构成绝对路径的 ID 使整份 cache 被拒绝，因此索引中的 ID 只能指向文件夹内的文件。
 - 改名或移动文件会改变 ID，旧链接随之失效。笔记以文件为主，文件路径就是作者心目中的名字；为了链接稳定而要求每篇笔记手写一个 `id`，代价大于收益。
 - 每篇笔记的 frontmatter 必须包含：
 
@@ -77,26 +78,18 @@ date: 2026-10-14
 
 ### 生成脚本
 
-- 脚本由 Palace 仓库提供（`scripts/` 下的 TypeScript，直接用 Node 运行），参数是笔记文件夹路径；在容器外由 Eric 的工作流触发（手动、git hook 或定时任务均可，不属于 Palace 的职责）。
-- 脚本用 `rg --files --no-require-git -g '*.md'` 枚举笔记文件，而不是自己遍历目录。这样列表与搜索（D6）看到的是同一组文件，`.gitignore`、`.ignore` 和隐藏文件的规则只有 ripgrep 一种解释。
+- 脚本是 `scripts/notes-cache.ts`，用 Node 24 直接运行，参数是笔记文件夹路径；在容器外由 Eric 的工作流触发（手动、git hook 或定时任务均可，不属于 Palace 的职责）。
+- 脚本用 `rg --no-config --files --no-require-git --type-add 'note:*.md' --type note` 枚举笔记文件，而不是自己遍历目录。这样列表与搜索（D6）看到的是同一组文件，`.gitignore`、`.ignore` 和隐藏文件的规则只有 ripgrep 一种解释。`*.md` 用文件类型选择而不是 `--glob`：`--glob` 的规则优先于 ignore 文件，会把 `.ignore` 排除的笔记重新选回来（评审时写的是 `-g '*.md'`，实现时发现并改正）。
+- frontmatter 按 YAML core schema 解析，`date: 2026-10-05` 保持为字符串，不会被解析成 UTC 零点而换了日期。
 - 脚本解析每个文件的 frontmatter，按 D4 校验；任何一篇不合格时报告所有问题并以非零状态退出，不写 cache。Palace 只信任 cache，不重复校验。
-- cache 写在笔记文件夹根目录的 `.palace-cache.json`，先写临时文件再 rename 原子替换。该文件名写入笔记文件夹的 `.ignore`，不会被枚举或搜索到。
-- 格式示例（只用于说明语义）：
-
-  ```json
-  {
-    "version": 1,
-    "notes": [
-      { "id": "rust/advisory-lock", "title": "PostgreSQL advisory lock 的用法", "date": "2026-10-05" }
-    ]
-  }
-  ```
+- cache 写在笔记文件夹根目录的 `.palace-cache.json`，先写临时文件再 rename 原子替换。它以点开头且不是 `.md`，ripgrep 既不枚举也不搜索它，不需要写进 `.ignore`（评审稿曾要求写入，实现时去掉）。
+- cache 是 `{ version: 1, notes: [{ id, title, date }] }`，`date` 保持 frontmatter 中的原文，由服务端按 D4 换算。
 
 ### 服务端
 
 - 新增可选环境变量 `PALACE_NOTES_DIR`，指向容器内的笔记文件夹。未配置时，笔记列表为空，类型列照常显示条数 0。
-- 服务端非递归地监听 `PALACE_NOTES_DIR` 目录，只处理文件名为 `.palace-cache.json` 的事件；另外每分钟比较一次 cache 的 mtime 作为兜底，覆盖 inotify 不触发的挂载盘。
-- 变化时完整读取并解析 cache，按 `date DESC, id DESC` 排好，整体替换内存索引。请求读取的总是某一份完整索引，不会看到解析到一半的状态。
+- 服务端非递归地监听 `PALACE_NOTES_DIR` 目录，只处理文件名为 `.palace-cache.json` 的事件；另外每分钟比较一次 cache 的修改时间、大小与 inode 作为兜底，覆盖 inotify 不触发的挂载盘。编辑笔记本身不会唤醒服务端。
+- 变化时完整读取并解析 cache，按 `date DESC, id DESC` 排好，整体替换内存索引。任何一项不合格（ID 越界、标题为空、日期无法解析、ID 重复）都拒绝整份 cache。请求读取的总是某一份完整索引，不会看到解析到一半的状态。
 - 解析失败（文件缺失、JSON 损坏、版本不认识）时保留上一份索引并记录错误日志；启动时没有可用的 cache，则以空索引启动，不阻止服务启动。
 
 **为什么挂载目录而不是单个 cache 文件**：单文件 bind mount 绑定的是 inode；脚本原子替换 cache 后，容器里看到的仍是旧 inode，变化永远不会被发现。cache 放在笔记文件夹内，整个文件夹只挂载一次，rename 在容器内可见。
@@ -115,10 +108,10 @@ date: 2026-10-14
 搜索：
 
 - 标题匹配在内存中完成：不区分大小写的子串匹配。
-- 正文匹配调用 `rg --files-with-matches --fixed-strings --ignore-case --no-require-git -g '*.md' -e <关键词>`，以笔记文件夹为工作目录，参数直接传给进程而不经过 shell。`--fixed-strings` 让关键词按字面量匹配，与对话搜索转义 `%`、`_` 的语义一致；`-e` 让以 `-` 开头的关键词不被当成选项。
+- 正文匹配调用 `rg --no-config --files-with-matches --null --fixed-strings --ignore-case --no-require-git --type-add 'note:*.md' --type note -e <关键词> .`，以笔记文件夹为工作目录，参数直接传给进程而不经过 shell。`--fixed-strings` 让关键词按字面量匹配，与对话搜索转义 `%`、`_` 的语义一致；`-e` 让以 `-` 开头的关键词不被当成选项；`--no-config` 让运行环境里的 ripgrep 配置不能改变哪些文件参与搜索。
 - 命中的文件映射回 ID，只保留当前索引中存在的笔记；与标题命中的结果合并，按列表顺序分页。cache 尚未刷新时新文件搜不到、已删除的文件不出现，结果始终是索引的子集。
 - frontmatter 是文件的一部分，因此 `tag` 等字段里的文字也能被搜到；这对“找一篇笔记”是有益的，不做剔除。
-- rg 设置超时；超时或不可执行时返回 5xx，前端显示错误状态，不把部分结果当作完整结果。
+- rg 每次搜索限时 10 秒；超时、不可执行，或退出码既不是 0（有匹配）也不是 1（无匹配）时，接口返回 503 `search_unavailable`，前端显示错误状态，不把部分结果当作完整结果。
 - 每次翻页都重新执行一次 rg。单用户、笔记数量在千级时，一次扫描的成本可以接受，不缓存搜索结果，也就不需要处理缓存与 cache 刷新之间的一致性。
 
 `rg` 不需要容器里有 git：它自己解析 `.gitignore`，但默认只在 git 仓库内才应用，所以必须带 `--no-require-git`（挂载的通常不是仓库根目录）。运行镜像通过 `apk add ripgrep` 安装。
@@ -130,7 +123,7 @@ date: 2026-10-14
 - 服务端只读取当前索引中存在的 ID 对应的文件；不在索引中的 ID 返回 404。路径因此只来自脚本生成的 cache，而不是请求，请求中的 `..` 或绝对路径无法读到笔记文件夹之外的文件。
 - 文件在索引中但已被删除或无法读取时返回 404，并记录日志。
 - 每次请求都从文件读取正文，不缓存。正文修改后无需重新生成 cache 即可看到；标题和日期以 cache 为准，直到下一次生成。
-- 页面沿用对话阅读页的版式：页首是标题与 `YYYY.MM.DD` 日期，正文用共享的 Markdown 组件渲染（含代码高亮）。没有 `···` 菜单，也没有任何操作。对话阅读页的目录按消息列出，笔记没有消息，第一版不显示目录；按标题生成目录留给以后。
+- 页面沿用对话阅读页的版式：页首是标题与 `YYYY.MM.DD` 日期，正文用共享的 Markdown 组件渲染（含代码高亮），图片按原地址加载（都是 S3 链接）。不存在的笔记显示“找不到这篇笔记。”。没有 `···` 菜单，也没有任何操作。对话阅读页的目录按消息列出，笔记没有消息，第一版不显示目录；按标题生成目录留给以后。
 - 从摘星进入的笔记页不显示返回链接，与根决策 D6 一致。
 
 ## 不变量
@@ -166,10 +159,11 @@ date: 2026-10-14
 - **跨类型搜索**：仍只搜当前类型。
 - **cache 过期提示**：Palace 不判断 cache 是否落后于文件夹，忘记运行脚本时只表现为新笔记不出现。
 
-## 落地顺序
+## 落地与验收
 
-1. **cache 脚本**：`scripts/` 下新增脚本与其测试，覆盖 frontmatter 校验、ignore 规则与原子写入。完成后可以在本机对真实笔记文件夹生成 cache，Palace 行为不变。
-2. **服务端索引与接口**：`PALACE_NOTES_DIR` 配置、cache 监听与轮询、内存索引、`GET /api/notes` 与 `GET /api/notes/{id}`、rg 搜索；`Dockerfile` 安装 ripgrep；`docs/server/环境变量.md` 补充 `PALACE_NOTES_DIR` 并更新 `PALACE_TIMEZONE` 的含义。接口可独立用临时目录测试，前端不变。
-3. **Web**：类型列开放笔记，新增 `/notes` 列表与笔记页，摘星链接改为 `/notes`。从这一步开始，摘星的落点从对话列表变为笔记列表。
+- `scripts/notes-cache.ts` 生成 cache，`task test:scripts` 用真实 ripgrep 覆盖枚举、校验与原子写入。
+- `palace-notes` crate 拥有 cache 解析、内存索引、目录监听与轮询、ripgrep 搜索和正文读取；它不依赖数据库，也不接受 Owner。`palace-backend` 新增 `GET /api/notes` 与 `GET /api/notes/{id}`，`palace-server` 的两个入口从 `PALACE_NOTES_DIR` 构造 `NoteLibrary` 并保持监听。运行镜像安装 `ripgrep`。
+- `apps/palace-web` 的 `StarsPage` 按类型显示笔记或对话列表，两个列表都加载第一页以便类型列显示两种条数；新增 `NotePage` 承担 `/notes/*`；摘星链接改为 `/notes`。
+- 真实文件系统与真实 ripgrep 的测试覆盖不变量 4–9，真实 PostgreSQL 与真实 Router 的 HTTP 测试覆盖不变量 3 与接口层的不变量 6、8，组件测试覆盖不变量 1、2 与笔记页。证据见核心测试用例。
 
-对话列表、对话阅读页、搜索交互与时间线的行为在整个过程中保持不变。
+对话列表、对话阅读页、搜索交互与时间线的行为保持不变；摘星的落点从对话列表变为笔记列表。

@@ -5,6 +5,8 @@ date: 2026-10-09
 
 # 摘星入口是目录式列表：左侧一列内容类型，右侧按年分组、一行一条，第一版只开放对话
 
+> 历史决策：D1 中“摘星链接固定指向对话列表”、D2 中笔记“尚未开放”，以及“未解决的问题”中的 `n` 新建笔记与笔记详情页参照 `design/3.2-stars-note.html`，已由[笔记来自挂载的 Markdown 文件夹](20261014-notes-from-mounted-folder.md)修改：摘星指向 `/notes`，笔记开放且在 Palace 中只读。
+
 「摘星」导航变为可点击，进入摘星的入口页。页面像一本书的目录：左侧一列内容类型「笔记 / 文章 / 对话」，右侧是当前类型的条目，按年分组，每条一行，标题后以点线连到日期。第一版只有「对话」可以打开，笔记和文章照常显示但不可点击。对话列表一行代表一条 Path，显示该 Path 的标题，与时间线上的对话 Moment 一一对应；同一 Conversation 的多条 Path 各占一行。服务端新增分页的对话列表接口，支持按 Path 标题和 Path 上的消息内容搜索；按 `/` 打开搜索，回车执行。
 
 当前为 `implemented`，核心测试用例见[摘星入口页](../../../test-cases/web/stars/contents-page.md)。这是 `web/stars` 的根决策，没有前序 ADR；它修改[Web 导航根决策](../navigation/0-text-nav-day-routes-and-moment-opening.md)的 D1（摘星不可点击）与 D3（没有来源日期时的落点），解决了该决策“本决策未解决的问题”中的“摘星入口页”。视觉参照为 `design/3.1-stars.html`；笔记详情页的参照 `design/3.2-stars-note.html` 不在本决策范围内。

@@ -45,6 +45,11 @@ function serve(page: Page) {
   return page.route("**/api/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+    // The kind column also counts notes; this page has none.
+    if (url.pathname === "/api/notes")
+      return route.fulfill({
+        json: { items: [], next_cursor: null, total: 0 },
+      });
     if (url.pathname === "/api/conversations") {
       const start = Number(url.searchParams.get("cursor") ?? 0);
       return route.fulfill({

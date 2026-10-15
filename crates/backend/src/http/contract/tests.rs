@@ -8,6 +8,8 @@ use serde_json::json;
 use uuid::Uuid;
 
 /// Checks route coverage and the nullable/string semantics that default derives can misrepresent.
+/// Core test case:
+/// - `specs/test-cases/web/stars/notes.md#notes-must-be-read-only-and-readable-by-every-signed-in-user`
 #[test]
 fn contract_covers_operations_and_special_wire_types() {
     let document = serde_json::to_value(api_contract()).unwrap();

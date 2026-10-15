@@ -353,6 +353,7 @@ it("renames only the current path and corrects the source of the whole conversat
 // Core test cases:
 // - `specs/test-cases/server/conversation/reading-page.md#deleting-a-conversation-must-return-to-where-the-reader-came-from`
 // - `specs/test-cases/web/stars/contents-page.md#returning-to-the-list-must-restore-the-search-and-drop-stale-rows`
+// - `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert`
 it.each([
   ["/conversations/tree?path=p1&date=2025-09-30", "/?date=2025-09-30"],
   ["/conversations/tree?path=p1", "/conversations"],

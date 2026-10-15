@@ -5,10 +5,10 @@ export type Section = "时刻" | "行事" | "旅途" | "摘星" | "回响";
 const sections: Section[] = ["时刻", "行事", "旅途", "摘星", "回响"];
 const pages: Partial<Record<Section, string>> = {
   时刻: "/",
-  摘星: "/conversations",
+  摘星: "/notes",
 };
 
-// Sections with a page are links: 时刻 opens today, 摘星 its conversation list. The others stay
+// Sections with a page are links: 时刻 opens today, 摘星 its note list. The others stay
 // visible as plain words, so the bar keeps its shape as they arrive, but they are not links and
 // never take keyboard focus.
 export function PalaceHeader({ active }: { active?: Section }) {

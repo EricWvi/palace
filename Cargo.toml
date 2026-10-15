@@ -5,6 +5,7 @@ members = [
     "crates/db",
     "crates/domain",
     "crates/logging",
+    "crates/notes",
     "crates/testkit",
     "xtask",
 ]
@@ -27,6 +28,7 @@ palace-backend = { path = "crates/backend" }
 palace-db = { path = "crates/db" }
 palace-domain = { path = "crates/domain" }
 palace-logging = { path = "crates/logging" }
+palace-notes = { path = "crates/notes" }
 palace-testkit = { path = "crates/testkit" }
 
 # External
@@ -39,6 +41,7 @@ email_address = "0.2"
 flate2 = "1"
 hmac = "0.12"
 http-body-util = "0.1"
+notify = "8.2"
 openidconnect = "4.0"
 pretty_assertions = "1"
 proc-macro2 = "1.0.107"

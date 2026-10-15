@@ -8,12 +8,15 @@ use axum::{
 };
 use palace_db::{Database, Owner};
 use palace_domain::{ImportLimits, SourceLinks};
+use palace_notes::NoteLibrary;
+use std::sync::Arc;
 
 /// Builds the local single-user API without OIDC, sessions, cookies or login routes.
 /// The stable identity pair reuses its Owner across restarts of the persistent database.
 pub async fn fixed_user_router(
     database: Database,
     origin: String,
+    notes: Arc<NoteLibrary>,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let owner = database
         .resolve_identity("palace:local-test", "single-user", "local-test@palace.test")
@@ -22,6 +25,7 @@ pub async fn fixed_user_router(
         database,
         links: SourceLinks::standard()?,
         limits: ImportLimits::default(),
+        notes,
     })
     .route_layer(middleware::from_fn_with_state((owner, origin), identify))
     .route(
