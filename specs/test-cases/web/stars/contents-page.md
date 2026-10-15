@@ -4,6 +4,8 @@
 
 ## Stars navigation must open the conversation list and keep unopened kinds inert
 
+> 已被修改：[笔记来自挂载的 Markdown 文件夹](../../../decisions/web/stars/20261014-notes-from-mounted-folder.md)（approved）把摘星改为指向 `/notes` 并开放笔记，新承诺见[摘星笔记](notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert)。该决策实现前，下面的证据仍描述当前行为；实现后本用例只保留对话列表页的部分。
+
 风险：摘星仍点不动，或进入后找不到对话列表；尚未开放的笔记、文章可以被点击或 Tab 到，进入不存在的页面。前置：已登录，有若干对话。触发：点击顶部导航的「摘星」；用键盘 Tab 遍历左侧类型列；分别打开 `/conversations` 与 `/conversations/:id`，读取无障碍树。
 
 必须成立：「摘星」是指向 `/conversations` 的链接；在 `/conversations` 与 `/conversations/:id` 上，导航中只有摘星带 `aria-current="page"`。类型列自上而下为「笔记」「文章」「对话」，「对话」带 `aria-current="page"` 并显示条数；「笔记」「文章」照常显示文字，但没有 `href`、不进入 Tab 顺序、不显示条数。禁止隐藏尚未开放的类型，禁止用 `?kind=` 选择类型。
