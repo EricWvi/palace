@@ -175,6 +175,7 @@ tasks:
     cmds:
       - cargo test -p palace-db --test postgres -- --ignored
       - cargo test -p palace-media --test minio -- --ignored
+      - cargo test -p pal --test palace -- --ignored
       - task: test:api-http
 
   test:api-http:

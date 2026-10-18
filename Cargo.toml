@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "apps/pal",
     "apps/palace-server",
     "crates/backend",
     "crates/db",
@@ -39,10 +40,12 @@ axum = { version = "0.8", features = ["multipart"] }
 base64 = "0.22"
 bytes = "1"
 chrono = "0.4"
+clap = { version = "4", features = ["derive"] }
 chrono-tz = "0.10"
 email_address = "0.2"
 flate2 = "1"
 hmac = "0.12"
+mime_guess = "2"
 http-body-util = "0.1"
 notify = "8.2"
 object_store = { version = "0.12", default-features = false, features = ["aws"] }

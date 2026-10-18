@@ -1,0 +1,31 @@
+[package]
+name = "pal"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+palace-domain = { workspace = true }
+clap = { workspace = true }
+mime_guess = { workspace = true }
+reqwest = { workspace = true, features = ["blocking", "multipart"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+palace-backend = { workspace = true }
+palace-db = { workspace = true }
+palace-media = { workspace = true }
+palace-notes = { workspace = true }
+palace-testkit = { workspace = true }
+axum = { workspace = true }
+pretty_assertions = { workspace = true }
+sqlx = { workspace = true }
+tempfile = { workspace = true }
+testcontainers = { workspace = true }
+tokio = { workspace = true }
