@@ -10,7 +10,7 @@ use std::sync::Arc;
 #[utoipa::path(
     get, path = routes::TIMELINE, operation_id = "timeline",
     params(dto::TimelineRange),
-    security(("session" = [])),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Moments ordered by occurrence time, then id", body = [dto::Moment], headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
@@ -43,7 +43,7 @@ pub(super) async fn timeline(
 #[utoipa::path(
     get, path = routes::TIMELINE_OUTLINE, operation_id = "timelineOutline",
     params(dto::TimelineRange),
-    security(("session" = [])),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Moment ids and kinds in the order the timeline returns them", body = [dto::MomentOutline], headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),

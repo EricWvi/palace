@@ -13,8 +13,8 @@ use uuid::Uuid;
 #[utoipa::path(
     post, path = routes::PATHS, operation_id = "create",
     request_body = dto::NewPath,
-    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
-    security(("session" = [])),
+    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::ImportResult, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
@@ -59,8 +59,8 @@ pub(super) async fn create(
 #[utoipa::path(
     put, path = routes::PATH, operation_id = "update",
     request_body = dto::UpdatePath,
-    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("path_id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
-    security(("session" = [])),
+    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("path_id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::ImportResult, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
@@ -128,8 +128,8 @@ pub(super) async fn update(
 /// Deletes only one source path while preserving shared ancestors and other paths.
 #[utoipa::path(
     delete, path = routes::PATH, operation_id = "delete",
-    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("path_id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
-    security(("session" = [])),
+    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("path_id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::Deleted, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", body = String, content_type = "text/plain"),
@@ -155,8 +155,8 @@ pub(super) async fn delete(
 /// Deletes the card and all branches atomically inside the authenticated owner's scope.
 #[utoipa::path(
     delete, path = routes::CONVERSATION, operation_id = "delete_conversation",
-    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
-    security(("session" = [])),
+    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::Deleted, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", body = String, content_type = "text/plain"),
@@ -183,8 +183,8 @@ pub(super) async fn delete_conversation(
 #[utoipa::path(
     put, path = routes::PATH_METADATA, operation_id = "update_path_metadata",
     request_body = dto::PathMetadata,
-    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("path_id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
-    security(("session" = [])),
+    params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("path_id" = Uuid, Path, description = "Owner-scoped UUID"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::PathMetadataResponse, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),

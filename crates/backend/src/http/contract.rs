@@ -1,10 +1,11 @@
 //! Offline contract assembly; operation metadata lives beside the real handlers.
 use super::{
-    business, conversation_list, handlers, media, notes, path_management, security, sync, timeline,
+    access_tokens, business, conversation_list, handlers, media, notes, path_management, security,
+    sync, timeline,
 };
 use utoipa::{
     OpenApi,
-    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
+    openapi::security::{ApiKey, ApiKeyValue, HttpAuthScheme, HttpBuilder, SecurityScheme},
 };
 
 #[derive(OpenApi)]
@@ -32,6 +33,9 @@ use utoipa::{
         notes::note,
         media::upload,
         media::delete,
+        access_tokens::list,
+        access_tokens::create,
+        access_tokens::delete,
         sync::upload,
         sync::pull,
         handlers::login,
@@ -54,6 +58,9 @@ pub fn api_contract() -> utoipa::openapi::OpenApi {
         security::LOGIN_COOKIE,
         "Browser-bound one-time login flow; validated together with query state before exchanging code.",
     ))));
+    components.add_security_scheme("access_token", SecurityScheme::Http(HttpBuilder::new().scheme(HttpAuthScheme::Bearer).description(Some(
+        "Owner access token `palace_pat_…` for CLI and service callers; created and deleted only through a browser session. Business operations only; sends no cookie and needs no Origin. Any Authorization header disables the session cookie for that request.",
+    )).build()));
     document
 }
 

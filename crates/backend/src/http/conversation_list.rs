@@ -11,7 +11,7 @@ use std::sync::Arc;
 #[utoipa::path(
     get, path = routes::CONVERSATIONS, operation_id = "conversations",
     params(dto::ConversationListQuery),
-    security(("session" = [])),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Up to 50 paths ordered by last update, then id, both descending", body = dto::ConversationPage, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),

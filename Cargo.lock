@@ -2196,6 +2196,7 @@ dependencies = [
 name = "palace-domain"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "pretty_assertions",
  "pulldown-cmark",
  "serde",

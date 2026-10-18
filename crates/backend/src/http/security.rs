@@ -1,5 +1,6 @@
 use super::ApiError;
 use axum::http::{HeaderMap, HeaderValue, header};
+use palace_domain::AccessTokenSecret;
 
 pub(super) const SESSION_COOKIE: &str = "__Host-palace-session";
 pub(super) const LOGIN_COOKIE: &str = "__Host-palace-login";
@@ -40,4 +41,24 @@ pub(super) fn set_cookie(name: &str, secret: &str, max_age: u32) -> Result<Heade
         "{name}={secret}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age={max_age}"
     ))
     .map_err(|_| ApiError::Internal)
+}
+/// Separates a request without a bearer credential from a malformed one; the latter must fail
+/// rather than fall back to the session cookie, or a CLI would never learn its token is broken.
+pub(super) fn bearer(headers: &HeaderMap) -> Result<Option<AccessTokenSecret>, ApiError> {
+    let mut values = headers.get_all(header::AUTHORIZATION).iter();
+    let Some(value) = values.next() else {
+        return Ok(None);
+    };
+    if values.next().is_some() {
+        return Err(ApiError::Unauthorized);
+    }
+    // RFC 9110 auth schemes are case-insensitive.
+    value
+        .to_str()
+        .ok()
+        .and_then(|value| value.split_once(' '))
+        .filter(|(scheme, _)| scheme.eq_ignore_ascii_case("bearer"))
+        .and_then(|(_, token)| AccessTokenSecret::parse(token))
+        .map(Some)
+        .ok_or(ApiError::Unauthorized)
 }

@@ -1,4 +1,5 @@
 //! Explicit wire models keep persistence and authentication internals outside the HTTP contract.
+mod access_tokens;
 mod common;
 mod conversation;
 mod conversation_list;
@@ -8,6 +9,7 @@ mod notes;
 mod requests;
 mod sync;
 
+pub(super) use access_tokens::*;
 pub(super) use common::*;
 pub(super) use conversation::*;
 pub(super) use conversation_list::*;

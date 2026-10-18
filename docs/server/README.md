@@ -63,6 +63,10 @@ Session 不设绝对或空闲过期；每次受保护请求查持久化状态，
 
 退出先提交本地撤销；外部撤销失败留在持久重试队列。Owner/Identity 禁用会触发数据库撤销相关 Session。认证凭证和 Session 不进入业务同步，也不分配业务版本。
 
+## Access Token
+
+CLI 和第三方服务用 `Authorization: Bearer palace_pat_…` 调用全部业务接口。token 由浏览器 Session 在「时刻」页“密钥管理”中生成，数据库只存 SHA-256 摘要和遮罩值，完整值只在创建响应中出现一次。token 不过期、不做 Authelia 复核；删除或 Owner/Identity 禁用后下一次请求即 401。带 `Authorization` 的请求只按 token 认证，失败不回退到 cookie，不下发 `Set-Cookie`，也不检查 Origin。token 管理接口只接受 Session，带 `Authorization` 时返回 403 `session_required`。流程见[认证系统](认证系统.md#十六cli-与第三方服务的-access-token)。
+
 ## OIDC 协议
 
 `palace-backend` 使用 `openidconnect` 执行 Authelia Authorization Code Flow，申请 `openid profile email offline_access`，启用 S256 PKCE。登录 state、nonce、verifier 在服务端加密持久化；state 绑定独立浏览器 cookie，10 分钟过期且只能消费一次。ID token 必须通过签名、issuer、audience、有效期、nonce 与可选 at_hash 检查；刷新同时检查原 subject 并读取当前 UserInfo email。HTTP 5xx 和网络故障按临时不可用处理。
@@ -89,6 +93,9 @@ docker run --publish 8080:8080 --env-file .env palace:local
 | `GET /auth/login`、`GET /auth/callback` | OIDC 登录及回调 |
 | `GET /api/me` | 当前 Owner；未认证时返回 401 和登录地址 |
 | `POST /auth/logout`、`POST /auth/logout-all` | 当前或全部设备退出，认证服务故障时也可本地退出 |
+| `GET /api/access-tokens` | 当前 Owner 的 Access Token，按创建时间倒序，只含遮罩值；仅限 Session |
+| `POST /api/access-tokens` | JSON `{note}`，返回 201 和唯一一次出现的完整 `token`；仅限 Session |
+| `DELETE /api/access-tokens/{id}` | 删除即撤销，返回 204；不属于当前 Owner 时 404；仅限 Session |
 | `POST /api/import` | JSON 对象：title、source、session_id、history（原始 JSON 文本字符串）、idempotency_key、occurred_at（epoch 毫秒） |
 | `POST /api/import/file` | multipart 同名字段；history 为文件原始字节 |
 | `GET /api/timeline?start=&end=` | 调用方本地日期区间内的 Moment，按发生时间排序，含卡片字段 |
@@ -110,7 +117,7 @@ docker run --publish 8080:8080 --env-file .env palace:local
 
 server 托管 `PALACE_WEB_DIST` 时，`/assets/*` 下带内容哈希的文件返回 `Cache-Control: public, max-age=31536000, immutable`，找不到时直接 404；其余前端路径（含 `index.html` 和前端路由回退，状态码 200）返回 `no-cache`。前端文件同样按 `Accept-Encoding` 动态 gzip 压缩（图片除外），压缩与未压缩版本共用上述缓存策略，并以 `Vary: Accept-Encoding` 区分；304 重新验证响应不带响应体也不压缩。
 
-所有写请求必须携带严格匹配 `PALACE_ORIGIN` 的 Origin。业务请求没有 ownerId 授权参数。安全 cookie 使用 `__Host-` 前缀、Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain，持久期 180 天并滚动续期。业务响应为 `application/json` 且禁止缓存；请求带 `Accept-Encoding: gzip` 时，业务响应按 gzip 压缩返回（`Content-Encoding: gzip`，过小的响应体保持原样），登录相关的 `/auth/*` 不压缩；原始 Markdown 作为 JSON 字符串返回，server 不提供 HTML 渲染。展示端必须安全渲染，不能将字符串直接写入 innerHTML。
+以 Session 认证的写请求必须携带严格匹配 `PALACE_ORIGIN` 的 Origin；以 Access Token 认证的请求不检查 Origin。业务请求没有 ownerId 授权参数。安全 cookie 使用 `__Host-` 前缀、Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain，持久期 180 天并滚动续期。业务响应为 `application/json` 且禁止缓存；请求带 `Accept-Encoding: gzip` 时，业务响应按 gzip 压缩返回（`Content-Encoding: gzip`，过小的响应体保持原样），登录相关的 `/auth/*` 不压缩；原始 Markdown 作为 JSON 字符串返回，server 不提供 HTML 渲染。展示端必须安全渲染，不能将字符串直接写入 innerHTML。
 
 ## 媒体文件
 

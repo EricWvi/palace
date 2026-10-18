@@ -12,6 +12,8 @@ use testcontainers::{
 };
 use uuid::Uuid;
 
+#[path = "postgres/access_tokens.rs"]
+mod access_tokens;
 #[path = "postgres/conversation_list.rs"]
 mod conversation_list;
 #[path = "postgres/delta_updates.rs"]

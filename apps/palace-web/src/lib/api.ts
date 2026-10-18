@@ -12,6 +12,7 @@ export type ConversationPath = components["schemas"]["ConversationPath"];
 export type ConversationListItem =
   components["schemas"]["ConversationListItem"];
 export type NoteListItem = components["schemas"]["NoteListItem"];
+export type AccessToken = components["schemas"]["AccessToken"];
 export const sources: Record<Source, string> = {
   chatgpt: "ChatGPT",
   gemini: "Gemini",
@@ -66,9 +67,10 @@ export async function apiData<T>(
     }
     throw new ApiError(response.status, message);
   }
-  if (data === undefined)
+  // 204 is the one success without a body; its operations type their data as never.
+  if (data === undefined && response.status !== 204)
     throw new ApiError(response.status, "服务暂时不可用，请稍后重试。");
-  return data;
+  return data as T;
 }
 
 // Keep the complete body typed before serialization; the browser owns Content-Type and boundary.
@@ -151,6 +153,13 @@ export function noteOptions(id: string) {
 // The note page's address keeps the id's `/` as path separators and encodes each segment.
 export function notePath(id: string) {
   return `/notes/${id.split("/").map(encodeURIComponent).join("/")}`;
+}
+// The owner's access tokens, masked; a full token never enters the query cache.
+export function accessTokensOptions() {
+  return {
+    queryKey: ["access-tokens"],
+    queryFn: () => apiData(api.GET("/api/access-tokens")),
+  };
 }
 // After any import, rename or deletion the list is dropped rather than refetched in place: an
 // old page shown while the new one loads would briefly offer a deleted path or an old title.

@@ -14,6 +14,8 @@ pub(super) const NOTES: &str = "/api/notes";
 pub(super) const NOTE: &str = "/api/notes/{id}";
 pub(super) const MEDIA: &str = "/api/media";
 pub(super) const MEDIA_ITEM: &str = "/api/media/{id}";
+pub(super) const ACCESS_TOKENS: &str = "/api/access-tokens";
+pub(super) const ACCESS_TOKEN: &str = "/api/access-tokens/{id}";
 pub(super) const PATH_METADATA: &str = "/api/conversations/{id}/paths/{path_id}/metadata";
 pub(super) const LOGIN: &str = "/auth/login";
 pub(super) const CALLBACK: &str = "/auth/callback";
@@ -63,4 +65,14 @@ macro_rules! media_routes {
         }
     };
 }
-pub(super) use {auth_routes, business_routes, media_routes};
+// Token management accepts only a browser session, so it is mounted behind its own layer.
+macro_rules! access_token_routes {
+    ($consumer:ident) => {
+        $consumer! {
+            get ACCESS_TOKENS => access_tokens::list,
+            post ACCESS_TOKENS => access_tokens::create,
+            delete ACCESS_TOKEN => access_tokens::delete,
+        }
+    };
+}
+pub(super) use {access_token_routes, auth_routes, business_routes, media_routes};

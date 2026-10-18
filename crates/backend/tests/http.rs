@@ -17,6 +17,8 @@ use testcontainers::{
 };
 use tower::ServiceExt;
 
+#[path = "http/access_tokens.rs"]
+mod access_tokens;
 #[path = "http/contract.rs"]
 mod contract;
 #[path = "http/inputs.rs"]
@@ -548,6 +550,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    access_tokens::exercise_management(&app, &cookie).await;
     for origin in ["https://evil.test", "null", ""] {
         let response = app
             .clone()

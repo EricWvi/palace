@@ -1,4 +1,6 @@
 //! PostgreSQL transactions enforce owner boundaries independently of HTTP inputs.
+mod access_token;
+pub use access_token::{AccessToken, IssuedAccessToken};
 mod conversation_delete;
 mod conversation_list;
 pub use conversation_list::{

@@ -15,8 +15,8 @@ use uuid::Uuid;
 #[utoipa::path(
     post, path = routes::MEDIA, operation_id = "upload_media",
     request_body(content = dto::MediaUploadForm, content_type = "multipart/form-data"),
-    params(("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
-    security(("session" = [])),
+    params(("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 201, description = "Stored", body = dto::Media, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
@@ -81,8 +81,8 @@ pub(super) async fn upload(
 /// Deletes the object, then the row; success means the stored bytes are gone.
 #[utoipa::path(
     delete, path = routes::MEDIA_ITEM, operation_id = "delete_media",
-    params(("id" = Uuid, Path, description = "Owner-scoped media id"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
-    security(("session" = [])),
+    params(("id" = Uuid, Path, description = "Owner-scoped media id"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 204, description = "Object and record deleted", headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; native extractor text", body = String, content_type = "text/plain"),

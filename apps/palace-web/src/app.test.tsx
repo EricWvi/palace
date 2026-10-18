@@ -236,7 +236,7 @@ it("opens the day menu from the keyboard and returns focus on Escape", async () 
   expect(trigger).toHaveAttribute("aria-expanded", "true");
   expect(
     screen.getAllByRole("menuitem").map((item) => item.textContent),
-  ).toEqual(["导入对话"]);
+  ).toEqual(["导入对话", "密钥管理"]);
   await user.keyboard("{Escape}");
   expect(screen.queryByRole("menu")).toBeNull();
   expect(trigger).toHaveFocus();

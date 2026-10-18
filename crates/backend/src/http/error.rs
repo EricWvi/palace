@@ -11,6 +11,7 @@ pub(super) enum ApiError {
     Input(InputError),
     Unauthorized,
     Forbidden,
+    SessionRequired,
     Conflict,
     DuplicateSession,
     StaleHead,
@@ -95,6 +96,7 @@ impl IntoResponse for ApiError {
                 "/auth/login",
             ),
             Self::Forbidden => (StatusCode::FORBIDDEN, ErrorCode::OriginRejected, ""),
+            Self::SessionRequired => (StatusCode::FORBIDDEN, ErrorCode::SessionRequired, ""),
             Self::Conflict => (
                 StatusCode::CONFLICT,
                 ErrorCode::IdentityOrRequestConflict,

@@ -33,6 +33,7 @@ fn contract_covers_operations_and_special_wire_types() {
     let mut expected = routes::auth_routes!(inventory);
     expected.extend(routes::business_routes!(inventory));
     expected.extend(routes::media_routes!(inventory));
+    expected.extend(routes::access_token_routes!(inventory));
     expected.sort();
     assert_eq!(operations, expected);
     let schemas = &document["components"]["schemas"];

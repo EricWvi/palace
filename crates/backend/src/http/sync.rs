@@ -9,8 +9,8 @@ use std::sync::Arc;
 #[utoipa::path(
     post, path = routes::SYNC, operation_id = "upload",
     request_body = [dto::Record],
-    params(("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
-    security(("session" = [])),
+    params(("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = [dto::UploadResult], headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", body = String, content_type = "text/plain"),
@@ -41,7 +41,7 @@ pub(super) async fn upload(
 #[utoipa::path(
     get, path = routes::SYNC, operation_id = "pull",
     params(dto::Pull),
-    security(("session" = [])),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::SyncPage, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),

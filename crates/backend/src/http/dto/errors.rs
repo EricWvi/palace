@@ -6,6 +6,7 @@ use utoipa::ToSchema;
 pub(crate) enum ErrorCode {
     AuthenticationRequired,
     OriginRejected,
+    SessionRequired,
     IdentityOrRequestConflict,
     SessionAlreadyExists,
     PathHeadMoved,

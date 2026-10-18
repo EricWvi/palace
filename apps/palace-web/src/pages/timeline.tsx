@@ -33,6 +33,11 @@ const importDialog = preloadable(() =>
   import("@/components/import-dialog").then((module) => module.ImportDialog),
 );
 const ImportDialog = importDialog.Component;
+// Key management is opened rarely enough to load only when the "···" is approached, as above.
+const keyManager = preloadable(() =>
+  import("@/components/key-manager").then((module) => module.KeyManager),
+);
+const KeyManager = keyManager.Component;
 
 export function TimelinePage() {
   const [params, setParams] = useSearchParams();
@@ -48,6 +53,7 @@ export function TimelinePage() {
     enabled: query.isPending,
   });
   const [importing, setImporting] = useState(false);
+  const [managingKeys, setManagingKeys] = useState(false);
   const [picking, setPicking] = useState(false);
   // How the calendar was opened decides where focus goes once it closes, see below.
   const opened = useRef<"pointer" | "keyboard">("keyboard");
@@ -127,8 +133,14 @@ export function TimelinePage() {
         </Popover>
         <MoreMenu
           label="当天操作"
-          onApproach={() => void importDialog.preload()}
-          actions={[{ label: "导入对话", onSelect: () => setImporting(true) }]}
+          onApproach={() => {
+            void importDialog.preload();
+            void keyManager.preload();
+          }}
+          actions={[
+            { label: "导入对话", onSelect: () => setImporting(true) },
+            { label: "密钥管理", onSelect: () => setManagingKeys(true) },
+          ]}
         />
       </header>
       {query.isError ? (
@@ -161,6 +173,11 @@ export function TimelinePage() {
               );
             }}
           />
+        </Suspense>
+      )}
+      {managingKeys && (
+        <Suspense fallback={null}>
+          <KeyManager onClose={() => setManagingKeys(false)} />
         </Suspense>
       )}
     </>

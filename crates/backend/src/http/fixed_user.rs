@@ -1,4 +1,6 @@
-use super::{BusinessServer, business_router, error::ApiError, security::check_origin};
+use super::{
+    BusinessServer, access_token_router, business_router, error::ApiError, security::check_origin,
+};
 use axum::{
     Router,
     extract::{Request, State},
@@ -23,6 +25,7 @@ pub async fn fixed_user_router(
     let owner = database
         .resolve_identity("palace:local-test", "single-user", "local-test@palace.test")
         .await?;
+    let tokens = access_token_router(database.clone());
     Ok(business_router(BusinessServer {
         database,
         links: SourceLinks::standard()?,
@@ -30,6 +33,7 @@ pub async fn fixed_user_router(
         notes,
         media,
     })
+    .merge(tokens)
     .route_layer(middleware::from_fn_with_state((owner, origin), identify))
     .route(
         "/",

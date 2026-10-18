@@ -1043,6 +1043,61 @@ ol.messages {
   font-size: var(--font-size-xs);
 }
 
+/* Key management: a note field with its button on one line above the list of keys. */
+.key-form {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.key-form .field-label {
+  margin-bottom: 0;
+}
+
+.key-form-row {
+  display: flex;
+  gap: 8px;
+}
+
+.key-form .error-state {
+  margin: 0;
+}
+
+.branch-list li.key-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 4px;
+}
+
+.key-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.key-item .key-masked,
+.key-item .branch-meta {
+  grid-column: 1 / -1;
+}
+
+/* A masked key has no spaces to break at; it fits the dialog's width, and wraps rather than
+   being cut if a narrow screen cannot hold it. */
+.key-masked {
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.key-empty {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+}
+
 /* Help cursor over a control that is off, to say a reason is one hover away. */
 .disabled-hint {
   display: inline-flex;

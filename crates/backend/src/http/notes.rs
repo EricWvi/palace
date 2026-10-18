@@ -14,7 +14,7 @@ use std::sync::Arc;
 #[utoipa::path(
     get, path = routes::NOTES, operation_id = "notes",
     params(dto::NoteListQuery),
-    security(("session" = [])),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Up to 50 notes ordered by date, then id, both descending", body = dto::NotePage, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
@@ -45,7 +45,7 @@ pub(super) async fn list(
 #[utoipa::path(
     get, path = routes::NOTE, operation_id = "note",
     params(("id" = String, Path, description = "Note id; its `/` separators are percent-encoded as one segment")),
-    security(("session" = [])),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::NoteDetail, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),

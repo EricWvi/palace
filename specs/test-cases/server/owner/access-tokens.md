@@ -28,9 +28,9 @@
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| token 字面格式与遮罩规则正确 | Missing | — |
-| 数据库行只含摘要与遮罩值，摘要可定位 token | Missing | — |
-| 列表响应不含完整 token | Missing | — |
+| token 字面格式与遮罩规则正确 | Covered | `palace-domain::access_token::tests::tokens_have_one_shape_and_mask_all_but_their_ends`（纯函数单元测试，固定随机输入） |
+| 数据库行只含摘要与遮罩值，摘要可定位 token | Covered | `crates/db/tests/postgres/access_tokens.rs::access_tokens_store_only_digests_and_stay_within_their_owner`，真实 PostgreSQL 17，默认 ignore；比较摘要、遮罩值并确认整行 JSON 不含随机部分中段 |
+| 列表响应不含完整 token | Covered | `crates/backend/tests/http/access_tokens.rs::access_tokens_authenticate_business_requests_only`，真实路由 + PostgreSQL；对创建响应深比较，并确认列表响应不含随机部分中段；响应经 OpenAPI 契约校验 |
 
 ### 决策依据
 
@@ -62,10 +62,10 @@ D1、D4，不变量 1、8。
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 删除后下一次认证必定失败，其他 token 不受影响 | Missing | — |
-| Identity 禁用后其 token 失效 | Missing | — |
-| Owner 禁用后其 token 失效 | Missing | — |
-| 失败原因不可区分 | Missing | — |
+| 删除后下一次认证必定失败，其他 token 不受影响 | Covered | `crates/db/tests/postgres/access_tokens.rs::access_tokens_stop_working_once_deleted_or_disabled`，真实 PostgreSQL；`crates/backend/tests/http/access_tokens.rs::access_tokens_authenticate_business_requests_only` 经 HTTP 验证删除后下一次请求 401 |
+| Identity 禁用后其 token 失效 | Covered | `crates/db/tests/postgres/access_tokens.rs::access_tokens_stop_working_once_deleted_or_disabled`，真实 PostgreSQL 禁用 Identity |
+| Owner 禁用后其 token 失效 | Covered | `crates/db/tests/postgres/access_tokens.rs::access_tokens_stop_working_once_deleted_or_disabled`，真实 PostgreSQL；`crates/backend/tests/http/access_tokens.rs::access_tokens_authenticate_business_requests_only` 经 HTTP 禁用 Owner 后 401 |
+| 失败原因不可区分 | Covered | `crates/backend/tests/http/access_tokens.rs::access_tokens_authenticate_business_requests_only` 对未知、已删除、格式错误与 Owner 禁用的 token 比较完全相同的 401 响应 |
 
 ### 决策依据
 
@@ -97,9 +97,9 @@ D2、D3，不变量 3、4。
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 有效 token 访问业务接口且不下发 cookie | Missing | — |
-| 无效或格式错误的 Authorization 不回退 Session | Missing | — |
-| Bearer 不安全方法不要求 Origin，Session 仍要求 | Missing | — |
+| 有效 token 访问业务接口且不下发 cookie | Covered | `crates/backend/tests/http/access_tokens.rs::access_tokens_authenticate_business_requests_only` 比较 `/api/me` 完整响应并检查无 `Set-Cookie`，同时携带其他 Owner 的 cookie 仍解析为 token 的 Owner |
+| 无效或格式错误的 Authorization 不回退 Session | Covered | `crates/backend/tests/http/access_tokens.rs::access_tokens_authenticate_business_requests_only` 对多个头、非 Bearer、缺前缀、截断与未知 token，同时携带有效 cookie 时均得到 401 |
+| Bearer 不安全方法不要求 Origin，Session 仍要求 | Covered | `crates/backend/tests/http/access_tokens.rs::access_tokens_authenticate_business_requests_only` 以 token 发送不带 Origin 的导入成功；以 Session 不带 Origin 创建 token 得到 403 |
 
 ### 决策依据
 
@@ -131,8 +131,8 @@ token 调用三个管理接口均返回 `403` 且无副作用；Session 调用�
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| token 调用管理接口被拒且不产生新行或删除行 | Missing | — |
-| Session 管理接口遵守 Origin 校验 | Missing | — |
+| token 调用管理接口被拒且不产生新行或删除行 | Covered | `crates/backend/tests/http/access_tokens.rs::access_tokens_authenticate_business_requests_only` 三个管理接口以 token（并带有效 cookie 与 Origin）调用均得到完整的 `session_required` 响应，之后 Session 列表仍只有原 token |
+| Session 管理接口遵守 Origin 校验 | Covered | `crates/backend/tests/http/access_tokens.rs::access_tokens_authenticate_business_requests_only` 以 Session 不带 Origin 调用创建得到 403，带 Origin 成功 |
 
 ### 决策依据
 
@@ -164,9 +164,9 @@ Owner A 列出 token、删除 Owner B 的 token ID，以 A 的 token 读取 B �
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 列表与删除限定在 Owner Scope 内 | Missing | — |
-| token 认证的业务访问限定在 Owner Scope 内 | Missing | — |
-| `owner_id` 不可修改，Identity 必须属于同一 Owner | Missing | — |
+| 列表与删除限定在 Owner Scope 内 | Covered | `crates/db/tests/postgres/access_tokens.rs::access_tokens_store_only_digests_and_stay_within_their_owner`（真实 PostgreSQL 比较两个 Owner 的完整列表，跨 Owner 与不存在的 ID 均 NotFound）；`crates/backend/tests/http/access_tokens.rs::access_tokens_authenticate_business_requests_only` 经 HTTP 跨 Owner 删除得到 404 且 token 仍可用 |
+| token 认证的业务访问限定在 Owner Scope 内 | Covered | `crates/backend/tests/http/access_tokens.rs::access_tokens_authenticate_business_requests_only` 以 token 列出对话只得到本 Owner 导入的 Path |
+| `owner_id` 不可修改，Identity 必须属于同一 Owner | Covered | `crates/db/tests/postgres/access_tokens.rs::access_tokens_store_only_digests_and_stay_within_their_owner`，真实 PostgreSQL 拒绝 UPDATE `owner_id`，复合外键拒绝他人 Identity |
 
 ### 决策依据
 
@@ -198,9 +198,9 @@ D1、D4，不变量 2、7；根决策 D3、D4。
 
 | 验证义务 | 状态 | 直接证据 |
 | --- | --- | --- |
-| 页面只显示遮罩值，复制得到完整值 | Missing | — |
-| 关闭后无法再次复制 | Missing | — |
-| 删除需要确认并刷新列表 | Missing | — |
+| 页面只显示遮罩值，复制得到完整值 | Covered | `apps/palace-web/src/components/key-manager.test.tsx::creates a key it shows only masked, copies it in full once, and forgets it on close`（jsdom 组件测试，检查页面文本与 React Query 缓存）；`apps/palace-web/e2e/key-manager.spec.ts::creates, copies and deletes a key from the day menu without showing it`（真实 Chromium，API 由路由拦截提供） |
+| 关闭后无法再次复制 | Covered | `apps/palace-web/src/components/key-manager.test.tsx::creates a key it shows only masked, copies it in full once, and forgets it on close`（重新挂载后无复制按钮）；`apps/palace-web/e2e/key-manager.spec.ts::creates, copies and deletes a key from the day menu without showing it`（真实 Chromium，API 由路由拦截提供） |
+| 删除需要确认并刷新列表 | Covered | `apps/palace-web/src/components/key-manager.test.tsx::deletes a key only after confirming`；`apps/palace-web/e2e/key-manager.spec.ts::creates, copies and deletes a key from the day menu without showing it`（真实 Chromium，API 由路由拦截提供） |
 
 ### 决策依据
 

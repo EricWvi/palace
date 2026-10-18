@@ -1,9 +1,11 @@
 //! Validated server values independent of transport and persistence.
+mod access_token;
 mod conversation;
 mod excerpt;
 mod import;
 mod media;
 
+pub use access_token::{ACCESS_TOKEN_PREFIX, AccessTokenNote, AccessTokenSecret};
 pub use conversation::{Conversation, Message, Role, SessionId, Source, SourceLinks, read_path};
 pub use excerpt::{EXCERPT_CHARS, EXCERPT_SOURCE_CHARS, TOC_LINE_CHARS, excerpt, toc_line};
 pub use import::{

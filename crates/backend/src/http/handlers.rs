@@ -1,6 +1,6 @@
 use super::{
     ApiError, LoginProvider, Server, dto, routes,
-    security::{LOGIN_COOKIE, SESSION_COOKIE, check_origin, cookie, set_cookie},
+    security::{LOGIN_COOKIE, SESSION_COOKIE, bearer, check_origin, cookie, set_cookie},
 };
 use axum::{
     Json,
@@ -184,16 +184,52 @@ async fn revoke<P: LoginProvider>(
     Ok(response)
 }
 
-/// Resolves production credentials before business handlers receive a trusted owner.
+/// Resolves an access token or, without an Authorization header, the browser session before
+/// business handlers receive a trusted owner.
 pub(super) async fn authenticate_request<P: LoginProvider + 'static>(
     State(server): State<Arc<Server<P>>>,
+    mut request: Request,
+    next: axum::middleware::Next,
+) -> Result<Response, ApiError> {
+    let Some(secret) = bearer(request.headers())? else {
+        return session_request(&server, request, next).await;
+    };
+    // Origin checks defend the ambient cookie against CSRF; browsers never attach Authorization
+    // on their own, and CLI callers send no Origin at all.
+    let owner = server
+        .database
+        .authenticate_access_token(&secret)
+        .await?
+        .ok_or(ApiError::Unauthorized)?;
+    request.extensions_mut().insert(owner);
+    let mut response = next.run(request).await;
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        "no-store".parse().map_err(|_| ApiError::Internal)?,
+    );
+    Ok(response)
+}
+/// Admits only the browser session, for routes a leaked access token must never reach.
+pub(super) async fn authenticate_session_request<P: LoginProvider + 'static>(
+    State(server): State<Arc<Server<P>>>,
+    request: Request,
+    next: axum::middleware::Next,
+) -> Result<Response, ApiError> {
+    if request.headers().contains_key(header::AUTHORIZATION) {
+        return Err(ApiError::SessionRequired);
+    }
+    session_request(&server, request, next).await
+}
+/// Applies the session's CSRF check, rolling cookie and owner scope to one request.
+async fn session_request<P: LoginProvider>(
+    server: &Server<P>,
     mut request: Request,
     next: axum::middleware::Next,
 ) -> Result<Response, ApiError> {
     if !request.method().is_safe() {
         check_origin(request.headers(), &server.origin)?;
     }
-    let session = authenticate(&server, request.headers()).await?;
+    let session = authenticate(server, request.headers()).await?;
     request.extensions_mut().insert(session.owner.clone());
     authenticated_response(&session, next.run(request).await)
 }

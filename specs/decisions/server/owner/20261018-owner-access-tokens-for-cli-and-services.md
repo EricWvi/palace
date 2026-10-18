@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 date: 2026-10-18
 ---
 
@@ -7,7 +7,7 @@ date: 2026-10-18
 
 Palace 新增 Owner 级 Access Token：用户在「时刻」页日期菜单的“密钥管理”弹窗中填写备注生成 token，CLI 与第三方服务以 `Authorization: Bearer <token>` 调用全部业务 API。token 不过期，删除即失效；Owner 或其 Identity 被禁用时立即不可用。服务端只保存 token 摘要和用于展示的头尾片段，完整值只在创建响应中出现一次；界面任何时候都只显示头尾、中间以星号遮盖，完整值只能在创建后通过“复制”取得一次。token 不能管理 token：生成、列出和删除只接受浏览器 Session。
 
-当前为 `approved`，核心测试用例见[Access Token](../../../test-cases/server/owner/access-tokens.md)。影响服务端认证中间件、新增 `owner_access_token` 表与 `/api/access-tokens` 接口、OpenAPI 契约，以及时刻页菜单与新弹窗。本决策不改变浏览器 Session 的登录、轮换、24 小时复核和撤销协议；不提供 token 权限分级、有效期或 OAuth 授权流程，也不迁移任何既有凭据。
+当前为 `implemented`，核心测试用例见[Access Token](../../../test-cases/server/owner/access-tokens.md)。实现位于 `palace-domain`（token 格式、遮罩与备注校验）、`palace-db` 的 `owner_access_token` 表与认证查询、`palace-backend` 的认证中间件与 `/api/access-tokens` 接口，以及 Web 时刻页菜单与密钥管理弹窗。本决策不改变浏览器 Session 的登录、轮换、24 小时复核和撤销协议；不提供 token 权限分级、有效期或 OAuth 授权流程，也不迁移任何既有凭据。
 
 ## 继承与修改
 
@@ -47,7 +47,7 @@ Palace 计划提供 CLI，并允许自动化脚本或第三方服务（例如定
 
 token 字面形式为 `palace_pat_` 前缀加 32 字节 CSPRNG 随机数的 base64url（无填充，43 个字符）。前缀让 secret scanner 和用户都能一眼认出这是 Palace 凭证，误贴到日志或代码仓库时便于发现与检索。随机部分有 256 bit 熵，因此摘要使用单次 SHA-256 而非慢哈希：慢哈希只对低熵口令有意义，对高熵随机值只增加每次请求的认证开销；这与 Session secret 的处理一致。
 
-`masked` 由前缀、随机部分开头 4 个字符、与隐藏字符数等长的 `*`、随机部分末尾 4 个字符组成，例如 `palace_pat_Ab3d***********************************wXyZ`。服务端在创建时一次性算出并保存，此后再也无法从数据库恢复完整值。露出的 8 个字符只用于让用户把列表项与自己手里的配置对上号；剩余 35 个字符仍有约 210 bit 熵，不影响抗猜测能力。
+`masked` 由前缀、随机部分开头 4 个字符、与隐藏字符数等长的 `*`、随机部分末尾 4 个字符组成，共 35 个 `*`。服务端在创建时一次性算出并保存，此后再也无法从数据库恢复完整值。露出的 8 个字符只用于让用户把列表项与自己手里的配置对上号；剩余 35 个字符仍有约 210 bit 熵，不影响抗猜测能力。
 
 `owner_identity_id` 让 token 与 Session 一样挂在具体 Identity 上：该 Identity 被禁用或解绑时 token 随之失效，未来一个 Owner 绑定多个 Identity 时也能精确撤销。
 
@@ -70,7 +70,7 @@ token 没有绝对或空闲有效期。删除是唯一的主动撤销方式，�
 
 | 请求携带 | 行为 |
 | --- | --- |
-| 恰好一个 `Authorization: Bearer palace_pat_…` | 按摘要认证 token；忽略 Session cookie，不刷新、不下发 `Set-Cookie`；不做 Origin 校验 |
+| 恰好一个 `Authorization: Bearer palace_pat_…`（scheme 不区分大小写） | 按摘要认证 token；忽略 Session cookie，不刷新、不下发 `Set-Cookie`；不做 Origin 校验 |
 | 无 `Authorization` | 维持现有 Session 认证，不安全方法仍要求 Origin 校验 |
 | 多个 `Authorization`、非 Bearer scheme、缺少 `palace_pat_` 前缀或字符集不合法 | `401`，不回退到 Session |
 
@@ -87,10 +87,10 @@ token 的权限等同于 Session 能调用的全部业务接口，包括导入�
 | 方法与路径 | 语义 |
 | --- | --- |
 | `GET /api/access-tokens` | 列出当前 Owner 的 token：`id`、`note`、`masked`、`created_at`、`last_used_at`，按创建时间倒序 |
-| `POST /api/access-tokens` | 请求体 `{ "note": "…" }`；返回列表项字段外加只出现这一次的完整 `token` |
+| `POST /api/access-tokens` | 请求体 `{ "note": "…" }`；返回 `201` 与 `{ "access_token": 列表项, "token": 完整值 }`，完整值只出现这一次 |
 | `DELETE /api/access-tokens/{id}` | 在 Owner Scope 内删除；不属于当前 Owner 或不存在都返回 `404` |
 
-这三个接口拒绝 Bearer 认证（`403`），只接受 Session，并遵守 Session 的 Origin 校验。原因是 token 存放位置比浏览器 cookie 更容易泄露：若 token 能生成新 token，攻击者拿到一个就能生成另一个持久后门，用户删除原 token 也无法清除；若 token 能删除 token，泄露的 token 可以删掉用户正在使用的其他凭证。把管理权限留在需要 Authelia 登录的浏览器 Session 上，保证撤销手段始终掌握在完成过身份认证的人手里。
+这三个接口只接受 Session：请求带任何 `Authorization` 头都返回 `403` 与错误码 `session_required`（与 Origin 被拒的 `origin_rejected` 区分），并遵守 Session 的 Origin 校验。原因是 token 存放位置比浏览器 cookie 更容易泄露：若 token 能生成新 token，攻击者拿到一个就能生成另一个持久后门，用户删除原 token 也无法清除；若 token 能删除 token，泄露的 token 可以删掉用户正在使用的其他凭证。把管理权限留在需要 Authelia 登录的浏览器 Session 上，保证撤销手段始终掌握在完成过身份认证的人手里。
 
 本地单用户开发模式（`run:server`）中，所有请求都归属固定 Owner，token 管理接口与其他业务接口一样直接可用，便于界面开发；该模式本身就不是安全边界，固定 Owner 也不校验 Bearer token。
 
@@ -101,10 +101,10 @@ token 的权限等同于 Session 能调用的全部业务接口，包括导入�
 时刻页日期标题旁的 `···` 菜单在“导入对话”下方增加“密钥管理”，打开一个弹窗：
 
 - 顶部是备注输入框与“生成”按钮。备注为空时不能提交；超过长度时显示服务端校验错误。
-- 下方是 token 列表，每行显示备注、遮罩值、创建时间和最近使用时间（未使用显示“从未使用”），以及删除操作。删除需要二次确认，确认文案说明“使用此 token 的程序将立即无法访问”。
+- 下方是 token 列表，每行第一行是备注与操作，第二行是独占整行宽度的遮罩值，第三行是创建日期和最近使用日期（未使用显示“从未使用”）。遮罩值不截断，窄屏时折行：尾部字符正是用户对号的依据。删除需要二次确认，确认文案说明使用该 token 的程序将立即无法访问。
 - 生成成功后，新 token 出现在列表顶部，同样只显示遮罩值，旁边额外提供“复制”按钮与“仅此一次可复制，关闭后无法再次查看”的提示。完整值只保存在弹窗组件的内存状态中，关闭弹窗即丢弃，不写入 React Query 缓存、URL、localStorage 或任何持久位置。
 
-界面从不显示完整 token，是为了避免屏幕共享、截图和旁观泄露；复制按钮让用户仍能把完整值放进 CLI 配置。列表为空时显示一句说明 token 用途与 `Authorization: Bearer` 用法的提示，不另设帮助页。
+界面从不显示完整 token，是为了避免屏幕共享、截图和旁观泄露；复制按钮让用户仍能把完整值放进 CLI 配置。token 用途与 `Authorization: Bearer` 用法放在“备注”旁的帮助提示里，列表为空时只显示“还没有密钥。”。这偏离了 approved 版本“空列表时常驻一句用法说明”的设想，原因是界面原则要求说明文字按需出现，而用法说明在已有 token 时同样需要，放在提示里两种情况都能看到。
 
 把入口放在时刻页菜单，是沿用[从时刻页日期菜单导入对话](../import/20261004-import-from-day-menu-and-open-reading-page.md) D1 已建立的唯一操作菜单；Palace 目前没有设置页，新建一个只容纳一项功能的页面与“少 UI”的界面原则相悖。日后出现设置页时，入口可以迁移，不影响服务端契约。
 
@@ -146,11 +146,6 @@ token 字面格式（前缀、长度、字符集）和摘要算法一旦发布�
 - Authelia 停用用户自动传播到 token：需要 Authelia 侧事件或周期对账机制，另行决策。
 - CLI 本身的命令设计与凭证存放位置：属于 `cli` 领域的后续决策。
 
-## 落地顺序
+## 落地与验收
 
-1. **数据与认证**：新增迁移与 `palace-db` 的创建、列出、删除和按摘要认证；以真实 PostgreSQL 验证 Owner 隔离、删除立即失效、禁用即失效与 `last_used_at` 节流。完成后尚无对外行为变化。
-2. **HTTP 接口与契约**：业务路由接入 Bearer 认证，新增 `/api/access-tokens` 三个 Session-only 接口，更新 OpenAPI 与生成的前端类型；验证 Bearer 与 Session 互斥、管理接口拒绝 Bearer、Bearer 不做 Origin 校验。从这一步开始，外部调用方可以使用 token。
-3. **Web 界面**：时刻页菜单增加“密钥管理”与弹窗；以组件测试验证遮罩展示、一次性复制、删除确认，以 e2e 验证完整流程。
-4. **文档**：更新 `docs/server/认证系统.md` 说明 token 认证；ADR 状态推进并补充核心测试用例。
-
-浏览器 Session 的登录、轮换、复核、登出行为在各阶段都保持不变。
+数据层、认证中间件、管理接口、OpenAPI 契约与生成的前端类型、Web 弹窗和文档均已落地。数据库约束、删除与禁用后立即失效、`last_used_at` 节流和 Owner 隔离由真实 PostgreSQL 测试验证；Bearer 与 Session 互斥、管理接口拒绝 token、Origin 规则由真实路由加真实 PostgreSQL 的 HTTP 测试验证，其响应经 OpenAPI 契约校验；界面由组件测试与真实 Chromium e2e 验证。浏览器 Session 的登录、轮换、复核、登出行为不变。服务端流程见[认证系统](../../../../docs/server/认证系统.md)。

@@ -1,3 +1,4 @@
+mod access_tokens;
 mod business;
 mod contract;
 mod conversation_list;
@@ -74,10 +75,15 @@ pub fn router<P: LoginProvider + 'static>(mut server: Server<P>) -> Router {
         notes: server.notes.clone(),
         media,
     });
+    let tokens = access_token_router(server.database.clone());
     let server = Arc::new(server);
     let business = business.route_layer(axum::middleware::from_fn_with_state(
         server.clone(),
         authenticate_request::<P>,
+    ));
+    let tokens = tokens.route_layer(axum::middleware::from_fn_with_state(
+        server.clone(),
+        authenticate_session_request::<P>,
     ));
     macro_rules! mount {
         ($( $method:ident $path:ident => $module:ident::$handler:ident, )*) => {
@@ -87,6 +93,17 @@ pub fn router<P: LoginProvider + 'static>(mut server: Server<P>) -> Router {
     routes::auth_routes!(mount)
         .with_state(server)
         .merge(business)
+        .merge(tokens)
+}
+
+/// Builds token management without authentication; each deployment mode layers its own on top.
+fn access_token_router(database: Database) -> Router {
+    macro_rules! mount {
+        ($( $method:ident $path:ident => $module:ident::$handler:ident, )*) => {
+            Router::new()$(.route(routes::$path, axum::routing::$method($module::$handler)))*
+        };
+    }
+    routes::access_token_routes!(mount).with_state(database)
 }
 
 /// Business handlers depend on an already resolved owner, never on a login provider.

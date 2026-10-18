@@ -10,7 +10,7 @@ use uuid::Uuid;
 /// Returns the owner supplied by the selected server authentication boundary.
 #[utoipa::path(
     get, path = routes::ME, operation_id = "me",
-    security(("session" = [])),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::Owner, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
@@ -28,8 +28,8 @@ pub(super) async fn me(
 #[utoipa::path(
     post, path = routes::IMPORT, operation_id = "import_text",
     request_body = dto::TextImport,
-    params(("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
-    security(("session" = [])),
+    params(("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::ImportResult, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", body = dto::InputErrorResponse, content_type = "application/json"),
@@ -76,8 +76,8 @@ pub(super) async fn import_text(
 #[utoipa::path(
     post, path = routes::IMPORT_FILE, operation_id = "import_file",
     request_body(content = dto::FileImport, content_type = "multipart/form-data"),
-    params(("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected")),
-    security(("session" = [])),
+    params(("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::ImportResult, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
@@ -185,7 +185,7 @@ pub(super) async fn import_file(
 #[utoipa::path(
     get, path = routes::CONVERSATION, operation_id = "conversation",
     params(("id" = Uuid, Path, description = "Owner-scoped UUID")),
-    security(("session" = [])),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::ConversationDetail, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
@@ -235,7 +235,7 @@ pub(super) async fn conversation(
 #[utoipa::path(
     get, path = routes::PATH, operation_id = "path",
     params(("id" = Uuid, Path, description = "Owner-scoped UUID"), ("path_id" = Uuid, Path, description = "Owner-scoped UUID")),
-    security(("session" = [])),
+    security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = [dto::Message], headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),

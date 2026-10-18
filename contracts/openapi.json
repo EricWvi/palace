@@ -9,6 +9,322 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/api/access-tokens": {
+      "get": {
+        "tags": [
+          "access_tokens"
+        ],
+        "summary": "Lists the owner's tokens newest first, each only in its masked form.",
+        "operationId": "list_access_tokens",
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AccessToken"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Called with an access token instead of a browser session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "access_tokens"
+        ],
+        "summary": "Issues a token under the session's identity; the response is the only place its full value appears.",
+        "operationId": "create_access_token",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedAccessToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected, or called with an access token instead of a browser session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Note longer than 100 characters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/access-tokens/{id}": {
+      "delete": {
+        "tags": [
+          "access_tokens"
+        ],
+        "summary": "Revokes a token immediately by deleting it.",
+        "operationId": "delete_access_token",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped access token id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted; requests with the token now fail",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; native extractor text",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected, or called with an access token instead of a browser session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/conversations": {
       "get": {
         "tags": [
@@ -120,6 +436,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -237,6 +556,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       },
@@ -260,7 +582,7 @@
           {
             "name": "Origin",
             "in": "header",
-            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
             "required": true,
             "schema": {
               "type": "string"
@@ -366,6 +688,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -391,7 +716,7 @@
           {
             "name": "Origin",
             "in": "header",
-            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
             "required": true,
             "schema": {
               "type": "string"
@@ -522,6 +847,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -652,6 +980,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       },
@@ -685,7 +1016,7 @@
           {
             "name": "Origin",
             "in": "header",
-            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
             "required": true,
             "schema": {
               "type": "string"
@@ -816,6 +1147,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       },
@@ -849,7 +1183,7 @@
           {
             "name": "Origin",
             "in": "header",
-            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
             "required": true,
             "schema": {
               "type": "string"
@@ -955,6 +1289,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -990,7 +1327,7 @@
           {
             "name": "Origin",
             "in": "header",
-            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
             "required": true,
             "schema": {
               "type": "string"
@@ -1111,6 +1448,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -1126,7 +1466,7 @@
           {
             "name": "Origin",
             "in": "header",
-            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
             "required": true,
             "schema": {
               "type": "string"
@@ -1252,6 +1592,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -1267,7 +1610,7 @@
           {
             "name": "Origin",
             "in": "header",
-            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
             "required": true,
             "schema": {
               "type": "string"
@@ -1398,6 +1741,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -1478,6 +1824,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -1493,7 +1842,7 @@
           {
             "name": "Origin",
             "in": "header",
-            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
             "required": true,
             "schema": {
               "type": "string"
@@ -1604,6 +1953,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -1629,7 +1981,7 @@
           {
             "name": "Origin",
             "in": "header",
-            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
             "required": true,
             "schema": {
               "type": "string"
@@ -1718,6 +2070,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -1833,6 +2188,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -1934,6 +2292,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -2050,6 +2411,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       },
@@ -2063,7 +2427,7 @@
           {
             "name": "Origin",
             "in": "header",
-            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
             "required": true,
             "schema": {
               "type": "string"
@@ -2220,6 +2584,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -2340,6 +2707,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -2460,6 +2830,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -2793,6 +3166,56 @@
   },
   "components": {
     "schemas": {
+      "AccessToken": {
+        "type": "object",
+        "description": "An access token as listed; only the masked form ever appears after creation.",
+        "required": [
+          "id",
+          "note",
+          "masked",
+          "created_at",
+          "last_used_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "last_used_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the last recorded use, at most a minute stale; null if never used."
+          },
+          "masked": {
+            "type": "string",
+            "description": "`palace_pat_`, the first and last four random characters, and `*` for every other one."
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "AccessTokenRequest": {
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "What the token is used for; trimmed, 1 to 100 characters."
+          }
+        },
+        "additionalProperties": false
+      },
       "Conversation": {
         "type": "object",
         "required": [
@@ -3007,6 +3430,23 @@
           }
         }
       },
+      "CreatedAccessToken": {
+        "type": "object",
+        "description": "A newly created token, the only response that ever carries its full value.",
+        "required": [
+          "access_token",
+          "token"
+        ],
+        "properties": {
+          "access_token": {
+            "$ref": "#/components/schemas/AccessToken"
+          },
+          "token": {
+            "type": "string",
+            "description": "The full token for `Authorization: Bearer`; it cannot be retrieved again."
+          }
+        }
+      },
       "Cursor": {
         "type": "string",
         "description": "Canonical decimal string in 0..=9223372036854775807; the domain checks the numeric upper bound.",
@@ -3029,6 +3469,7 @@
         "enum": [
           "authentication_required",
           "origin_rejected",
+          "session_required",
           "identity_or_request_conflict",
           "session_already_exists",
           "path_head_moved",
@@ -3732,6 +4173,11 @@
       }
     },
     "securitySchemes": {
+      "access_token": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Owner access token `palace_pat_…` for CLI and service callers; created and deleted only through a browser session. Business operations only; sends no cookie and needs no Origin. Any Authorization header disables the session cookie for that request."
+      },
       "login_flow": {
         "type": "apiKey",
         "in": "cookie",
