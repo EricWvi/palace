@@ -55,3 +55,9 @@
 **Moment 类型（Moment Kind）**：Moment 的封闭分类，决定详情结构与卡片摘要；第一版只有对话。
 
 **对话 Moment**：一条 Conversation Path 在时间线上的身份，与该 Path 共用 ID；同一 Conversation 的多个 Path 分别是不同的 Moment。
+
+## 媒体
+
+以下术语对应已经批准的媒体文件根决策。
+
+**媒体文件（Media）**：Owner 上传的一个不可修改的文件，内容保存在对象存储中，由 Palace 生成的稳定 ID 标识；正文和接口只通过这个 ID 引用它，不使用对象 key 或存储地址。
