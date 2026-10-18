@@ -1,3 +1,4 @@
+mod media;
 mod notes;
 mod postgres;
 mod runtime;
@@ -43,7 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let database = palace_db::Database::connect(&postgres.url).await?;
         palace_info!(message="PostgreSQL debug port published",port=15432,database="palace",username="postgres");
         let (notes, _watch) = notes::notes_from_env(timezone)?;
-        let app = palace_backend::fixed_user_router(database, origin.clone(), notes).await?;
+        let media = media::media_from_env()?;
+        let app = palace_backend::fixed_user_router(database, origin.clone(), notes, media).await?;
         palace_info!(message="Palace single-user test server listening",address=%address,origin=%origin);
         axum::serve(listener, app).with_graceful_shutdown(runtime::shutdown()).await?;
         Ok::<(), Box<dyn std::error::Error>>(())

@@ -144,6 +144,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/media": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Stores one file and returns its server-generated identity; the object is written before the row. */
+    post: operations["upload_media"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/media/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Deletes the object, then the row; success means the stored bytes are gone. */
+    delete: operations["delete_media"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/notes": {
     parameters: {
       query?: never;
@@ -418,6 +452,7 @@ export interface components {
       | "not_found"
       | "identity_unavailable"
       | "search_unavailable"
+      | "media_storage_unavailable"
       | "persistence_failed";
     ErrorResponse: {
       error: components["schemas"]["ErrorCode"];
@@ -469,6 +504,33 @@ export interface components {
     LogoutResponse: {
       /** @description True after the local revocation has committed, including when external revocation is pending. */
       logged_out: boolean;
+    };
+    /** @description A stored media file. Its id is the only reference to keep; storage locations never leave the server. */
+    Media: {
+      /** Format: int64 */
+      byte_size: number;
+      /** @description Lowercase `type/subtype` declared by the uploading part, or application/octet-stream. */
+      content_type: string;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds.
+       */
+      created_at: number;
+      /** @description Name the client gave the file, for display only; null when none was given. */
+      file_name: string | null;
+      /**
+       * Format: uuid
+       * @description Server-generated UUID v7; stable for the life of the file.
+       */
+      id: string;
+    };
+    /** @description Exactly one part named `file`; any other or repeated part is rejected. */
+    MediaUploadForm: {
+      /**
+       * Format: binary
+       * @description 1 byte to the deployment limit (default 50 MiB). The part's Content-Type and filename are recorded.
+       */
+      file: Blob;
     };
     Message: {
       content: string;
@@ -1653,6 +1715,168 @@ export interface operations {
         };
       };
       /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  upload_media: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["MediaUploadForm"];
+      };
+    };
+    responses: {
+      /** @description Stored */
+      201: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Media"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description File exceeds the deployment limit */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider or media storage unavailable, including media storage not configured */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  delete_media: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped media id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Object and record deleted */
+      204: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure; the media is kept and the delete can be retried */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider or media storage unavailable, including media storage not configured; the media is kept and the delete can be retried */
       503: {
         headers: {
           [name: string]: unknown;

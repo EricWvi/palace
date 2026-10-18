@@ -1,3 +1,4 @@
+mod media;
 mod notes;
 mod runtime;
 mod server;

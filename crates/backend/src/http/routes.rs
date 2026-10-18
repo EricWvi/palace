@@ -12,6 +12,8 @@ pub(super) const PATHS: &str = "/api/conversations/{id}/paths";
 pub(super) const PATH: &str = "/api/conversations/{id}/paths/{path_id}";
 pub(super) const NOTES: &str = "/api/notes";
 pub(super) const NOTE: &str = "/api/notes/{id}";
+pub(super) const MEDIA: &str = "/api/media";
+pub(super) const MEDIA_ITEM: &str = "/api/media/{id}";
 pub(super) const PATH_METADATA: &str = "/api/conversations/{id}/paths/{path_id}/metadata";
 pub(super) const LOGIN: &str = "/auth/login";
 pub(super) const CALLBACK: &str = "/auth/callback";
@@ -52,4 +54,13 @@ macro_rules! business_routes {
         }
     };
 }
-pub(super) use {auth_routes, business_routes};
+// Media carries file bodies, so it is mounted with its own body limit instead of the import one.
+macro_rules! media_routes {
+    ($consumer:ident) => {
+        $consumer! {
+            post MEDIA => media::upload,
+            delete MEDIA_ITEM => media::delete,
+        }
+    };
+}
+pub(super) use {auth_routes, business_routes, media_routes};

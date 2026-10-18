@@ -171,13 +171,14 @@ tasks:
   ###################################################
 
   test:integration:
-    desc: Run ignored PostgreSQL tests using locally prepared images
+    desc: Run ignored PostgreSQL and MinIO tests using locally prepared images
     cmds:
       - cargo test -p palace-db --test postgres -- --ignored
+      - cargo test -p palace-media --test minio -- --ignored
       - task: test:api-http
 
   test:api-http:
-    desc: Validate real Router responses against OpenAPI using existing PostgreSQL image
+    desc: Validate real Router responses against OpenAPI using existing PostgreSQL and MinIO images
     cmds:
       - cargo test -p palace-backend --test http -- --ignored
 

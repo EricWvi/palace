@@ -21,6 +21,8 @@ use tower::ServiceExt;
 mod contract;
 #[path = "http/inputs.rs"]
 mod inputs;
+#[path = "http/media.rs"]
+mod media;
 #[path = "http/notes.rs"]
 mod notes;
 
@@ -90,6 +92,7 @@ fn request(
 /// - `specs/test-cases/web/stars/notes.md#note-list-must-page-every-indexed-note-exactly-once-by-its-date`
 /// - `specs/test-cases/web/stars/notes.md#note-search-must-match-literally-and-stay-within-the-index`
 /// - `specs/test-cases/web/stars/notes.md#note-page-must-read-only-files-listed-in-the-index`
+/// - `specs/test-cases/server/media/media-storage.md#object-storage-configuration-must-be-all-or-nothing`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {
@@ -166,6 +169,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
             ..Default::default()
         },
         notes: library,
+        media: palace_media::MediaStorage::Unconfigured,
         now,
     }));
     let history = r#"[{"role":"user","content":"<script>alert(1)</script>\r\n","extra":123}]"#;
@@ -508,6 +512,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     assert_eq!(counts, (1, 1, 1));
     notes::exercise_notes(&app, &cookie, &foreign).await;
     paths::exercise_path_lifecycle(&app, &cookie, &foreign).await;
+    media::exercise_unconfigured(&app, &cookie).await;
     inputs::exercise_contract_boundaries(&app, &cookie, &foreign, &pool, &sessions[0].owner).await;
     let anonymous = app
         .clone()
@@ -639,6 +644,7 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         links: SourceLinks::standard().unwrap(),
         limits: ImportLimits::default(),
         notes: std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
+        media: palace_media::MediaStorage::Unconfigured,
         now,
     }));
     let server = tokio::spawn(async move {

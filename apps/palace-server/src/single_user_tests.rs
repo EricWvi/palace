@@ -34,6 +34,7 @@ async fn fixed_user_http_reuses_owner_without_login_or_cookies() {
         database.clone(),
         origin.into(),
         std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
+        palace_media::MediaStorage::Unconfigured,
     )
     .await
     .unwrap();
@@ -102,6 +103,7 @@ async fn fixed_user_http_reuses_owner_without_login_or_cookies() {
         database.clone(),
         origin.into(),
         std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
+        palace_media::MediaStorage::Unconfigured,
     )
     .await
     .unwrap();

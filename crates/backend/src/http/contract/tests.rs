@@ -32,6 +32,7 @@ fn contract_covers_operations_and_special_wire_types() {
     }
     let mut expected = routes::auth_routes!(inventory);
     expected.extend(routes::business_routes!(inventory));
+    expected.extend(routes::media_routes!(inventory));
     expected.sort();
     assert_eq!(operations, expected);
     let schemas = &document["components"]["schemas"];
@@ -251,6 +252,11 @@ async fn error_dtos_preserve_status_and_body() {
             ApiError::Unavailable,
             StatusCode::SERVICE_UNAVAILABLE,
             json!({"error":"identity_unavailable", "login":""}),
+        ),
+        (
+            ApiError::MediaUnavailable,
+            StatusCode::SERVICE_UNAVAILABLE,
+            json!({"error":"media_storage_unavailable", "login":""}),
         ),
         (
             ApiError::Internal,

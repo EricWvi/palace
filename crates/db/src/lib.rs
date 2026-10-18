@@ -9,6 +9,8 @@ mod conversation_tree;
 pub use conversation_tree::{ConversationDetail, ConversationPath};
 mod import;
 mod login;
+mod media;
+pub use media::Media;
 mod owner;
 mod session;
 mod session_crypto;

@@ -11,6 +11,7 @@ mod path_management;
 #[cfg(feature = "test-server")]
 pub use fixed_user::fixed_user_router;
 mod handlers;
+mod media;
 mod notes;
 mod security;
 mod sync;
@@ -24,6 +25,7 @@ use error::ApiError;
 use handlers::*;
 use palace_db::{CredentialKey, Database, IdentityProvider, IdentityTokens, ProviderError};
 use palace_domain::{ImportLimits, SourceLinks};
+use palace_media::MediaStorage;
 use palace_notes::NoteLibrary;
 use std::{future::Future, sync::Arc};
 use tower_http::compression::CompressionLayer;
@@ -58,15 +60,19 @@ pub struct Server<P> {
     pub links: SourceLinks,
     pub limits: ImportLimits,
     pub notes: Arc<NoteLibrary>,
+    pub media: MediaStorage,
     pub now: fn() -> i64,
 }
 /// Builds authenticated JSON/file endpoints with bounded bodies and no client-supplied owner scope.
-pub fn router<P: LoginProvider + 'static>(server: Server<P>) -> Router {
+pub fn router<P: LoginProvider + 'static>(mut server: Server<P>) -> Router {
+    // Only business handlers use object storage; authentication keeps no handle to it.
+    let media = std::mem::replace(&mut server.media, MediaStorage::Unconfigured);
     let business = business_router(BusinessServer {
         database: server.database.clone(),
         links: server.links.clone(),
         limits: server.limits,
         notes: server.notes.clone(),
+        media,
     });
     let server = Arc::new(server);
     let business = business.route_layer(axum::middleware::from_fn_with_state(
@@ -89,6 +95,7 @@ struct BusinessServer {
     links: SourceLinks,
     limits: ImportLimits,
     notes: Arc<NoteLibrary>,
+    media: MediaStorage,
 }
 
 /// Shares the complete business API between authenticated deployment and local single-user testing.
@@ -105,10 +112,18 @@ fn business_router(server: BusinessServer) -> Router {
             Router::new()$(.route(routes::$path, axum::routing::$method($module::$handler)))*
         };
     }
+    // A multipart envelope around one file stays well within 64 KiB of overhead. Without
+    // storage the handlers answer before reading any body, so the envelope alone is enough.
+    let media_limit = match &server.media {
+        MediaStorage::Configured { limits, .. } => limits.max_bytes.saturating_add(64 * 1024),
+        MediaStorage::Unconfigured => 64 * 1024,
+    };
+    let media = routes::media_routes!(mount).layer(DefaultBodyLimit::max(media_limit));
     // Timeline and conversation JSON carries whole chat histories and compresses well; the
     // layer only answers gzip when the client offers it and skips tiny bodies.
     routes::business_routes!(mount)
         .layer(DefaultBodyLimit::max(limit))
         .layer(CompressionLayer::new())
+        .merge(media)
         .with_state(Arc::new(server))
 }

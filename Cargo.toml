@@ -5,6 +5,7 @@ members = [
     "crates/db",
     "crates/domain",
     "crates/logging",
+    "crates/media",
     "crates/notes",
     "crates/testkit",
     "xtask",
@@ -28,6 +29,7 @@ palace-backend = { path = "crates/backend" }
 palace-db = { path = "crates/db" }
 palace-domain = { path = "crates/domain" }
 palace-logging = { path = "crates/logging" }
+palace-media = { path = "crates/media" }
 palace-notes = { path = "crates/notes" }
 palace-testkit = { path = "crates/testkit" }
 
@@ -35,6 +37,7 @@ palace-testkit = { path = "crates/testkit" }
 aes-gcm = "0.10"
 axum = { version = "0.8", features = ["multipart"] }
 base64 = "0.22"
+bytes = "1"
 chrono = "0.4"
 chrono-tz = "0.10"
 email_address = "0.2"
@@ -42,6 +45,7 @@ flate2 = "1"
 hmac = "0.12"
 http-body-util = "0.1"
 notify = "8.2"
+object_store = { version = "0.12", default-features = false, features = ["aws"] }
 openidconnect = "4.0"
 pretty_assertions = "1"
 proc-macro2 = "1.0.107"

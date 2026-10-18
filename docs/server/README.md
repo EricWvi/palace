@@ -14,7 +14,7 @@ CI 入口统一放在 `Taskfile.yml`；GitHub Actions 只做构建。
 默认 `task test` 包含生成漂移、schema、工具链与路由覆盖检查；
 `task api:check` 在内存中重新生成并比较，缺失或过期即失败，不覆盖本地文件。
 真实 HTTP 响应校验使用 `task test:api-http`，并纳入 `task test:integration`，
-需要 Node/npm 依赖、已有 PostgreSQL 镜像和 Docker/Podman socket。
+需要 Node/npm 依赖、已有 PostgreSQL 与 MinIO 镜像和 Docker/Podman socket。
 操作覆盖不代表每个状态码分支都已覆盖，也不替代 `task test:contract` 的 Authelia 协议测试。
 
 新增路由通过 `crates/backend/src/http/routes.rs` 的注册清单挂载；
@@ -103,12 +103,20 @@ docker run --publish 8080:8080 --env-file .env palace:local
 | `PUT /api/conversations/{id}/paths/{path_id}/metadata` | 修改该 Path 的标题和整个对话的来源 |
 | `DELETE /api/conversations/{id}/paths/{path_id}` | 删除分支及其 Moment，并清理不再共享的消息 |
 | `DELETE /api/conversations/{id}` | 删除整个对话及全部分支、Moment、消息 |
+| `POST /api/media` | multipart 只有一个 `file` 字段；先写对象再登记，返回 201 和媒体 ID、类型、大小、文件名、创建时间；超限 413，未配置存储 503 |
+| `DELETE /api/media/{id}` | 先删对象再删记录，成功返回 204；任一步失败保留记录，可重试；不属于当前 Owner 时返回 404 |
 
 对话列表以 `(updated_at, id)` keyset 分页，`next_cursor` 是不透明字符串，原样传回即取下一页；中途有新导入不会让已有条目重复或丢失。搜索用 `ILIKE` 实现，`%`、`_`、`\` 按字面量匹配；消息正文上有 `pg_trgm` 的 GIN 索引（`0011_conversation_list.sql` 创建扩展，数据库 owner 即可执行），少于 3 个字符的关键词无法用索引加速但结果不变。中文要进入 trigram，数据库的 `LC_CTYPE` 不能是 `C`。
 
 server 托管 `PALACE_WEB_DIST` 时，`/assets/*` 下带内容哈希的文件返回 `Cache-Control: public, max-age=31536000, immutable`，找不到时直接 404；其余前端路径（含 `index.html` 和前端路由回退，状态码 200）返回 `no-cache`。前端文件同样按 `Accept-Encoding` 动态 gzip 压缩（图片除外），压缩与未压缩版本共用上述缓存策略，并以 `Vary: Accept-Encoding` 区分；304 重新验证响应不带响应体也不压缩。
 
 所有写请求必须携带严格匹配 `PALACE_ORIGIN` 的 Origin。业务请求没有 ownerId 授权参数。安全 cookie 使用 `__Host-` 前缀、Secure、HttpOnly、SameSite=Lax、Path=/，不设置 Domain，持久期 180 天并滚动续期。业务响应为 `application/json` 且禁止缓存；请求带 `Accept-Encoding: gzip` 时，业务响应按 gzip 压缩返回（`Content-Encoding: gzip`，过小的响应体保持原样），登录相关的 `/auth/*` 不压缩；原始 Markdown 作为 JSON 字符串返回，server 不提供 HTML 渲染。展示端必须安全渲染，不能将字符串直接写入 innerHTML。
+
+## 媒体文件
+
+`palace-media` 负责媒体文件：内容写入 S3 兼容对象存储（`object_store` 的 S3 实现），`media` 表保存 Owner、对象 key、类型、大小、SHA-256 和原始文件名。对外只暴露服务端生成的 UUIDv7；对象 key、bucket 和 endpoint 不出现在响应中。上传先写对象、后插入行，插入失败时尽力删除刚写的对象；删除先删对象、后删行，保证报告成功时对象已删除。媒体表不进入同步域，不使用发布锁，也不在事务内调用对象存储。决策见[媒体文件根决策](../../specs/decisions/server/media/0-uuid-v7-media-identity-over-s3-objects.md)，配置见[环境变量](环境变量.md#媒体存储)。
+
+媒体路由使用自己的请求体上限（文件上限加 64 KiB），不与导入接口共享。`task test:integration` 用本地已有的 `minio/minio:RELEASE.2025-02-28T09-55-16Z` 镜像启动 MinIO，容器启动时用内置 `mc` 建好测试 bucket。
 
 ## 独立记录同步
 

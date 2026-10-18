@@ -19,6 +19,7 @@ palace-backend = { workspace = true }
 palace-db = { workspace = true }
 palace-domain = { workspace = true }
 palace-logging = { workspace = true }
+palace-media = { workspace = true }
 palace-notes = { workspace = true }
 chrono-tz = { workspace = true }
 axum = { workspace = true }

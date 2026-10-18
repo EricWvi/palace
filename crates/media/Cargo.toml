@@ -1,0 +1,29 @@
+[package]
+name = "palace-media"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "palace_media"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+palace-db = { workspace = true }
+palace-domain = { workspace = true }
+palace-logging = { workspace = true }
+bytes = { workspace = true }
+object_store = { workspace = true }
+thiserror = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+palace-testkit = { workspace = true }
+pretty_assertions = { workspace = true }
+sqlx = { workspace = true }
+testcontainers = { workspace = true }
+tokio = { workspace = true }

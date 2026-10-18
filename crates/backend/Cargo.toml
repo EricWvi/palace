@@ -15,6 +15,7 @@ test-server = []
 [dependencies]
 palace-db = { workspace = true }
 palace-domain = { workspace = true }
+palace-media = { workspace = true }
 palace-notes = { workspace = true }
 openidconnect = { workspace = true }
 reqwest = { workspace = true }
@@ -28,6 +29,7 @@ uuid = { workspace = true }
 utoipa = { workspace = true }
 
 [dev-dependencies]
+object_store = { workspace = true }
 palace-testkit = { workspace = true }
 flate2 = { workspace = true }
 palace-logging = { workspace = true }

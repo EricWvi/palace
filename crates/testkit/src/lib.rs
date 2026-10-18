@@ -8,7 +8,10 @@
 //! Tests never download images. Every image, including Ryuk itself, must already exist in the
 //! local Docker/Podman engine selected by `DOCKER_HOST`.
 
+mod minio;
 mod reaper;
+
+pub use minio::{MINIO_ACCESS_KEY, MINIO_BUCKET, MINIO_REGION, MINIO_SECRET_KEY, Minio, minio};
 
 use std::process::Command;
 use testcontainers::{ContainerRequest, GenericImage, Image, ImageExt};

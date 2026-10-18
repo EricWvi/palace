@@ -17,6 +17,7 @@ pub(super) enum ApiError {
     NotFound,
     Unavailable,
     SearchUnavailable,
+    MediaUnavailable,
     Internal,
 }
 impl From<InputError> for ApiError {
@@ -68,6 +69,15 @@ impl From<palace_notes::NotesError> for ApiError {
         }
     }
 }
+impl From<palace_media::MediaError> for ApiError {
+    /// Object storage outages and missing configuration are retryable unavailability, not input errors.
+    fn from(value: palace_media::MediaError) -> Self {
+        match value {
+            palace_media::MediaError::Database(e) => e.into(),
+            palace_media::MediaError::Store(_) => Self::MediaUnavailable,
+        }
+    }
+}
 impl IntoResponse for ApiError {
     /// Returns stable machine-readable categories without sensitive implementation details.
     fn into_response(self) -> Response {
@@ -101,6 +111,11 @@ impl IntoResponse for ApiError {
             Self::SearchUnavailable => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 ErrorCode::SearchUnavailable,
+                "",
+            ),
+            Self::MediaUnavailable => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                ErrorCode::MediaStorageUnavailable,
                 "",
             ),
             Self::Internal => (
