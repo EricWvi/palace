@@ -166,7 +166,8 @@ export function StarsPage({ kind }: { kind: Kind }) {
   else if (list.isError)
     body = <ErrorState error={list.error} retry={() => void list.refetch()} />;
   else if (rows.length === 0)
-    body = <p className="empty">{q ? "没有找到。" : `还没有${name}。`}</p>;
+    // An empty kind shows nothing; only a search that misses says so.
+    body = q ? <p className="empty">没有找到。</p> : null;
   else
     body = (
       <>

@@ -14,10 +14,12 @@ const notes: NoteListItem[] = [
     occurred_at: at(2026, 10, 6),
   },
   { id: "旅行/周末 计划", title: "周末", occurred_at: at(2025, 9, 30) },
+  { id: "rust/heading", title: "元数据标题", occurred_at: at(2025, 3, 2) },
 ];
 const bodies: Record<string, string> = {
   "rust/advisory-lock": "## 加锁\n\n![图](https://s3.example.com/lock.png)\n",
   "旅行/周末 计划": "去海边。\n",
+  "rust/heading": "\n# Lock **用法** #\n\n正文。\n",
 };
 
 // Serves notes the way the API does, filtering by title for a search, and records the raw paths
@@ -93,6 +95,7 @@ it("lists notes by date and opens one at the top, to read only", async () => {
           "09.30",
           "/notes/%E6%97%85%E8%A1%8C/%E5%91%A8%E6%9C%AB%20%E8%AE%A1%E5%88%92",
         ],
+        ["元数据标题", null, "03.02", "/notes/rust/heading"],
       ],
     ],
   ]);
@@ -132,6 +135,20 @@ it("shows the owner's images as written", async () => {
   expect(screen.getByRole("img", { name: "图" })).toHaveAttribute(
     "src",
     "https://s3.example.com/lock.png",
+  );
+});
+
+// Core test case: `specs/test-cases/web/stars/notes.md#note-page-must-read-only-files-listed-in-the-index`
+it("lets a leading level-1 heading stand in for the title", async () => {
+  serve();
+  mountApp("/notes/rust/heading");
+  await screen.findByText("正文。");
+  expect(
+    [...document.querySelectorAll("h1")].map((h1) => h1.innerHTML),
+  ).toEqual(["Lock <strong>用法</strong>"]);
+  expect(screen.queryByText("元数据标题")).toBeNull();
+  expect(document.querySelector("header.note .meta")).toHaveTextContent(
+    "2025.03.02",
   );
 });
 

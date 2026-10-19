@@ -102,13 +102,14 @@
 
 风险：请求中的 ID 被直接拼成路径，借 `..`、绝对路径或编码后的分隔符读到笔记文件夹之外的文件；返回的正文仍带 frontmatter；文件在索引中但已删除时服务端报 500。前置：真实文件系统；笔记文件夹外有一个可读的秘密文件；索引中有一篇 ID 含 `/` 与中文的笔记、一篇已被删除的笔记；笔记文件夹内有一个不在索引中的 `.md` 文件。触发：请求 `GET /api/notes/<id>`，`<id>` 分别为合法 ID、`../secret`、`%2e%2e%2fsecret`、绝对路径、不在索引中的文件 ID、已删除文件的 ID；打开对应的笔记页。
 
-必须成立：合法 ID 返回 `{ id, title, occurred_at, content }`，`content` 是去掉 frontmatter 的正文，并按请求时文件的最新内容返回；标题与日期来自索引。其余 ID 一律返回 404，已删除的文件同时记录日志。笔记页以共享 Markdown 组件渲染正文，显示标题与 `YYYY.MM.DD`，从摘星进入时没有返回链接。禁止任何请求读到笔记文件夹之外的文件或不在索引中的文件。
+必须成立：合法 ID 返回 `{ id, title, occurred_at, content }`，`content` 是去掉 frontmatter 的正文，并按请求时文件的最新内容返回；标题与日期来自索引。其余 ID 一律返回 404，已删除的文件同时记录日志。笔记页以共享 Markdown 组件渲染正文，显示标题与 `YYYY.MM.DD`；正文以一级标题开头时只显示这一个标题，不再显示 frontmatter `title`，从摘星进入时没有返回链接。禁止任何请求读到笔记文件夹之外的文件或不在索引中的文件。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 路径穿越、绝对路径、不在索引中的 ID 全部 404，读不到秘密文件（真实文件系统与真实 Router） | Covered | `crates/notes/tests/notes.rs::note_page_must_read_only_files_listed_in_the_index`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 Router，`../secret`）、`crates/notes/src/cache.rs::ids_name_only_files_below_the_folder`（cache 中的越界 ID 被拒绝） |
+| 正文开头的一级标题代替 frontmatter `title`，页面只有一个标题 | Covered | `pages/note.test.tsx::lets a leading level-1 heading stand in for the title` |
 | 正文去掉 frontmatter 且读取最新文件内容，已删除文件返回 404 | Covered | `crates/notes/tests/notes.rs::note_page_must_read_only_files_listed_in_the_index`、`crates/notes/src/library.rs::body_leaves_out_the_frontmatter` |
 | 含 `/` 与中文的 ID 在前端路由与接口间往返一致，笔记页版式与无返回链接 | Covered | `pages/note.test.tsx::lists notes by date and opens one at the top, to read only`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 Router 解码 `%2F`） |
 

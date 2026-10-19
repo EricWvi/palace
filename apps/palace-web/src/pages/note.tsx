@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import Markdown from "react-markdown";
 import { useLocation, useParams } from "react-router-dom";
 import { ApiError, noteOptions } from "@/lib/api";
 import { ErrorState } from "@/components/error-state";
@@ -11,6 +12,13 @@ import {
 // Notes are the owner's own writing, and their images are the owner's uploads: they load as
 // written. Module-level, so the memoized content never sees a new policy object.
 const own: ImagePolicy = { kind: "load", resolve: (src) => src };
+
+// A level-1 ATX heading on the body's first line, with its optional closing `#`s.
+const leadingHeading = /^\s*# +(.*?\S)(?: +#+)? *(?:\n|$)/;
+
+// Inline marks a heading may carry; anything else (links, images) keeps only its text, since
+// the page title is not a place to navigate from.
+const inline = ["strong", "em", "code", "del"];
 
 // 摘星's reading page for one note. Notes are maintained outside Palace, so the page only reads:
 // no menu, no actions, and no way back but the browser's, as for a conversation opened from 摘星.
@@ -52,16 +60,30 @@ export function NotePage() {
       />
     );
   const date = new Date(note.data.occurred_at);
+  // Most notes repeat their frontmatter title as the body's first heading. Showing both stacks
+  // two titles, so the body's heading takes the header's place and the date hangs below it.
+  const heading = leadingHeading.exec(note.data.content);
+  const content = heading
+    ? note.data.content.slice(heading[0].length)
+    : note.data.content;
   return (
     <>
       <header className="note">
-        <h1>{note.data.title}</h1>
+        <h1>
+          {heading ? (
+            <Markdown allowedElements={inline} unwrapDisallowed skipHtml>
+              {heading[1]}
+            </Markdown>
+          ) : (
+            note.data.title
+          )}
+        </h1>
         <p className="meta">
           <time dateTime={date.toISOString()}>{fullDate(date)}</time>
         </p>
       </header>
       <div className="note-body">
-        <MarkdownContent content={note.data.content} images={own} />
+        <MarkdownContent content={content} images={own} />
       </div>
     </>
   );

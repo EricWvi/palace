@@ -560,9 +560,9 @@ ol.messages {
   border-radius: var(--radius-md);
 }
 
-/* A note reads like one long message: the transcript's type and distance from the header. */
+/* A note reads like one long message in the transcript's type, set closer to its header. */
 .note-body {
-  margin-top: 54px;
+  margin-top: 36px;
   font-family: var(--font-content);
   line-height: 1.75;
   overflow-wrap: anywhere;
@@ -599,6 +599,40 @@ ol.messages {
   margin: 20px 0 6px;
   font-size: var(--font-size-base);
   font-weight: 600;
+}
+
+/*
+ * A note is one long document whose headings are its outline, so they step down in size; a
+ * conversation's headings are whatever a model wrote, and stay flat so a message never shouts.
+ * Every level stays below the page title, and more space above than below ties a heading to the
+ * text it introduces. Below h3 the outline is too fine to be worth another size.
+ */
+.note-body .markdown h1 {
+  margin: 40px 0 12px;
+  font-size: var(--font-size-xl);
+}
+
+.note-body .markdown h2 {
+  margin: 32px 0 10px;
+  font-size: var(--font-size-lg);
+}
+
+.note-body .markdown h3 {
+  margin: 24px 0 8px;
+}
+
+.note-body .markdown h4,
+.note-body .markdown h5,
+.note-body .markdown h6 {
+  margin: 20px 0 6px;
+  color: var(--text-2);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+}
+
+/* The heading rules above outrank the shared first-child reset; the header already sets the gap. */
+.note-body .markdown > :first-child {
+  margin-top: 0;
 }
 
 .markdown strong {
