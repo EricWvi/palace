@@ -51,4 +51,27 @@
 | Unix 上运行中程序经完整验证流程替换，内容及执行权限正确 | Covered | `apps/pal/src/update/tests.rs::replaces_a_running_executable_after_verification`，复制出的真实子进程、真实文件系统与 self-replace |
 | 替换错误能报告且清理暂存目录                            | Covered | 同文件 `replacement_errors_are_reported_and_staging_is_removed`，注入 PermissionDenied 的安装器与真实暂存目录                     |
 | Windows 运行中文件替换                                  | Missing | 生产使用 self-replace 的 Windows 实现；尚无该平台真实子进程证据                                                                   |
-| GitHub 上完整发布和下载链路                             | Missing | 本地只运行清单生成脚本和注入下载源，未发布 Release                                                                                |
+| GitHub 上完整发布和下载链路                             | Partial | v0.4.1 五平台正式 Release 已发布，Linux 初次下载、摘要校验与安装已完成；完整 `pal update` 链路由 Eric 验证                        |
+
+## Updates must honor standard proxy environment variables
+
+### 风险、前置状态与触发
+
+用户通过常见代理访问 GitHub。分别仅在独立子进程设置 `HTTPS_PROXY`、`https_proxy`、`ALL_PROXY`、
+`all_proxy`，指向本机 HTTP 代理；再设置 `NO_PROXY` 或 `no_proxy` 排除目标主机。使用生产下载客户端请求
+解析到回环地址的测试 HTTPS 主机，代理拒绝 CONNECT，目标端口不可连接，禁止访问 GitHub 或替换程序。
+
+### 必须成立与禁止结果
+
+未排除目标时，代理收到该主机的 CONNECT；排除后，代理不收到连接。禁止修改父进程环境或忽略标准
+代理配置。
+
+### 验证义务与证据
+
+| 验证义务                                                        | 状态    | 直接证据                                                                                                                                               |
+| --------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 大小写 HTTPS/ALL 代理环境变量生效，大小写 NO_PROXY 均能绕过代理 | Covered | `apps/pal/src/update/proxy_tests.rs::standard_proxy_environment_is_used_and_no_proxy_is_respected`，独立测试子进程、生产客户端及本机 HTTP CONNECT 代理 |
+
+### 决策依据
+
+Eric 要求自动更新采用环境变量中的常见代理设置。

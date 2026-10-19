@@ -31,6 +31,14 @@ Linux 和 macOS 提供 x86_64、ARM64 版本，Windows 提供 x86_64 版本；Li
 访问 Palace 的命令两者都必需（`pal uuid`、`pal update` 和 `pal jottings check` 不需要），只能来自环境变量，不提供命令行参数或配置文件，避免 token 进入 shell 历史或 `ps`。
 配置不合法时 `pal` 不发出任何请求。变量使用 `PAL_` 前缀，与服务端的 `PALACE_*` 配置互不干扰。
 
+`pal update` 使用标准代理环境变量：`HTTPS_PROXY`、`HTTP_PROXY`、`ALL_PROXY`、`NO_PROXY`，以及各自的
+小写形式。更新下载均为 HTTPS，使用 `HTTPS_PROXY` 或回退到 `ALL_PROXY`；`HTTP_PROXY` 只用于 HTTP
+目标。`NO_PROXY` 指定的主机会绕过代理。代理地址可以使用 `http://`，通过 CONNECT 隧道访问 HTTPS。
+
+```sh
+HTTPS_PROXY=http://127.0.0.1:7890 pal update
+```
+
 ## 命令
 
 ```sh

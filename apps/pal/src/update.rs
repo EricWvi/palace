@@ -1,6 +1,8 @@
 //! Updates are staged and verified before the running executable is touched.
 mod archive;
 #[cfg(test)]
+mod proxy_tests;
+#[cfg(test)]
 mod tests;
 
 use reqwest::blocking::Client;
@@ -77,15 +79,19 @@ impl Download for Client {
 /// Downloads only official HTTPS assets, then uses the platform-specific replacement procedure.
 pub(crate) fn run() -> Result<String, Error> {
     let target = release_target(std::env::consts::OS, std::env::consts::ARCH)?;
-    let source = Client::builder()
+    let source = download_client_builder().build()?;
+    install_latest(&source, target, |path| self_replace::self_replace(path))
+}
+
+/// Retains reqwest's standard environment proxy discovery, including NO_PROXY exclusions.
+fn download_client_builder() -> reqwest::blocking::ClientBuilder {
+    Client::builder()
         .user_agent(format!("pal/{}", crate::VERSION))
         .https_only(/*enabled*/ true)
         // GitHub redirects release assets to its storage host.
         .redirect(reqwest::redirect::Policy::limited(/*max*/ 10))
         .connect_timeout(Duration::from_secs(/*secs*/ 15))
         .timeout(Duration::from_secs(/*secs*/ 180))
-        .build()?;
-    install_latest(&source, target, |path| self_replace::self_replace(path))
 }
 
 /// Matches the release matrix explicitly so unsupported builds never install a different ABI.
