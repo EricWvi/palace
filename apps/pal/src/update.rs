@@ -78,7 +78,7 @@ impl Download for Client {
 pub(crate) fn run() -> Result<String, Error> {
     let target = release_target(std::env::consts::OS, std::env::consts::ARCH)?;
     let source = Client::builder()
-        .user_agent(concat!("pal/", env!("CARGO_PKG_VERSION")))
+        .user_agent(format!("pal/{}", crate::VERSION))
         .https_only(/*enabled*/ true)
         // GitHub redirects release assets to its storage host.
         .redirect(reqwest::redirect::Policy::limited(/*max*/ 10))

@@ -16,7 +16,10 @@ Linux 和 macOS 提供 x86_64、ARM64 版本，Windows 提供 x86_64 版本；Li
 推送 `v*` tag（例如 `v0.4.1`）触发 [Release pal CLI](../../.github/workflows/release-pal.yml) 工作流。
 所有平台完成 release 构建和 `--help` 启动检查后，工作流自动生成发布说明并直接发布正式 GitHub Release，
 不保留 draft，也不标记为 prerelease。压缩包按 `pal-<tag>-<target>` 命名。CLI 发布与镜像发布工作流独立运行。
-发布构建的 `pal --version` 显示对应 tag；本地开发构建显示工作区版本。
+`pal --version` 输出 `built on <短 commit hash> (tag: <仓库 tag>)`，例如
+`built on a1b2c3d (tag: v0.4.1)`。版本由仓库提交和 tag 标识，不使用 Cargo 工作区的占位版本号，
+也不比较 SemVer 大小。发布构建使用触发发布的完整 tag；本地构建若 HEAD 上没有 tag，显示
+`tag: untagged`；源码包不带 Git 元数据时 hash 为 `unknown`。
 
 ## 配置
 

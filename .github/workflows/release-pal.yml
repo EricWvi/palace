@@ -32,7 +32,7 @@ jobs:
     env:
       TARGET: ${{ matrix.target }}
       TAG: ${{ github.ref_name }}
-      PAL_RELEASE_VERSION: ${{ github.ref_name }}
+      PAL_RELEASE_TAG: ${{ github.ref_name }}
 
     steps:
       - name: Check out source
@@ -64,14 +64,17 @@ jobs:
           asset="pal-${TAG}-${TARGET}"
           binary="target/${TARGET}/release/pal"
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            "${binary}.exe" --help
-            cp "${binary}.exe" dist/pal.exe
+            binary="${binary}.exe"
+          fi
+          "$binary" --help
+          test "$("$binary" --version)" = "built on $(git rev-parse --short=7 HEAD) (tag: ${TAG})"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            cp "$binary" dist/pal.exe
             pushd dist
             7z a "${asset}.zip" pal.exe
             rm pal.exe
             popd
           else
-            "$binary" --help
             tar -czf "dist/${asset}.tar.gz" -C "target/${TARGET}/release" pal
           fi
 

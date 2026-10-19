@@ -6,18 +6,14 @@ mod failure;
 mod jottings;
 mod update;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, error::ErrorKind};
 use client::Client;
 use config::Config;
 use failure::Failure;
 use std::{path::PathBuf, process::ExitCode};
 use uuid::Uuid;
 
-// Release tags identify downloaded binaries even though workspace crates share a development version.
-const VERSION: &str = match option_env!("PAL_RELEASE_VERSION") {
-    Some(version) => version,
-    None => env!("CARGO_PKG_VERSION"),
-};
+const VERSION: &str = env!("PAL_BUILD_VERSION");
 
 /// Palace CLI; Palace API commands read PAL_URL and PAL_TOKEN (an access token from 密钥管理).
 #[derive(Parser)]
@@ -66,7 +62,15 @@ enum S3 {
 
 /// Usage errors exit 2 from the parser; every other failure exits 1 with stdout left empty.
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        // Print the repository identity verbatim instead of clap's binary-name/version prefix.
+        Err(error) if error.kind() == ErrorKind::DisplayVersion => {
+            println!("{VERSION}");
+            return ExitCode::SUCCESS;
+        }
+        Err(error) => error.exit(),
+    };
     match run(cli.command) {
         Ok(()) => ExitCode::SUCCESS,
         Err(failure) => {
