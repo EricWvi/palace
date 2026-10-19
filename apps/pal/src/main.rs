@@ -12,7 +12,7 @@ use failure::Failure;
 use std::{path::PathBuf, process::ExitCode};
 use uuid::Uuid;
 
-/// Reads PAL_URL (the Palace address) and PAL_TOKEN (an access token from 密钥管理).
+/// Palace CLI; remote commands read PAL_URL and PAL_TOKEN (an access token from 密钥管理).
 #[derive(Parser)]
 #[command(name = "pal", version)]
 struct Cli {
@@ -22,6 +22,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Generate a UUID v7 locally; needs no PAL_URL or PAL_TOKEN.
+    Uuid,
     /// Media files kept in Palace's object storage, referenced only by their media id.
     #[command(subcommand)]
     S3(S3),
@@ -69,6 +71,7 @@ fn main() -> ExitCode {
 /// Local commands never read it.
 fn run(command: Command) -> Result<(), Failure> {
     match command {
+        Command::Uuid => println!("{}", Uuid::now_v7()),
         Command::S3(command) => {
             let client = Client::new(Config::from_env(std::env::var_os)?)?;
             match command {

@@ -1,0 +1,115 @@
+name: Release pal CLI
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build pal (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+          - os: macos-15
+            target: aarch64-apple-darwin
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+    defaults:
+      run:
+        shell: bash
+    env:
+      TARGET: ${{ matrix.target }}
+      TAG: ${{ github.ref_name }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust dependencies and build artifacts
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: pal-release-${{ matrix.target }}-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
+          restore-keys: |
+            pal-release-${{ matrix.target }}-
+
+      - name: Build pal
+        run: cargo build --release --locked --package pal --bin pal --target "$TARGET"
+
+      - name: Package pal
+        run: |
+          mkdir -p dist
+          asset="pal-${TAG}-${TARGET}"
+          binary="target/${TARGET}/release/pal"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            "${binary}.exe" --help
+            cp "${binary}.exe" dist/pal.exe
+            pushd dist
+            7z a "${asset}.zip" pal.exe
+            rm pal.exe
+            popd
+          else
+            "$binary" --help
+            tar -czf "dist/${asset}.tar.gz" -C "target/${TARGET}/release" pal
+          fi
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: pal-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish pal CLI release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: pal-*
+          merge-multiple: true
+          path: dist
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum pal-* > SHA256SUMS
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: pal ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/pal-*.tar.gz
+            dist/pal-*.zip
+            dist/SHA256SUMS
