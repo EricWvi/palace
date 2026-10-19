@@ -30,6 +30,14 @@
     color: inherit;
   }
 
+  /*
+   * The system's selection colour is cold blue on Windows and clashes with the warm page; only
+   * the background is set, so code keeps its syntax colours while selected.
+   */
+  ::selection {
+    background: var(--selection);
+  }
+
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 3px;

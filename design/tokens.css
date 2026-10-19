@@ -10,7 +10,7 @@
 :root {
   --font-serif: "EB Garamond", "Noto Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif;
   --font-sans: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --font-mono: "Hack Nerd Font", ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
 
   /*
    * Components pick a role, never a family. Songti's hairline strokes break
@@ -54,6 +54,8 @@
   --success: #3f6b4f;
   --success-soft: #e3ebe4;
   --on-accent: #fffefb;
+  /* Selected text: the ornament's khaki, so a selection never reads as a search mark. */
+  --selection: #e2d4bc;
   /* Code syntax: five classes only, each at least 4.5:1 on --bg-sunken. */
   --code-keyword: #a6401c;
   --code-string: #3d6a4c;
@@ -82,6 +84,7 @@
   --success: #7fb08f;
   --success-soft: #24302a;
   --on-accent: #1f1e1c;
+  --selection: #4a4136;
   --code-keyword: #e58560;
   --code-string: #86b896;
   --code-comment: #8f8a7f;
@@ -106,6 +109,7 @@
     --success: #7fb08f;
     --success-soft: #24302a;
     --on-accent: #1f1e1c;
+    --selection: #4a4136;
     --code-keyword: #e58560;
     --code-string: #86b896;
     --code-comment: #8f8a7f;
