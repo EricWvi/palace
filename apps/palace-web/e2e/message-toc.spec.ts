@@ -53,6 +53,125 @@ test("the table of contents follows reading, keeps a jump's mark and closes when
   await expect(current).toHaveText("第 0 条");
   await expect.poll(opacity).toBe("0");
 
+  // A brief pass over the ticks must never start a translucent panel opening.
+  await page.clock.install({ time: new Date("2026-10-19T00:00:00+08:00") });
+  await page.clock.pauseAt(new Date("2026-10-19T00:00:01+08:00"));
+  const exitTrigger = (await toc.locator(".toc-rail").boundingBox())!;
+  for (const exit of [
+    "viewport",
+    "document",
+    "pointer",
+    "mouseout",
+    "blur",
+    "hidden",
+  ] as const) {
+    await page.mouse.move(
+      exitTrigger.x + exitTrigger.width - 4,
+      exitTrigger.y + exitTrigger.height / 2,
+    );
+    await page.clock.runFor(100);
+    if (exit === "viewport") {
+      await page.mouse.move(1300, exitTrigger.y + exitTrigger.height / 2);
+    } else {
+      // Model a boundary notification without the element's own leave event, including stale :hover.
+      await page.evaluate((exit) => {
+        switch (exit) {
+          case "document":
+            document.documentElement.dispatchEvent(
+              new MouseEvent("mouseleave", { relatedTarget: null }),
+            );
+            break;
+          case "pointer":
+            document.documentElement.dispatchEvent(
+              new PointerEvent("pointerleave"),
+            );
+            break;
+          case "mouseout":
+            window.dispatchEvent(
+              new MouseEvent("mouseout", { relatedTarget: null }),
+            );
+            break;
+          case "blur":
+            window.dispatchEvent(new Event("blur"));
+            break;
+          case "hidden":
+            Object.defineProperty(document, "hidden", {
+              configurable: true,
+              value: true,
+            });
+            document.dispatchEvent(new Event("visibilitychange"));
+            break;
+        }
+      }, exit);
+    }
+    await page.clock.runFor(1000);
+    await panel.evaluate((element) =>
+      element.getAnimations().forEach((animation) => animation.finish()),
+    );
+    expect(await opacity(), exit).toBe("0");
+    if (exit === "hidden") {
+      await page.evaluate(() => Reflect.deleteProperty(document, "hidden"));
+    }
+    await page.mouse.move(400, 400);
+  }
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    const trigger = (await toc.locator(".toc-rail").boundingBox())!;
+    await page.mouse.move(
+      trigger.x + trigger.width - 4,
+      trigger.y + trigger.height / 2,
+    );
+    await page.clock.runFor(100);
+    const briefOpacity = await panel.evaluate((element) => {
+      // Seek the actual CSS transition, avoiding assertions tied to the runner's frame rate.
+      for (const animation of element.getAnimations()) {
+        animation.pause();
+        animation.currentTime = 100;
+      }
+      return getComputedStyle(element).opacity;
+    });
+    expect(briefOpacity).toBe("0");
+    // Leaving the ticks into the hidden panel's footprint must cancel opening too.
+    await page.mouse.move(trigger.x - 100, trigger.y + trigger.height / 2);
+    await page.clock.runFor(1000);
+    expect(await toc.evaluate((element) => element.matches(":hover"))).toBe(
+      false,
+    );
+    await expect.poll(opacity).toBe("0");
+
+    await page.mouse.move(
+      trigger.x + trigger.width - 4,
+      trigger.y + trigger.height / 2,
+    );
+    await page.clock.runFor(300);
+    expect(await opacity()).toBe("0");
+    await page.clock.runFor(50);
+    await expect(toc).toHaveAttribute("data-open", "true");
+    await panel.evaluate((element) =>
+      element.getAnimations().forEach((animation) => animation.finish()),
+    );
+    expect(await opacity()).toBe("1");
+    await page.mouse.move(400, 400);
+    await panel.evaluate((element) =>
+      element.getAnimations().forEach((animation) => animation.finish()),
+    );
+    expect(await opacity()).toBe("0");
+
+    // Keyboard access opens immediately without waiting for the mouse intent timer.
+    const firstLink = toc.getByRole("link").first();
+    await firstLink.focus();
+    await panel.evaluate((element) =>
+      element.getAnimations().forEach((animation) => animation.finish()),
+    );
+    expect(await opacity()).toBe("1");
+    await firstLink.evaluate((element) => element.blur());
+    await panel.evaluate((element) =>
+      element.getAnimations().forEach((animation) => animation.finish()),
+    );
+    expect(await opacity()).toBe("0");
+  }
+  await page.clock.resume();
+
   // Reading moves the mark without opening anything.
   await page.mouse.wheel(0, 900);
   await expect(current).not.toHaveText("第 0 条");

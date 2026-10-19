@@ -96,6 +96,8 @@
 | 目录行集合、顺序来自 `toc_line`，随分支切换 | Covered | `pages/conversation.test.tsx::lists the read path's messages by their server lines, and a jump keeps its mark until the reader scrolls` |
 | 跳转固定当前标记直到读者滚动，点击不留焦点 | Covered | `pages/conversation.test.tsx::lists the read path's messages by their server lines, and a jump keeps its mark until the reader scrolls`、`e2e/message-toc.spec.ts`（真实 Chromium，接近底部跳转） |
 | 滚动时标记跟随、指针离开后浮层关闭、窄屏不显示 | Covered | `e2e/message-toc.spec.ts` |
+| 悬停不足 350ms 保持隐藏且不扩大鼠标区域，离开取消待打开动作；持续悬停打开，键盘进入立即打开 | Covered | `e2e/message-toc.spec.ts`，真实 Chromium、受控 JS 时钟与实际 CSS 动画采样 |
+| 只收到文档退出或窗口失焦事件时，也取消待打开动作 | Covered | `e2e/message-toc.spec.ts`，真实 Chromium 中派发边界事件，受控时钟验证；macOS 原生窗口事件顺序尚待人工验证 |
 
 决策依据：20261006 消息目录 D1、D2，不变量 1–5。
 

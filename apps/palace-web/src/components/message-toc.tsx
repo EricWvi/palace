@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Message } from "@/lib/api";
 
 // The element id a message of the reading page carries, so the table of contents can jump to it.
@@ -28,10 +28,43 @@ function readingIndex(messages: Message[]) {
 // shown where the margin beside the sheet has room for it.
 export function MessageToc({ messages }: { messages: Message[] }) {
   const [current, setCurrent] = useState(0);
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const hoverTimer = useRef<number | undefined>(undefined);
   // A jump names its target outright: a short message near the end may never reach the reading
   // line, and must not hand the mark to its neighbour. The pin holds until the reader scrolls.
   const pinned = useRef<number | null>(null);
+  const toc = useRef<HTMLElement>(null);
   const panel = useRef<HTMLOListElement>(null);
+
+  const cancelHover = useCallback(() => {
+    window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = undefined;
+    setHoverOpen(false);
+  }, []);
+
+  useEffect(() => {
+    // Fast window exits can omit the element-level leave event; browser boundaries cancel too.
+    const root = document.documentElement;
+    const onMouseOut = (event: MouseEvent) => {
+      if (event.relatedTarget === null) cancelHover();
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) cancelHover();
+    };
+    root.addEventListener("mouseleave", cancelHover);
+    root.addEventListener("pointerleave", cancelHover);
+    window.addEventListener("mouseout", onMouseOut);
+    window.addEventListener("blur", cancelHover);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearTimeout(hoverTimer.current);
+      root.removeEventListener("mouseleave", cancelHover);
+      root.removeEventListener("pointerleave", cancelHover);
+      window.removeEventListener("mouseout", onMouseOut);
+      window.removeEventListener("blur", cancelHover);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [cancelHover]);
 
   useEffect(() => {
     pinned.current = null;
@@ -75,7 +108,23 @@ export function MessageToc({ messages }: { messages: Message[] }) {
   }
 
   return (
-    <nav className="toc" aria-label="消息目录" onMouseEnter={centerCurrent}>
+    <nav
+      ref={toc}
+      className="toc"
+      aria-label="消息目录"
+      data-open={hoverOpen || undefined}
+      onMouseEnter={() => {
+        // Keep the invisible panel out of hit testing until the reader intends to open it.
+        window.clearTimeout(hoverTimer.current);
+        hoverTimer.current = window.setTimeout(() => {
+          hoverTimer.current = undefined;
+          if (!toc.current?.matches(":hover") || document.hidden) return;
+          centerCurrent();
+          setHoverOpen(true);
+        }, 350);
+      }}
+      onMouseLeave={cancelHover}
+    >
       <div className="toc-rail" aria-hidden="true">
         {messages.map((message, index) => (
           <span

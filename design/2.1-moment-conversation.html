@@ -336,7 +336,7 @@
       transition: opacity .15s .2s;
     }
 
-    .toc:hover .toc-panel,
+    .toc[data-open] .toc-panel,
     .toc:focus-within .toc-panel {
       opacity: 1;
       pointer-events: auto;
@@ -578,7 +578,33 @@
       const link = panel.querySelector('[aria-current="true"]');
       if (link) panel.scrollTop = link.offsetTop - (panel.clientHeight - link.offsetHeight) / 2;
     };
-    document.querySelector(".toc").addEventListener("mouseenter", centerCurrent);
+    const toc = document.querySelector(".toc");
+    let hoverTimer;
+    const cancelHover = () => {
+      clearTimeout(hoverTimer);
+      hoverTimer = undefined;
+      delete toc.dataset.open;
+    };
+    toc.addEventListener("mouseenter", () => {
+      // Do not let a quick pass reveal the panel or expand its pointer target.
+      clearTimeout(hoverTimer);
+      hoverTimer = setTimeout(() => {
+        hoverTimer = undefined;
+        if (!toc.matches(":hover") || document.hidden) return;
+        centerCurrent();
+        toc.dataset.open = "true";
+      }, 350);
+    });
+    toc.addEventListener("mouseleave", cancelHover);
+    document.documentElement.addEventListener("mouseleave", cancelHover);
+    document.documentElement.addEventListener("pointerleave", cancelHover);
+    window.addEventListener("mouseout", (event) => {
+      if (event.relatedTarget === null) cancelHover();
+    });
+    window.addEventListener("blur", cancelHover);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) cancelHover();
+    });
 
     // Jumping is reading too, so it replaces nothing in history and keeps the path in the address.
     panel.addEventListener("click", (e) => {

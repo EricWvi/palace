@@ -1448,7 +1448,7 @@ ol.messages {
   transition: opacity 0.15s 0.2s;
 }
 
-.toc:hover .toc-panel,
+.toc[data-open] .toc-panel,
 .toc:focus-within .toc-panel {
   opacity: 1;
   pointer-events: auto;
