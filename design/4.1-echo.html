@@ -1,0 +1,1457 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<!--
+  回响: the 札记 page. A recall pile of five cards (fixed per day) tops the
+  left column; a click spreads it rightward over the wall until a click
+  elsewhere, and each card read in full leaves the pile for the day. The
+  wall holds every jotting, newest first. `n` opens
+  the composer, `/` opens search; neither has a visible entry point. The
+  page is wider than the rest of Palace: clicking 时刻 / 回响 in the header
+  plays the width change in place, since file:// pages cannot animate
+  across a navigation.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>回响</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="components.css">
+  <script src="ornament.js"></script>
+  <script src="shared.js"></script>
+  <script src="variant-switcher.js"></script>
+  <script src="4-echo-data.js"></script>
+  <style>
+    /*
+     * 回响 needs room for three columns of cards, so its sheet widens; the
+     * header lives inside the sheet and stretches with it, reading as one
+     * page of paper changing size. Larger travel, so slower than the 300ms
+     * used elsewhere.
+     */
+    .sheet {
+      transition: max-width 400ms ease-out;
+    }
+
+    .sheet.wide {
+      max-width: 1200px;
+    }
+
+    mark {
+      background: var(--accent-soft);
+      color: inherit;
+      border-radius: 2px;
+    }
+
+    .echo {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 48px;
+      margin-top: 70px;
+      transition: opacity 150ms ease-out;
+    }
+
+    /* Author display rules would otherwise beat the hidden attribute. */
+    .echo[hidden],
+    .suggest[hidden] {
+      display: none;
+    }
+
+    .echo.fading,
+    .moments.fading {
+      opacity: 0;
+    }
+
+    .echo-main {
+      min-width: 0;
+      transition: opacity 300ms ease-out;
+    }
+
+    /* The spread pile lies over the wall; dimming the wall keeps its text from showing through the gaps. */
+    .echo:has(.recall.spread) .echo-main {
+      opacity: .25;
+    }
+
+    /* ---------- Left column ---------- */
+
+    /* Above the wall, so the spread pile floats over its first row. */
+    .side {
+      position: sticky;
+      top: 32px;
+      z-index: 2;
+      align-self: start;
+      font-size: var(--font-size-sm);
+    }
+
+    .side-lists {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .side-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .side-list button {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      color: var(--text-3);
+      text-align: left;
+    }
+
+    .side-list button:hover {
+      color: var(--text-2);
+    }
+
+    .side-list button[aria-current="true"] {
+      color: var(--accent);
+    }
+
+    .side-list small {
+      font-size: var(--font-size-xs);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .side-pending {
+      font-family: var(--font-display);
+      font-size: var(--font-size-lg);
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+    }
+
+    .stats strong {
+      display: block;
+      font-family: var(--font-display);
+      font-size: var(--font-size-2xl);
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .stats span {
+      color: var(--text-3);
+      font-size: var(--font-size-xs);
+    }
+
+    /* Twelve weeks, Monday on top, the current week on the right. */
+    .heat {
+      display: grid;
+      grid-template-rows: repeat(7, 11px);
+      grid-auto-flow: column;
+      grid-auto-columns: 11px;
+      gap: 3px;
+    }
+
+    .heat i {
+      border-radius: 2px;
+      background: var(--bg-sunken);
+    }
+
+    .heat i[data-level="1"] {
+      background: color-mix(in srgb, var(--accent) 30%, var(--surface));
+    }
+
+    .heat i[data-level="2"] {
+      background: color-mix(in srgb, var(--accent) 60%, var(--surface));
+    }
+
+    .heat i[data-level="3"] {
+      background: var(--accent);
+    }
+
+    .heat i[data-future] {
+      visibility: hidden;
+    }
+
+    /* ---------- Drawers: recall, composer and search slide by animating their row ---------- */
+
+    .drawer {
+      display: grid;
+      grid-template-rows: 1fr;
+      transition: grid-template-rows 300ms ease-out, opacity 300ms ease-out;
+    }
+
+    .drawer.closed {
+      grid-template-rows: 0fr;
+      opacity: 0;
+    }
+
+    /*
+     * clip, not hidden: a hidden box is a scroll container, and Chromium
+     * misplaces the caret when text arrives in a textarea whose scroll
+     * container is still growing, so fast typing right after `n` came out reversed.
+     * Unlike hidden, clip keeps the content's minimum size, hence min-width: 0.
+     */
+    .drawer>div {
+      min-width: 0;
+      min-height: 0;
+      overflow: clip;
+    }
+
+    /* ---------- Cards ---------- */
+
+    .card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px 12px;
+    }
+
+    .card h3 {
+      margin: 0 0 6px;
+      font-family: var(--font-display);
+      font-size: var(--font-size-lg);
+      font-weight: 500;
+      line-height: 1.35;
+    }
+
+    .jot-body {
+      font-family: var(--font-content);
+      font-size: var(--font-size-md);
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .jot-body> :first-child {
+      margin-top: 0;
+    }
+
+    .jot-body> :last-child {
+      margin-bottom: 0;
+    }
+
+    .jot-body p,
+    .jot-body ul,
+    .jot-body ol,
+    .jot-body blockquote {
+      margin: 0 0 .6em;
+    }
+
+    .jot-body ul,
+    .jot-body ol {
+      padding-left: 1.3em;
+    }
+
+    .jot-body blockquote {
+      padding-left: 10px;
+      border-left: 2px solid var(--border);
+      color: var(--text-2);
+    }
+
+    .jot-body code {
+      padding: 0 4px;
+      border-radius: var(--radius-sm);
+      background: var(--code-inline-bg);
+      color: var(--code-inline-text);
+      font-family: var(--font-mono);
+      font-size: .88em;
+    }
+
+    /* Eight lines, faded at the cut so the fold reads as "more below". */
+    .jot-body.folded {
+      max-height: calc(8 * 1.6em);
+      overflow: hidden;
+      mask-image: linear-gradient(to bottom, black 65%, transparent);
+    }
+
+    .jot-body.moving {
+      overflow: hidden;
+      transition: max-height 300ms ease-out;
+    }
+
+    .jot-fold {
+      margin-top: 2px;
+      color: var(--text-3);
+      font-size: var(--font-size-xs);
+    }
+
+    .jot-fold:hover {
+      color: var(--text-2);
+    }
+
+    .jot-foot {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 10px;
+      margin-top: 10px;
+      color: var(--text-3);
+      font-size: var(--font-size-xs);
+    }
+
+    .jot-foot .tag:hover {
+      color: var(--text-2);
+    }
+
+    .jot-foot .tag[aria-current="true"] {
+      color: var(--accent);
+    }
+
+    /*
+     * 待整理 is a passing state of the card, not a fact about it, so it is a
+     * dot in the corner padding: it takes no room in the footer and never
+     * strands itself on a wrapped line.
+     */
+    .pending {
+      position: absolute;
+      top: 9px;
+      right: 9px;
+      width: 6px;
+      height: 6px;
+      border-radius: var(--radius-round);
+      background: var(--accent);
+    }
+
+    .time {
+      position: relative;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /*
+     * Tooltips float above their anchor, so revealing one never reflows the
+     * card. A relative time shows its full timestamp; the 待整理 dot names itself.
+     */
+    [data-tip]::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: -6px;
+      bottom: calc(100% + 6px);
+      z-index: 1;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      background: var(--text);
+      color: var(--bg);
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 150ms ease-out;
+    }
+
+    .pending::after {
+      left: auto;
+      right: -6px;
+      font-size: var(--font-size-xs);
+    }
+
+    [data-tip]:hover::after {
+      opacity: 1;
+      transition-delay: 200ms;
+    }
+
+    /* ---------- Recall pile ---------- */
+
+    /*
+     * Once open, the drawer stops clipping so the spread row can reach across
+     * the wall; it clips again only while sliding shut for a filter.
+     */
+    .recall-drawer.settled>div {
+      overflow: visible;
+    }
+
+    .recall {
+      --gap: 12px;
+      /* Room on the right and below for the pile's offsets. */
+      --w: calc(100% - 16px);
+      position: relative;
+      height: 206px;
+      margin-bottom: 28px;
+    }
+
+    .rc {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: var(--w);
+      height: 190px;
+      display: flex;
+      flex-direction: column;
+      z-index: calc(5 - var(--i));
+      box-shadow: 0 2px 6px color-mix(in srgb, var(--text) 8%, transparent);
+      transform: translate(calc(var(--i) * 4px), calc(var(--i) * 4px)) rotate(var(--r));
+      /* Collapsing, the far cards leave first so the pile closes from the outside in. */
+      transition: transform 300ms ease-out calc((var(--n) - 1 - var(--i)) * 40ms), box-shadow 300ms ease-out;
+      cursor: pointer;
+    }
+
+    /* Spread, the cards float over the wall, so they lift with a deeper shadow. */
+    .recall.spread .rc {
+      transform: translateX(calc(var(--i) * (100% + var(--gap))));
+      transition-delay: calc(var(--i) * 40ms);
+      box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 14%, transparent);
+    }
+
+    /* A uniform card cuts long text with the same fade the wall uses for its fold. */
+    .rc .jot-body {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      mask-image: linear-gradient(to bottom, black 70%, transparent);
+      font-size: var(--font-size-sm);
+    }
+
+    .rc h3 {
+      font-size: var(--font-size-base);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .rc .time {
+      flex: none;
+    }
+
+    .rc .jot-foot {
+      flex-wrap: nowrap;
+      margin-top: 8px;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    /* Every card of the day has been read; one quiet line keeps the corner from looking broken. */
+    .recall-done {
+      margin: 0 0 28px;
+      color: var(--text-3);
+      font-family: var(--font-display);
+      font-size: var(--font-size-md);
+    }
+
+    .zoom-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      background: color-mix(in srgb, var(--bg) 75%, transparent);
+    }
+
+    .zoom {
+      position: fixed;
+      z-index: 21;
+      overflow: hidden;
+      box-shadow: 0 12px 40px color-mix(in srgb, var(--text) 14%, transparent);
+    }
+
+    .zoom.settled {
+      overflow: auto;
+    }
+
+    /* ---------- Composer, search and the filter line ---------- */
+
+    .composer {
+      position: relative;
+      margin-bottom: 24px;
+      padding: 12px 16px;
+    }
+
+    .composer textarea {
+      display: block;
+      width: 100%;
+      min-height: 72px;
+      resize: none;
+      background: transparent;
+      border: 0;
+      outline: none;
+      color: var(--text);
+      font-family: var(--font-content);
+      font-size: var(--font-size-md);
+      line-height: 1.6;
+    }
+
+    .composer textarea::placeholder,
+    .search::placeholder {
+      color: var(--text-3);
+    }
+
+    .suggest {
+      list-style: none;
+      margin: 4px 0 0;
+      padding: 4px 0 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      border-top: 1px dashed var(--border);
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    .suggest li {
+      cursor: pointer;
+    }
+
+    .suggest li[aria-selected="true"] {
+      color: var(--accent);
+    }
+
+    .search {
+      display: block;
+      width: 100%;
+      margin: 0 0 24px;
+      padding: 6px 0;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      outline: none;
+      font-size: var(--font-size-md);
+    }
+
+    .search:focus {
+      border-bottom-color: var(--text-3);
+    }
+
+    .filter-line {
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+      margin: 0 0 16px;
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    .filter-line strong {
+      color: var(--text);
+      font-weight: 400;
+    }
+
+    .filter-line button:hover {
+      color: var(--text-2);
+    }
+
+    .filter-line[hidden] {
+      display: none;
+    }
+
+    /* ---------- All tags ---------- */
+
+    /* A wide column for the sidebar's long tail: the tags run as a paragraph instead of a list. */
+    .tag-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 28px;
+      font-size: var(--font-size-base);
+    }
+
+    .tag-flow button:hover {
+      color: var(--accent-hover);
+    }
+
+    .tag-flow button[aria-current="true"] {
+      color: var(--accent);
+    }
+
+    .tag-flow small {
+      margin-left: 4px;
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .side-all {
+      margin-top: 4px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ---------- Masonry ---------- */
+
+    .wall[hidden] {
+      display: none;
+    }
+
+    .wall {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .col {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .empty {
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    /* ---------- 时刻 stand-in for the width demo ---------- */
+
+    .moments {
+      margin-top: 70px;
+      transition: opacity 150ms ease-out;
+    }
+
+    .moments h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: var(--font-size-4xl);
+      font-weight: 400;
+    }
+
+    .moments p {
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    @media (max-width: 720px) {
+      .echo {
+        grid-template-columns: 1fr;
+        gap: 0;
+        margin-top: 32px;
+      }
+
+      .side {
+        position: static;
+      }
+
+      .side-lists {
+        display: none;
+      }
+
+      /* No hover on phones: the pile is laid out as a row to swipe through. */
+      .recall {
+        display: flex;
+        gap: var(--gap);
+        height: auto;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+      }
+
+      .rc,
+      .recall.spread .rc {
+        /* Relative only to anchor the 待整理 dot; the pile's offsets must not apply. */
+        position: relative;
+        left: auto;
+        width: auto;
+        flex: 0 0 72%;
+        transform: none;
+        box-shadow: none;
+        scroll-snap-align: start;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="sheet wide" id="sheet">
+    <palace-header active="回响"></palace-header>
+
+    <div class="echo" id="echo">
+      <aside class="side" id="side">
+        <div class="drawer recall-drawer settled" id="recall-drawer">
+          <div>
+            <section class="recall" id="recall" aria-label="今日回响"></section>
+          </div>
+        </div>
+        <div class="side-lists" id="side-lists"></div>
+      </aside>
+      <div class="echo-main">
+        <div class="drawer closed" id="composer-drawer" inert>
+          <div>
+            <div class="composer card">
+              <textarea id="composer" placeholder="此刻在想什么"></textarea>
+              <ul class="suggest" id="suggest" hidden></ul>
+            </div>
+          </div>
+        </div>
+        <div class="drawer closed" id="search-drawer" inert>
+          <div><input class="search" id="search" placeholder="搜索札记"></div>
+        </div>
+        <p class="filter-line" id="filter-line" hidden></p>
+        <div class="wall" id="wall"></div>
+        <section class="tag-view" id="tag-view" hidden>
+          <p class="filter-line"><strong>全部标签</strong><span id="tag-total"></span><button data-back>返回</button></p>
+          <div class="tag-flow" id="tag-flow"></div>
+        </section>
+      </div>
+    </div>
+
+    <section class="moments" id="moments" hidden>
+      <h2 id="moments-date"></h2>
+      <p>时间线的替身：原型只演示离开回响时页宽和页头的收缩。</p>
+    </section>
+  </main>
+
+  <variant-switcher variants="A:标签与待整理,B:热力图与统计"></variant-switcher>
+
+  <script>
+    const jottings = globalThis.echoData.jottings;
+    const motion = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const ms = (n) => (motion ? n : 0);
+    const narrow = matchMedia("(max-width: 720px)");
+
+    const $ = (id) => document.getElementById(id);
+    const sheet = $("sheet");
+    const echo = $("echo");
+    const side = $("side");
+    const sideLists = $("side-lists");
+    const recall = $("recall");
+    const recallDrawer = $("recall-drawer");
+    const composerDrawer = $("composer-drawer");
+    const composer = $("composer");
+    const suggest = $("suggest");
+    const searchDrawer = $("search-drawer");
+    const search = $("search");
+    const filterLine = $("filter-line");
+    const wall = $("wall");
+
+    // What the wall shows. `filter` is a tag name or the inbox marker; `query` is the last search run.
+    const PENDING = Symbol("pending");
+    let filter = null;
+    let query = "";
+    // Which view fills the main column: the masonry of jottings or the flow of every tag.
+    let view = "wall";
+
+    /* ---------- Formatting ---------- */
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const esc = (s) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+
+    const absolute = (created) => {
+      const d = new Date(created);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
+    // Relative wording only inside seven days; null past that, where the full time shows instead.
+    const relative = (created) => {
+      const minutes = Math.max(0, (Date.now() - new Date(created)) / 60_000);
+      if (minutes < 1) return "刚刚";
+      if (minutes < 60) return `${Math.floor(minutes)} 分钟前`;
+      if (minutes < 24 * 60) return `${Math.floor(minutes / 60)} 小时前`;
+      if (minutes < 7 * 24 * 60) return `${Math.floor(minutes / 60 / 24)} 天前`;
+      return null;
+    };
+
+    // Just the Markdown jottings actually use: paragraphs, quotes, lists, code, bold, italics.
+    const inline = (s) => esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+
+    const markdown = (src) => src.trim().split(/\n{2,}/).map((block) => {
+      const lines = block.split("\n");
+      if (lines.every((l) => l.startsWith(">"))) {
+        return `<blockquote>${lines.map((l) => inline(l.replace(/^>\s?/, ""))).join("<br>")}</blockquote>`;
+      }
+      if (lines.every((l) => /^- /.test(l))) {
+        return `<ul>${lines.map((l) => `<li>${inline(l.slice(2))}</li>`).join("")}</ul>`;
+      }
+      if (lines.every((l) => /^\d+\. /.test(l))) {
+        return `<ol>${lines.map((l) => `<li>${inline(l.replace(/^\d+\. /, ""))}</li>`).join("")}</ol>`;
+      }
+      return `<p>${lines.map(inline).join("<br>")}</p>`;
+    }).join("");
+
+    // Wrap search hits in <mark> after rendering, so Markdown markup never gets split by a highlight.
+    const markText = (root, q) => {
+      if (!q) return;
+      const lower = q.toLowerCase();
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      for (const node of nodes) {
+        const text = node.nodeValue;
+        let at = text.toLowerCase().indexOf(lower);
+        if (at < 0) continue;
+        const frag = document.createDocumentFragment();
+        let from = 0;
+        while (at >= 0) {
+          frag.append(text.slice(from, at));
+          const mark = document.createElement("mark");
+          mark.textContent = text.slice(at, at + q.length);
+          frag.append(mark);
+          from = at + q.length;
+          at = text.toLowerCase().indexOf(lower, from);
+        }
+        frag.append(text.slice(from));
+        node.replaceWith(frag);
+      }
+    };
+
+    /* ---------- Cards ---------- */
+
+    // Recall cards are too narrow for a full timestamp, so older ones show the date alone.
+    const timeHtml = (j, { compact }) => {
+      const rel = relative(j.created);
+      // Recall cards clip their footer, which would cut the tooltip; they open to full text on click anyway.
+      if (rel && compact) return `<span class="time">${rel}</span>`;
+      if (rel) return `<span class="time" data-tip="${absolute(j.created)}">${rel}</span>`;
+      return `<span class="time">${compact ? absolute(j.created).slice(0, 10) : absolute(j.created)}</span>`;
+    };
+
+    const footHtml = (j, { tagsClickable }) => `
+      <footer class="jot-foot">
+        ${timeHtml(j, { compact: !tagsClickable })}
+        ${j.tags.map((t) => tagsClickable
+      ? `<button class="tag" data-tag="${esc(t)}" ${filter === t ? 'aria-current="true"' : ""}>#${esc(t)}</button>`
+      : `<span>#${esc(t)}</span>`).join("")}
+      </footer>`;
+
+    const pendingDot = (j) => (j.pending ? `<span class="pending" data-tip="待整理"></span>` : "");
+
+    const cardEl = (j) => {
+      const el = document.createElement("article");
+      el.className = "card jot";
+      el.dataset.id = j.id;
+      el.innerHTML = `
+        ${pendingDot(j)}
+        ${j.title ? `<h3>${esc(j.title)}</h3>` : ""}
+        <div class="jot-body folded">${markdown(j.body)}</div>
+        ${footHtml(j, { tagsClickable: true })}`;
+      markText(el.querySelector("h3") ?? document.createElement("i"), query);
+      markText(el.querySelector(".jot-body"), query);
+      return el;
+    };
+
+    // Run once the card is in the document: only then can its body report whether it overflows eight lines.
+    const settleFold = (el) => {
+      const body = el.querySelector(".jot-body");
+      if (body.scrollHeight <= body.clientHeight + 2) {
+        body.classList.remove("folded");
+        return;
+      }
+      const toggle = document.createElement("button");
+      toggle.className = "jot-fold";
+      toggle.textContent = "展开";
+      body.after(toggle);
+    };
+
+    const toggleFold = (el) => {
+      const body = el.querySelector(".jot-body");
+      const toggle = el.querySelector(".jot-fold");
+      const opening = body.classList.contains("folded");
+      const start = body.clientHeight;
+      body.classList.remove("folded");
+      const full = body.scrollHeight;
+      const folded = parseFloat(getComputedStyle(body).lineHeight) * 8;
+      body.style.maxHeight = `${start}px`;
+      body.classList.add("moving");
+      body.offsetHeight; // commit the start height before transitioning
+      body.style.maxHeight = `${opening ? full : folded}px`;
+      toggle.textContent = opening ? "收起" : "展开";
+      setTimeout(() => {
+        body.classList.remove("moving");
+        body.style.maxHeight = "";
+        if (!opening) body.classList.add("folded");
+      }, ms(300));
+    };
+
+    wall.addEventListener("click", (e) => {
+      const tag = e.target.closest("[data-tag]");
+      if (tag) {
+        pickTag(tag.dataset.tag);
+        return;
+      }
+      const fold = e.target.closest(".jot-fold");
+      if (fold) toggleFold(fold.closest(".jot"));
+    });
+
+    /* ---------- Masonry ---------- */
+
+    const columnCount = () => (narrow.matches ? 1 : Math.max(1, Math.floor((wall.clientWidth + 16) / (260 + 16))));
+
+    const visible = () => {
+      const q = query.toLowerCase();
+      return jottings.filter((j) => {
+        if (filter === PENDING && !j.pending) return false;
+        if (typeof filter === "string" && !j.tags.includes(filter)) return false;
+        if (!q) return true;
+        return [j.title ?? "", j.body, ...j.tags].some((s) => s.toLowerCase().includes(q));
+      }).sort((a, b) => b.created.localeCompare(a.created));
+    };
+
+    // Each card goes to the currently shortest column, so the wall reads newest-first left to right.
+    let laidOutColumns = 0;
+    const layoutWall = () => {
+      const items = visible();
+      laidOutColumns = columnCount();
+      wall.innerHTML = "";
+      if (!items.length) {
+        wall.innerHTML = `<p class="empty">没有找到。</p>`;
+        return;
+      }
+      const cols = Array.from({ length: laidOutColumns }, () => {
+        const col = document.createElement("div");
+        col.className = "col";
+        wall.append(col);
+        return col;
+      });
+      for (const j of items) {
+        const shortest = cols.reduce((a, b) => (b.offsetHeight < a.offsetHeight ? b : a));
+        const el = cardEl(j);
+        shortest.append(el);
+        settleFold(el);
+      }
+    };
+
+    addEventListener("resize", () => {
+      if (!echo.hidden && columnCount() !== laidOutColumns) layoutWall();
+    });
+
+    /* ---------- Recall pile ---------- */
+
+    // Same five cards all day: a PRNG seeded with today's date. Real selection rules come later.
+    const seeded = (seed) => () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+
+    const today = new Date();
+    const random = seeded(today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate());
+    const picks = [...jottings].sort(() => random() - 0.5).slice(0, 5);
+    const pickedAt = (id) => picks.find((j) => j.id === id);
+
+    recall.innerHTML = picks.map((j, i) => {
+      // The top card lies almost straight; the ones under it are dropped more loosely.
+      const tilt = (random() * 2 - 1) * (i === 0 ? 0.6 : 2.2);
+      return `<article class="card rc" data-id="${j.id}" style="--i:${i};--r:${tilt.toFixed(2)}deg">
+        ${pendingDot(j)}
+        ${j.title ? `<h3>${esc(j.title)}</h3>` : ""}
+        <div class="jot-body">${markdown(j.body)}</div>
+        ${footHtml(j, { tagsClickable: false })}
+      </article>`;
+    }).join("");
+    recall.style.setProperty("--n", picks.length);
+
+    let zoomed = null;
+    const isSpread = () => recall.classList.contains("spread");
+    const collapse = () => recall.classList.remove("spread");
+
+    // A click opens the pile and it stays open; on phones the row is already laid out, so a tap reads the card.
+    recall.addEventListener("click", (e) => {
+      const card = e.target.closest(".rc");
+      if (!card) return;
+      if (!narrow.matches && !isSpread()) {
+        recall.classList.add("spread");
+        return;
+      }
+      openZoom(card);
+    });
+
+    /*
+     * Any click outside the cards puts the spread pile away. Captured and
+     * swallowed, so the click that closes the pile never also lands on a
+     * tag or fold in the dimmed wall underneath.
+     */
+    document.addEventListener("click", (e) => {
+      if (!isSpread() || zoomed || e.target.closest(".rc, variant-switcher")) return;
+      e.stopPropagation();
+      e.preventDefault();
+      collapse();
+    }, { capture: true });
+
+    // The card grows in place into a full-text view.
+    const openZoom = (card) => {
+      const j = pickedAt(card.dataset.id);
+      const from = card.getBoundingClientRect();
+      const backdrop = document.createElement("div");
+      backdrop.className = "zoom-backdrop";
+      const zoom = document.createElement("article");
+      zoom.className = "card zoom";
+      zoom.innerHTML = `${pendingDot(j)}${j.title ? `<h3>${esc(j.title)}</h3>` : ""}<div class="jot-body">${markdown(j.body)}</div>${footHtml(j, { tagsClickable: false })}`;
+      const width = Math.min(560, innerWidth - 32);
+      Object.assign(zoom.style, { width: `${width}px`, visibility: "hidden" });
+      document.body.append(backdrop, zoom);
+      const height = Math.min(zoom.offsetHeight, innerHeight * 0.8);
+      const to = { left: (innerWidth - width) / 2, top: (innerHeight - height) / 2, width, height };
+      zoom.style.visibility = "";
+      card.style.visibility = "hidden";
+      const box = (r) => ({ left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+      Object.assign(zoom.style, box(to));
+      const timing = { duration: ms(300), easing: "ease-out" };
+      backdrop.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+      zoom.animate([box(from), box(to)], timing).finished.then(() => zoom.classList.add("settled"));
+      zoomed = { card, zoom, backdrop, to, box };
+      backdrop.addEventListener("click", closeZoom);
+    };
+
+    /*
+     * Closing a card counts as having read it: the view shrinks back to the
+     * card's slot and fades there, the card leaves the pile, and the cards
+     * after it slide left to close the gap.
+     */
+    const closeZoom = () => {
+      if (!zoomed) return;
+      const { card, zoom, backdrop, to, box } = zoomed;
+      zoomed = null;
+      zoom.classList.remove("settled");
+      const timing = { duration: ms(300), easing: "ease-out" };
+      backdrop.animate([{ opacity: 1 }, { opacity: 0 }], timing);
+      const slot = box(card.getBoundingClientRect());
+      zoom.animate([{ ...box(to), opacity: 1 }, { ...slot, opacity: 1, offset: 0.6 }, { ...slot, opacity: 0 }], timing)
+        .finished.then(() => {
+          zoom.remove();
+          backdrop.remove();
+          retire(card);
+        });
+    };
+
+    const retire = (card) => {
+      card.remove();
+      const left = [...recall.querySelectorAll(".rc")];
+      left.forEach((c, i) => c.style.setProperty("--i", i));
+      recall.style.setProperty("--n", left.length);
+      if (left.length) return;
+      // The last card is gone: the corner settles into a single line until tomorrow's pile.
+      collapse();
+      recall.replaceWith(Object.assign(document.createElement("p"), {
+        className: "recall-done",
+        textContent: "今天的回响都已看过",
+      }));
+    };
+
+    /* ---------- Left column (variants) ---------- */
+
+    const tagCounts = () => {
+      const counts = new Map();
+      for (const j of jottings) for (const t of j.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
+      return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    };
+
+    /*
+     * The sidebar holds only the most used tags, so it fits one screen however
+     * many tags pile up; the rest live in the full tag view. A filter on a tag
+     * outside the top stays visible as an extra row so its state is never hidden.
+     */
+    const SIDE_TAGS = 8;
+    const tagList = () => {
+      const all = tagCounts();
+      const shown = all.slice(0, SIDE_TAGS);
+      if (typeof filter === "string" && !shown.some(([t]) => t === filter)) shown.push(all.find(([t]) => t === filter));
+      return `<div class="side-list">${shown.map(([t, n]) =>
+        `<button data-tag="${esc(t)}" ${filter === t ? 'aria-current="true"' : ""}>#${esc(t)}<small>${n}</small></button>`).join("")}
+        <button class="side-all" data-all-tags ${view === "tags" ? 'aria-current="true"' : ""}>全部标签<small>${all.length}</small></button>
+      </div>`;
+    };
+
+    const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+    const heatmap = () => {
+      const perDay = new Map();
+      for (const j of jottings) perDay.set(j.created.slice(0, 10), (perDay.get(j.created.slice(0, 10)) ?? 0) + 1);
+      const now = new Date();
+      // Start on the Monday eleven weeks before this week's Monday.
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) - 77);
+      const cells = [];
+      for (let i = 0; i < 84; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        const n = perDay.get(dayKey(d)) ?? 0;
+        cells.push(d > now
+          ? `<i data-future></i>`
+          : `<i data-level="${Math.min(n, 3)}" title="${dayKey(d)} · ${n} 张"></i>`);
+      }
+      return `<div class="heat">${cells.join("")}</div>`;
+    };
+
+    const renderSide = () => {
+      const pendingCount = jottings.filter((j) => j.pending).length;
+      if (document.documentElement.dataset.variant === "B") {
+        const days = new Set(jottings.map((j) => j.created.slice(0, 10))).size;
+        sideLists.innerHTML = `
+          <div class="stats">
+            <div><strong>${jottings.length}</strong><span>札记</span></div>
+            <div><strong>${tagCounts().length}</strong><span>标签</span></div>
+            <div><strong>${days}</strong><span>天</span></div>
+          </div>
+          ${heatmap()}
+          ${tagList()}`;
+        return;
+      }
+      sideLists.innerHTML = `
+        <div class="side-list">
+          <button class="side-pending" data-pending ${filter === PENDING ? 'aria-current="true"' : ""}>待整理<small>${pendingCount}</small></button>
+        </div>
+        ${tagList()}`;
+    };
+
+    side.addEventListener("click", (e) => {
+      const tag = e.target.closest("[data-tag]");
+      if (tag) pickTag(tag.dataset.tag);
+      if (e.target.closest("[data-pending]")) {
+        setView("wall");
+        setFilter(filter === PENDING ? null : PENDING);
+      }
+      if (e.target.closest("[data-all-tags]")) setView(view === "tags" ? "wall" : "tags");
+    });
+
+    /* ---------- All-tags view ---------- */
+
+    const tagView = $("tag-view");
+    const tagFlow = $("tag-flow");
+
+    // In the tag view, search narrows the tags as you type; there are few enough to filter live.
+    const renderTagFlow = () => {
+      const q = view === "tags" ? search.value.trim().toLowerCase() : "";
+      const all = tagCounts();
+      const rows = all.filter(([t]) => t.toLowerCase().includes(q));
+      $("tag-total").textContent = q ? `${rows.length} / ${all.length} 个` : `${all.length} 个`;
+      tagFlow.innerHTML = rows.length
+        ? rows.map(([t, n]) => `<button data-tag="${esc(t)}" ${filter === t ? 'aria-current="true"' : ""}>#${esc(t)}<small>(${n})</small></button>`).join("")
+        : `<p class="empty">没有找到。</p>`;
+      markText(tagFlow, q);
+    };
+
+    // The wall and the tag view share the main column; only one shows, and the arriving one fades in.
+    const setView = (next) => {
+      if (next === view) return;
+      view = next;
+      const toTags = view === "tags";
+      if (toTags) {
+        search.value = "";
+        closeDrawer(searchDrawer);
+        renderTagFlow();
+      }
+      tagView.hidden = !toTags;
+      wall.hidden = toTags;
+      filterLine.hidden = toTags || !(filter !== null || query);
+      if (!toTags) layoutWall();
+      (toTags ? tagView : wall).animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms(200), easing: "ease-out" });
+      renderSide();
+      scrollTo({ top: 0, behavior: motion ? "smooth" : "auto" });
+    };
+
+    // Choosing a tag anywhere lands on the wall filtered by it; choosing the active one again clears it.
+    const pickTag = (tag) => {
+      const next = view === "wall" && filter === tag ? null : tag;
+      setView("wall");
+      setFilter(next);
+    };
+
+    tagView.addEventListener("click", (e) => {
+      const tag = e.target.closest("[data-tag]");
+      if (tag) pickTag(tag.dataset.tag);
+      if (e.target.closest("[data-back]")) setView("wall");
+    });
+
+    document.addEventListener("variantchange", renderSide);
+
+    /* ---------- Filtering ---------- */
+
+    // Looking for something is not the moment for chance finds, so the pile steps aside while filtering.
+    const renderFilterState = () => {
+      const active = filter !== null || Boolean(query);
+      if (active !== recallDrawer.classList.contains("closed")) {
+        recallDrawer.classList.remove("settled");
+        recallDrawer.classList.toggle("closed", active);
+        recallDrawer.inert = active;
+        // A filter applied again within the slide must not unclip a closed drawer.
+        if (!active) setTimeout(() => recallDrawer.classList.toggle("settled", !recallDrawer.classList.contains("closed")), ms(300));
+      }
+      filterLine.hidden = !active || view === "tags";
+      if (active) {
+        const what = [
+          filter === PENDING ? "待整理" : filter ? `#${esc(filter)}` : "",
+          query ? `“${esc(query)}”` : "",
+        ].filter(Boolean).join(" · ");
+        filterLine.innerHTML = `<strong>${what}</strong><span>${visible().length} 张</span><button data-clear>清除</button>`;
+      }
+    };
+
+    filterLine.addEventListener("click", (e) => {
+      if (e.target.closest("[data-clear]")) clearFilters();
+    });
+
+    const setFilter = (next) => {
+      filter = next;
+      renderSide();
+      renderFilterState();
+      layoutWall();
+      scrollTo({ top: 0, behavior: motion ? "smooth" : "auto" });
+    };
+
+    const clearFilters = () => {
+      filter = null;
+      query = "";
+      search.value = "";
+      closeDrawer(searchDrawer);
+      renderSide();
+      renderFilterState();
+      layoutWall();
+    };
+
+    /* ---------- Drawers ---------- */
+
+    const openDrawer = (drawer, field) => {
+      drawer.classList.remove("closed");
+      drawer.inert = false;
+      field.focus({ preventScroll: true });
+    };
+
+    const closeDrawer = (drawer) => {
+      drawer.classList.add("closed");
+      drawer.inert = true;
+      drawer.querySelector("input, textarea").blur();
+    };
+
+    const isOpen = (drawer) => !drawer.classList.contains("closed");
+
+    /* ---------- Composer ---------- */
+
+    const TAG = /(^|\s)#([^\s#]+)/g;
+
+    // flomo-style: `#tag` in the text becomes a tag and leaves the body.
+    const parseDraft = (text) => {
+      const tags = [...new Set([...text.matchAll(TAG)].map((m) => m[2]))];
+      const body = text.replace(TAG, "$1")
+        .split("\n").map((l) => l.replace(/[ \t]{2,}/g, " ").trim()).join("\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      return { tags, body };
+    };
+
+    const autosize = () => {
+      composer.style.height = "auto";
+      composer.style.height = `${composer.scrollHeight}px`;
+    };
+
+    // Suggest existing tags for the `#fragment` right before the caret.
+    let suggestions = [];
+    let selected = 0;
+    const updateSuggest = () => {
+      const before = composer.value.slice(0, composer.selectionStart);
+      const m = before.match(/(?:^|\s)#([^\s#]*)$/);
+      suggestions = m ? tagCounts().map(([t]) => t).filter((t) => t.includes(m[1]) && t !== m[1]).slice(0, 6) : [];
+      selected = 0;
+      renderSuggest();
+    };
+
+    const renderSuggest = () => {
+      suggest.hidden = !suggestions.length;
+      suggest.innerHTML = suggestions.map((t, i) =>
+        `<li data-pick="${esc(t)}" aria-selected="${i === selected}">#${esc(t)}</li>`).join("");
+    };
+
+    const pick = (tag) => {
+      const caret = composer.selectionStart;
+      const before = composer.value.slice(0, caret).replace(/#([^\s#]*)$/, `#${tag} `);
+      composer.value = before + composer.value.slice(caret);
+      composer.selectionStart = composer.selectionEnd = before.length;
+      suggestions = [];
+      renderSuggest();
+      autosize();
+    };
+
+    // Picking a tag must not blur the textarea, or an empty draft would close under the pointer.
+    suggest.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      const li = e.target.closest("[data-pick]");
+      if (li) pick(li.dataset.pick);
+    });
+
+    composer.addEventListener("input", () => {
+      autosize();
+      updateSuggest();
+    });
+
+    composer.addEventListener("blur", () => {
+      if (!composer.value.trim()) closeDrawer(composerDrawer);
+    });
+
+    composer.addEventListener("keydown", (e) => {
+      if (e.isComposing) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        submit();
+        return;
+      }
+      if (suggestions.length) {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          selected = (selected + (e.key === "ArrowDown" ? 1 : -1) + suggestions.length) % suggestions.length;
+          renderSuggest();
+          return;
+        }
+        if (e.key === "Enter" || e.key === "Tab") {
+          e.preventDefault();
+          pick(suggestions[selected]);
+          return;
+        }
+        if (e.key === "Escape") {
+          suggestions = [];
+          renderSuggest();
+          return;
+        }
+      }
+      // A draft with words in it survives Escape; only an empty one is put away.
+      if (e.key === "Escape" && !composer.value.trim()) closeDrawer(composerDrawer);
+    });
+
+    const submit = () => {
+      const { tags, body } = parseDraft(composer.value);
+      if (!body) return;
+      const now = new Date();
+      const jotting = {
+        id: `019a${Date.now().toString(16).slice(-4)}-0000-7000-8000-${String(now.getTime()).slice(-12)}`,
+        created: `${dayKey(now)}T${pad(now.getHours())}:${pad(now.getMinutes())}`,
+        title: null,
+        tags,
+        body,
+        pending: true,
+      };
+      jottings.unshift(jotting);
+      composer.value = "";
+      autosize();
+      closeDrawer(composerDrawer);
+      setView("wall");
+      renderSide();
+      if (filter !== null || query) {
+        // The new card might not match the current view; showing everything guarantees it is seen.
+        clearFilters();
+        insertAnimation(wall.querySelector(`[data-id="${jotting.id}"]`));
+        return;
+      }
+      const first = wall.querySelector(".col");
+      if (!first) {
+        layoutWall();
+        return;
+      }
+      const el = cardEl(jotting);
+      first.prepend(el);
+      settleFold(el);
+      insertAnimation(el);
+    };
+
+    // Grow from nothing at the top of the first column; the negative margin cancels the column gap.
+    const insertAnimation = (el) => {
+      if (!el) return;
+      const height = el.offsetHeight;
+      el.style.overflow = "hidden";
+      el.animate([
+        { height: "0px", opacity: 0, marginBottom: "-16px", paddingTop: "0px", paddingBottom: "0px" },
+        { height: `${height}px`, opacity: 1, marginBottom: "0px" },
+      ], { duration: ms(300), easing: "ease-out" }).finished.then(() => (el.style.overflow = ""));
+    };
+
+    /* ---------- Search ---------- */
+
+    search.addEventListener("input", () => {
+      if (view === "tags") renderTagFlow();
+    });
+
+    search.addEventListener("keydown", (e) => {
+      if (e.isComposing) return;
+      if (view === "tags") {
+        if (e.key !== "Escape") return;
+        if (search.value) search.value = "";
+        else closeDrawer(searchDrawer);
+        renderTagFlow();
+        return;
+      }
+      // Only Enter runs a search: typing, including IME composition, leaves the wall alone.
+      if (e.key === "Enter") {
+        query = search.value.trim();
+        renderFilterState();
+        layoutWall();
+        return;
+      }
+      if (e.key !== "Escape") return;
+      // Escape empties the search first, then puts it away.
+      if (search.value) {
+        search.value = "";
+      } else {
+        closeDrawer(searchDrawer);
+      }
+      if (query) {
+        query = "";
+        renderFilterState();
+        layoutWall();
+      }
+    });
+
+    /* ---------- Keys ---------- */
+
+    document.addEventListener("keydown", (e) => {
+      if (e.target.closest("input, textarea, [contenteditable]") || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (echo.hidden) return;
+      if (e.key === "Escape") {
+        if (zoomed) closeZoom();
+        else if (isSpread()) collapse();
+        else if (view === "tags") setView("wall");
+        else if (filter !== null) setFilter(null);
+        return;
+      }
+      if (e.key === "n") {
+        e.preventDefault();
+        closeDrawer(searchDrawer);
+        openDrawer(composerDrawer, composer);
+      }
+      if (e.key === "/") {
+        e.preventDefault();
+        if (!composer.value.trim()) closeDrawer(composerDrawer);
+        openDrawer(searchDrawer, search);
+      }
+    });
+
+    /* ---------- Width demo: 时刻 ⇄ 回响 in place ---------- */
+
+    const moments = $("moments");
+    const weekday = "日一二三四五六"[today.getDay()];
+    $("moments-date").textContent = `${today.getMonth() + 1}月${today.getDate()}日 星期${weekday}`;
+
+    const wait = (n) => new Promise((resolve) => setTimeout(resolve, ms(n)));
+    let busy = false;
+
+    const goTo = async (section) => {
+      const toEcho = section === "回响";
+      if (busy || toEcho === !echo.hidden) return;
+      busy = true;
+      for (const a of document.querySelectorAll("nav a")) {
+        a.toggleAttribute("aria-current", a.textContent === section);
+        if (a.textContent === section) a.setAttribute("aria-current", "page");
+      }
+      // Fade the content out, change the width with the header riding along, then fade the new content in.
+      const leaving = toEcho ? moments : echo;
+      const arriving = toEcho ? echo : moments;
+      leaving.classList.add("fading");
+      await wait(150);
+      leaving.hidden = true;
+      sheet.classList.toggle("wide", toEcho);
+      await wait(400);
+      arriving.classList.add("fading");
+      arriving.hidden = false;
+      if (toEcho) layoutWall();
+      arriving.offsetHeight; // start the fade from transparent
+      arriving.classList.remove("fading");
+      busy = false;
+    };
+
+    document.querySelector("nav").addEventListener("click", (e) => {
+      const a = e.target.closest("a");
+      if (!a) return;
+      e.preventDefault();
+      if (a.textContent === "摘星") location.href = "3.1-stars.html";
+      if (a.textContent === "时刻" || a.textContent === "回响") goTo(a.textContent);
+    });
+
+    renderSide();
+    layoutWall();
+  </script>
+</body>
+
+</html>
