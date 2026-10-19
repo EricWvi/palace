@@ -17,6 +17,8 @@ pub(crate) enum Operation {
 pub(crate) enum Failure {
     #[error(transparent)]
     Config(#[from] ConfigError),
+    #[error("update failed: {0}")]
+    Update(#[from] crate::update::Error),
     #[error("cannot read {}: {source}", path.display())]
     File { path: PathBuf, source: io::Error },
     #[error("cannot prepare the request: {0}")]

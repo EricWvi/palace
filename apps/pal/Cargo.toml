@@ -9,13 +9,19 @@ workspace = true
 [dependencies]
 palace-domain = { workspace = true }
 clap = { workspace = true }
+flate2 = { workspace = true }
 mime_guess = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "multipart"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+self-replace = { workspace = true }
+sha2 = { workspace = true }
+tar = { workspace = true }
+tempfile = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
+zip = { workspace = true }
 
 [dev-dependencies]
 palace-backend = { workspace = true }
@@ -27,6 +33,5 @@ palace-testkit = { workspace = true }
 axum = { workspace = true }
 pretty_assertions = { workspace = true }
 sqlx = { workspace = true }
-tempfile = { workspace = true }
 testcontainers = { workspace = true }
 tokio = { workspace = true }

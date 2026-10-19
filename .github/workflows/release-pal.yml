@@ -32,6 +32,7 @@ jobs:
     env:
       TARGET: ${{ matrix.target }}
       TAG: ${{ github.ref_name }}
+      PAL_RELEASE_VERSION: ${{ github.ref_name }}
 
     steps:
       - name: Check out source
@@ -89,6 +90,9 @@ jobs:
       contents: write
 
     steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
       - name: Download release archives
         uses: actions/download-artifact@v8
         with:
@@ -99,6 +103,12 @@ jobs:
       - name: Generate checksums
         working-directory: dist
         run: sha256sum pal-* > SHA256SUMS
+
+      - name: Generate update manifest
+        env:
+          TAG: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: node scripts/pal-release-manifest.mjs dist "$REPOSITORY" "$TAG"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3
@@ -113,3 +123,4 @@ jobs:
             dist/pal-*.tar.gz
             dist/pal-*.zip
             dist/SHA256SUMS
+            dist/latest.json

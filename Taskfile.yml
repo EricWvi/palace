@@ -155,6 +155,7 @@ tasks:
     desc: Run tests of repository scripts, such as the 摘星 notes cache builder (needs rg)
     cmds:
       - node --test scripts/notes-cache.test.ts
+      - node --test scripts/pal-release-manifest.test.mjs
 
   test:api-schema:
     desc: Validate production OpenAPI schemas and local references

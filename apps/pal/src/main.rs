@@ -4,6 +4,7 @@ mod client;
 mod config;
 mod failure;
 mod jottings;
+mod update;
 
 use clap::{Parser, Subcommand};
 use client::Client;
@@ -12,9 +13,15 @@ use failure::Failure;
 use std::{path::PathBuf, process::ExitCode};
 use uuid::Uuid;
 
-/// Palace CLI; remote commands read PAL_URL and PAL_TOKEN (an access token from 密钥管理).
+// Release tags identify downloaded binaries even though workspace crates share a development version.
+const VERSION: &str = match option_env!("PAL_RELEASE_VERSION") {
+    Some(version) => version,
+    None => env!("CARGO_PKG_VERSION"),
+};
+
+/// Palace CLI; Palace API commands read PAL_URL and PAL_TOKEN (an access token from 密钥管理).
 #[derive(Parser)]
-#[command(name = "pal", version)]
+#[command(name = "pal", version = VERSION)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -24,6 +31,8 @@ struct Cli {
 enum Command {
     /// Generate a UUID v7 locally; needs no PAL_URL or PAL_TOKEN.
     Uuid,
+    /// Download the latest pal release from GitHub and replace this executable.
+    Update,
     /// Media files kept in Palace's object storage, referenced only by their media id.
     #[command(subcommand)]
     S3(S3),
@@ -67,11 +76,11 @@ fn main() -> ExitCode {
     }
 }
 
-/// Resolves the environment before any network access, so a misconfiguration sends nothing.
-/// Local commands never read it.
+/// Resolves Palace credentials only for API commands; local commands and updates never read them.
 fn run(command: Command) -> Result<(), Failure> {
     match command {
         Command::Uuid => println!("{}", Uuid::now_v7()),
+        Command::Update => println!("Updated pal to {}", update::run()?),
         Command::S3(command) => {
             let client = Client::new(Config::from_env(std::env::var_os)?)?;
             match command {
