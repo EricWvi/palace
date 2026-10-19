@@ -114,3 +114,21 @@
 | 含 `/` 与中文的 ID 在前端路由与接口间往返一致，笔记页版式与无返回链接 | Covered | `pages/note.test.tsx::lists notes by date and opens one at the top, to read only`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 Router 解码 `%2F`） |
 
 决策依据：D4、D7，不变量 8。
+
+## Note TOC must follow rendered headings and distinguish their levels
+
+风险：目录把代码示例当标题、遗漏已移到页首的 H1，或同名标题跳到同一处；切换笔记后留下旧目录。
+前置：包含 H1–H6、Markdown 行内格式、同名标题、Setext 标题及围栏代码的笔记；另有一篇无正文标题的笔记。
+触发：打开笔记，展开目录、点击同名标题，滚动正文，切换笔记；缩小窗口；快速经过横线或移出浏览器。
+
+必须成立：目录来自实际渲染的标题，页首标题计作 H1；按文档顺序列出纯文本与层级，同名标题锚点独立。
+H1–H6 横线依次缩短，浮层缩进逐级增加；点击固定当前项直到自行滚动，不修改地址。复用对话目录的
+悬停、窗口退出取消与键盘行为；不足两项或窗口窄于 900px 时隐藏。禁止修改笔记内容或混入代码示例。
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 层级、纯文本、页首标题、重复锚点、Setext 与代码排除，切换后替换目录 | Covered | `pages/note.test.tsx::indexes rendered headings, gives duplicates distinct targets and replaces them when another note opens`，真实 Markdown 渲染与路由 |
+| 横线长度与缩进按层级变化，滚动高亮、跳转及窄屏隐藏，亮暗主题 | Covered | `e2e/note-toc.spec.ts`，真实 Chromium 与 CSS 布局 |
+| 共用交互保留 350ms 延迟、快速经过及窗口退出取消、键盘立即进入 | Covered | `e2e/message-toc.spec.ts`，经共用 ReadingToc 的真实 Chromium 回归 |
+
+决策依据：笔记 D7，继承对话消息目录的阅读与交互规则。

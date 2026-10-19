@@ -1,0 +1,132 @@
+/* Shared reading rail for message and heading outlines; mirrored by the app stylesheet. */
+.toc {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .toc {
+    position: fixed;
+    top: 50%;
+    right: 20px;
+    z-index: 30;
+    display: block;
+    transform: translateY(-50%);
+  }
+}
+
+.toc-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 9px;
+  max-height: 70vh;
+  padding: 8px 0 8px 12px;
+  overflow: hidden;
+}
+
+.toc-rail span {
+  flex: none;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--text-3);
+  opacity: 0.45;
+}
+
+.toc-rail span.user {
+  width: 16px;
+}
+
+.toc [data-level="1"] {
+  --toc-level: 1;
+}
+.toc [data-level="2"] {
+  --toc-level: 2;
+}
+.toc [data-level="3"] {
+  --toc-level: 3;
+}
+.toc [data-level="4"] {
+  --toc-level: 4;
+}
+.toc [data-level="5"] {
+  --toc-level: 5;
+}
+.toc [data-level="6"] {
+  --toc-level: 6;
+}
+
+.toc-rail span[data-level] {
+  width: calc(25px - var(--toc-level) * 3px);
+}
+
+.toc-rail span[data-current] {
+  background: var(--text);
+  opacity: 1;
+}
+
+.toc-panel {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 260px;
+  max-height: 70vh;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.08);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  /* A short grace before closing, so a pointer that slips off the edge does not lose it. */
+  transition: opacity 0.15s 0.2s;
+}
+
+.toc[data-open] .toc-panel,
+.toc:focus-within .toc-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.toc-panel a {
+  display: block;
+  padding: 6px 10px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toc-panel a.user {
+  color: var(--text-2);
+}
+
+.toc-panel a[data-level] {
+  padding-left: calc(10px + (var(--toc-level) - 1) * 12px);
+}
+
+/*
+ * The reader's place keeps the full sunken ground; a line under the pointer or keyboard gets
+ * half of it, so the two never look alike. No token sits between the panel and the sunken
+ * ground in both themes (--bg is lighter in light and darker in dark), so it is mixed.
+ */
+.toc-panel a:hover,
+.toc-panel a:focus-visible {
+  background: color-mix(in srgb, var(--bg-sunken) 50%, transparent);
+  color: var(--text);
+  outline: none;
+}
+
+.toc-panel a[aria-current="true"] {
+  background: var(--bg-sunken);
+  color: var(--text);
+}

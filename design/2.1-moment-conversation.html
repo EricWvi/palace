@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="base.css">
   <link rel="stylesheet" href="components.css">
+  <link rel="stylesheet" href="reading-toc.css">
   <script src="ornament.js"></script>
   <script src="shared.js"></script>
   <style>
@@ -258,121 +259,6 @@
       text-decoration: underline;
       text-decoration-color: var(--accent);
       text-underline-offset: 4px;
-    }
-
-    /*
-     * Table of contents: one tick per message of the path being read, pinned
-     * to the right edge so a long transcript can be skimmed and jumped. The
-     * reader's turns get the longer tick, matching the sunken ground that
-     * marks them in the text. Pointing at the ticks, or tabbing into them,
-     * opens the same list as one line per message; the line is the opening of
-     * the message, cut with an ellipsis. Only shown where the margin beside
-     * the sheet has room for it.
-     */
-    .toc {
-      display: none;
-    }
-
-    @media (min-width: 900px) {
-      .toc {
-        display: block;
-        position: fixed;
-        top: 50%;
-        right: 20px;
-        z-index: 1;
-        transform: translateY(-50%);
-      }
-    }
-
-    .toc-rail {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 9px;
-      max-height: 70vh;
-      padding: 8px 0 8px 12px;
-      overflow: hidden;
-    }
-
-    .toc-rail span {
-      width: 10px;
-      height: 2px;
-      flex: none;
-      border-radius: 1px;
-      background: var(--text-3);
-      opacity: .45;
-      transition: opacity .15s, width .15s;
-    }
-
-    .toc-rail span.user {
-      width: 16px;
-    }
-
-    .toc-rail span[data-current] {
-      background: var(--text);
-      opacity: 1;
-    }
-
-    .toc-panel {
-      position: absolute;
-      top: 50%;
-      right: 0;
-      width: 260px;
-      max-height: 70vh;
-      margin: 0;
-      padding: 6px;
-      overflow-y: auto;
-      list-style: none;
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      box-shadow: 0 6px 20px rgb(0 0 0 / .08);
-      font-family: var(--font-ui);
-      font-size: var(--font-size-sm);
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(-50%);
-      /* A short grace before closing, so a pointer that slips off the edge does not lose it. */
-      transition: opacity .15s .2s;
-    }
-
-    .toc[data-open] .toc-panel,
-    .toc:focus-within .toc-panel {
-      opacity: 1;
-      pointer-events: auto;
-      transition-delay: 0s;
-    }
-
-    .toc-panel a {
-      display: block;
-      padding: 6px 10px;
-      overflow: hidden;
-      border-radius: var(--radius-sm);
-      color: var(--text-3);
-      text-decoration: none;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .toc-panel a.user {
-      color: var(--text-2);
-    }
-
-    /*
-     * The reader's place keeps the full sunken ground; a line under the pointer or keyboard gets
-     * half of it, so the two never look alike. No token sits between the panel and the sunken
-     * ground in both themes (--bg is lighter in light and darker in dark), so it is mixed.
-     */
-    .toc-panel a:hover,
-    .toc-panel a:focus-visible {
-      background: color-mix(in srgb, var(--bg-sunken) 50%, transparent);
-      color: var(--text);
-      outline: none;
-    }
-
-    .toc-panel a[aria-current="true"] {
-      background: var(--bg-sunken);
-      color: var(--text);
     }
 
     .message {

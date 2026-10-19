@@ -21,6 +21,7 @@
 | [tokens.css](tokens.css) | 颜色、字体、字号、圆角等变量，以及浅色/深色主题 |
 | [base.css](base.css) | reset 和 `body` 默认样式，所有页面都引入 |
 | [components.css](components.css) | 多个原型共用的应用组件：页面容器 `.sheet`、页头、导航、元信息行 `.meta` |
+| [reading-toc.css](reading-toc.css) | 对话与笔记原型共用的右侧阅读目录样式；消息按角色、标题按 H1–H6 区分横线 |
 | [ornament.js](ornament.js) | 原型和 React 共用的装饰 SVG 路径与 viewBox；[ornament.d.ts](ornament.d.ts) 提供 TypeScript 类型 |
 | [shared.js](shared.js) | 共用的 HTML 结构，目前提供 `<palace-header>` |
 | [variant-switcher.js](variant-switcher.js) | 底部浮条 `<variant-switcher>`：在同一页面的多个设计变体间切换，变体写在 `?variant=` 里，← → 也能切换 |

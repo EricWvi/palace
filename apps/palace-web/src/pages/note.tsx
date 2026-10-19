@@ -1,9 +1,11 @@
-import { useEffect, useLayoutEffect } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Markdown from "react-markdown";
 import { useLocation, useParams } from "react-router-dom";
 import { ApiError, noteOptions } from "@/lib/api";
 import { ErrorState } from "@/components/error-state";
+import { noteHeadings } from "@/components/note-toc";
+import { ReadingToc, type TocItem } from "@/components/reading-toc";
 import {
   MarkdownContent,
   type ImagePolicy,
@@ -26,6 +28,15 @@ export function NotePage() {
   // The id keeps its `/`, so the route hands it over as the rest of the address.
   const id = useParams()["*"] ?? "";
   const note = useQuery(noteOptions(id));
+  const [headings, setHeadings] = useState<TocItem[]>([]);
+  // Recollect after React commits a changed note, before it is painted. The rendered DOM is the
+  // source of truth, including a leading Markdown h1 promoted into the page header.
+  const collectHeadings = useCallback(
+    (root: HTMLDivElement | null) => {
+      if (root && note.data) setHeadings(noteHeadings(root));
+    },
+    [note.data],
+  );
   const { state } = useLocation();
   const top = (state as { top?: boolean } | null)?.top;
   useLayoutEffect(() => {
@@ -68,23 +79,26 @@ export function NotePage() {
     : note.data.content;
   return (
     <>
-      <header className="note">
-        <h1>
-          {heading ? (
-            <Markdown allowedElements={inline} unwrapDisallowed skipHtml>
-              {heading[1]}
-            </Markdown>
-          ) : (
-            note.data.title
-          )}
-        </h1>
-        <p className="meta">
-          <time dateTime={date.toISOString()}>{fullDate(date)}</time>
-        </p>
-      </header>
-      <div className="note-body">
-        <MarkdownContent content={content} images={own} />
+      <div ref={collectHeadings}>
+        <header className="note">
+          <h1>
+            {heading ? (
+              <Markdown allowedElements={inline} unwrapDisallowed skipHtml>
+                {heading[1]}
+              </Markdown>
+            ) : (
+              note.data.title
+            )}
+          </h1>
+          <p className="meta">
+            <time dateTime={date.toISOString()}>{fullDate(date)}</time>
+          </p>
+        </header>
+        <div className="note-body">
+          <MarkdownContent content={content} images={own} />
+        </div>
       </div>
+      <ReadingToc key={id} items={headings} label="笔记目录" />
     </>
   );
 }

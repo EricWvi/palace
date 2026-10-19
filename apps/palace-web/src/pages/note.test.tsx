@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { address, mountApp } from "@/test-app";
 import type { NoteListItem } from "@/lib/api";
@@ -115,6 +115,7 @@ it("lists notes by date and opens one at the top, to read only", async () => {
     "2025.09.30",
   );
   expect(screen.getByText("去海边。")).toBeInTheDocument();
+  expect(screen.queryByRole("navigation", { name: "笔记目录" })).toBeNull();
   expect(document.title).toBe("周末");
   expect(scrolled).toHaveBeenCalledWith(0, 0);
   // Nothing on the page changes a note, and 摘星 needs no way back but the browser's.
@@ -179,4 +180,98 @@ it("searches notes on Enter with the shared search field", async () => {
   );
   expect(document.querySelector(".entry mark")).toHaveTextContent("lock");
   expect(queries).toEqual([{}, { q: "lock" }]);
+});
+
+// Core test case: specs/test-cases/web/stars/notes.md#note-toc-must-follow-rendered-headings-and-distinguish-their-levels
+it("indexes rendered headings, gives duplicates distinct targets and replaces them when another note opens", async () => {
+  const content = [
+    "# 正文 **标题**",
+    "",
+    "## 重复 `标题`",
+    "",
+    "### 小节 [链接](https://example.com)",
+    "",
+    "#### 四级",
+    "",
+    "##### 五级",
+    "",
+    "###### 六级",
+    "",
+    "## 重复 `标题`",
+    "",
+    "Setext 标题",
+    "===========",
+    "",
+    "```md",
+    "# 示例里的假标题",
+    "```",
+  ].join("\n");
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+    const other = requestPath(url).endsWith("/other");
+    return Response.json({
+      id: other ? "other" : "outline",
+      title: other ? "另一篇" : "元数据标题",
+      occurred_at: at(2026, 10, 20),
+      content: other ? "## 新小节\n\n正文" : content,
+    });
+  });
+  const scroll = vi.fn();
+  Element.prototype.scrollIntoView = function (this: Element) {
+    scroll(this.id);
+  };
+  try {
+    const { router, user } = mountApp("/notes/outline");
+    const toc = await screen.findByRole("navigation", { name: "笔记目录" });
+    const items = () =>
+      within(screen.getByRole("navigation", { name: "笔记目录" }))
+        .getAllByRole("link")
+        .map((link) => ({
+          text: link.textContent,
+          level: link.getAttribute("data-level"),
+          href: link.getAttribute("href"),
+        }));
+    expect(items()).toEqual(
+      [
+        ["正文 标题", "1"],
+        ["重复 标题", "2"],
+        ["小节 链接", "3"],
+        ["四级", "4"],
+        ["五级", "5"],
+        ["六级", "6"],
+        ["重复 标题", "2"],
+        ["Setext 标题", "1"],
+      ].map(([text, level], index) => ({
+        text,
+        level,
+        href: `#note-heading-${index}`,
+      })),
+    );
+    expect(document.querySelector("header.note h1")).toHaveAttribute(
+      "id",
+      "note-heading-0",
+    );
+    const duplicate = within(toc).getAllByRole("link", {
+      name: "重复 标题",
+    })[1];
+    await user.click(duplicate);
+    expect(scroll).toHaveBeenLastCalledWith("note-heading-6");
+    expect(duplicate).toHaveAttribute("aria-current", "true");
+    expect(duplicate).not.toHaveFocus();
+    expect(address(router)).toBe("/notes/outline");
+
+    await act(async () => {
+      await router.navigate("/notes/other");
+    });
+    await screen.findByRole("heading", { level: 2, name: "新小节" });
+    await waitFor(() =>
+      expect(items()).toEqual([
+        { text: "另一篇", level: "1", href: "#note-heading-0" },
+        { text: "新小节", level: "2", href: "#note-heading-1" },
+      ]),
+    );
+    expect(document.getElementById("note-heading-6")).toBeNull();
+  } finally {
+    // @ts-expect-error jsdom has none to restore.
+    delete Element.prototype.scrollIntoView;
+  }
 });
