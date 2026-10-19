@@ -185,6 +185,7 @@ async fn media_http_uploads_and_deletes_within_the_owner() {
         limits: ImportLimits::default(),
         notes: std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
         media: MediaStorage::connect(&palace_media::MediaConfig::S3(config)).unwrap(),
+        jottings: palace_jottings::JottingService::Unconfigured,
         now,
     }));
     let objects = || async {

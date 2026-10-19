@@ -15,6 +15,7 @@ test-server = []
 [dependencies]
 palace-db = { workspace = true }
 palace-domain = { workspace = true }
+palace-jottings = { workspace = true }
 palace-media = { workspace = true }
 palace-notes = { workspace = true }
 openidconnect = { workspace = true }

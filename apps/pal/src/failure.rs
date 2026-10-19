@@ -1,6 +1,7 @@
 //! Every way a `pal` command can fail, rendered for stderr. Server answers are reduced to their
 //! status and Palace error code so the message is actionable without dumping response bodies.
 use crate::config::{ConfigError, TOKEN_VAR};
+use palace_domain::JottingProblem;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use std::{error::Error as _, fmt, io, path::PathBuf};
@@ -29,6 +30,8 @@ pub(crate) enum Failure {
     Rejected(Rejection),
     #[error("Palace stored the file but answered with a body that is not JSON: {0}")]
     UnreadableMedia(serde_json::Error),
+    #[error("{}", jottings(.0))]
+    Jottings(Vec<JottingProblem>),
 }
 
 /// A non-success answer from Palace.
@@ -50,6 +53,18 @@ enum ErrorBody {
         path: String,
         message: String,
     },
+}
+
+/// One line per problem, so a pre-commit hook shows every file to fix at once.
+fn jottings(problems: &[JottingProblem]) -> String {
+    let mut message = format!(
+        "the server would refuse this commit ({} problems):",
+        problems.len()
+    );
+    for problem in problems {
+        message.push_str(&format!("\n  {problem}"));
+    }
+    message
 }
 
 /// Includes the source chain, because reqwest's top-level message omits the cause such as

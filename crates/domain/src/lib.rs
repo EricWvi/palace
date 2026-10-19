@@ -3,6 +3,7 @@ mod access_token;
 mod conversation;
 mod excerpt;
 mod import;
+mod jotting;
 mod media;
 
 pub use access_token::{ACCESS_TOKEN_PREFIX, AccessTokenNote, AccessTokenSecret};
@@ -12,6 +13,7 @@ pub use import::{
     ImportInput, ImportLimits, ImportRequest, ImportTarget, InputError, InputErrorKind,
     MessageInput, PathInput, UpdateHistory, validate_title,
 };
+pub use jotting::{JOTTING_BODY_MAX_BYTES, Jotting, JottingCensus, JottingError, JottingProblem};
 pub use media::{FALLBACK_CONTENT_TYPE, MediaLimits, MediaMetadata, MediaUpload};
 mod sync;
 pub use sync::{PublishedRecord, Record, ServerVersion, SyncPage, UploadResult, accepts_record};

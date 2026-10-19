@@ -12,6 +12,7 @@ mod path_management;
 #[cfg(feature = "test-server")]
 pub use fixed_user::fixed_user_router;
 mod handlers;
+mod jottings;
 mod media;
 mod notes;
 mod security;
@@ -26,6 +27,7 @@ use error::ApiError;
 use handlers::*;
 use palace_db::{CredentialKey, Database, IdentityProvider, IdentityTokens, ProviderError};
 use palace_domain::{ImportLimits, SourceLinks};
+use palace_jottings::JottingService;
 use palace_media::MediaStorage;
 use palace_notes::NoteLibrary;
 use std::{future::Future, sync::Arc};
@@ -62,18 +64,21 @@ pub struct Server<P> {
     pub limits: ImportLimits,
     pub notes: Arc<NoteLibrary>,
     pub media: MediaStorage,
+    pub jottings: JottingService,
     pub now: fn() -> i64,
 }
 /// Builds authenticated JSON/file endpoints with bounded bodies and no client-supplied owner scope.
 pub fn router<P: LoginProvider + 'static>(mut server: Server<P>) -> Router {
     // Only business handlers use object storage; authentication keeps no handle to it.
     let media = std::mem::replace(&mut server.media, MediaStorage::Unconfigured);
+    let jottings = std::mem::replace(&mut server.jottings, JottingService::Unconfigured);
     let business = business_router(BusinessServer {
         database: server.database.clone(),
         links: server.links.clone(),
         limits: server.limits,
         notes: server.notes.clone(),
         media,
+        jottings,
     });
     let tokens = access_token_router(server.database.clone());
     let server = Arc::new(server);
@@ -113,6 +118,7 @@ struct BusinessServer {
     limits: ImportLimits,
     notes: Arc<NoteLibrary>,
     media: MediaStorage,
+    jottings: JottingService,
 }
 
 /// Shares the complete business API between authenticated deployment and local single-user testing.

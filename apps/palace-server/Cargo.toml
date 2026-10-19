@@ -18,6 +18,7 @@ workspace = true
 palace-backend = { workspace = true }
 palace-db = { workspace = true }
 palace-domain = { workspace = true }
+palace-jottings = { workspace = true }
 palace-logging = { workspace = true }
 palace-media = { workspace = true }
 palace-notes = { workspace = true }

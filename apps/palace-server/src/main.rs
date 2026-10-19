@@ -1,3 +1,4 @@
+mod jottings;
 mod media;
 mod notes;
 mod runtime;

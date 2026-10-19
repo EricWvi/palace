@@ -1,0 +1,33 @@
+[package]
+name = "palace-jottings"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "palace_jottings"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+palace-db = { workspace = true }
+palace-domain = { workspace = true }
+palace-logging = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+gix = { workspace = true }
+notify = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+palace-logging = { workspace = true }
+palace-testkit = { workspace = true }
+pretty_assertions = { workspace = true }
+sqlx = { workspace = true }
+tempfile = { workspace = true }
+testcontainers = { workspace = true }

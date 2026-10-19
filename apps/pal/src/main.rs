@@ -3,6 +3,7 @@
 mod client;
 mod config;
 mod failure;
+mod jottings;
 
 use clap::{Parser, Subcommand};
 use client::Client;
@@ -24,6 +25,18 @@ enum Command {
     /// Media files kept in Palace's object storage, referenced only by their media id.
     #[command(subcommand)]
     S3(S3),
+    /// 札记 kept as Markdown files in a Git repository.
+    #[command(subcommand)]
+    Jottings(Jottings),
+}
+
+#[derive(Subcommand)]
+enum Jottings {
+    /// Check a jottings folder the way the server checks a commit; needs no PAL_URL or PAL_TOKEN.
+    Check {
+        #[arg(value_name = "FOLDER")]
+        folder: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -53,11 +66,19 @@ fn main() -> ExitCode {
 }
 
 /// Resolves the environment before any network access, so a misconfiguration sends nothing.
+/// Local commands never read it.
 fn run(command: Command) -> Result<(), Failure> {
-    let client = Client::new(Config::from_env(std::env::var_os)?)?;
     match command {
-        Command::S3(S3::Upload { path }) => println!("{}", client.upload(&path)?),
-        Command::S3(S3::Delete { id }) => client.delete(id)?,
+        Command::S3(command) => {
+            let client = Client::new(Config::from_env(std::env::var_os)?)?;
+            match command {
+                S3::Upload { path } => println!("{}", client.upload(&path)?),
+                S3::Delete { id } => client.delete(id)?,
+            }
+        }
+        Command::Jottings(Jottings::Check { folder }) => {
+            jottings::check(&folder)?;
+        }
     }
     Ok(())
 }

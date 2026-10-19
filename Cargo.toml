@@ -5,6 +5,7 @@ members = [
     "crates/backend",
     "crates/db",
     "crates/domain",
+    "crates/jottings",
     "crates/logging",
     "crates/media",
     "crates/notes",
@@ -29,6 +30,7 @@ edition = "2024"
 palace-backend = { path = "crates/backend" }
 palace-db = { path = "crates/db" }
 palace-domain = { path = "crates/domain" }
+palace-jottings = { path = "crates/jottings" }
 palace-logging = { path = "crates/logging" }
 palace-media = { path = "crates/media" }
 palace-notes = { path = "crates/notes" }
@@ -44,6 +46,7 @@ clap = { version = "4", features = ["derive"] }
 chrono-tz = "0.10"
 email_address = "0.2"
 flate2 = "1"
+gix = { version = "0.89", default-features = false, features = ["sha1", "parallel"] }
 hmac = "0.12"
 mime_guess = "2"
 http-body-util = "0.1"
@@ -73,6 +76,7 @@ tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["fmt", "registry"] }
 url = "2"
 uuid = { version = "1", features = ["serde", "v7"] }
+yaml-rust2 = "0.10"
 utoipa = { version = "=5.5.0", features = ["uuid"] }
 
 [workspace.lints]

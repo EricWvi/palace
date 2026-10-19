@@ -23,6 +23,8 @@ pub(crate) async fn run(
     let database = Database::connect(database_url).await?;
     let (notes, _watch) = crate::notes::notes_from_env(timezone)?;
     let media = crate::media::media_from_env()?;
+    let (jottings, _jottings_watch) =
+        crate::jottings::jottings_from_env(database.clone(), timezone).await?;
     let address = std::env::var("PALACE_LISTEN").unwrap_or_else(|_| "127.0.0.1:8080".into());
     let listener = tokio::net::TcpListener::bind(&address).await?;
     let worker_db = database.clone();
@@ -55,6 +57,7 @@ pub(crate) async fn run(
         limits: ImportLimits::default(),
         notes,
         media,
+        jottings,
         now: now_seconds,
     })
     .merge(crate::web_app::web_app(&web_dist));

@@ -10,6 +10,11 @@ pub use conversation_list::{
 mod conversation_tree;
 pub use conversation_tree::{ConversationDetail, ConversationPath};
 mod import;
+mod jotting;
+pub use jotting::{
+    ExistingJotting, IndexedJotting, JottingChange, JottingChanges, JottingLocation,
+    JottingTransaction,
+};
 mod login;
 mod media;
 pub use media::Media;

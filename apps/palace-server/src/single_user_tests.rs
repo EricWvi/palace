@@ -35,6 +35,7 @@ async fn fixed_user_http_reuses_owner_without_login_or_cookies() {
         origin.into(),
         std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
         palace_media::MediaStorage::Unconfigured,
+        palace_jottings::JottingService::Unconfigured,
     )
     .await
     .unwrap();
@@ -104,6 +105,7 @@ async fn fixed_user_http_reuses_owner_without_login_or_cookies() {
         origin.into(),
         std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
         palace_media::MediaStorage::Unconfigured,
+        palace_jottings::JottingService::Unconfigured,
     )
     .await
     .unwrap();

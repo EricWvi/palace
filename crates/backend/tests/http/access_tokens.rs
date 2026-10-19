@@ -180,6 +180,7 @@ async fn access_tokens_authenticate_business_requests_only() {
         limits: ImportLimits::default(),
         notes: std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
         media: palace_media::MediaStorage::Unconfigured,
+        jottings: palace_jottings::JottingService::Unconfigured,
         now,
     }));
     let unauthorized = Answer {

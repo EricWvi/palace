@@ -23,6 +23,8 @@ mod access_tokens;
 mod contract;
 #[path = "http/inputs.rs"]
 mod inputs;
+#[path = "http/jottings.rs"]
+mod jottings;
 #[path = "http/media.rs"]
 mod media;
 #[path = "http/notes.rs"]
@@ -95,8 +97,12 @@ fn request(
 /// - `specs/test-cases/web/stars/notes.md#note-search-must-match-literally-and-stay-within-the-index`
 /// - `specs/test-cases/web/stars/notes.md#note-page-must-read-only-files-listed-in-the-index`
 /// - `specs/test-cases/server/media/media-storage.md#object-storage-configuration-must-be-all-or-nothing`
+/// - `specs/test-cases/server/jotting/jotting-sync.md#retrying-an-upload-must-never-create-a-second-jotting`
+/// - `specs/test-cases/server/jotting/jotting-sync.md#uploading-a-different-jotting-under-an-existing-id-must-be-rejected`
+/// - `specs/test-cases/server/jotting/jotting-sync.md#pulling-changes-by-cursor-must-not-skip-any-committed-change`
+/// - `specs/test-cases/server/jotting/jotting-sync.md#jotting-configuration-must-fail-fast-when-misconfigured`
 #[tokio::test]
-#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+#[ignore = "requires the existing postgres:17-alpine image, git and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     let container = palace_testkit::reaped(
         GenericImage::new("postgres", "17-alpine")
@@ -160,6 +166,19 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     links.chatgpt = url::Url::parse(&source_url).unwrap();
     let capture = contract::Capture::default();
     let (_notes_folder, library) = notes::library();
+    let (_jottings_folder, agent, jottings) = jottings::service(db.clone()).await;
+    let without_jottings = capture.attach(router(Server {
+        database: db.clone(),
+        provider: Provider,
+        credential_key: key.clone(),
+        origin: "https://palace.test".into(),
+        links: SourceLinks::standard().unwrap(),
+        limits: ImportLimits::default(),
+        notes: library.clone(),
+        media: palace_media::MediaStorage::Unconfigured,
+        jottings: palace_jottings::JottingService::Unconfigured,
+        now,
+    }));
     let app = capture.attach(router(Server {
         database: db,
         provider: Provider,
@@ -172,6 +191,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         },
         notes: library,
         media: palace_media::MediaStorage::Unconfigured,
+        jottings,
         now,
     }));
     let history = r#"[{"role":"user","content":"<script>alert(1)</script>\r\n","extra":123}]"#;
@@ -515,6 +535,8 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     notes::exercise_notes(&app, &cookie, &foreign).await;
     paths::exercise_path_lifecycle(&app, &cookie, &foreign).await;
     media::exercise_unconfigured(&app, &cookie).await;
+    jottings::exercise_jottings(&app, &cookie, &foreign, agent).await;
+    jottings::exercise_unconfigured(&without_jottings, &cookie).await;
     inputs::exercise_contract_boundaries(&app, &cookie, &foreign, &pool, &sessions[0].owner).await;
     let anonymous = app
         .clone()
@@ -648,6 +670,7 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         limits: ImportLimits::default(),
         notes: std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
         media: palace_media::MediaStorage::Unconfigured,
+        jottings: palace_jottings::JottingService::Unconfigured,
         now,
     }));
     let server = tokio::spawn(async move {

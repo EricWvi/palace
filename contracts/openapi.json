@@ -1748,6 +1748,305 @@
         ]
       }
     },
+    "/api/jottings": {
+      "post": {
+        "tags": [
+          "jottings"
+        ],
+        "summary": "Accepts a jotting created offline: writes it to the inbox and publishes it, or recognizes a\nretry of the same upload.",
+        "operationId": "upload_jotting",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JottingUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The same upload was already accepted; nothing was written",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadedJotting"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Written to the inbox and published",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadedJotting"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The id already belongs to a different jotting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Input capacity exceeded: extractor text or body limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "JSON Content-Type required",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "JSON does not match the target type",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or file failure; the upload can be retried",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider unavailable, or no jottings folder configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/jottings/changes": {
+      "get": {
+        "tags": [
+          "jottings"
+        ],
+        "summary": "Returns the current state of every jotting changed after `since`, in version order.",
+        "operationId": "jotting_changes",
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "description": "`0` for a first sync, otherwise the `next` of the last applied page.",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Rows read per page, tombstones included; defaults to 200.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Changes in version order; empty with `next` equal to `since` when nothing changed or no folder is configured",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JottingChanges"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
     "/api/me": {
       "get": {
         "tags": [
@@ -3477,6 +3776,8 @@
           "identity_unavailable",
           "search_unavailable",
           "media_storage_unavailable",
+          "jotting_id_conflict",
+          "jottings_unavailable",
           "persistence_failed"
         ]
       },
@@ -3620,6 +3921,137 @@
             "type": "string"
           }
         }
+      },
+      "Jotting": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "title",
+          "tags",
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "JottingChange": {
+        "type": "object",
+        "description": "The current state of one jotting changed after the cursor: its content, or its deletion.",
+        "required": [
+          "id",
+          "version",
+          "deleted"
+        ],
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "jotting": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Jotting",
+                "description": "Present exactly when `deleted` is false."
+              }
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/Cursor"
+          }
+        }
+      },
+      "JottingChanges": {
+        "type": "object",
+        "description": "One page of the jotting feed. Advance the cursor to `next` in the same local transaction that\napplies the page; `next` also passes tombstones a first sync leaves out.",
+        "required": [
+          "changes",
+          "next",
+          "has_more"
+        ],
+        "properties": {
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JottingChange"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next": {
+            "$ref": "#/components/schemas/Cursor"
+          }
+        }
+      },
+      "JottingUpload": {
+        "type": "object",
+        "description": "A jotting created offline. The client generates the id and keeps it across retries; the\nsame upload sent again is recognized, a different one under a used id is refused.",
+        "required": [
+          "id",
+          "created_at",
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "Markdown, at most 1 MiB; leading blank lines are dropped."
+          },
+          "created_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7 generated by the client."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Distinct non-blank tags."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Non-blank when present."
+          }
+        },
+        "additionalProperties": false
       },
       "LogoutResponse": {
         "type": "object",
@@ -4170,6 +4602,23 @@
             }
           }
         ]
+      },
+      "UploadedJotting": {
+        "type": "object",
+        "description": "An accepted upload and the version it is published under; on a retry, the jotting's current\nversion, which may belong to a later edit or a deletion.",
+        "required": [
+          "id",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "$ref": "#/components/schemas/Cursor"
+          }
+        }
       }
     },
     "securitySchemes": {

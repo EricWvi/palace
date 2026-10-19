@@ -12,6 +12,8 @@ pub(super) const PATHS: &str = "/api/conversations/{id}/paths";
 pub(super) const PATH: &str = "/api/conversations/{id}/paths/{path_id}";
 pub(super) const NOTES: &str = "/api/notes";
 pub(super) const NOTE: &str = "/api/notes/{id}";
+pub(super) const JOTTINGS: &str = "/api/jottings";
+pub(super) const JOTTING_CHANGES: &str = "/api/jottings/changes";
 pub(super) const MEDIA: &str = "/api/media";
 pub(super) const MEDIA_ITEM: &str = "/api/media/{id}";
 pub(super) const ACCESS_TOKENS: &str = "/api/access-tokens";
@@ -53,6 +55,8 @@ macro_rules! business_routes {
             put PATH_METADATA => path_management::update_metadata,
             get NOTES => notes::list,
             get NOTE => notes::note,
+            get JOTTING_CHANGES => jottings::changes,
+            post JOTTINGS => jottings::upload,
         }
     };
 }

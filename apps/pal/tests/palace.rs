@@ -59,6 +59,7 @@ fn palace(database: Database, media: MediaStorage) -> axum::Router {
         limits: ImportLimits::default(),
         notes: std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
         media,
+        jottings: palace_jottings::JottingService::Unconfigured,
         now,
     })
 }

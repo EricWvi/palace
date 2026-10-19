@@ -19,6 +19,8 @@ pub(super) enum ApiError {
     Unavailable,
     SearchUnavailable,
     MediaUnavailable,
+    JottingConflict,
+    JottingsUnavailable,
     Internal,
 }
 impl From<InputError> for ApiError {
@@ -79,6 +81,19 @@ impl From<palace_media::MediaError> for ApiError {
         }
     }
 }
+impl From<palace_jottings::JottingsError> for ApiError {
+    /// Git and file failures are internal: the library logs them, and the upload can be retried.
+    fn from(value: palace_jottings::JottingsError) -> Self {
+        match value {
+            palace_jottings::JottingsError::Input(e) => Self::Input(e),
+            palace_jottings::JottingsError::Conflict => Self::JottingConflict,
+            palace_jottings::JottingsError::Database(e) => e.into(),
+            palace_jottings::JottingsError::Git(_) | palace_jottings::JottingsError::File(_) => {
+                Self::Internal
+            }
+        }
+    }
+}
 impl IntoResponse for ApiError {
     /// Returns stable machine-readable categories without sensitive implementation details.
     fn into_response(self) -> Response {
@@ -118,6 +133,12 @@ impl IntoResponse for ApiError {
             Self::MediaUnavailable => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 ErrorCode::MediaStorageUnavailable,
+                "",
+            ),
+            Self::JottingConflict => (StatusCode::CONFLICT, ErrorCode::JottingIdConflict, ""),
+            Self::JottingsUnavailable => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                ErrorCode::JottingsUnavailable,
                 "",
             ),
             Self::Internal => (

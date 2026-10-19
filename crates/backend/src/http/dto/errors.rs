@@ -14,6 +14,8 @@ pub(crate) enum ErrorCode {
     IdentityUnavailable,
     SearchUnavailable,
     MediaStorageUnavailable,
+    JottingIdConflict,
+    JottingsUnavailable,
     PersistenceFailed,
 }
 #[derive(Serialize, ToSchema)]

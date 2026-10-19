@@ -28,8 +28,8 @@ Agent 把札记从 `inbox/` 移到其他目录，服务端按路径识别札记�
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 只移动文件不发布变更 | Missing | — |
-| 移动并修改只发布一次修改，身份不变 | Missing | — |
+| 只移动文件不发布变更 | Covered | `crates/jottings/tests/jottings.rs::moving_a_file_keeps_the_jotting`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore；`palace-jottings::reconcile::tests::known_blobs_are_relocated_without_parsing` 固定“已知 blob 只改位置”的规划 |
+| 移动并修改只发布一次修改，身份不变 | Covered | `crates/jottings/tests/jottings.rs::moving_a_file_keeps_the_jotting`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，对增量页做整体比较 |
 
 ### 决策依据
 
@@ -61,8 +61,8 @@ D1、D2，不变量 1。
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| HEAD 未变时对账不读不写 | Missing | — |
-| 发布内容来自 commit 树而不是工作区 | Missing | — |
+| HEAD 未变时对账不读不写 | Covered | `crates/jottings/tests/jottings.rs::only_commits_are_published`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，工作区改动后对账返回 `Unchanged` 且增量为空；`crates/jottings/tests/jottings.rs::a_commit_wakes_the_watcher` 用真实文件事件证明 commit 唤醒监听 |
+| 发布内容来自 commit 树而不是工作区 | Covered | `crates/jottings/tests/jottings.rs::only_commits_are_published`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，写了一半的文件 commit 前不可见，commit 后发布完整内容 |
 
 ### 决策依据
 
@@ -94,9 +94,9 @@ C2 中的合格修改不得单独被发布；修复后不得漏掉 C2 中的变�
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 不合格 commit 不改变索引与已索引 commit | Missing | — |
-| 修复后一次追上中间的变化 | Missing | — |
-| `pal jottings check` 与服务端使用同一校验，拒绝同样的文件 | Missing | — |
+| 不合格 commit 不改变索引与已索引 commit | Covered | `crates/jottings/tests/jottings.rs::an_invalid_commit_is_refused_whole`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，比较全部问题与空增量；`palace-jottings::reconcile::tests::any_problem_refuses_the_whole_commit` |
+| 修复后一次追上中间的变化 | Covered | `crates/jottings/tests/jottings.rs::an_invalid_commit_is_refused_whole`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore |
+| `pal jottings check` 与服务端使用同一校验，拒绝同样的文件 | Covered | 两者都只经 `palace_domain::Jotting::parse` 与 `JottingCensus` 判定，并按路径排序后计数；`apps/pal/src/jottings.rs::tests::reports_what_the_server_would_refuse`（真实文件系统）与 `palace-domain::jotting::tests::census_reports_every_problem_of_a_set` |
 
 ### 决策依据
 
@@ -128,8 +128,8 @@ D3，不变量 3。
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 相同内容重试返回 200 且无副作用（含已修改、已删除） | Missing | — |
-| 写文件后插入行失败，重试收敛到一个文件一行 | Missing | — |
+| 相同内容重试返回 200 且无副作用（含已修改、已删除） | Covered | `crates/jottings/tests/jottings.rs::upload_retries_are_idempotent`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，核对版本、文件与行数；`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` 经真实路由验证 201/200 并经 OpenAPI 合同校验 |
+| 写文件后插入行失败，重试收敛到一个文件一行 | Covered | `crates/jottings/tests/jottings.rs::a_failed_insert_converges_on_retry`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore；真实 PostgreSQL 触发器在插入行时注入失败 |
 
 ### 决策依据
 
@@ -161,7 +161,7 @@ D4，不变量 4、6。
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 冲突上传返回 409 且无副作用 | Missing | — |
+| 冲突上传返回 409 且无副作用 | Covered | `crates/jottings/tests/jottings.rs::upload_retries_are_idempotent` 比较上传前后整个仓库（含 `.git`）的快照；`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` 验证 `409 jotting_id_conflict` |
 
 ### 决策依据
 
@@ -193,9 +193,9 @@ D4，不变量 5、7。
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 未入 commit 的上传札记跨对账保留 | Missing | — |
-| 原样 commit 不发布变更 | Missing | — |
-| commit 之前删除的上传札记被写成 tombstone | Missing | — |
+| 未入 commit 的上传札记跨对账保留 | Covered | `crates/jottings/tests/jottings.rs::uploads_wait_for_their_commit`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore；`palace-jottings::reconcile::tests::pending_uploads_wait_for_their_commit` |
+| 原样 commit 不发布变更 | Covered | `crates/jottings/tests/jottings.rs::uploads_wait_for_their_commit`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，原样 commit 后增量只含另一张札记的删除 |
+| commit 之前删除的上传札记被写成 tombstone | Covered | `crates/jottings/tests/jottings.rs::uploads_wait_for_their_commit`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore |
 
 ### 决策依据
 
@@ -227,9 +227,9 @@ D2、D4，不变量 2、6。
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 发布锁保证提交顺序与版本顺序一致 | Missing | — |
-| 分页拉取不重不漏，tombstone 规则正确 | Missing | — |
-| 札记行不能被物理删除 | Missing | — |
+| 发布锁保证提交顺序与版本顺序一致 | Covered | `crates/jottings/tests/jottings.rs::the_feed_never_skips_a_committed_change`，真实 PostgreSQL；持锁事务未提交时以 `pg_locks` 确认上传正在等待锁，提交后上传取得更高版本 |
+| 分页拉取不重不漏，tombstone 规则正确 | Covered | `crates/jottings/tests/jottings.rs::the_feed_never_skips_a_committed_change` 对 `since=0` 与 `since>0` 的分页做整体比较；HTTP 形状由 `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` 经 OpenAPI 合同校验 |
+| 札记行不能被物理删除 | Covered | `crates/jottings/tests/jottings.rs::the_feed_never_skips_a_committed_change`，真实 PostgreSQL 拒绝 DELETE |
 
 ### 决策依据
 
@@ -261,7 +261,7 @@ D5，不变量 8、9。
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 对账与上传只新增 `inbox/<id>.md` | Missing | — |
+| 对账与上传只新增 `inbox/<id>.md` | Covered | `crates/jottings/tests/jottings.rs::the_server_writes_only_inbox_files`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，比较整个仓库（含 `.git`）前后的文件与内容 |
 
 ### 决策依据
 
@@ -293,7 +293,7 @@ D2、D4，不变量 7。
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 四种配置的结果正确 | Missing | — |
+| 四种配置的结果正确 | Covered | `crates/jottings/tests/jottings.rs::misconfigured_folders_fail_to_open`（真实 Git：非 Git 目录、尚无 commit、工作区子目录、detached HEAD）；未配置时的空页与 503 由 `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` 经真实路由验证；`palace-server` 以 `?` 传播打开错误终止启动 |
 
 ### 决策依据
 

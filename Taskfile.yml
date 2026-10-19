@@ -171,10 +171,11 @@ tasks:
   ###################################################
 
   test:integration:
-    desc: Run ignored PostgreSQL and MinIO tests using locally prepared images
+    desc: Run ignored PostgreSQL, MinIO and Git tests using locally prepared images
     cmds:
       - cargo test -p palace-db --test postgres -- --ignored
       - cargo test -p palace-media --test minio -- --ignored
+      - cargo test -p palace-jottings --test jottings -- --ignored
       - cargo test -p pal --test palace -- --ignored
       - task: test:api-http
 

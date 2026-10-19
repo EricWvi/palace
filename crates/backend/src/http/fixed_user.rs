@@ -10,6 +10,7 @@ use axum::{
 };
 use palace_db::{Database, Owner};
 use palace_domain::{ImportLimits, SourceLinks};
+use palace_jottings::JottingService;
 use palace_media::MediaStorage;
 use palace_notes::NoteLibrary;
 use std::sync::Arc;
@@ -21,6 +22,7 @@ pub async fn fixed_user_router(
     origin: String,
     notes: Arc<NoteLibrary>,
     media: MediaStorage,
+    jottings: JottingService,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let owner = database
         .resolve_identity("palace:local-test", "single-user", "local-test@palace.test")
@@ -32,6 +34,7 @@ pub async fn fixed_user_router(
         limits: ImportLimits::default(),
         notes,
         media,
+        jottings,
     })
     .merge(tokens)
     .route_layer(middleware::from_fn_with_state((owner, origin), identify))
