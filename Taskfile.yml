@@ -210,6 +210,7 @@ tasks:
   run:server:
     desc: Run single-user Palace with a persistent PostgreSQL testcontainer
     env:
+      PALACE_NOTES_DIR: '{{.PALACE_NOTES_DIR | default (joinPath ".." "notes" "writings")}}'
       PALACE_ORIGIN: '{{.PALACE_ORIGIN | default "http://127.0.0.1:5173"}}'
     cmds:
       - cargo run -p palace-server --features test-server --bin palace-test-server
