@@ -173,10 +173,14 @@
 
     .prose code {
       padding: 1px 5px;
-      background: var(--bg-sunken);
       border-radius: var(--radius-sm);
       font-family: var(--font-mono);
       font-size: var(--font-size-sm);
+    }
+
+    .prose :not(pre) > code {
+      background: var(--code-inline-bg);
+      color: var(--code-inline-text);
     }
 
     .prose pre {

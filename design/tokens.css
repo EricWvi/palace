@@ -37,6 +37,14 @@
   --radius-round: 50%;
 }
 
+/* Resolve semantic aliases at each theme boundary so nested previews inherit the right palette. */
+:root,
+[data-theme="light"],
+[data-theme="dark"] {
+  --code-inline-bg: var(--accent-soft);
+  --code-inline-text: var(--code-keyword);
+}
+
 :root,
 [data-theme="light"] {
   --bg: #f9f8f4;
