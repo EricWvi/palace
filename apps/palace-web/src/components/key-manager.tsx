@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -25,6 +25,7 @@ const copyLabels = {
 // revoke it. A token is only ever shown masked; the full value of the one just created lives in
 // this component's state alone, so closing the dialog is what makes it unrecoverable.
 export function KeyManager({ onClose }: { onClose: () => void }) {
+  const noteInput = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState("");
   const [fresh, setFresh] = useState<{ id: string; token: string } | null>(
     null,
@@ -65,7 +66,15 @@ export function KeyManager({ onClose }: { onClose: () => void }) {
         if (!open) onClose();
       }}
     >
-      <DialogContent className="branch-dialog" aria-describedby={undefined}>
+      <DialogContent
+        className="branch-dialog"
+        aria-describedby={undefined}
+        onOpenAutoFocus={(event) => {
+          // Keep the first help button from opening its tooltip on dialog entry.
+          event.preventDefault();
+          noteInput.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>密钥管理</DialogTitle>
         </DialogHeader>
@@ -81,6 +90,7 @@ export function KeyManager({ onClose }: { onClose: () => void }) {
             </div>
             <div className="key-form-row">
               <Input
+                ref={noteInput}
                 id="key-note"
                 required
                 maxLength={100}

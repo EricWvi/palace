@@ -43,6 +43,15 @@ test("creates, copies and deletes a key from the day menu without showing it", a
   await page.getByRole("menuitem", { name: "密钥管理" }).click();
   const dialog = page.getByRole("dialog", { name: "密钥管理" });
   await expect(dialog.getByText("还没有密钥。")).toBeVisible();
+  await expect(dialog.getByLabel("备注")).toBeFocused();
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByRole("button", { name: "密钥说明" })).toBeFocused();
+  await expect(page.getByRole("tooltip")).toContainText(
+    "供 CLI 和第三方服务调用",
+  );
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
   await dialog.getByLabel("备注").fill("命令行");
   await dialog.getByRole("button", { name: "生成" }).click();
   const row = dialog.getByRole("listitem").filter({ hasText: "命令行" });
@@ -62,6 +71,8 @@ test("creates, copies and deletes a key from the day menu without showing it", a
   await page.getByRole("button", { name: "当天操作" }).click();
   await page.getByRole("menuitem", { name: "密钥管理" }).click();
   await expect(row).toContainText("创建于 2025-09-30 · 从未使用");
+  await expect(dialog.getByLabel("备注")).toBeFocused();
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
   await expect(row.getByRole("button", { name: "复制密钥" })).toHaveCount(0);
 
   await row.getByRole("button", { name: "删除密钥 命令行" }).click();
