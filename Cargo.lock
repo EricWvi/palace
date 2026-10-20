@@ -3035,6 +3035,7 @@ name = "pal"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "chrono",
  "chrono-tz",
  "clap",
  "flate2",
@@ -3043,10 +3044,12 @@ dependencies = [
  "palace-db",
  "palace-domain",
  "palace-jottings",
+ "palace-logging",
  "palace-media",
  "palace-notes",
  "palace-testkit",
  "pretty_assertions",
+ "pulldown-cmark",
  "reqwest",
  "self-replace",
  "serde",
@@ -3058,6 +3061,7 @@ dependencies = [
  "testcontainers",
  "thiserror 2.0.20",
  "tokio",
+ "tracing",
  "url",
  "uuid",
  "zip",

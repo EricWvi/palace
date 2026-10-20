@@ -10,6 +10,7 @@ use std::{error::Error as _, fmt, io, path::PathBuf};
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Operation {
     Upload,
+    ArticleUpload,
     Delete,
 }
 
@@ -32,6 +33,12 @@ pub(crate) enum Failure {
     Rejected(Rejection),
     #[error("Palace stored the file but answered with a body that is not JSON: {0}")]
     UnreadableMedia(serde_json::Error),
+    #[error("{0}")]
+    Article(#[from] crate::article::Error),
+    #[error(
+        "Palace may have saved the article but answered with invalid JSON: {0}; rerun with the same original URL; an existing article will not be overwritten"
+    )]
+    UnreadableArticle(serde_json::Error),
     #[error("{}", jottings(.0))]
     Jottings(Vec<JottingProblem>),
 }
@@ -81,6 +88,9 @@ fn transport(operation: Operation, error: &reqwest::Error) -> String {
     match operation {
         Operation::Upload => {
             message.push_str("; the upload may still have completed on the server");
+        }
+        Operation::ArticleUpload => {
+            message.push_str("; the article may have been saved; rerun with the same original URL; an existing article will not be overwritten");
         }
         Operation::Delete => {}
     }

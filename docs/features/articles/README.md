@@ -4,6 +4,10 @@
 
 ## 导入
 
+本地目录可用 [`pal article upload <path-to-dir>`](../../cli/README.md#上传文章目录) 上传：
+元数据放入 `article.json`，正文为目录内唯一 Markdown，媒体由正文的 `assets/<文件名>` 引用收集。
+CLI 组装下面的同一导入协议，不需要先执行媒体上传。
+
 `POST /api/articles`，`multipart/form-data`，带 `Authorization: Bearer palace_pat_…`。第一个 part 必须是 `article`，内容是 JSON；之后每个嵌入的文件一个 `file` part：
 
 ```bash

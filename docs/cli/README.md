@@ -6,7 +6,9 @@ Access Token 认证；决策见 [pal CLI 根决策](../../specs/decisions/cli/0-
 ## 安装与发布
 
 从仓库的 GitHub Releases 下载对应平台的压缩包，解压后将 `pal`（Windows 为 `pal.exe`）放入 `PATH`。
-Linux 和 macOS 提供 x86_64、ARM64 版本，Windows 提供 x86_64 版本；Linux 使用 glibc。
+Linux 和 macOS 提供 x86_64、ARM64 版本，Windows 提供 x86_64 版本；Linux 使用 musl 静态链接，
+不依赖宿主机 glibc、动态加载器或 OpenSSL，可用于 Alpine 和 `distroless/static`。
+Linux 附件的目标名为 `x86_64-unknown-linux-musl`、`aarch64-unknown-linux-musl`；`pal update` 在 Linux 上也选择这些静态包。
 每个 Release 附带 `SHA256SUMS`，可在下载目录运行 `sha256sum --ignore-missing -c SHA256SUMS` 校验。
 同时附带 `latest.json`，记录 `version`（完整 tag）和 `assets`；每项包含 `target`、`name`、固定到该版本的
 `url` 与压缩包的 `sha256`。更新入口为
@@ -57,6 +59,8 @@ pal s3 upload ./截图.png
 pal s3 delete 0199…
 
 pal jottings check ./jottings
+
+pal article upload ./article-directory
 ```
 
 - `pal uuid` 在本地生成一个 UUID v7，stdout 只输出小写、带连字符的 UUID 和换行，退出码为 0。
@@ -76,6 +80,42 @@ pal jottings check ./jottings
   `PAL_TOKEN`，也不发出请求。全部合格时没有输出；否则 stderr 逐行列出每个问题，退出码为 1。可以作为札记
   仓库的 pre-commit hook，见[札记](../features/jottings/README.md)。
 
+## 上传文章目录
+
+`pal article upload <path-to-dir>` 从目录读取 `article.json`、顶层唯一的 `.md` 正文，以及正文引用的本地媒体。
+一次 `POST /api/articles` 保存文章与媒体，源目录只读。成功时 stdout 输出服务端返回的文章 JSON，
+其中 `id` 是文章 ID；同一 Owner 下相同原文网址已存在时返回旧文章，**不会更新正文或元数据**。
+
+```text
+article-directory/
+├── article.json
+├── post.md
+└── assets/
+    ├── cover.jpg
+    └── demo.mp4
+```
+
+`article.json`：
+
+```json
+{"title":"文章标题","url":"https://example.com/original","date":"2026-07-03","author":"作者"}
+```
+
+`title`、`url`、`date` 必填，`author` 可省略或为 `null`；重复键、未知字段、非法值会在发送前拒绝。
+日期允许 `YYYY-MM-DD` 或带时区偏移的 RFC 3339 时间；只写日期时由服务端按 `PALACE_TIMEZONE` 解释。
+不从 Markdown 标题、文件名、目录名或文件时间推断元数据，不解析正文 frontmatter。
+
+Markdown 中用 `![封面](assets/cover.jpg)`、`![演示](assets/demo.mp4)` 引用图片或视频，
+也可使用 `./assets/`。CLI 只转换真实的行内图片地址，代码块、行内代码、普通链接与其他正文保留原字节；
+同一文件重复引用只传一次，未引用文件忽略。正文最多 4 MiB，文件和整个请求的上限由服务端决定。
+
+媒体文件名只能由 `[A-Za-z0-9._-]` 组成，长度 1–128；不支持嵌套资源目录、中文或空格文件名、
+百分号编码、query、fragment、绝对路径、`..`、符号链接、引用式本地图片或手写 `media:` / `/api/media/` 地址。
+其他本地图片路径在发送前报错。远程图片和 `data:` URI 保留，CLI 不下载，文章页仍显示占位。
+HTML 标签和普通附件链接不参与上传。
+
+详见[上传决策](../../specs/decisions/cli/20261020-article-upload-from-directory.md)和[文章 API](../features/articles/README.md)。
+
 ## 失败与重试
 
 | 情形                                                                  | 退出码 |
@@ -88,8 +128,12 @@ pal jottings check ./jottings
 输出中。
 
 `pal` 不自动重试。访问 Palace 时不跟随重定向；`pal update` 仅通过 HTTPS 下载，允许 GitHub 附件下载所需的
-重定向。上传不幂等：网络中断时上传可能已在服务端完成，此时重新运行会产生
+重定向。`pal s3 upload` 不幂等：网络中断时上传可能已在服务端完成，此时重新运行会产生
 第二个媒体，stderr 会提示这种可能。删除可以放心重新运行，已删除的媒体再次删除报告 `not_found`。
+
+`pal article upload` 则按 Owner 和原文网址幂等：断线或响应不确定时，可保持相同 `url` 重跑；
+已有文章不会被覆盖。修改本地正文后重跑不会更新远端；确需替换时先明确删除旧文章及媒体，再重新导入，
+文章 ID 和导入时间会改变。在 Web 修改已有文章网址后，旧网址不再命中该文章。
 
 ## 开发与测试
 

@@ -12,7 +12,17 @@ test("manifest records the actual archives with version-pinned URLs and SHA-256"
   t.after(() => rm(directory, { recursive: true, force: true }));
   const archives = [
     ["aarch64-apple-darwin", "tar.gz", Buffer.from("macOS archive")],
+    [
+      "aarch64-unknown-linux-musl",
+      "tar.gz",
+      Buffer.from("ARM64 static Linux archive"),
+    ],
     ["x86_64-pc-windows-msvc", "zip", Buffer.from("Windows archive")],
+    [
+      "x86_64-unknown-linux-musl",
+      "tar.gz",
+      Buffer.from("AMD64 static Linux archive"),
+    ],
   ];
   for (const [target, extension, bytes] of archives) {
     await writeFile(

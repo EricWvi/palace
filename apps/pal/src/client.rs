@@ -1,5 +1,6 @@
-//! The two media requests. Each command sends at most one request: uploads are not idempotent, so
-//! a retry after a lost response would silently store a second copy.
+//! Authenticated Palace requests. Each command sends at most one request, including article
+//! uploads whose URL-based retry semantics differ from independent media uploads.
+mod article;
 use crate::{
     config::Config,
     failure::{Failure, Operation, Rejection},

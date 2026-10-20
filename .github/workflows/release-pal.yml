@@ -17,9 +17,9 @@ jobs:
       matrix:
         include:
           - os: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-musl
           - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
+            target: aarch64-unknown-linux-musl
           - os: macos-15-intel
             target: x86_64-apple-darwin
           - os: macos-15
@@ -55,8 +55,27 @@ jobs:
           restore-keys: |
             pal-release-${{ matrix.target }}-
 
+      - name: Install native musl toolchain
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+
       - name: Build pal
-        run: cargo build --release --locked --package pal --bin pal --target "$TARGET"
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            export CC=musl-gcc
+            export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc
+            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc
+          fi
+          cargo build --release --locked --package pal --bin pal --target "$TARGET"
+
+      - name: Verify Linux binary has no dynamic runtime dependencies
+        if: runner.os == 'Linux'
+        run: |
+          binary="target/${TARGET}/release/pal"
+          if readelf -lW "$binary" | grep -q INTERP || readelf -dW "$binary" | grep -q NEEDED; then
+            echo "pal must be statically linked for distroless/static" >&2
+            exit 1
+          fi
 
       - name: Package pal
         run: |
@@ -77,6 +96,13 @@ jobs:
           else
             tar -czf "dist/${asset}.tar.gz" -C "target/${TARGET}/release" pal
           fi
+
+      - name: Smoke test static pal in the posts runtime
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm --network none \
+            -v "$PWD/target/${TARGET}/release/pal:/pal:ro" \
+            --entrypoint /pal gcr.io/distroless/static-debian12:nonroot article upload --help
 
       - name: Upload release archive
         uses: actions/upload-artifact@v7

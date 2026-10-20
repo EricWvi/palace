@@ -9,8 +9,10 @@ workspace = true
 [dependencies]
 palace-domain = { workspace = true }
 clap = { workspace = true }
+chrono = { workspace = true }
 flate2 = { workspace = true }
 mime_guess = { workspace = true }
+pulldown-cmark = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "multipart"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -27,6 +29,7 @@ zip = { workspace = true }
 palace-backend = { workspace = true }
 palace-db = { workspace = true }
 palace-jottings = { workspace = true }
+palace-logging = { workspace = true }
 palace-media = { workspace = true }
 palace-notes = { workspace = true }
 palace-testkit = { workspace = true }
@@ -36,3 +39,4 @@ pretty_assertions = { workspace = true }
 sqlx = { workspace = true }
 testcontainers = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }

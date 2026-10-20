@@ -94,11 +94,11 @@ fn download_client_builder() -> reqwest::blocking::ClientBuilder {
         .timeout(Duration::from_secs(/*secs*/ 180))
 }
 
-/// Matches the release matrix explicitly so unsupported builds never install a different ABI.
+/// Linux releases use static musl binaries even when the current CLI was built with GNU libc.
 fn release_target(os: &str, arch: &str) -> Result<&'static str, Error> {
     match (os, arch) {
-        ("linux", "x86_64") if cfg!(target_env = "gnu") => Ok("x86_64-unknown-linux-gnu"),
-        ("linux", "aarch64") if cfg!(target_env = "gnu") => Ok("aarch64-unknown-linux-gnu"),
+        ("linux", "x86_64") => Ok("x86_64-unknown-linux-musl"),
+        ("linux", "aarch64") => Ok("aarch64-unknown-linux-musl"),
         ("macos", "x86_64") => Ok("x86_64-apple-darwin"),
         ("macos", "aarch64") => Ok("aarch64-apple-darwin"),
         ("windows", "x86_64") if cfg!(target_env = "msvc") => Ok("x86_64-pc-windows-msvc"),

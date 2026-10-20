@@ -1,5 +1,6 @@
 //! `pal`, the Palace command line. It reaches Palace only through the public HTTP API, with the
 //! address and access token taken from the environment so the token never appears in argv.
+mod article;
 mod client;
 mod config;
 mod failure;
@@ -35,6 +36,18 @@ enum Command {
     /// 札记 kept as Markdown files in a Git repository.
     #[command(subcommand)]
     Jottings(Jottings),
+    /// Articles imported together with the local media their Markdown embeds.
+    #[command(subcommand)]
+    Article(Article),
+}
+
+#[derive(Subcommand)]
+enum Article {
+    /// Upload a directory containing article.json, one Markdown file, and optional assets/.
+    Upload {
+        #[arg(value_name = "PATH_TO_DIR")]
+        path: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -94,6 +107,11 @@ fn run(command: Command) -> Result<(), Failure> {
         }
         Command::Jottings(Jottings::Check { folder }) => {
             jottings::check(&folder)?;
+        }
+        Command::Article(Article::Upload { path }) => {
+            let client = Client::new(Config::from_env(std::env::var_os)?)?;
+            let article = article::prepare(&path)?;
+            println!("{}", client.upload_article(article)?);
         }
     }
     Ok(())

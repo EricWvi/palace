@@ -7,9 +7,23 @@ use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
 use std::{cell::RefCell, fs, io::Write};
 
-const TARGET: &str = "x86_64-unknown-linux-gnu";
+const TARGET: &str = "x86_64-unknown-linux-musl";
 const WINDOWS_TARGET: &str = "x86_64-pc-windows-msvc";
 const CONTENT: &[u8] = b"downloaded CLI";
+
+/// Linux upgrades install the static release regardless of the ABI used to build this updater.
+/// Core test case:
+/// - `specs/test-cases/cli/static-releases.md#linux-releases-must-run-without-a-dynamic-loader`
+#[test]
+fn linux_updates_select_static_musl_releases() {
+    assert_eq!(
+        [
+            release_target("linux", "x86_64").unwrap(),
+            release_target("linux", "aarch64").unwrap()
+        ],
+        ["x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl"]
+    );
+}
 
 struct Fixture {
     manifest: Value,
@@ -123,7 +137,7 @@ fn rejects_untrusted_or_ambiguous_manifest_assets() {
     let mut variants = Vec::new();
     for (path, value) in [
         ("/version", json!("v../../other")),
-        ("/assets/0/target", json!("aarch64-unknown-linux-gnu")),
+        ("/assets/0/target", json!("aarch64-unknown-linux-musl")),
         ("/assets/0/name", json!("other.tar.gz")),
         ("/assets/0/url", json!("https://example.com/pal.tar.gz")),
         ("/assets/0/sha256", json!("invalid")),

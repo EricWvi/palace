@@ -7,6 +7,7 @@ use std::{
         atomic::{AtomicUsize, Ordering},
     },
 };
+use tracing::instrument::WithSubscriber;
 
 /// A well-formed token; servers that do not issue it reject it as unknown.
 pub const TOKEN: &str = "palace_pat_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -48,7 +49,9 @@ pub async fn pal(args: &[&str], env: &[(&str, &str)]) -> Output {
 pub async fn serve(app: Router) -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    tokio::spawn(
+        async move { axum::serve(listener, app).await.unwrap() }.with_current_subscriber(),
+    );
     url
 }
 
