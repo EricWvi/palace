@@ -1,6 +1,6 @@
 # 回响页核心测试用例
 
-当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。页面尚未实现，所有证据均为 `Missing`。
+当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
 
 ## Echo navigation must open the wide jotting page
 
@@ -12,8 +12,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 回响指向 `/jottings`，只有回响是当前项 | Missing | — |
-| 只有回响页加宽，离开后恢复 | Missing | — |
+| 回响指向 `/jottings`，只有回响是当前项 | Covered | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`、`pages/echo.test.tsx::widens the sheet for 回响 only and marks 回响 as the current section` |
+| 只有回响页加宽，离开后恢复 | Partial | `pages/echo.test.tsx::widens the sheet for 回响 only and marks 回响 as the current section`（页面容器的 `wide` 类）；实际宽度由 CSS 决定，jsdom 不计算布局 |
 
 决策依据：D1，Web 导航根决策 D1 的修改项。
 
@@ -27,9 +27,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 关闭即离开卡片组，读完显示提示，重新挂载后恢复 | Missing | — |
-| 收起卡片组的点击被拦截，不触发瀑布流操作 | Missing | — |
-| 筛选与搜索时卡片组收起，清除后恢复 | Missing | — |
+| 关闭即离开卡片组，读完显示提示，重新挂载后恢复 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again`（同时断言没有写入 `localStorage`） |
+| 收起卡片组的点击被拦截，不触发瀑布流操作 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again` |
+| 筛选与搜索时卡片组收起，清除后恢复 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again`（标签筛选与搜索使卡片组所在抽屉变为 inert，清除后恢复） |
 
 决策依据：D3，不变量 3、8。
 
@@ -43,9 +43,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 当前筛选标签始终出现在侧栏，筛选行显示条件与总数 | Missing | — |
-| 只有 Enter 触发搜索请求，组字过程不发请求 | Missing | — |
-| Escape 每次只退出一层，顺序固定 | Missing | — |
+| 当前筛选标签始终出现在侧栏，筛选行显示条件与总数 | Covered | `pages/echo.test.tsx::keeps the active tag visible, searches only on Enter and steps back one layer per Escape` |
+| 只有 Enter 触发搜索请求，组字过程不发请求 | Covered | `pages/echo.test.tsx::keeps the active tag visible, searches only on Enter and steps back one layer per Escape`（`isComposing` 的 Enter） |
+| Escape 每次只退出一层，顺序固定 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again`（放大的卡片 → 平铺的卡片组）、`pages/echo.test.tsx::keeps the active tag visible, searches only on Enter and steps back one layer per Escape`（全部标签 → 标签筛选；搜索框内先清空再收起） |
 
 决策依据：D5、D7，不变量 7。
 
@@ -59,9 +59,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 标签提取的边界与正文原样保留 | Missing | — |
-| 有内容的草稿不因 Escape 或失焦丢失 | Missing | — |
-| 提交后清除筛选，新卡片可见并带待整理圆点 | Missing | — |
+| 标签提取的边界与正文原样保留 | Covered | `lib/jotting-draft.test.ts::takes out only real tags and keeps every other character as typed`、`pages/echo.test.tsx::writes a jotting with inline tags, keeps a draft through Escape and shows it unfiltered`（上传请求体） |
+| 有内容的草稿不因 Escape 或失焦丢失 | Covered | `pages/echo.test.tsx::writes a jotting with inline tags, keeps a draft through Escape and shows it unfiltered` |
+| 提交后清除筛选，新卡片可见并带待整理圆点 | Covered | `pages/echo.test.tsx::writes a jotting with inline tags, keeps a draft through Escape and shows it unfiltered`、`e2e/echo.spec.ts::puts a new jotting on top of the first column and moves no other card`（真实 Chromium，三列布局下其他卡片不换列） |
 
 决策依据：D6，不变量 9、10、11。
 
@@ -75,6 +75,6 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 按 `n` 后立即输入的文字顺序不变（真实 Chromium） | Missing | — |
+| 按 `n` 后立即输入的文字顺序不变（真实 Chromium） | Covered | `e2e/echo.spec.ts::keeps text typed right after n in order while the composer slides open`（改回 `overflow: hidden` 时稳定复现倒序） |
 
 决策依据：D6，“风险”中的抽屉裁剪方式。

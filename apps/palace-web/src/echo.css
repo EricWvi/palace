@@ -1,0 +1,597 @@
+/*
+ * 回响 (design/4.1-echo.html, variant B). Rules are scoped to the page, except the full-text
+ * card and its backdrop, which open over everything as children of <body>.
+ */
+
+/*
+ * 回响 needs room for three columns of cards, so its sheet widens; the header lives inside the
+ * sheet and stretches with it, reading as one page of paper changing size. Larger travel, so
+ * slower than the 300ms used elsewhere.
+ */
+.sheet {
+  transition: max-width 400ms ease-out;
+}
+
+.sheet.wide {
+  max-width: 1200px;
+}
+
+.echo {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 48px;
+  margin-top: 70px;
+  animation: echo-arrive 300ms ease-out;
+}
+
+@keyframes echo-arrive {
+  from {
+    opacity: 0;
+  }
+}
+
+.echo-main {
+  min-width: 0;
+  transition: opacity 300ms ease-out;
+}
+
+/* The spread pile lies over the wall; dimming the wall keeps its text from showing through the gaps. */
+.echo:has(.recall.spread) .echo-main {
+  opacity: 0.25;
+}
+
+/* ---------- Left column ---------- */
+
+/* Above the wall, so the spread pile floats over its first row. */
+.echo .side {
+  position: sticky;
+  top: 32px;
+  z-index: 2;
+  align-self: start;
+  font-size: var(--font-size-sm);
+}
+
+.echo .side-lists {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.echo .side-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.echo .side-list button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--text-3);
+  text-align: left;
+}
+
+.echo .side-list button:hover {
+  color: var(--text-2);
+}
+
+.echo .side-list button[aria-current="true"] {
+  color: var(--accent);
+}
+
+.echo .side-list small {
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.echo .side-all {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.echo .stats {
+  display: flex;
+  gap: 20px;
+}
+
+.echo .stats strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--font-size-2xl);
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.echo .stats span {
+  color: var(--text-3);
+  font-size: var(--font-size-xs);
+}
+
+/* Twelve weeks, Monday on top, the current week on the right. */
+.echo .heat {
+  display: grid;
+  grid-template-rows: repeat(7, 11px);
+  grid-auto-flow: column;
+  grid-auto-columns: 11px;
+  gap: 3px;
+}
+
+.echo .heat i {
+  border-radius: 2px;
+  background: var(--bg-sunken);
+}
+
+.echo .heat i[data-level="1"] {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface));
+}
+
+.echo .heat i[data-level="2"] {
+  background: color-mix(in srgb, var(--accent) 60%, var(--surface));
+}
+
+.echo .heat i[data-level="3"] {
+  background: var(--accent);
+}
+
+.echo .heat i[data-future] {
+  visibility: hidden;
+}
+
+/* ---------- Drawers: recall, composer and search slide by animating their row ---------- */
+
+.echo .drawer {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 300ms ease-out,
+    opacity 300ms ease-out;
+}
+
+.echo .drawer.closed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+/*
+ * clip, not hidden: a hidden box is a scroll container, and Chromium misplaces the caret when
+ * text arrives in a textarea whose scroll container is still growing, so fast typing right
+ * after `n` came out reversed. Unlike hidden, clip keeps the content's minimum size, hence
+ * min-width: 0.
+ */
+.echo .drawer > div {
+  min-width: 0;
+  min-height: 0;
+  overflow: clip;
+}
+
+/* Once open, the recall drawer stops clipping so the spread row can reach across the wall. */
+.echo .drawer.settled > div {
+  overflow: visible;
+}
+
+/* ---------- Cards ---------- */
+
+.echo-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px 12px;
+}
+
+.echo-card h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.echo-card .jot-body {
+  font-family: var(--font-content);
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* Short texts read as cards, not documents: tighter blocks and flat headings. */
+.echo-card .jot-body .markdown :is(p, ul, ol, blockquote, .code-block, table) {
+  margin: 0 0 0.6em;
+}
+
+.echo-card .jot-body .markdown :is(ul, ol) {
+  padding-left: 1.3em;
+}
+
+.echo-card .jot-body .markdown :is(h1, h2, h3, h4, h5, h6) {
+  margin: 0.8em 0 0.3em;
+  font-size: inherit;
+}
+
+.echo-card .jot-body .markdown > :first-child {
+  margin-top: 0;
+}
+
+.echo-card .jot-body .markdown > :last-child {
+  margin-bottom: 0;
+}
+
+/* Eight lines, faded at the cut so the fold reads as "more below". */
+.echo-card .jot-body.folded {
+  max-height: calc(8 * 1.6em);
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, black 65%, transparent);
+}
+
+.echo-card .jot-body.moving {
+  overflow: hidden;
+  transition: max-height 300ms ease-out;
+}
+
+.echo-card .jot-fold {
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: var(--font-size-xs);
+}
+
+.echo-card .jot-fold:hover {
+  color: var(--text-2);
+}
+
+.echo-card .jot-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 10px;
+  color: var(--text-3);
+  font-size: var(--font-size-xs);
+}
+
+.echo-card .jot-foot .tag:hover {
+  color: var(--text-2);
+}
+
+.echo-card .jot-foot .tag[aria-current="true"] {
+  color: var(--accent);
+}
+
+/*
+ * 待整理 is a passing state of the card, not a fact about it, so it is a dot in the corner
+ * padding: it takes no room in the footer and never strands itself on a wrapped line.
+ */
+.echo-card .pending {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-round);
+  background: var(--accent);
+}
+
+.echo-card .time {
+  position: relative;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Tooltips float above their anchor, so revealing one never reflows the card. A relative time
+ * shows its full timestamp; the 待整理 dot names itself.
+ */
+.echo-card [data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: -6px;
+  bottom: calc(100% + 6px);
+  z-index: 1;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+}
+
+.echo-card .pending::after {
+  left: auto;
+  right: -6px;
+}
+
+.echo-card [data-tip]:hover::after {
+  opacity: 1;
+  transition-delay: 200ms;
+}
+
+/* ---------- Recall pile ---------- */
+
+.echo .recall {
+  --gap: 12px;
+  /* Room on the right and below for the pile's offsets. */
+  --w: calc(100% - 16px);
+  position: relative;
+  height: 206px;
+  margin-bottom: 28px;
+}
+
+.echo .rc {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--w);
+  height: 190px;
+  display: flex;
+  flex-direction: column;
+  z-index: calc(5 - var(--i));
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--text) 8%, transparent);
+  transform: translate(calc(var(--i) * 4px), calc(var(--i) * 4px))
+    rotate(var(--r));
+  /* Collapsing, the far cards leave first so the pile closes from the outside in. */
+  transition:
+    transform 300ms ease-out calc((var(--n) - 1 - var(--i)) * 40ms),
+    box-shadow 300ms ease-out;
+  cursor: pointer;
+}
+
+/* Spread, the cards float over the wall, so they lift with a deeper shadow. */
+.echo .recall.spread .rc {
+  transform: translateX(calc(var(--i) * (100% + var(--gap))));
+  transition-delay: calc(var(--i) * 40ms);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+/* A uniform card cuts long text with the same fade the wall uses for its fold. */
+.echo .rc .jot-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, black 70%, transparent);
+  font-size: var(--font-size-sm);
+}
+
+.echo .rc h3 {
+  font-size: var(--font-size-base);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.echo .rc .time {
+  flex: none;
+}
+
+.echo .rc .jot-foot {
+  flex-wrap: nowrap;
+  margin-top: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Every card of the day has been read; one quiet line keeps the corner from looking broken. */
+.echo .recall-done {
+  margin: 0 0 28px;
+  color: var(--text-3);
+  font-family: var(--font-display);
+  font-size: var(--font-size-md);
+}
+
+.zoom-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
+}
+
+.echo-card.zoom {
+  position: fixed;
+  z-index: 21;
+  overflow: hidden;
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+.echo-card.zoom.settled {
+  overflow: auto;
+}
+
+/* ---------- Composer, search and the filter line ---------- */
+
+.echo .composer {
+  margin-bottom: 24px;
+  padding: 12px 16px;
+}
+
+.echo .composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 72px;
+  resize: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-content);
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+}
+
+.echo .composer textarea::placeholder,
+.echo .search::placeholder {
+  color: var(--text-3);
+}
+
+.echo .suggest {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  border-top: 1px dashed var(--border);
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+}
+
+.echo .suggest li {
+  cursor: pointer;
+}
+
+.echo .suggest li[aria-selected="true"] {
+  color: var(--accent);
+}
+
+.echo .composer-error {
+  margin: 6px 0 0;
+  color: var(--accent);
+  font-size: var(--font-size-sm);
+}
+
+.echo .search {
+  display: block;
+  width: 100%;
+  margin: 0 0 24px;
+  padding: 6px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+  font-size: var(--font-size-md);
+}
+
+.echo .search:focus {
+  border-bottom-color: var(--text-3);
+}
+
+.echo .search::-webkit-search-cancel-button {
+  display: none;
+}
+
+.echo .filter-line {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  margin: 0 0 16px;
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+}
+
+.echo .filter-line strong {
+  color: var(--text);
+  font-weight: 400;
+}
+
+.echo .filter-line button:hover {
+  color: var(--text-2);
+}
+
+::highlight(echo-search) {
+  background: var(--accent-soft);
+  color: inherit;
+}
+
+/* ---------- All tags ---------- */
+
+/* A wide column for the sidebar's long tail: the tags run as a paragraph instead of a list. */
+.echo .tag-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  font-size: var(--font-size-base);
+}
+
+.echo .tag-flow button:hover {
+  color: var(--accent-hover);
+}
+
+.echo .tag-flow button[aria-current="true"] {
+  color: var(--accent);
+}
+
+.echo .tag-flow small {
+  margin-left: 4px;
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Masonry ---------- */
+
+.echo .wall {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.echo .col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Cards waiting to be measured before they join a column; never seen. */
+.echo .wall-staging {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.echo .empty {
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 720px) {
+  .echo {
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-top: 32px;
+  }
+
+  .echo .side {
+    position: static;
+  }
+
+  .echo .side-lists {
+    display: none;
+  }
+
+  /* No hover on phones: the pile is laid out as a row to swipe through. */
+  .echo .recall {
+    display: flex;
+    gap: var(--gap);
+    height: auto;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  .echo .rc,
+  .echo .recall.spread .rc {
+    /* Relative only to anchor the 待整理 dot; the pile's offsets must not apply. */
+    position: relative;
+    left: auto;
+    width: auto;
+    flex: 0 0 72%;
+    transform: none;
+    box-shadow: none;
+    scroll-snap-align: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .echo,
+  .echo *,
+  .echo *::before,
+  .echo *::after {
+    animation: none !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+}

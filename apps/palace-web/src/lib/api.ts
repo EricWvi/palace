@@ -13,6 +13,8 @@ export type ConversationListItem =
   components["schemas"]["ConversationListItem"];
 export type NoteListItem = components["schemas"]["NoteListItem"];
 export type AccessToken = components["schemas"]["AccessToken"];
+export type ListedJotting = components["schemas"]["ListedJotting"];
+export type JottingOverview = components["schemas"]["JottingOverview"];
 export const sources: Record<Source, string> = {
   chatgpt: "ChatGPT",
   gemini: "Gemini",
@@ -165,4 +167,49 @@ export function accessTokensOptions() {
 // old page shown while the new one loads would briefly offer a deleted path or an old title.
 export function forgetConversationList(client: QueryClient) {
   client.removeQueries({ queryKey: ["conversations"] });
+}
+
+// 回响's wall, newest first, one cursor page at a time; each tag and search keeps its own pages.
+export function jottingListOptions(tag: string, q: string) {
+  return infiniteQueryOptions({
+    queryKey: ["jottings", "list", tag, q],
+    queryFn: ({ pageParam }) =>
+      apiData(
+        api.GET("/api/jottings", {
+          params: {
+            query: {
+              tag: tag || undefined,
+              q: q || undefined,
+              cursor: pageParam,
+            },
+          },
+        }),
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
+  });
+}
+// Counts for 回响's left column, per day from `from` (`YYYY-MM-DD`) through today.
+export function jottingOverviewOptions(from: string) {
+  return {
+    queryKey: ["jottings", "overview", from],
+    queryFn: () =>
+      apiData(
+        api.GET("/api/jottings/overview", { params: { query: { from } } }),
+      ),
+  };
+}
+// Today's recall pile. It holds all day, so it is not refetched while the page stays open:
+// which cards were read lives in the page, keyed by the pile it was given.
+export function jottingRecallOptions() {
+  return {
+    queryKey: ["jottings", "recall"],
+    queryFn: () => apiData(api.GET("/api/jottings/recall")),
+    staleTime: Infinity,
+  };
+}
+// A new jotting changes the wall and the counts; today's recall pile never includes it.
+export function refreshJottings(client: QueryClient) {
+  void client.invalidateQueries({ queryKey: ["jottings", "list"] });
+  void client.invalidateQueries({ queryKey: ["jottings", "overview"] });
 }

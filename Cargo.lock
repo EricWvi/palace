@@ -3087,6 +3087,7 @@ dependencies = [
  "sqlx",
  "tempfile",
  "testcontainers",
+ "time",
  "tokio",
  "tower",
  "tower-http",
@@ -3112,6 +3113,7 @@ dependencies = [
  "sqlx",
  "testcontainers",
  "thiserror 2.0.20",
+ "time",
  "tokio",
  "uuid",
 ]
@@ -3147,6 +3149,7 @@ dependencies = [
  "palace-logging",
  "palace-testkit",
  "pretty_assertions",
+ "sha2",
  "sqlx",
  "tempfile",
  "testcontainers",

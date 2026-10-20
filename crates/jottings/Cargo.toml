@@ -28,6 +28,7 @@ uuid = { workspace = true }
 palace-logging = { workspace = true }
 palace-testkit = { workspace = true }
 pretty_assertions = { workspace = true }
+sha2 = { workspace = true }
 sqlx = { workspace = true }
 tempfile = { workspace = true }
 testcontainers = { workspace = true }

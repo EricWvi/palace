@@ -1749,6 +1749,133 @@
       }
     },
     "/api/jottings": {
+      "get": {
+        "tags": [
+          "jotting_reading"
+        ],
+        "summary": "Lists live jottings, newest first, optionally by tag and search term.",
+        "operationId": "jottings",
+        "parameters": [
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Only jottings carrying exactly this tag; blank means no tag filter.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Case-insensitive literal substring of the title, body or a tag; blank means no search.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "`next_cursor` from the previous page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Jottings per page; defaults to 60.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "maximum": 200,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jottings ordered by `created_at`, then id, both descending",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JottingPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider unavailable, or no jottings folder configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "jottings"
@@ -2028,6 +2155,178 @@
           },
           "503": {
             "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/jottings/overview": {
+      "get": {
+        "tags": [
+          "jotting_reading"
+        ],
+        "summary": "Counts for the left column: totals, every tag and per-day counts through today.",
+        "operationId": "jotting_overview",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "description": "First local day of `daily`, `YYYY-MM-DD`, at most a year back and not after today.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Counts of live jottings; days are the deployment's local days",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JottingOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider unavailable, or no jottings folder configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/jottings/recall": {
+      "get": {
+        "tags": [
+          "jotting_reading"
+        ],
+        "summary": "Today's recall pile, fixed for the day.",
+        "operationId": "jotting_recall",
+        "responses": {
+          "200": {
+            "description": "At most five jottings created before today, in the day's order",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JottingRecall"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider unavailable, or no jottings folder configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -3751,6 +4050,23 @@
         "description": "Canonical decimal string in 0..=9223372036854775807; the domain checks the numeric upper bound.",
         "pattern": "^(0|[1-9][0-9]*)$"
       },
+      "DayCount": {
+        "type": "object",
+        "required": [
+          "date",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "date": {
+            "type": "string",
+            "description": "`YYYY-MM-DD`."
+          }
+        }
+      },
       "Deleted": {
         "type": "object",
         "required": [
@@ -4013,6 +4329,92 @@
           }
         }
       },
+      "JottingOverview": {
+        "type": "object",
+        "description": "Counts behind the left column of the 回响 page; days are the deployment's local days.",
+        "required": [
+          "total",
+          "days",
+          "tags",
+          "daily"
+        ],
+        "properties": {
+          "daily": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayCount"
+            },
+            "description": "One entry per local day from `from` through today, empty days included."
+          },
+          "days": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Local days with at least one jotting."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagCount"
+            },
+            "description": "Every tag, most used first, then by name."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Live jottings."
+          }
+        }
+      },
+      "JottingPage": {
+        "type": "object",
+        "description": "One page of live jottings, newest first.",
+        "required": [
+          "jottings",
+          "total",
+          "next_cursor"
+        ],
+        "properties": {
+          "jottings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListedJotting"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque token for the next page; null on the last page."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Jottings matching `tag` and `q` across all pages."
+          }
+        }
+      },
+      "JottingRecall": {
+        "type": "object",
+        "description": "Today's recall pile: the same jottings in the same order all day while they are unchanged.",
+        "required": [
+          "date",
+          "jottings"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "The deployment's local day, `YYYY-MM-DD`."
+          },
+          "jottings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListedJotting"
+            },
+            "description": "At most five jottings created before today."
+          }
+        }
+      },
       "JottingUpload": {
         "type": "object",
         "description": "A jotting created offline. The client generates the id and keeps it across retries; the\nsame upload sent again is recognized, a different one under a used id is refused.",
@@ -4052,6 +4454,48 @@
           }
         },
         "additionalProperties": false
+      },
+      "ListedJotting": {
+        "type": "object",
+        "description": "A live jotting as the 回响 page shows it.",
+        "required": [
+          "id",
+          "created_at",
+          "title",
+          "tags",
+          "body",
+          "pending"
+        ],
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pending": {
+            "type": "boolean",
+            "description": "The file sits under `inbox/`, waiting for the agent to sort it."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
       },
       "LogoutResponse": {
         "type": "object",
@@ -4475,6 +4919,22 @@
             "items": {
               "$ref": "#/components/schemas/PublishedRecord"
             }
+          }
+        }
+      },
+      "TagCount": {
+        "type": "object",
+        "required": [
+          "name",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
           }
         }
       },

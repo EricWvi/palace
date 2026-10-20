@@ -12,6 +12,7 @@ mod path_management;
 #[cfg(feature = "test-server")]
 pub use fixed_user::fixed_user_router;
 mod handlers;
+mod jotting_reading;
 mod jottings;
 mod media;
 mod notes;

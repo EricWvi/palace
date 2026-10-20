@@ -1,7 +1,7 @@
 //! Offline contract assembly; operation metadata lives beside the real handlers.
 use super::{
-    access_tokens, business, conversation_list, handlers, jottings, media, notes, path_management,
-    security, sync, timeline,
+    access_tokens, business, conversation_list, handlers, jotting_reading, jottings, media, notes,
+    path_management, security, sync, timeline,
 };
 use utoipa::{
     OpenApi,
@@ -33,6 +33,9 @@ use utoipa::{
         notes::note,
         jottings::changes,
         jottings::upload,
+        jotting_reading::list,
+        jotting_reading::overview,
+        jotting_reading::recall,
         media::upload,
         media::delete,
         access_tokens::list,

@@ -8,6 +8,9 @@ const StarsPage = lazy(() =>
 const NotePage = lazy(() =>
   import("./pages/note").then((module) => ({ default: module.NotePage })),
 );
+const EchoPage = lazy(() =>
+  import("./pages/echo").then((module) => ({ default: module.EchoPage })),
+);
 const ConversationPage = lazy(() =>
   import("./pages/conversation").then((module) => ({
     default: module.ConversationPage,
@@ -15,22 +18,25 @@ const ConversationPage = lazy(() =>
 );
 
 // Each page belongs to one section of the top bar; notes and conversations are listed and read
-// in 摘星.
+// in 摘星, jottings in 回响.
 function sectionOf(pathname: string): Section | undefined {
   if (pathname === "/") return "时刻";
   if (/^\/(notes|conversations)(\/|$)/.test(pathname)) return "摘星";
+  if (pathname === "/jottings") return "回响";
   return undefined;
 }
 
 export function App() {
   const { pathname } = useLocation();
+  const section = sectionOf(pathname);
   // A reading page names the tab after what it shows; every other page is just Palace.
   useEffect(() => {
     if (!/^\/(notes|conversations)\//.test(pathname)) document.title = "Palace";
   }, [pathname]);
   return (
-    <main className="sheet">
-      <PalaceHeader active={sectionOf(pathname)} />
+    // 回响 needs room for its columns, so its sheet widens and the header stretches with it.
+    <main className={section === "回响" ? "sheet wide" : "sheet"}>
+      <PalaceHeader active={section} />
       <Suspense fallback={null}>
         <Routes>
           <Route path="/" element={<TimelinePage />} />
@@ -41,6 +47,7 @@ export function App() {
             element={<StarsPage kind="conversations" />}
           />
           <Route path="/conversations/:id" element={<ConversationPage />} />
+          <Route path="/jottings" element={<EchoPage />} />
           <Route
             path="*"
             element={

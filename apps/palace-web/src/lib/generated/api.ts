@@ -169,7 +169,8 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /** Lists live jottings, newest first, optionally by tag and search term. */
+    get: operations["jottings"];
     put?: never;
     /**
      * Accepts a jotting created offline: writes it to the inbox and publishes it, or recognizes a
@@ -191,6 +192,40 @@ export interface paths {
     };
     /** Returns the current state of every jotting changed after `since`, in version order. */
     get: operations["jotting_changes"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/jottings/overview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Counts for the left column: totals, every tag and per-day counts through today. */
+    get: operations["jotting_overview"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/jottings/recall": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Today's recall pile, fixed for the day. */
+    get: operations["jotting_recall"];
     put?: never;
     post?: never;
     delete?: never;
@@ -538,6 +573,12 @@ export interface components {
     };
     /** @description Canonical decimal string in 0..=9223372036854775807; the domain checks the numeric upper bound. */
     Cursor: string;
+    DayCount: {
+      /** Format: int64 */
+      count: number;
+      /** @description `YYYY-MM-DD`. */
+      date: string;
+    };
     Deleted: {
       /** Format: uuid */
       id: string;
@@ -633,6 +674,41 @@ export interface components {
       has_more: boolean;
       next: components["schemas"]["Cursor"];
     };
+    /** @description Counts behind the left column of the 回响 page; days are the deployment's local days. */
+    JottingOverview: {
+      /** @description One entry per local day from `from` through today, empty days included. */
+      daily: components["schemas"]["DayCount"][];
+      /**
+       * Format: int64
+       * @description Local days with at least one jotting.
+       */
+      days: number;
+      /** @description Every tag, most used first, then by name. */
+      tags: components["schemas"]["TagCount"][];
+      /**
+       * Format: int64
+       * @description Live jottings.
+       */
+      total: number;
+    };
+    /** @description One page of live jottings, newest first. */
+    JottingPage: {
+      jottings: components["schemas"]["ListedJotting"][];
+      /** @description Opaque token for the next page; null on the last page. */
+      next_cursor: string | null;
+      /**
+       * Format: int64
+       * @description Jottings matching `tag` and `q` across all pages.
+       */
+      total: number;
+    };
+    /** @description Today's recall pile: the same jottings in the same order all day while they are unchanged. */
+    JottingRecall: {
+      /** @description The deployment's local day, `YYYY-MM-DD`. */
+      date: string;
+      /** @description At most five jottings created before today. */
+      jottings: components["schemas"]["ListedJotting"][];
+    };
     /**
      * @description A jotting created offline. The client generates the id and keeps it across retries; the
      *     same upload sent again is recognized, a different one under a used id is refused.
@@ -654,6 +730,21 @@ export interface components {
       tags?: string[];
       /** @description Non-blank when present. */
       title?: string | null;
+    };
+    /** @description A live jotting as the 回响 page shows it. */
+    ListedJotting: {
+      body: string;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds.
+       */
+      created_at: number;
+      /** Format: uuid */
+      id: string;
+      /** @description The file sits under `inbox/`, waiting for the agent to sort it. */
+      pending: boolean;
+      tags: string[];
+      title: string | null;
     };
     LogoutResponse: {
       /** @description True after the local revocation has committed, including when external revocation is pending. */
@@ -824,6 +915,11 @@ export interface components {
     SyncPage: {
       cursor: components["schemas"]["Cursor"];
       records: components["schemas"]["PublishedRecord"][];
+    };
+    TagCount: {
+      /** Format: int64 */
+      count: number;
+      name: string;
     };
     /** @description Original history JSON is a string here, not an embedded message array. */
     TextImport: {
@@ -2049,6 +2145,76 @@ export interface operations {
       };
     };
   };
+  jottings: {
+    parameters: {
+      query?: {
+        /** @description Only jottings carrying exactly this tag; blank means no tag filter. */
+        tag?: string;
+        /** @description Case-insensitive literal substring of the title, body or a tag; blank means no search. */
+        q?: string;
+        /** @description `next_cursor` from the previous page. */
+        cursor?: string;
+        /** @description Jottings per page; defaults to 60. */
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Jottings ordered by `created_at`, then id, both descending */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JottingPage"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider unavailable, or no jottings folder configured */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
   upload_jotting: {
     parameters: {
       query?: never;
@@ -2229,6 +2395,121 @@ export interface operations {
         };
       };
       /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  jotting_overview: {
+    parameters: {
+      query: {
+        /** @description First local day of `daily`, `YYYY-MM-DD`, at most a year back and not after today. */
+        from: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Counts of live jottings; days are the deployment's local days */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JottingOverview"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider unavailable, or no jottings folder configured */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  jotting_recall: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description At most five jottings created before today, in the day's order */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JottingRecall"];
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider unavailable, or no jottings folder configured */
       503: {
         headers: {
           [name: string]: unknown;

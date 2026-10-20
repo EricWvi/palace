@@ -3,7 +3,7 @@
 札记是标题可选的短文，以带 frontmatter 的 Markdown 文件保存在一个 Git 仓库中，主要由本地 Agent 用文件
 工具维护。服务端按 commit 把札记索引进 PostgreSQL，供移动端离线同步；移动端可以离线新建札记，但不能
 修改或删除已有札记。决策见[札记根决策](../../../specs/decisions/server/jotting/0-jottings-indexed-from-git-commits.md)。
-Web 回响页尚未接入。
+Web 回响页实时读取札记并可以新建，决策见[回响页根决策](../../../specs/decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)。
 
 ## 文件格式
 
@@ -60,6 +60,29 @@ tags: [阅读, rust]
   Agent 修改或删除；`id` 已属于另一张札记时返回 `409 jotting_id_conflict`。正文上限 1 MiB。
 - 未配置 `PALACE_JOTTINGS_DIR` 时，`changes` 返回空页，上传返回 `503 jottings_unavailable`。
 - 札记不属于某个 Owner，所有已认证请求（浏览器 Session 或 Access Token）看到同一份数据。
+
+## Web 读取接口
+
+回响页不使用同步接口，而是按页面需要实时查询索引。三个接口都只返回未删除的札记，每张札记带 `pending`：
+文件位于札记目录下第一级的 `inbox/` 时为 `true`，与是否已经 commit 无关。
+
+| 接口 | 用途 |
+| --- | --- |
+| `GET /api/jottings?tag=&q=&cursor=&limit=` | 按 `created_at`、`id` 降序分页，`limit` 默认 60、上限 200；`tag` 精确匹配，`q` 在标题、正文和标签中做不区分大小写的子串匹配，两者取交集；`total` 是符合条件的总数 |
+| `GET /api/jottings/overview?from=YYYY-MM-DD` | 札记总数、有札记的天数、全部标签及数量（按数量降序、名称字节序），以及从 `from` 到今天每天的数量（含 0）；`from` 最多一年前、不能晚于今天 |
+| `GET /api/jottings/recall` | 今天的回顾卡片组：今天零点以前创建的札记按 `SHA-256("YYYY-MM-DD" ‖ id)` 排序取前 5 张；不保存任何状态，候选不变时同一天结果不变 |
+
+日期都按 `PALACE_TIMEZONE` 计算。未配置 `PALACE_JOTTINGS_DIR` 时三个接口都返回 `503 jottings_unavailable`。
+
+## Web 回响页
+
+`/jottings` 是加宽的页面：左列是今日回响、统计、12 周热力图和前 8 个标签，右侧是瀑布流。
+
+- 点卡片组把它平铺到瀑布流上方，点别处收起；平铺后点一张卡片放大阅读，关闭即算读过，离开卡片组。已读只记在页面里，刷新后整组恢复。
+- 有标签筛选或搜索时卡片组收起。点任意位置的标签按它筛选，再点一次清除；“全部标签”把右侧换成全部标签。
+- `n` 新建札记：正文里空白或行首之后的 `#词` 提取为标签并从正文移除，代码块里的不算；Ctrl/Cmd + Enter 保存，
+  写入 `inbox/`，所以新卡片带待整理圆点。有内容的草稿不会因 Escape 或失焦丢失。
+- `/` 搜索，只在按 Enter 时执行；Escape 先清空再收起。页面上的 Escape 依次退出放大的卡片、平铺的卡片组、全部标签、标签筛选。
 
 ## 运行条件
 

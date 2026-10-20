@@ -72,7 +72,7 @@ impl SearchTerm {
 
     /// Builds an unanchored ILIKE pattern that matches the term literally: `%`, `_` and the
     /// default escape character `\` in user input must never act as wildcards.
-    fn like_pattern(&self) -> String {
+    pub(crate) fn like_pattern(&self) -> String {
         let mut pattern = String::with_capacity(self.0.len() + 2);
         pattern.push('%');
         for c in self.0.chars() {

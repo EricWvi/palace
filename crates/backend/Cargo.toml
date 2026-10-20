@@ -16,6 +16,7 @@ test-server = []
 palace-db = { workspace = true }
 palace-domain = { workspace = true }
 palace-jottings = { workspace = true }
+palace-logging = { workspace = true }
 palace-media = { workspace = true }
 palace-notes = { workspace = true }
 openidconnect = { workspace = true }
@@ -24,6 +25,7 @@ axum = { workspace = true }
 tower-http = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+time = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
 
@@ -33,7 +35,6 @@ utoipa = { workspace = true }
 object_store = { workspace = true }
 palace-testkit = { workspace = true }
 flate2 = { workspace = true }
-palace-logging = { workspace = true }
 tokio = { workspace = true }
 testcontainers = { workspace = true }
 sqlx = { workspace = true }

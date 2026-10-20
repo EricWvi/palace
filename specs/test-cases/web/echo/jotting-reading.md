@@ -1,6 +1,6 @@
 # 札记读取接口核心测试用例
 
-当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md) D8。札记的同步、上传与对账见[札记同步](../../server/jotting/jotting-sync.md)；本文件只记录 Web 读取接口引入的承诺。接口尚未实现，所有证据均为 `Missing`。
+当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md) D8。札记的同步、上传与对账见[札记同步](../../server/jotting/jotting-sync.md)；本文件只记录 Web 读取接口引入的承诺。
 
 ## Jotting list must page every live jotting exactly once, newest first
 
@@ -12,9 +12,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 逐页取完后每张未变化的札记恰好一次，顺序为 `created_at DESC, id DESC`（真实 PostgreSQL） | Missing | — |
-| 翻页途中新建、删除不造成重复；tombstone 不出现（真实 PostgreSQL） | Missing | — |
-| 坏游标返回 400，`limit` 默认 60、上限 200（真实 Router） | Missing | — |
+| 逐页取完后每张未变化的札记恰好一次，顺序为 `created_at DESC, id DESC`（真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings/reading.rs::the_list_pages_every_live_jotting_once`（真实 Git 与 PostgreSQL，四张同一时刻的札记跨过分页边界） |
+| 翻页途中新建、删除不造成重复；tombstone 不出现（真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings/reading.rs::the_list_pages_every_live_jotting_once`（取完第一页后上传一张、删除一张尚未读到的） |
+| 坏游标返回 400，`limit` 默认 60、上限 200（真实 Router） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 PostgreSQL、Git 与真实 Router，经 `tests/http/jottings.rs::exercise_reading`）、`crates/db/src/jotting_read.rs::cursors_round_trip_and_reject_foreign_tokens` |
 
 决策依据：D8 列表与搜索，不变量 4。
 
@@ -28,8 +28,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| `tag` 精确匹配，`q` 覆盖标题、正文、标签且忽略大小写（真实 PostgreSQL） | Missing | — |
-| `tag + q` 取交集，`total` 与翻页结果一致（真实 PostgreSQL） | Missing | — |
+| `tag` 精确匹配，`q` 覆盖标题、正文、标签且忽略大小写（真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings/reading.rs::tag_and_query_filters_intersect`（含互为子串的标签与 `%` 字面量） |
+| `tag + q` 取交集，`total` 与翻页结果一致（真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings/reading.rs::tag_and_query_filters_intersect`（每页一张，逐页比对 `total`） |
 
 决策依据：D7、D8 列表与搜索，不变量 6。
 
@@ -43,8 +43,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 四种状态的 `pending` 判定正确（真实 Git 仓库与真实 PostgreSQL） | Missing | — |
-| `changes` 响应形状不变（真实 Router，OpenAPI 合同） | Missing | — |
+| 四种状态的 `pending` 判定正确（真实 Git 仓库与真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings/reading.rs::pending_means_the_file_sits_under_inbox` |
+| `changes` 响应形状不变（真实 Router，OpenAPI 合同） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 PostgreSQL、Git 与真实 Router，经 `tests/http/jottings.rs::exercise_reading`，全部真实响应按 OpenAPI 校验；`exercise_jottings` 的 `changes` 断言未改） |
 
 决策依据：D4、D8，不变量 5、12。
 
@@ -58,9 +58,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 按 `PALACE_TIMEZONE` 分桶，`daily` 连续且包含空日期（真实 PostgreSQL） | Missing | — |
-| `total`、`days`、`tags` 排除 tombstone，`tags` 顺序稳定（真实 PostgreSQL） | Missing | — |
-| 错误的 `from` 被拒绝（真实 Router） | Missing | — |
+| 按 `PALACE_TIMEZONE` 分桶，`daily` 连续且包含空日期（真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings/reading.rs::overview_buckets_by_the_local_day`（上海 23:59 与次日 00:01 落在 UTC 同一天） |
+| `total`、`days`、`tags` 排除 tombstone，`tags` 顺序稳定（真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings/reading.rs::overview_buckets_by_the_local_day` |
+| 错误的 `from` 被拒绝（真实 Router） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 PostgreSQL、Git 与真实 Router，经 `tests/http/jottings.rs::exercise_reading`，格式错误与超过一年）、`crates/jottings/tests/jottings/reading.rs::overview_buckets_by_the_local_day`（晚于今天、一年前） |
 
 决策依据：D5、D8 概览。
 
@@ -74,8 +74,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 同一天、候选不变时结果与顺序完全相同，符合摘要排序（真实 PostgreSQL，注入时钟） | Missing | — |
-| 今天新建的札记与 tombstone 被排除，新建不改变当天卡片组（真实 PostgreSQL） | Missing | — |
-| 日期按 `PALACE_TIMEZONE` 计算，跨零点切换；候选不足时全部返回 | Missing | — |
+| 同一天、候选不变时结果与顺序完全相同，符合摘要排序（真实 PostgreSQL，注入时钟） | Covered | `crates/jottings/tests/jottings/reading.rs::recall_holds_for_the_day_and_skips_today`（测试独立计算 SHA-256 排序作为期望） |
+| 今天新建的札记与 tombstone 被排除，新建不改变当天卡片组（真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings/reading.rs::recall_holds_for_the_day_and_skips_today`（今天新建的被排除、新建不改变卡片组，删除七张后它们不再出现） |
+| 日期按 `PALACE_TIMEZONE` 计算，跨零点切换；候选不足时全部返回 | Covered | `crates/jottings/tests/jottings/reading.rs::recall_holds_for_the_day_and_skips_today`（上海零点切换，零点后半小时创建的札记仍算今天；删除后只剩三张候选时全部返回） |
 
 决策依据：D3、D8 今日回响，不变量 1、2。

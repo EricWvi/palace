@@ -11,6 +11,6 @@ mod reconcile;
 mod repo;
 mod watch;
 
-pub use library::{INBOX, JottingService, Jottings, JottingsError, Reconciled, Uploaded};
+pub use library::{INBOX, JottingService, Jottings, JottingsError, Recall, Reconciled, Uploaded};
 pub use repo::{GitError, OpenError};
 pub use watch::{JottingWatch, watch};

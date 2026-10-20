@@ -14,6 +14,8 @@ pub(super) const NOTES: &str = "/api/notes";
 pub(super) const NOTE: &str = "/api/notes/{id}";
 pub(super) const JOTTINGS: &str = "/api/jottings";
 pub(super) const JOTTING_CHANGES: &str = "/api/jottings/changes";
+pub(super) const JOTTING_OVERVIEW: &str = "/api/jottings/overview";
+pub(super) const JOTTING_RECALL: &str = "/api/jottings/recall";
 pub(super) const MEDIA: &str = "/api/media";
 pub(super) const MEDIA_ITEM: &str = "/api/media/{id}";
 pub(super) const ACCESS_TOKENS: &str = "/api/access-tokens";
@@ -57,6 +59,9 @@ macro_rules! business_routes {
             get NOTE => notes::note,
             get JOTTING_CHANGES => jottings::changes,
             post JOTTINGS => jottings::upload,
+            get JOTTINGS => jotting_reading::list,
+            get JOTTING_OVERVIEW => jotting_reading::overview,
+            get JOTTING_RECALL => jotting_reading::recall,
         }
     };
 }

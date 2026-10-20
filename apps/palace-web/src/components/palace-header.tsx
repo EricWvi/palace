@@ -6,11 +6,12 @@ const sections: Section[] = ["时刻", "行事", "旅途", "摘星", "回响"];
 const pages: Partial<Record<Section, string>> = {
   时刻: "/",
   摘星: "/notes",
+  回响: "/jottings",
 };
 
-// Sections with a page are links: 时刻 opens today, 摘星 its note list. The others stay
-// visible as plain words, so the bar keeps its shape as they arrive, but they are not links and
-// never take keyboard focus.
+// Sections with a page are links: 时刻 opens today, 摘星 its note list, 回响 the jottings. The
+// others stay visible as plain words, so the bar keeps its shape as they arrive, but they are
+// not links and never take keyboard focus.
 export function PalaceHeader({ active }: { active?: Section }) {
   return (
     <header className="top">

@@ -15,6 +15,11 @@ pub use jotting::{
     ExistingJotting, IndexedJotting, JottingChange, JottingChanges, JottingLocation,
     JottingTransaction,
 };
+mod jotting_read;
+pub use jotting_read::{
+    DayCount, JottingCursor, JottingListRequest, JottingOverview, JottingPage, ListedJotting,
+    RECALL_SIZE, TagCount,
+};
 mod login;
 mod media;
 pub use media::Media;

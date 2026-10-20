@@ -2,6 +2,8 @@
 /* The one copy of the Palace tokens; prototypes and the app share it. */
 @import "../../../design/tokens.css";
 @import "./theme.css";
+/* 回响 keeps its own sheet; its rules are scoped to the page. */
+@import "./echo.css";
 
 /*
  * Page styles follow the prototypes in design: base.css and components.css first,

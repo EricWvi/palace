@@ -131,7 +131,7 @@ it("opens the note list from 摘星, where notes and conversations are open and 
     within(kinds).getByRole("link", { name: "对话3" }),
   ]);
   // Tabbing through the page goes from the top bar to the open kinds, past 文章.
-  for (const name of ["时刻", "摘星", "笔记2", "对话3"]) {
+  for (const name of ["时刻", "摘星", "回响", "笔记2", "对话3"]) {
     await user.tab();
     expect(document.activeElement).toHaveAccessibleName(name);
   }

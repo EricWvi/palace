@@ -123,3 +123,140 @@ pub(crate) struct JottingChangesQuery {
     #[param(minimum = 1, maximum = 1000)]
     pub limit: Option<u32>,
 }
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(crate) struct JottingListQuery {
+    /// Only jottings carrying exactly this tag; blank means no tag filter.
+    pub tag: Option<String>,
+    /// Case-insensitive literal substring of the title, body or a tag; blank means no search.
+    pub q: Option<String>,
+    /// `next_cursor` from the previous page.
+    pub cursor: Option<String>,
+    /// Jottings per page; defaults to 60.
+    #[param(minimum = 1, maximum = 200)]
+    pub limit: Option<u32>,
+}
+
+/// A live jotting as the 回响 page shows it.
+#[derive(Serialize, ToSchema)]
+pub(crate) struct ListedJotting {
+    pub id: Uuid,
+    /// Unix epoch milliseconds.
+    pub created_at: i64,
+    #[schema(required = true)]
+    pub title: Option<String>,
+    pub tags: Vec<String>,
+    pub body: String,
+    /// The file sits under `inbox/`, waiting for the agent to sort it.
+    pub pending: bool,
+}
+impl From<palace_db::ListedJotting> for ListedJotting {
+    /// Lists every wire field so a new domain field cannot leak by accident.
+    fn from(value: palace_db::ListedJotting) -> Self {
+        let palace_db::ListedJotting { jotting, pending } = value;
+        Self {
+            id: jotting.id,
+            created_at: jotting.created_at,
+            title: jotting.title,
+            tags: jotting.tags,
+            body: jotting.body,
+            pending,
+        }
+    }
+}
+
+/// One page of live jottings, newest first.
+#[derive(Serialize, ToSchema)]
+pub(crate) struct JottingPage {
+    pub jottings: Vec<ListedJotting>,
+    /// Jottings matching `tag` and `q` across all pages.
+    pub total: i64,
+    /// Opaque token for the next page; null on the last page.
+    #[schema(required = true)]
+    pub next_cursor: Option<String>,
+}
+impl From<palace_db::JottingPage> for JottingPage {
+    /// Encodes the cursor as the opaque token clients send back unchanged.
+    fn from(value: palace_db::JottingPage) -> Self {
+        Self {
+            jottings: value.jottings.into_iter().map(Into::into).collect(),
+            total: value.total,
+            next_cursor: value.next_cursor.map(|cursor| cursor.to_string()),
+        }
+    }
+}
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(crate) struct JottingOverviewQuery {
+    /// First local day of `daily`, `YYYY-MM-DD`, at most a year back and not after today.
+    pub from: String,
+}
+
+/// Counts behind the left column of the 回响 page; days are the deployment's local days.
+#[derive(Serialize, ToSchema)]
+pub(crate) struct JottingOverview {
+    /// Live jottings.
+    pub total: i64,
+    /// Local days with at least one jotting.
+    pub days: i64,
+    /// Every tag, most used first, then by name.
+    pub tags: Vec<TagCount>,
+    /// One entry per local day from `from` through today, empty days included.
+    pub daily: Vec<DayCount>,
+}
+impl From<palace_db::JottingOverview> for JottingOverview {
+    fn from(value: palace_db::JottingOverview) -> Self {
+        Self {
+            total: value.total,
+            days: value.days,
+            tags: value
+                .tags
+                .into_iter()
+                .map(|tag| TagCount {
+                    name: tag.name,
+                    count: tag.count,
+                })
+                .collect(),
+            daily: value
+                .daily
+                .into_iter()
+                .map(|day| DayCount {
+                    date: day.date.to_string(),
+                    count: day.count,
+                })
+                .collect(),
+        }
+    }
+}
+
+#[derive(Serialize, ToSchema)]
+pub(crate) struct TagCount {
+    pub name: String,
+    pub count: i64,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(crate) struct DayCount {
+    /// `YYYY-MM-DD`.
+    pub date: String,
+    pub count: i64,
+}
+
+/// Today's recall pile: the same jottings in the same order all day while they are unchanged.
+#[derive(Serialize, ToSchema)]
+pub(crate) struct JottingRecall {
+    /// The deployment's local day, `YYYY-MM-DD`.
+    pub date: String,
+    /// At most five jottings created before today.
+    pub jottings: Vec<ListedJotting>,
+}
+impl From<palace_jottings::Recall> for JottingRecall {
+    fn from(value: palace_jottings::Recall) -> Self {
+        Self {
+            date: value.date.to_string(),
+            jottings: value.jottings.into_iter().map(Into::into).collect(),
+        }
+    }
+}

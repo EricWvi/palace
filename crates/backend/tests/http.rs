@@ -101,9 +101,14 @@ fn request(
 /// - `specs/test-cases/server/jotting/jotting-sync.md#uploading-a-different-jotting-under-an-existing-id-must-be-rejected`
 /// - `specs/test-cases/server/jotting/jotting-sync.md#pulling-changes-by-cursor-must-not-skip-any-committed-change`
 /// - `specs/test-cases/server/jotting/jotting-sync.md#jotting-configuration-must-fail-fast-when-misconfigured`
+/// - `specs/test-cases/web/echo/jotting-reading.md#jotting-list-must-page-every-live-jotting-exactly-once-newest-first`
+/// - `specs/test-cases/web/echo/jotting-reading.md#pending-must-mean-the-jotting-file-sits-under-inbox`
+/// - `specs/test-cases/web/echo/jotting-reading.md#overview-must-bucket-jottings-by-the-deployments-local-day`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image, git and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {
+    // The 回响 reads take today from the process clock, as in production.
+    palace_logging::initialize_test_clock();
     let container = palace_testkit::reaped(
         GenericImage::new("postgres", "17-alpine")
             .with_exposed_port(5432.tcp())

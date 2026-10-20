@@ -185,6 +185,99 @@ pub(super) async fn exercise_jottings(app: &Router, cookie: &str, foreign: &str,
             })
         )
     );
+    exercise_reading(app, cookie, agent, id).await;
+}
+
+/// The 回响 reads through the real router, after `exercise_jottings` left the agent's committed
+/// jotting and one upload still in the inbox, both created at `CREATED`.
+/// Core test cases:
+/// - `specs/test-cases/web/echo/jotting-reading.md#jotting-list-must-page-every-live-jotting-exactly-once-newest-first`
+/// - `specs/test-cases/web/echo/jotting-reading.md#pending-must-mean-the-jotting-file-sits-under-inbox`
+/// - `specs/test-cases/web/echo/jotting-reading.md#overview-must-bucket-jottings-by-the-deployments-local-day`
+async fn exercise_reading(app: &Router, cookie: &str, agent: Uuid, upload: Uuid) {
+    let get = |path: String| async move { send(app, "GET", &path, cookie, Value::Null).await };
+    let uploaded = json!({"id": upload, "created_at": CREATED, "title": null, "tags": ["phone"], "body": "离线写的", "pending": true});
+    let committed = json!({"id": agent, "created_at": CREATED, "title": "读书", "tags": [], "body": "正文\n", "pending": false});
+    // Equal times fall back to the id, and the upload's v7 id is the later one.
+    let (status, first) = get("/api/jottings?limit=1".into()).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        (&first["jottings"], &first["total"]),
+        (&json!([uploaded]), &json!(2))
+    );
+    let cursor = first["next_cursor"].as_str().unwrap();
+    assert_eq!(
+        get(format!("/api/jottings?limit=1&cursor={cursor}")).await,
+        (
+            StatusCode::OK,
+            json!({"jottings": [committed], "total": 2, "next_cursor": null})
+        )
+    );
+    assert_eq!(
+        get("/api/jottings?tag=phone&q=%E7%A6%BB%E7%BA%BF".into()).await,
+        (
+            StatusCode::OK,
+            json!({"jottings": [uploaded], "total": 1, "next_cursor": null})
+        )
+    );
+
+    let today = chrono::Utc::now()
+        .with_timezone(&chrono_tz::Asia::Shanghai)
+        .date_naive()
+        .to_string();
+    assert_eq!(
+        get(format!("/api/jottings/overview?from={today}")).await,
+        (
+            StatusCode::OK,
+            json!({"total": 2, "days": 1, "tags": [{"name": "phone", "count": 1}], "daily": [{"date": today, "count": 0}]})
+        )
+    );
+    let (status, recall) = get("/api/jottings/recall".into()).await;
+    assert_eq!(status, StatusCode::OK);
+    let mut ids: Vec<&str> = recall["jottings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|jotting| jotting["id"].as_str().unwrap())
+        .collect();
+    ids.sort_unstable();
+    let mut expected = [agent.to_string(), upload.to_string()];
+    expected.sort_unstable();
+    assert_eq!(
+        (recall["date"].as_str(), ids),
+        (
+            Some(today.as_str()),
+            expected.iter().map(String::as_str).collect()
+        )
+    );
+
+    for (path, field, message) in [
+        (
+            "/api/jottings?cursor=bad",
+            "cursor",
+            "expected a list cursor",
+        ),
+        ("/api/jottings?limit=201", "limit", "expected 1..200"),
+        (
+            "/api/jottings/overview?from=2026-1-1",
+            "from",
+            "expected YYYY-MM-DD",
+        ),
+        (
+            "/api/jottings/overview?from=2020-01-01",
+            "from",
+            "expected a day within the last year",
+        ),
+    ] {
+        assert_eq!(
+            get(path.into()).await,
+            (
+                StatusCode::BAD_REQUEST,
+                json!({"kind": "field", "path": field, "message": message})
+            ),
+            "{path}"
+        );
+    }
 }
 
 /// Without a folder the feed is empty at the client's cursor and uploads are unavailable.
@@ -219,4 +312,18 @@ pub(super) async fn exercise_unconfigured(app: &Router, cookie: &str) {
             json!({"error": "jottings_unavailable", "login": ""})
         )
     );
+    for path in [
+        "/api/jottings",
+        "/api/jottings/overview?from=2026-10-19",
+        "/api/jottings/recall",
+    ] {
+        assert_eq!(
+            send(app, "GET", path, cookie, Value::Null).await,
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                json!({"error": "jottings_unavailable", "login": ""})
+            ),
+            "{path}"
+        );
+    }
 }
