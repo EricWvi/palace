@@ -5,6 +5,8 @@ date: 2026-10-14
 
 # 笔记来自挂载的 Markdown 文件夹：脚本生成 frontmatter cache，服务端监听 cache 提供列表，rg 搜索正文，Palace 只读
 
+> 历史决策：D3 中“将来的文章也对所有已登录用户只读、不属于 Owner”已被[文章决策](20261020-articles-imported-with-media.md) D1 取代，文章是 Owner 数据；D7 的笔记页版式现在与文章页共用。笔记本身的规则不变。
+
 摘星开放「笔记」。笔记不存数据库，而是一个由 Eric 在 Palace 之外维护的 Markdown 文件夹，挂载进容器。Palace 提供一个 TypeScript 脚本，把每篇笔记 frontmatter 中的 `title`、`date` 收集成一个 cache 文件，放在笔记文件夹根目录；服务端只监听这一个文件，变动时整体替换内存中的笔记索引。笔记列表由内存索引提供，按 `date` 倒序；搜索由容器内的 ripgrep 扫描笔记文件夹完成；笔记页的样式沿用对话阅读页，读取的是 Markdown 文件本身。Palace 不新建、不编辑、不删除笔记。摘星导航改为指向 `/notes`。
 
 当前为 `implemented`，核心测试用例见[摘星笔记](../../../test-cases/web/stars/notes.md)。本决策基于[摘星入口页根决策](0-contents-page-with-kind-column.md)，开放其中预留的笔记类型；涉及 `apps/palace-web` 的摘星与笔记页、`palace-backend` 的笔记接口、`palace-server` 的配置与运行时、`Dockerfile`，以及新增的 cache 生成脚本。笔记的 tag 与层级、文章类型、旧数据库中 Quick Note 等内容的迁移不在本决策范围内。

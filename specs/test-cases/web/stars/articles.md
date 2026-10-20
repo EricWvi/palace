@@ -12,11 +12,13 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 成功导入改写全部引用、只改地址，媒体与文章同事务出现（真实 PostgreSQL 与真实 MinIO） | Missing | — |
-| 引用与文件不一一对应、引用名非法、字段不合格时返回 400 且不留行 | Missing | — |
-| 对象写入后注入数据库失败：不留行，本次对象被删除 | Missing | — |
-| 代码块与行内代码中的 `media:` 不被识别为引用（领域单元测试） | Missing | — |
-| 只有日期的 `date` 按 `PALACE_TIMEZONE` 换算并记录 `day` 精度；RFC 3339 截断到毫秒并记录 `instant` 精度 | Missing | — |
+| 成功导入改写全部引用、只改地址，媒体与文章同事务出现（真实 PostgreSQL 与真实 MinIO） | Covered | `crates/media/tests/minio/articles.rs::article_import_must_commit_the_article_and_its_media_together`、`crates/backend/tests/http.rs::media::media_http_uploads_and_deletes_within_the_owner`（真实 Router，经 `tests/http/articles.rs::exercise_with_media`） |
+| 文章 Moment 与详情互相锁定类型，提交时缺一不可（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/articles.rs::article_moments_and_details_lock_their_kind` |
+| 引用与文件不一一对应、引用名非法、字段不合格时返回 400 且不留行 | Covered | `crates/media/tests/minio/articles.rs::article_import_must_commit_the_article_and_its_media_together`（引用缺文件、同名文件两次）、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `tests/http/articles.rs::exercise_without_media`：首个 part 不是 article、字段缺失、日期不合格）、`exercise_with_media`（多出未嵌入的文件）、`crates/domain/src/article.rs::invalid_fields_are_named`、`crates/domain/src/article/body.rs::references_and_files_must_match` |
+| 对象写入后注入数据库失败：不留行，本次对象被删除 | Covered | `crates/media/tests/minio/articles.rs::article_import_must_commit_the_article_and_its_media_together`（真实 PostgreSQL 内注入触发器失败，真实 MinIO 核对对象） |
+| 带文件而存储未配置时返回 503 且不保存，不带文件照常导入 | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `exercise_without_media`）、`crates/media/tests/minio/articles.rs::article_import_must_commit_the_article_and_its_media_together` |
+| 代码块与行内代码中的 `media:` 不被识别为引用（领域单元测试） | Covered | `crates/domain/src/article/body.rs::resolving_rewrites_only_image_addresses` |
+| 只有日期的 `date` 按 `PALACE_TIMEZONE` 换算并记录 `day` 精度；RFC 3339 截断到毫秒并记录 `instant` 精度 | Covered | `crates/domain/src/document_date.rs::dates_resolve_by_their_precision`、`crates/domain/src/document_date.rs::dates_round_trip_through_their_text`、`crates/domain/src/article.rs::metadata_keeps_fields_as_sent` |
 
 决策依据：D2、D3、D4，不变量 3。
 
@@ -30,9 +32,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 重复导入返回原文章、不更新、不写对象（真实 PostgreSQL 与真实 MinIO） | Missing | — |
-| 并发导入同一网址只得一篇，后到者删除自己的对象（barrier 驱动） | Missing | — |
-| 网址唯一只在 Owner 内生效 | Missing | — |
+| 重复导入返回原文章、不更新、不写对象（真实 PostgreSQL 与真实 MinIO） | Covered | `crates/db/tests/postgres/articles.rs::importing_a_known_url_returns_the_existing_article`、`crates/backend/tests/http.rs::media::media_http_uploads_and_deletes_within_the_owner`（经 `exercise_with_media`：带其他文件重试得到 200 与原文章，媒体行数不变） |
+| 并发导入同一网址只得一篇，后到者删除自己的对象（barrier 驱动） | Covered | `crates/media/tests/minio/articles.rs::concurrent_imports_of_one_url_converge_on_one_article`（每次写对象后在 barrier 汇合，真实 PostgreSQL 与真实 MinIO） |
+| 网址唯一只在 Owner 内生效 | Covered | `crates/db/tests/postgres/articles.rs::articles_must_stay_within_the_owner`、`crates/media/tests/minio/articles.rs::concurrent_imports_of_one_url_converge_on_one_article` |
 
 决策依据：D4，不变量 2。
 
@@ -46,8 +48,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 跨 Owner 的读、改、删都是 404 且不改变数据（真实 PostgreSQL 与真实 Router） | Missing | — |
-| 列表、搜索、`total` 只含本 Owner 的文章 | Missing | — |
+| 跨 Owner 的读、改、删都是 404 且不改变数据（真实 PostgreSQL 与真实 Router） | Covered | `crates/db/tests/postgres/articles.rs::articles_must_stay_within_the_owner`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `exercise_without_media`） |
+| 列表、搜索、`total` 只含本 Owner 的文章 | Covered | `crates/db/tests/postgres/articles.rs::articles_must_stay_within_the_owner`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `exercise_without_media`） |
 
 决策依据：D1，不变量 1。
 
@@ -61,9 +63,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 列表按发布时间 keyset 分页，每篇恰好一次（真实 PostgreSQL） | Missing | — |
-| 搜索覆盖标题、作者与正文并转义通配符 | Missing | — |
-| 时间线按导入时间出现，卡片字段完整；编辑不移动 Moment | Missing | — |
+| 列表按发布时间 keyset 分页，每篇恰好一次（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/articles.rs::article_list_orders_by_publish_date_while_the_timeline_uses_import_time`（53 篇跨页、同一天多篇、导入顺序与发布顺序相反） |
+| 搜索覆盖标题、作者与正文并转义通配符 | Covered | `crates/db/tests/postgres/articles.rs::article_list_orders_by_publish_date_while_the_timeline_uses_import_time` |
+| 时间线按导入时间出现，卡片字段完整；编辑不移动 Moment | Covered | `crates/db/tests/postgres/articles.rs::article_list_orders_by_publish_date_while_the_timeline_uses_import_time`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `exercise_without_media`）、`pages/article.test.tsx::shows an article on its import day by author or site, and leads back to that day` |
 
 决策依据：D3、D5，不变量 5。
 
@@ -77,10 +79,10 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 编辑只替换四个字段，正文、媒体、Moment 时间不变（真实 PostgreSQL） | Missing | — |
-| 网址冲突 409 且不做任何修改 | Missing | — |
-| 日期精度往返不变 | Missing | — |
-| 编辑弹窗保存后各处投影一致，失败保留输入（组件测试） | Missing | — |
+| 编辑只替换四个字段，正文、媒体、Moment 时间不变（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/articles.rs::editing_an_article_must_replace_only_its_metadata`、`crates/db/tests/postgres/articles.rs::articles_must_stay_within_the_owner`（正文改写被触发器拒绝） |
+| 网址冲突 409 且不做任何修改 | Covered | `crates/db/tests/postgres/articles.rs::editing_an_article_must_replace_only_its_metadata`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `exercise_without_media`） |
+| 日期精度往返不变 | Covered | `crates/db/tests/postgres/articles.rs::editing_an_article_must_replace_only_its_metadata`、`crates/domain/src/document_date.rs::dates_round_trip_through_their_text` |
+| 编辑弹窗保存后各处投影一致，失败保留输入（组件测试） | Partial | `pages/article.test.tsx::edits everything but the body and shows the new facts at once`、`pages/article.test.tsx::keeps the dialog and the input when the address belongs to another article`（覆盖文章页与 409 保留输入；列表与时间线只验证了缓存被丢弃或失效，未在同一用例里重新渲染） |
 
 决策依据：D2、D6，不变量 4。
 
@@ -94,9 +96,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 先删对象、后在事务中删行；中途失败可重试收敛（真实 PostgreSQL 与真实 MinIO，注入失败） | Missing | — |
-| 删除成功后媒体读取返回 404 | Missing | — |
-| Web 端删除后的落点与列表刷新（组件测试） | Missing | — |
+| 先删对象、后在事务中删行；中途失败可重试收敛（真实 PostgreSQL 与真实 MinIO，注入失败） | Covered | `crates/media/tests/minio/articles.rs::deleting_an_article_removes_its_objects_before_its_rows`（第二个对象删除失败后重试）、`crates/db/tests/postgres/articles.rs::deleting_an_article_removes_its_rows_together` |
+| 删除成功后媒体读取返回 404 | Covered | `crates/backend/tests/http.rs::media::media_http_uploads_and_deletes_within_the_owner`（经 `exercise_with_media`：读取接口 404，旧签名 URL 从 MinIO 得到 404） |
+| Web 端删除后的落点与列表刷新（组件测试） | Covered | `pages/article.test.tsx::deletes the article and returns to the list without it` |
 
 决策依据：D6，不变量 6。
 
@@ -110,9 +112,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 只加载本文媒体，按类型渲染图片或视频，其余为占位（组件测试） | Missing | — |
-| 页首元信息、原文链接与找不到的提示（组件测试） | Missing | — |
-| 类型列开放文章并显示条数 | Missing | — |
-| 笔记与对话的图片规则不受 `resolve` 改动影响 | Missing | — |
+| 只加载本文媒体，按类型渲染图片或视频，其余为占位（组件测试） | Covered | `pages/article.test.tsx::lists articles by publish date and reads one like a note, with its own media only`、`components/markdown-content.test.tsx::plays what the caller resolves as a video, loading only its metadata` |
+| 页首元信息、原文链接与找不到的提示（组件测试） | Covered | `pages/article.test.tsx::lists articles by publish date and reads one like a note, with its own media only`、`pages/article.test.tsx::says when an article does not exist` |
+| 类型列开放文章并显示条数 | Covered | `pages/stars.test.tsx::opens the note list from 摘星, where every kind is open in order` |
+| 笔记与对话的图片规则不受 `resolve` 改动影响 | Covered | `pages/note.test.tsx::shows the owner's images as written`、`components/markdown-content.test.tsx::loads images only where the caller resolves them, lazily and without a referrer` |
 
 决策依据：D6、D7，不变量 7。

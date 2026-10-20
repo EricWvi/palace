@@ -3,7 +3,7 @@ use axum::{
     Json,
     extract::{Query, State, rejection::QueryRejection},
 };
-use palace_db::{ConversationListRequest, PathCursor, SearchTerm};
+use palace_db::{ConversationListRequest, ListCursor, SearchTerm};
 use palace_domain::{InputError, InputErrorKind};
 use std::sync::Arc;
 
@@ -33,7 +33,7 @@ pub(super) async fn list(
         after: query
             .cursor
             .as_deref()
-            .map(str::parse::<PathCursor>)
+            .map(str::parse::<ListCursor>)
             .transpose()?,
     };
     Ok(Json(

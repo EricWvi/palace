@@ -21,6 +21,7 @@ const skeletons: Record<MomentKind, React.ReactNode> = {
       </span>
     </>
   ),
+  article: <span className="bar head" />,
 };
 
 // What one list item shows: a placeholder still waiting, a card, or a placeholder whose moment
@@ -217,11 +218,9 @@ function MomentItem({
         </li>
       );
     case "card": {
-      // A conversation's full text belongs to 摘星, so its card only says what happened and
-      // links there. While arriving, the placeholder it grows out of fades away on top of it.
+      // While arriving, the placeholder a card grows out of fades away on top of it.
       const { moment } = row;
       const arriving = morphing && row.from === "skeleton";
-      const source = sources[moment.source];
       return (
         <li
           className="moment"
@@ -235,6 +234,26 @@ function MomentItem({
                 : "entering"
           }
         >
+          <MomentCard moment={moment} date={date} />
+          {arriving && (
+            <span className="skeleton fading" aria-hidden="true">
+              {skeletons[moment.kind]}
+            </span>
+          )}
+        </li>
+      );
+    }
+  }
+}
+
+// What a card says about its moment. Full texts belong to 摘星, so a card only says what happened
+// and links there, carrying the day so the reading page can lead back to it.
+function MomentCard({ moment, date }: { moment: Moment; date: string }) {
+  switch (moment.kind) {
+    case "conversation": {
+      const source = sources[moment.source];
+      return (
+        <>
           <Link
             className="moment-head"
             to={`/conversations/${moment.conversation_id}?path=${moment.id}&date=${date}`}
@@ -255,13 +274,20 @@ function MomentItem({
               ))}
             </blockquote>
           )}
-          {arriving && (
-            <span className="skeleton fading" aria-hidden="true">
-              {skeletons[moment.kind]}
-            </span>
-          )}
-        </li>
+        </>
       );
     }
+    // An article is kept for its title and who wrote it, so one line says it all.
+    case "article":
+      return (
+        <Link
+          className="moment-head"
+          to={`/articles/${moment.id}?date=${date}`}
+        >
+          <span className="kind">文章</span>
+          <span className="title">{moment.title}</span>
+          <span className="byline">{moment.author ?? moment.site}</span>
+        </Link>
+      );
   }
 }

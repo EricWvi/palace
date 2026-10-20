@@ -15,6 +15,9 @@ palace-db = { workspace = true }
 palace-domain = { workspace = true }
 palace-logging = { workspace = true }
 bytes = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+time = { workspace = true }
 object_store = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
@@ -22,6 +25,8 @@ uuid = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
+chrono-tz = { workspace = true }
+reqwest = { workspace = true }
 palace-testkit = { workspace = true }
 pretty_assertions = { workspace = true }
 sqlx = { workspace = true }

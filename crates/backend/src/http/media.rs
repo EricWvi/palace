@@ -1,15 +1,38 @@
-//! Media upload and deletion. Without configured object storage both answer 503 before reading
-//! the body, so a deployment without S3 serves everything else unchanged.
+//! Media upload, reading and deletion. Without configured object storage every operation
+//! answers 503 before reading the body, so a deployment without S3 serves everything else
+//! unchanged.
 use super::{ApiError, BusinessServer, dto, routes};
 use axum::{
     Json,
-    extract::{Multipart, Path, State},
-    http::StatusCode,
+    extract::{Multipart, Path, State, multipart::Field},
+    http::{StatusCode, header},
+    response::{IntoResponse, Response},
 };
 use palace_domain::{InputError, InputErrorKind, MediaUpload};
-use palace_media::MediaStorage;
+use palace_media::{Disposition, MediaStorage};
 use std::sync::Arc;
 use uuid::Uuid;
+
+/// Buffers one multipart field, stopping as soon as it crosses `max` bytes instead of after the
+/// whole body arrives.
+pub(super) async fn read_field(
+    field: &mut Field<'_>,
+    max: usize,
+    path: &str,
+) -> Result<Vec<u8>, ApiError> {
+    let mut bytes = Vec::new();
+    while let Some(chunk) = field
+        .chunk()
+        .await
+        .map_err(|e| InputError::new(InputErrorKind::Limit, path, e.to_string()))?
+    {
+        if bytes.len().saturating_add(chunk.len()) > max {
+            return Err(InputError::new(InputErrorKind::Limit, path, "file too large").into());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(bytes)
+}
 
 /// Stores one file and returns its server-generated identity; the object is written before the row.
 #[utoipa::path(
@@ -32,7 +55,7 @@ pub(super) async fn upload(
     axum::Extension(owner): axum::Extension<palace_db::Owner>,
     mut multipart: Multipart,
 ) -> Result<(StatusCode, Json<dto::Media>), ApiError> {
-    let MediaStorage::Configured { store, limits } = &server.media else {
+    let MediaStorage::Configured { store, limits, .. } = &server.media else {
         return Err(ApiError::MediaUnavailable);
     };
     let mut file = None;
@@ -49,20 +72,7 @@ pub(super) async fn upload(
         }
         let content_type = field.content_type().map(str::to_owned);
         let file_name = field.file_name().map(str::to_owned);
-        // Stop buffering as soon as the limit is crossed instead of after the whole body arrives.
-        let mut bytes = Vec::new();
-        while let Some(chunk) = field
-            .chunk()
-            .await
-            .map_err(|e| InputError::new(InputErrorKind::Limit, "file", e.to_string()))?
-        {
-            if bytes.len().saturating_add(chunk.len()) > limits.max_bytes {
-                return Err(
-                    InputError::new(InputErrorKind::Limit, "file", "file too large").into(),
-                );
-            }
-            bytes.extend_from_slice(&chunk);
-        }
+        let bytes = read_field(&mut field, limits.max_bytes, "file").await?;
         file = Some((bytes, content_type, file_name));
     }
     let (bytes, content_type, file_name) =
@@ -78,7 +88,61 @@ pub(super) async fn upload(
     Ok((StatusCode::CREATED, Json(media.into())))
 }
 
-/// Deletes the object, then the row; success means the stored bytes are gone.
+/// Redirects to a URL signed for the current hour, so the browser fetches the bytes straight
+/// from object storage and caches them for that hour.
+#[utoipa::path(
+    get, path = routes::MEDIA_ITEM, operation_id = "read_media",
+    params(("id" = Uuid, Path, description = "Owner-scoped media id")),
+    security(("session" = []), ("access_token" = [])),
+    responses(
+        (status = 302, description = "Redirect to a presigned object URL valid for at least an hour; images, video and audio open inline, anything else downloads", headers(("Location" = String, description = "Presigned object storage URL"), ("Cache-Control" = String, description = "private, max-age=<seconds until the signing hour ends>"), ("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"))),
+        (status = 400, description = "Invalid input; native extractor text", body = String, content_type = "text/plain"),
+        (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 404, description = "Resource unavailable in owner scope", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 503, description = "Identity provider or media storage unavailable, including media storage not configured", body = dto::ErrorResponse, content_type = "application/json"),
+    )
+)]
+pub(super) async fn read(
+    State(server): State<Arc<BusinessServer>>,
+    axum::Extension(owner): axum::Extension<palace_db::Owner>,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    let MediaStorage::Configured { signer, .. } = &server.media else {
+        return Err(ApiError::MediaUnavailable);
+    };
+    let object = server.database.media_object(owner.scope(), id).await?;
+    // The declared type is unverified; only types a page embeds open in place.
+    let shown = ["image/", "video/", "audio/"]
+        .iter()
+        .any(|kind| object.content_type.starts_with(kind));
+    let fallback_name = id.to_string();
+    let disposition = if shown {
+        Disposition::Inline
+    } else {
+        Disposition::Attachment(object.file_name.as_deref().unwrap_or(&fallback_name))
+    };
+    let signed = signer.presign_get(
+        &object.object_key,
+        &object.content_type,
+        disposition,
+        palace_logging::clock::now_local().unix_timestamp(),
+    );
+    Ok((
+        StatusCode::FOUND,
+        [
+            (header::LOCATION, signed.url),
+            (
+                header::CACHE_CONTROL,
+                format!("private, max-age={}", signed.max_age),
+            ),
+        ],
+    )
+        .into_response())
+}
+
+/// Deletes the object, then the row; success means the stored bytes are gone. Media an article
+/// embeds is refused untouched: it goes only with its article.
 #[utoipa::path(
     delete, path = routes::MEDIA_ITEM, operation_id = "delete_media",
     params(("id" = Uuid, Path, description = "Owner-scoped media id"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
@@ -89,6 +153,7 @@ pub(super) async fn upload(
         (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 403, description = "Origin rejected", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 404, description = "Resource unavailable in owner scope", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 409, description = "An article embeds this media; nothing was deleted", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 500, description = "Internal persistence or response failure; the media is kept and the delete can be retried", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 503, description = "Identity provider or media storage unavailable, including media storage not configured; the media is kept and the delete can be retried", body = dto::ErrorResponse, content_type = "application/json"),
     )

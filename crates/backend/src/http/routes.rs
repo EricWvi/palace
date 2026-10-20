@@ -16,6 +16,8 @@ pub(super) const JOTTINGS: &str = "/api/jottings";
 pub(super) const JOTTING_CHANGES: &str = "/api/jottings/changes";
 pub(super) const JOTTING_OVERVIEW: &str = "/api/jottings/overview";
 pub(super) const JOTTING_RECALL: &str = "/api/jottings/recall";
+pub(super) const ARTICLES: &str = "/api/articles";
+pub(super) const ARTICLE: &str = "/api/articles/{id}";
 pub(super) const MEDIA: &str = "/api/media";
 pub(super) const MEDIA_ITEM: &str = "/api/media/{id}";
 pub(super) const ACCESS_TOKENS: &str = "/api/access-tokens";
@@ -62,6 +64,10 @@ macro_rules! business_routes {
             get JOTTINGS => jotting_reading::list,
             get JOTTING_OVERVIEW => jotting_reading::overview,
             get JOTTING_RECALL => jotting_reading::recall,
+            get ARTICLES => articles::list,
+            get ARTICLE => articles::article,
+            put ARTICLE => articles::update,
+            delete ARTICLE => articles::delete,
         }
     };
 }
@@ -70,7 +76,16 @@ macro_rules! media_routes {
     ($consumer:ident) => {
         $consumer! {
             post MEDIA => media::upload,
+            get MEDIA_ITEM => media::read,
             delete MEDIA_ITEM => media::delete,
+        }
+    };
+}
+// An article import carries its files, so it is mounted with the article body limit.
+macro_rules! article_import_routes {
+    ($consumer:ident) => {
+        $consumer! {
+            post ARTICLES => article_import::import,
         }
     };
 }
@@ -84,4 +99,6 @@ macro_rules! access_token_routes {
         }
     };
 }
-pub(super) use {access_token_routes, auth_routes, business_routes, media_routes};
+pub(super) use {
+    access_token_routes, article_import_routes, auth_routes, business_routes, media_routes,
+};

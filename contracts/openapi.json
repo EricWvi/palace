@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Palace HTTP API",
-    "description": "Owner-scoped Palace API. Schema describes wire structure, not authorization or transactional guarantees. Body limits use injected ImportLimits (default raw history 8 MiB); HTTP limit is bytes * 6 + 64 KiB. Media uploads instead use the deployment media limit (default 50 MiB) + 64 KiB. UTF-8 byte limits, nonblank strings and canonical cursor upper bounds are enforced by the server. Native extractor errors may be text/plain. No deployment credentials or environment metadata are included.",
+    "description": "Owner-scoped Palace API. Schema describes wire structure, not authorization or transactional guarantees. Body limits use injected ImportLimits (default raw history 8 MiB); HTTP limit is bytes * 6 + 64 KiB. Media uploads instead use the deployment media limit (default 50 MiB) + 64 KiB; article imports use the deployment article limit (default 256 MiB). UTF-8 byte limits, nonblank strings and canonical cursor upper bounds are enforced by the server. Native extractor errors may be text/plain. No deployment credentials or environment metadata are included.",
     "license": {
       "name": ""
     },
@@ -321,6 +321,647 @@
         "security": [
           {
             "session": []
+          }
+        ]
+      }
+    },
+    "/api/articles": {
+      "get": {
+        "tags": [
+          "articles"
+        ],
+        "summary": "Lists the owner's articles for 摘星, latest publish date first, one page at a time.",
+        "operationId": "articles",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Case-insensitive literal substring of the title, author or body; blank means no search.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "`next_cursor` from the previous page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Up to 50 articles ordered by publish date, then id, both descending",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticlePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "article_import"
+        ],
+        "summary": "Saves an article with its embedded files. A URL the owner already has returns that article\nwithout reading the files or changing anything.",
+        "operationId": "import_article",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleImportForm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The owner already has this URL; the existing article is returned unchanged",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Article"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Imported",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Article"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "A file, the body or the whole import exceeds its limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure; nothing was saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider or media storage unavailable, including files sent without configured media storage; nothing was saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/articles/{id}": {
+      "get": {
+        "tags": [
+          "articles"
+        ],
+        "summary": "Opens one of the owner's articles.",
+        "operationId": "article",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped article id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Article"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; native extractor text",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "articles"
+        ],
+        "summary": "Replaces everything but the body; the moment keeps its import time.",
+        "operationId": "update_article",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped article id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Article"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another article of the owner has this URL; nothing changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Input capacity exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "articles"
+        ],
+        "summary": "Deletes the article with its media: objects first, then every row in one transaction.",
+        "operationId": "delete_article",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped article id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Article, moment and media deleted",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; native extractor text",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure; the article is kept and the delete can be retried",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider or media storage unavailable; the article is kept and the delete can be retried",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
           }
         ]
       }
@@ -2559,11 +3200,113 @@
       }
     },
     "/api/media/{id}": {
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Redirects to a URL signed for the current hour, so the browser fetches the bytes straight\nfrom object storage and caches them for that hour.",
+        "operationId": "read_media",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped media id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to a presigned object URL valid for at least an hour; images, video and audio open inline, anything else downloads",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "private, max-age=<seconds until the signing hour ends>"
+              },
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Presigned object storage URL"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; native extractor text",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider or media storage unavailable, including media storage not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      },
       "delete": {
         "tags": [
           "media"
         ],
-        "summary": "Deletes the object, then the row; success means the stored bytes are gone.",
+        "summary": "Deletes the object, then the row; success means the stored bytes are gone. Media an article\nembeds is refused untouched: it goes only with its article.",
         "operationId": "delete_media",
         "parameters": [
           {
@@ -2636,6 +3379,16 @@
           },
           "404": {
             "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An article embeds this media; nothing was deleted",
             "content": {
               "application/json": {
                 "schema": {
@@ -3814,6 +4567,280 @@
         },
         "additionalProperties": false
       },
+      "Article": {
+        "type": "object",
+        "description": "An article opened for reading.",
+        "required": [
+          "id",
+          "title",
+          "content",
+          "url",
+          "author",
+          "site",
+          "published_at",
+          "date",
+          "occurred_at",
+          "media"
+        ],
+        "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "description": "Markdown body; its embedded files are `/api/media/<id>` addresses listed in `media`."
+          },
+          "date": {
+            "type": "string",
+            "description": "The publish date as an edit takes it back: `YYYY-MM-DD` when only a day was given,\notherwise RFC 3339 at the deployment's offset."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Equal to the article's moment id."
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleMedia"
+            }
+          },
+          "occurred_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the import, the article's place on the timeline."
+          },
+          "published_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the publish date."
+          },
+          "site": {
+            "type": "string",
+            "description": "The URL's host without `www.`."
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "ArticleImportFields": {
+        "type": "object",
+        "description": "The `article` part of an import, sent before any file.",
+        "required": [
+          "title",
+          "content",
+          "url",
+          "date"
+        ],
+        "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional; blank means none; at most 256 UTF-8 bytes."
+          },
+          "content": {
+            "type": "string",
+            "description": "Markdown body, at most 4 MiB. Embedded files are inline images `![alt](media:<name>)`;\nthe server replaces each address with `/api/media/<id>`. Never editable afterwards."
+          },
+          "date": {
+            "type": "string",
+            "description": "Publish date: `YYYY-MM-DD` (midnight in the deployment's zone) or RFC 3339 with an offset."
+          },
+          "title": {
+            "type": "string",
+            "description": "Nonblank after trimming; at most 1024 UTF-8 bytes; kept as sent."
+          },
+          "url": {
+            "type": "string",
+            "description": "Absolute http(s) URL of the original article, at most 2048 bytes; identifies the article\nwithin the owner, compared byte for byte."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ArticleImportForm": {
+        "type": "object",
+        "description": "One `article` part, then one `file` part per embedded file.",
+        "required": [
+          "article"
+        ],
+        "properties": {
+          "article": {
+            "$ref": "#/components/schemas/ArticleImportFields",
+            "description": "JSON text of ArticleImportFields; must be the first part."
+          },
+          "file": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "description": "Embedded files. Each filename is the `<name>` the body uses, 1-128 characters of\n`[A-Za-z0-9._-]`, unique within the import; the part's Content-Type is recorded. Every\nfile must be embedded and every embedded name must have a file."
+          }
+        }
+      },
+      "ArticleListItem": {
+        "type": "object",
+        "description": "One article as the list shows it.",
+        "required": [
+          "id",
+          "title",
+          "author",
+          "site",
+          "published_at",
+          "date"
+        ],
+        "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "description": "The publish date as written back by the server; see Article.date."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "published_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the publish date."
+          },
+          "site": {
+            "type": "string",
+            "description": "The URL's host without `www.`, shown where there is no author."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "ArticleMedia": {
+        "type": "object",
+        "description": "One embedded file; the type tells an image from a video.",
+        "required": [
+          "id",
+          "content_type"
+        ],
+        "properties": {
+          "content_type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ArticleMoment": {
+        "type": "object",
+        "description": "An article moment: the article on the day it was imported.",
+        "required": [
+          "id",
+          "occurred_at",
+          "title",
+          "author",
+          "site"
+        ],
+        "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Moment id, equal to the article id."
+          },
+          "occurred_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the import."
+          },
+          "site": {
+            "type": "string",
+            "description": "The URL's host without `www.`, shown where there is no author."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "ArticlePage": {
+        "type": "object",
+        "description": "One page of the 摘星 article list.",
+        "required": [
+          "items",
+          "next_cursor",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArticleListItem"
+            },
+            "description": "Articles, latest publish date first."
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque token for the next page; null on the last page."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of articles the owner has, regardless of `q`."
+          }
+        }
+      },
+      "ArticleUpdate": {
+        "type": "object",
+        "description": "The fields an edit replaces; the body never changes.",
+        "required": [
+          "title",
+          "url",
+          "date"
+        ],
+        "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "date": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "Another article of the owner already at this URL is a conflict."
+          }
+        },
+        "additionalProperties": false
+      },
       "Conversation": {
         "type": "object",
         "required": [
@@ -4092,6 +5119,7 @@
           "identity_unavailable",
           "search_unavailable",
           "media_storage_unavailable",
+          "media_in_use",
           "jotting_id_conflict",
           "jottings_unavailable",
           "persistence_failed"
@@ -4633,6 +5661,27 @@
                 }
               }
             ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ArticleMoment"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "article"
+                    ]
+                  }
+                }
+              }
+            ]
           }
         ],
         "description": "One timeline entry; `kind` selects the card fields that follow."
@@ -4640,7 +5689,8 @@
       "MomentKind": {
         "type": "string",
         "enum": [
-          "conversation"
+          "conversation",
+          "article"
         ]
       },
       "MomentOutline": {

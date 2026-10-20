@@ -220,8 +220,8 @@ pub(super) async fn update_metadata(
         source: input.source,
     }))
 }
-/// Gives unknown metadata fields the same structured rejection as other import validation errors.
-fn json_error(error: axum::extract::rejection::JsonRejection) -> InputError {
+/// Gives unknown JSON fields the same structured rejection as other import validation errors.
+pub(super) fn json_error(error: axum::extract::rejection::JsonRejection) -> InputError {
     InputError::new(
         if error.status() == axum::http::StatusCode::PAYLOAD_TOO_LARGE {
             InputErrorKind::Limit

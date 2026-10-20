@@ -1,4 +1,6 @@
 mod access_tokens;
+mod article_import;
+mod articles;
 mod business;
 mod contract;
 mod conversation_list;
@@ -24,6 +26,7 @@ mod timeline;
 
 use crate::{LoginRedirect, OidcProvider};
 use axum::{Router, extract::DefaultBodyLimit};
+use chrono_tz::Tz;
 use error::ApiError;
 use handlers::*;
 use palace_db::{CredentialKey, Database, IdentityProvider, IdentityTokens, ProviderError};
@@ -66,6 +69,8 @@ pub struct Server<P> {
     pub notes: Arc<NoteLibrary>,
     pub media: MediaStorage,
     pub jottings: JottingService,
+    /// The deployment's zone: a bare article publish day starts at its midnight.
+    pub timezone: Tz,
     pub now: fn() -> i64,
 }
 /// Builds authenticated JSON/file endpoints with bounded bodies and no client-supplied owner scope.
@@ -80,6 +85,7 @@ pub fn router<P: LoginProvider + 'static>(mut server: Server<P>) -> Router {
         notes: server.notes.clone(),
         media,
         jottings,
+        timezone: server.timezone,
     });
     let tokens = access_token_router(server.database.clone());
     let server = Arc::new(server);
@@ -120,6 +126,7 @@ struct BusinessServer {
     notes: Arc<NoteLibrary>,
     media: MediaStorage,
     jottings: JottingService,
+    timezone: Tz,
 }
 
 /// Shares the complete business API between authenticated deployment and local single-user testing.
@@ -143,11 +150,19 @@ fn business_router(server: BusinessServer) -> Router {
         MediaStorage::Unconfigured => 64 * 1024,
     };
     let media = routes::media_routes!(mount).layer(DefaultBodyLimit::max(media_limit));
+    // Without storage an import can only carry its `article` part.
+    let article_limit = match &server.media {
+        MediaStorage::Configured { limits, .. } => limits.article_max_bytes,
+        MediaStorage::Unconfigured => article_import::ARTICLE_PART_BYTES.saturating_add(64 * 1024),
+    };
+    let article_import =
+        routes::article_import_routes!(mount).layer(DefaultBodyLimit::max(article_limit));
     // Timeline and conversation JSON carries whole chat histories and compresses well; the
     // layer only answers gzip when the client offers it and skips tiny bodies.
     routes::business_routes!(mount)
         .layer(DefaultBodyLimit::max(limit))
         .layer(CompressionLayer::new())
         .merge(media)
+        .merge(article_import)
         .with_state(Arc::new(server))
 }

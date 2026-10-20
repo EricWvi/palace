@@ -19,6 +19,7 @@ pub(super) enum ApiError {
     Unavailable,
     SearchUnavailable,
     MediaUnavailable,
+    MediaInUse,
     JottingConflict,
     JottingsUnavailable,
     Internal,
@@ -77,7 +78,11 @@ impl From<palace_media::MediaError> for ApiError {
     fn from(value: palace_media::MediaError) -> Self {
         match value {
             palace_media::MediaError::Database(e) => e.into(),
-            palace_media::MediaError::Store(_) => Self::MediaUnavailable,
+            palace_media::MediaError::Input(e) => Self::Input(e),
+            palace_media::MediaError::Embedded => Self::MediaInUse,
+            palace_media::MediaError::Store(_) | palace_media::MediaError::Unconfigured => {
+                Self::MediaUnavailable
+            }
         }
     }
 }
@@ -135,6 +140,7 @@ impl IntoResponse for ApiError {
                 ErrorCode::MediaStorageUnavailable,
                 "",
             ),
+            Self::MediaInUse => (StatusCode::CONFLICT, ErrorCode::MediaInUse, ""),
             Self::JottingConflict => (StatusCode::CONFLICT, ErrorCode::JottingIdConflict, ""),
             Self::JottingsUnavailable => (
                 StatusCode::SERVICE_UNAVAILABLE,

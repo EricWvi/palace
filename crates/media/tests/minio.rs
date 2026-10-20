@@ -23,6 +23,9 @@ use testcontainers::{
 };
 use uuid::Uuid;
 
+#[path = "minio/articles.rs"]
+mod articles;
+
 /// Real PostgreSQL and MinIO plus two owners; the containers live as long as this value.
 struct Services {
     _postgres: ContainerAsync<GenericImage>,
@@ -31,6 +34,8 @@ struct Services {
     pool: PgPool,
     /// The production store under test.
     bucket: S3Bucket,
+    /// Signs read URLs for the same bucket.
+    signer: palace_media::Presigner,
     /// An independent client that inspects what actually reached the bucket.
     raw: AmazonS3,
     a: OwnerScope,
@@ -61,6 +66,7 @@ async fn services() -> Services {
     let minio = palace_testkit::minio().await.unwrap();
     let config = S3Config {
         endpoint: url::Url::parse(&minio.endpoint).unwrap(),
+        public_endpoint: None,
         region: MINIO_REGION.into(),
         bucket: MINIO_BUCKET.into(),
         access_key_id: MINIO_ACCESS_KEY.into(),
@@ -95,6 +101,7 @@ async fn services() -> Services {
         db,
         pool,
         bucket: config.connect().unwrap(),
+        signer: config.presigner(),
         raw,
         a: owners[0],
         b: owners[1],
@@ -264,8 +271,9 @@ async fn upload_registers_rows_only_for_stored_objects() {
 }
 
 /// Success means the object is gone; a failure at either step keeps the row so a retry converges.
-/// Core test case:
+/// Core test cases:
 /// - `specs/test-cases/server/media/media-storage.md#deleting-media-must-remove-the-object-before-reporting-success`
+/// - `specs/test-cases/server/media/media-reading.md#referenced-media-must-not-be-deletable-on-its-own`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine and minio/minio images and Docker/Podman socket"]
 async fn delete_removes_the_object_first_and_retries_converge() {

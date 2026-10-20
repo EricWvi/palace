@@ -1,4 +1,4 @@
-use crate::Bucket;
+use crate::{Bucket, Presigner};
 use object_store::{
     RetryConfig,
     aws::{AmazonS3, AmazonS3Builder},
@@ -19,13 +19,17 @@ const S3_VARIABLES: [&str; 6] = [
     "PALACE_S3_PATH_STYLE",
 ];
 const MAX_BYTES: &str = "PALACE_MEDIA_MAX_BYTES";
+const ARTICLE_MAX_BYTES: &str = "PALACE_ARTICLE_MAX_BYTES";
+// Not one of the six: most deployments sign with the endpoint the server already uses.
+const PUBLIC_ENDPOINT: &str = "PALACE_S3_PUBLIC_ENDPOINT";
 
 /// Whether this deployment stores media, decided once at startup.
 #[derive(Debug, PartialEq, Eq)]
 pub enum MediaConfig {
     /// No S3 setting is present; media endpoints answer as unavailable.
     Unconfigured,
-    S3(S3Config),
+    // Boxed: the connection settings dwarf the empty variant.
+    S3(Box<S3Config>),
 }
 
 /// How requests address the bucket: MinIO usually needs path style, AWS accepts either.
@@ -39,6 +43,9 @@ pub enum Addressing {
 #[derive(PartialEq, Eq)]
 pub struct S3Config {
     pub endpoint: url::Url,
+    /// Where browsers reach the bucket, when that differs from `endpoint` (for example a
+    /// container-internal host name); read URLs are signed for it.
+    pub public_endpoint: Option<url::Url>,
     pub region: String,
     pub bucket: String,
     pub access_key_id: String,
@@ -51,6 +58,7 @@ impl std::fmt::Debug for S3Config {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("S3Config")
             .field("endpoint", &self.endpoint)
+            .field("public_endpoint", &self.public_endpoint)
             .field("region", &self.region)
             .field("bucket", &self.bucket)
             .field("access_key_id", &self.access_key_id)
@@ -79,8 +87,13 @@ impl MediaConfig {
             .filter(|(_, value)| value.is_none())
             .map(|(name, _)| *name)
             .collect();
+        let public_endpoint = read(PUBLIC_ENDPOINT);
         if missing.len() == S3_VARIABLES.len() {
-            return Ok(Self::Unconfigured);
+            // A browser endpoint without storage to point at is a deployment mistake too.
+            return match public_endpoint {
+                None => Ok(Self::Unconfigured),
+                Some(_) => Err(ConfigError::Incomplete(missing)),
+            };
         }
         let [
             (_, Some(endpoint)),
@@ -93,14 +106,10 @@ impl MediaConfig {
         else {
             return Err(ConfigError::Incomplete(missing));
         };
-        let endpoint = url::Url::parse(&endpoint)
-            .map_err(|error| ConfigError::Invalid("PALACE_S3_ENDPOINT", error.to_string()))?;
-        if !matches!(endpoint.scheme(), "http" | "https") {
-            return Err(ConfigError::Invalid(
-                "PALACE_S3_ENDPOINT",
-                "expected an http or https URL".into(),
-            ));
-        }
+        let endpoint = http_url("PALACE_S3_ENDPOINT", &endpoint)?;
+        let public_endpoint = public_endpoint
+            .map(|value| http_url(PUBLIC_ENDPOINT, &value))
+            .transpose()?;
         let addressing = match path_style.as_str() {
             "true" => Addressing::Path,
             "false" => Addressing::VirtualHosted,
@@ -111,31 +120,61 @@ impl MediaConfig {
                 ));
             }
         };
-        let limits = match read(MAX_BYTES) {
-            None => MediaLimits::default(),
-            Some(value) => MediaLimits {
-                max_bytes: value
-                    .parse()
-                    .ok()
-                    .filter(|bytes| *bytes > 0)
-                    .ok_or_else(|| {
-                        ConfigError::Invalid(MAX_BYTES, "expected a positive byte count".into())
-                    })?,
-            },
+        let byte_count = |name: &'static str, default: usize| match read(name) {
+            None => Ok(default),
+            Some(value) => value
+                .parse()
+                .ok()
+                .filter(|bytes| *bytes > 0)
+                .ok_or_else(|| ConfigError::Invalid(name, "expected a positive byte count".into())),
         };
-        Ok(Self::S3(S3Config {
+        let defaults = MediaLimits::default();
+        let limits = MediaLimits {
+            max_bytes: byte_count(MAX_BYTES, defaults.max_bytes)?,
+            article_max_bytes: byte_count(ARTICLE_MAX_BYTES, defaults.article_max_bytes)?,
+        };
+        Ok(Self::S3(Box::new(S3Config {
             endpoint,
+            public_endpoint,
             region,
             bucket,
             access_key_id,
             secret_access_key,
             addressing,
             limits,
-        }))
+        })))
     }
 }
 
+/// Parses an http or https URL named by `variable`.
+fn http_url(variable: &'static str, value: &str) -> Result<url::Url, ConfigError> {
+    let url = url::Url::parse(value)
+        .map_err(|error| ConfigError::Invalid(variable, error.to_string()))?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(ConfigError::Invalid(
+            variable,
+            "expected an http or https URL".into(),
+        ));
+    }
+    Ok(url)
+}
+
 impl S3Config {
+    /// Signs read URLs for the endpoint browsers reach; writes keep using `endpoint`.
+    pub fn presigner(&self) -> Presigner {
+        Presigner {
+            endpoint: self
+                .public_endpoint
+                .clone()
+                .unwrap_or_else(|| self.endpoint.clone()),
+            region: self.region.clone(),
+            bucket: self.bucket.clone(),
+            access_key_id: self.access_key_id.clone(),
+            secret_access_key: self.secret_access_key.clone(),
+            addressing: self.addressing,
+        }
+    }
+
     /// Builds the client without contacting the server; a wrong bucket or credential surfaces on
     /// the first upload, not at startup.
     pub fn connect(&self) -> Result<S3Bucket, ConfigError> {
@@ -183,25 +222,34 @@ mod tests {
     ];
 
     /// All settings enable S3, none leaves media unconfigured, and any partial set fails startup.
-    /// Core test case:
+    /// Core test cases:
     /// - `specs/test-cases/server/media/media-storage.md#object-storage-configuration-must-be-all-or-nothing`
+    /// - `specs/test-cases/server/media/media-reading.md#presigned-media-urls-must-be-stable-within-the-hour-and-safe-to-open`
     #[test]
     fn s3_settings_are_all_or_nothing() {
         assert_eq!(
             MediaConfig::from_lookup(lookup(&COMPLETE)),
-            Ok(MediaConfig::S3(S3Config {
+            Ok(MediaConfig::S3(Box::new(S3Config {
                 endpoint: url::Url::parse("http://minio:9000").unwrap(),
+                public_endpoint: None,
                 region: "us-east-1".into(),
                 bucket: "palace".into(),
                 access_key_id: "palace".into(),
                 secret_access_key: "secret".into(),
                 addressing: Addressing::Path,
                 limits: MediaLimits::default(),
-            }))
+            })))
         );
         assert_eq!(
             MediaConfig::from_lookup(lookup(&[("PALACE_MEDIA_MAX_BYTES", "10")])),
             Ok(MediaConfig::Unconfigured)
+        );
+        assert_eq!(
+            MediaConfig::from_lookup(lookup(&[(
+                "PALACE_S3_PUBLIC_ENDPOINT",
+                "https://media.example.com"
+            )])),
+            Err(ConfigError::Incomplete(S3_VARIABLES.to_vec()))
         );
         assert_eq!(
             MediaConfig::from_lookup(lookup(&[
@@ -218,7 +266,10 @@ mod tests {
         );
     }
 
-    /// Malformed values are named instead of silently falling back to a default.
+    /// Malformed values are named instead of silently falling back to a default; a browser
+    /// endpoint only changes where reads are signed for.
+    /// Core test case:
+    /// - `specs/test-cases/server/media/media-reading.md#presigned-media-urls-must-be-stable-within-the-hour-and-safe-to-open`
     #[test]
     fn invalid_values_name_their_variable() {
         let with = |name: &str, value: &str| {
@@ -232,6 +283,8 @@ mod tests {
             ("PALACE_S3_PATH_STYLE", "yes"),
             ("PALACE_MEDIA_MAX_BYTES", "0"),
             ("PALACE_MEDIA_MAX_BYTES", "big"),
+            ("PALACE_ARTICLE_MAX_BYTES", "-1"),
+            ("PALACE_S3_PUBLIC_ENDPOINT", "media.example.com"),
         ] {
             assert!(
                 matches!(with(name, value), Err(ConfigError::Invalid(invalid, _)) if invalid == name),
@@ -241,7 +294,24 @@ mod tests {
         let Ok(MediaConfig::S3(config)) = with("PALACE_MEDIA_MAX_BYTES", "1024") else {
             panic!("a positive limit must be accepted");
         };
-        assert_eq!(config.limits, MediaLimits { max_bytes: 1024 });
+        assert_eq!(
+            config.limits,
+            MediaLimits {
+                max_bytes: 1024,
+                ..MediaLimits::default()
+            }
+        );
+        let Ok(MediaConfig::S3(config)) =
+            with("PALACE_S3_PUBLIC_ENDPOINT", "https://media.example.com")
+        else {
+            panic!("a browser endpoint must be accepted");
+        };
+        // Reads are signed for the browser's endpoint; writes keep the server's.
+        assert_eq!(
+            config.presigner().endpoint.as_str(),
+            "https://media.example.com/"
+        );
+        assert_eq!(config.endpoint.as_str(), "http://minio:9000/");
         assert!(!format!("{config:?}").contains("secret"));
     }
 }

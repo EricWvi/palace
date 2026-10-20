@@ -3035,6 +3035,7 @@ name = "pal"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "chrono-tz",
  "clap",
  "flate2",
  "mime_guess",
@@ -3102,6 +3103,7 @@ version = "0.0.0"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
+ "chrono-tz",
  "email_address",
  "hmac",
  "palace-domain",
@@ -3123,6 +3125,8 @@ name = "palace-domain"
 version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
+ "chrono",
+ "chrono-tz",
  "pretty_assertions",
  "pulldown-cmark",
  "serde",
@@ -3183,15 +3187,20 @@ name = "palace-media"
 version = "0.0.0"
 dependencies = [
  "bytes",
+ "chrono-tz",
+ "hmac",
  "object_store",
  "palace-db",
  "palace-domain",
  "palace-logging",
  "palace-testkit",
  "pretty_assertions",
+ "reqwest",
+ "sha2",
  "sqlx",
  "testcontainers",
  "thiserror 2.0.20",
+ "time",
  "tokio",
  "tracing",
  "url",

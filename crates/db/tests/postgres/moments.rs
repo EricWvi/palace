@@ -13,8 +13,11 @@ use uuid::Uuid;
 
 /// Restores the schema as it was before `0009_moments.sql` and `0010_path_titles.sql`, keeping
 /// the data: occurrence times move back onto paths and the earliest path's title onto the
-/// conversation. Migration tests replay from here to reach the current schema.
+/// conversation. Migration tests replay from here to reach the current schema. Article tables
+/// from `0017_articles.sql` hang off `moment` and are dropped first; the replays never reach them.
 pub(super) const BEFORE_MOMENTS: &str = "
+    DROP TABLE article_media;
+    DROP TABLE article;
     ALTER TABLE conversation ADD COLUMN title text;
     UPDATE conversation c SET title=(SELECT p.title FROM conversation_path p WHERE p.conversation_id=c.id ORDER BY p.created_at,p.id LIMIT 1);
     ALTER TABLE conversation ALTER COLUMN title SET NOT NULL;
@@ -114,6 +117,7 @@ fn positions(timeline: Vec<Moment>) -> Vec<(Uuid, i64, String)> {
         .into_iter()
         .map(|moment| match moment.detail {
             MomentDetail::Conversation(card) => (moment.id, moment.occurred_at, card.title),
+            MomentDetail::Article(card) => (moment.id, moment.occurred_at, card.title),
         })
         .collect()
 }
@@ -396,6 +400,7 @@ async fn day_outline_lists_the_timelines_moments_in_the_same_order() {
                 id: moment.id,
                 kind: match moment.detail {
                     MomentDetail::Conversation(_) => MomentKind::Conversation,
+                    MomentDetail::Article(_) => MomentKind::Article,
                 },
             })
             .collect::<Vec<_>>(),

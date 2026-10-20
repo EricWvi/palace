@@ -25,35 +25,37 @@ pub struct ConversationListItem {
 pub struct ConversationPage {
     pub items: Vec<ConversationListItem>,
     /// Present only when more rows follow this page.
-    pub next_cursor: Option<PathCursor>,
+    pub next_cursor: Option<ListCursor>,
     /// Every path of the owner, whatever the search; the kind column shows it as a count.
     pub total: i64,
 }
 
-/// The position after the last row of a page: the list order is `(occurred_at, id)` descending,
-/// so the next page starts strictly below it and rows inserted meanwhile cannot shift it.
+/// The position after the last row of a page. Lists are ordered by a time, then id, both
+/// descending, so the next page starts strictly below it and rows inserted meanwhile cannot
+/// shift it. Each list names its own time: a path's moment, an article's publish date.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PathCursor {
-    pub occurred_at: i64,
+pub struct ListCursor {
+    /// Unix epoch milliseconds of the row's list time.
+    pub at: i64,
     pub id: Uuid,
 }
 
-impl fmt::Display for PathCursor {
+impl fmt::Display for ListCursor {
     /// Writes the opaque token clients send back unchanged.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}_{}", self.occurred_at, self.id)
+        write!(f, "{}_{}", self.at, self.id)
     }
 }
 
-impl FromStr for PathCursor {
+impl FromStr for ListCursor {
     type Err = InputError;
 
     /// Accepts only tokens this server could have written.
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         let invalid = || InputError::new(InputErrorKind::Field, "cursor", "expected a list cursor");
-        let (occurred_at, id) = value.split_once('_').ok_or_else(invalid)?;
+        let (at, id) = value.split_once('_').ok_or_else(invalid)?;
         Ok(Self {
-            occurred_at: occurred_at.parse().map_err(|_| invalid())?,
+            at: at.parse().map_err(|_| invalid())?,
             id: id.parse().map_err(|_| invalid())?,
         })
     }
@@ -90,7 +92,7 @@ impl SearchTerm {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ConversationListRequest {
     pub search: Option<SearchTerm>,
-    pub after: Option<PathCursor>,
+    pub after: Option<ListCursor>,
 }
 
 // Rows are walked from the moment side: its per-kind index yields them in list order, and each
@@ -125,7 +127,7 @@ impl Database {
         let pattern = request.search.as_ref().map(SearchTerm::like_pattern);
         let query = sqlx::query(if pattern.is_some() { SEARCH } else { LIST })
             .bind(owner.id())
-            .bind(request.after.map(|cursor| cursor.occurred_at))
+            .bind(request.after.map(|cursor| cursor.at))
             .bind(request.after.map(|cursor| cursor.id))
             .bind(CONVERSATION_PAGE_SIZE + 1);
         let query = match pattern {
@@ -152,8 +154,8 @@ impl Database {
             .collect::<Result<Vec<_>, DbError>>()?;
         let next_cursor = if items.len() as i64 > CONVERSATION_PAGE_SIZE {
             items.truncate(CONVERSATION_PAGE_SIZE as usize);
-            items.last().map(|last| PathCursor {
-                occurred_at: last.occurred_at,
+            items.last().map(|last| ListCursor {
+                at: last.occurred_at,
                 id: last.id,
             })
         } else {
@@ -191,11 +193,11 @@ mod tests {
     /// A cursor round-trips through its token, and anything else is a field error.
     #[test]
     fn cursors_round_trip_and_reject_foreign_tokens() {
-        let cursor = PathCursor {
-            occurred_at: 1_759_843_443_123,
+        let cursor = ListCursor {
+            at: 1_759_843_443_123,
             id: Uuid::from_u128(7),
         };
-        assert_eq!(cursor.to_string().parse::<PathCursor>(), Ok(cursor));
+        assert_eq!(cursor.to_string().parse::<ListCursor>(), Ok(cursor));
         for token in [
             "",
             "123",
@@ -203,7 +205,7 @@ mod tests {
             "123_xyz",
         ] {
             assert_eq!(
-                token.parse::<PathCursor>(),
+                token.parse::<ListCursor>(),
                 Err(InputError::new(
                     InputErrorKind::Field,
                     "cursor",

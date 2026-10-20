@@ -19,6 +19,8 @@ use tower::ServiceExt;
 
 #[path = "http/access_tokens.rs"]
 mod access_tokens;
+#[path = "http/articles.rs"]
+mod articles;
 #[path = "http/contract.rs"]
 mod contract;
 #[path = "http/inputs.rs"]
@@ -104,6 +106,12 @@ fn request(
 /// - `specs/test-cases/web/echo/jotting-reading.md#jotting-list-must-page-every-live-jotting-exactly-once-newest-first`
 /// - `specs/test-cases/web/echo/jotting-reading.md#pending-must-mean-the-jotting-file-sits-under-inbox`
 /// - `specs/test-cases/web/echo/jotting-reading.md#overview-must-bucket-jottings-by-the-deployments-local-day`
+/// - `specs/test-cases/web/stars/articles.md#article-import-must-commit-the-article-and-its-media-together-or-not-at-all`
+/// - `specs/test-cases/web/stars/articles.md#importing-the-same-url-must-converge-on-one-article`
+/// - `specs/test-cases/web/stars/articles.md#articles-must-stay-within-the-owner`
+/// - `specs/test-cases/web/stars/articles.md#article-list-must-order-by-published-date-while-the-timeline-uses-import-time`
+/// - `specs/test-cases/web/stars/articles.md#editing-an-article-must-replace-only-its-metadata`
+/// - `specs/test-cases/server/media/media-reading.md#reading-media-must-redirect-only-within-the-owner-scope`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image, git and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {
@@ -182,6 +190,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         notes: library.clone(),
         media: palace_media::MediaStorage::Unconfigured,
         jottings: palace_jottings::JottingService::Unconfigured,
+        timezone: chrono_tz::Asia::Shanghai,
         now,
     }));
     let app = capture.attach(router(Server {
@@ -197,6 +206,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
         notes: library,
         media: palace_media::MediaStorage::Unconfigured,
         jottings,
+        timezone: chrono_tz::Asia::Shanghai,
         now,
     }));
     let history = r#"[{"role":"user","content":"<script>alert(1)</script>\r\n","extra":123}]"#;
@@ -540,6 +550,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     notes::exercise_notes(&app, &cookie, &foreign).await;
     paths::exercise_path_lifecycle(&app, &cookie, &foreign).await;
     media::exercise_unconfigured(&app, &cookie).await;
+    articles::exercise_without_media(&app, &cookie, &foreign, &pool).await;
     jottings::exercise_jottings(&app, &cookie, &foreign, agent).await;
     jottings::exercise_unconfigured(&without_jottings, &cookie).await;
     inputs::exercise_contract_boundaries(&app, &cookie, &foreign, &pool, &sessions[0].owner).await;
@@ -676,6 +687,7 @@ async fn http_sync_round_propagates_records_and_tombstones() {
         notes: std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
         media: palace_media::MediaStorage::Unconfigured,
         jottings: palace_jottings::JottingService::Unconfigured,
+        timezone: chrono_tz::Asia::Shanghai,
         now,
     }));
     let server = tokio::spawn(async move {

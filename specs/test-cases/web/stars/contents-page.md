@@ -1,6 +1,6 @@
 # 摘星入口页核心测试用例
 
-当前决策：[摘星入口是目录式列表](../../../decisions/web/stars/0-contents-page-with-kind-column.md)，其中摘星链接与类型列由[笔记来自挂载的 Markdown 文件夹](../../../decisions/web/stars/20261014-notes-from-mounted-folder.md)修改，相应用例见[摘星笔记](notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert)。导航的当前项与不可点击项的通用规则见[文字导航与时刻地址](../navigation/text-nav-and-day-routes.md#navigation-must-mark-only-the-owning-section-and-keep-inert-items-out-of-reach)；阅读页删除后的落点见[对话阅读页](../../server/conversation/reading-page.md#deleting-a-conversation-must-return-to-where-the-reader-came-from)。
+当前决策：[摘星入口是目录式列表](../../../decisions/web/stars/0-contents-page-with-kind-column.md)，其中摘星链接与类型列由[笔记来自挂载的 Markdown 文件夹](../../../decisions/web/stars/20261014-notes-from-mounted-folder.md)修改，相应用例见[摘星笔记](notes.md#stars-navigation-must-open-the-note-list-and-every-kind)。导航的当前项与不可点击项的通用规则见[文字导航与时刻地址](../navigation/text-nav-and-day-routes.md#navigation-must-mark-only-the-owning-section-and-keep-inert-items-out-of-reach)；阅读页删除后的落点见[对话阅读页](../../server/conversation/reading-page.md#deleting-a-conversation-must-return-to-where-the-reader-came-from)。
 
 ## Every row must open the path whose title and date it shows
 

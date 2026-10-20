@@ -8,6 +8,7 @@ import {
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
+  articleListOptions,
   conversationListOptions,
   noteListOptions,
   notePath,
@@ -15,10 +16,11 @@ import {
 } from "@/lib/api";
 import { ErrorState } from "@/components/error-state";
 
-// The kinds that can be opened, each with its own list address; 文章 is not built yet.
-export type Kind = "notes" | "conversations";
+// The kinds, each with its own list address, in the order the kind column shows them.
+export type Kind = "notes" | "articles" | "conversations";
 const kinds: Record<Kind, { name: string; to: string }> = {
   notes: { name: "笔记", to: "/notes" },
+  articles: { name: "文章", to: "/articles" },
   conversations: { name: "对话", to: "/conversations" },
 };
 
@@ -27,7 +29,8 @@ type Row = {
   key: string;
   title: string;
   aside?: string;
-  occurred_at: number;
+  // The date the row shows: when a note or article was written, when a conversation took place.
+  at: number;
   to: string;
 };
 
@@ -40,34 +43,51 @@ const offsets = new Map<string, number>();
 export function StarsPage({ kind }: { kind: Kind }) {
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
-  // Both lists load, the other one unsearched: the kind column counts every kind it can open,
-  // and switching kinds then shows a list already cached.
+  // Every list loads, the others unsearched: the kind column counts every kind, and switching
+  // kinds then shows a list already cached.
   const notes = useInfiniteQuery(noteListOptions(kind === "notes" ? q : ""));
+  const articles = useInfiniteQuery(
+    articleListOptions(kind === "articles" ? q : ""),
+  );
   const conversations = useInfiniteQuery(
     conversationListOptions(kind === "conversations" ? q : ""),
   );
-  const list = kind === "notes" ? notes : conversations;
-  const rows: Row[] =
-    kind === "notes"
-      ? (notes.data?.pages ?? []).flatMap((page) =>
-          page.items.map((note) => ({
-            key: note.id,
-            title: note.title,
-            occurred_at: note.occurred_at,
-            to: notePath(note.id),
-          })),
-        )
-      : (conversations.data?.pages ?? []).flatMap((page) =>
-          page.items.map((path) => ({
-            key: path.id,
-            title: path.title,
-            aside: sources[path.source],
-            occurred_at: path.occurred_at,
-            to: `/conversations/${path.conversation_id}?path=${path.id}`,
-          })),
-        );
+  const list = { notes, articles, conversations }[kind];
+  const rows: Row[] = {
+    notes: () =>
+      (notes.data?.pages ?? []).flatMap((page) =>
+        page.items.map((note) => ({
+          key: note.id,
+          title: note.title,
+          at: note.occurred_at,
+          to: notePath(note.id),
+        })),
+      ),
+    // An article is dated by its publication, not by the day it was imported.
+    articles: () =>
+      (articles.data?.pages ?? []).flatMap((page) =>
+        page.items.map((article) => ({
+          key: article.id,
+          title: article.title,
+          aside: article.author ?? article.site,
+          at: article.published_at,
+          to: `/articles/${article.id}`,
+        })),
+      ),
+    conversations: () =>
+      (conversations.data?.pages ?? []).flatMap((page) =>
+        page.items.map((path) => ({
+          key: path.id,
+          title: path.title,
+          aside: sources[path.source],
+          at: path.occurred_at,
+          to: `/conversations/${path.conversation_id}?path=${path.id}`,
+        })),
+      ),
+  }[kind]();
   const totals: Record<Kind, number | undefined> = {
     notes: notes.data?.pages[0]?.total,
+    articles: articles.data?.pages[0]?.total,
     conversations: conversations.data?.pages[0]?.total,
   };
   const { name } = kinds[kind];
@@ -194,9 +214,9 @@ export function StarsPage({ kind }: { kind: Kind }) {
                     <span className="leader" aria-hidden="true" />
                     <time
                       className="entry-date"
-                      dateTime={new Date(row.occurred_at).toISOString()}
+                      dateTime={new Date(row.at).toISOString()}
                     >
-                      {monthDay(row.occurred_at)}
+                      {monthDay(row.at)}
                     </time>
                   </Link>
                 </li>
@@ -210,10 +230,9 @@ export function StarsPage({ kind }: { kind: Kind }) {
 
   return (
     <div className="contents">
-      {/* Articles are not built yet: shown as a word, never a link or a tab stop. */}
       <nav className="kinds" aria-label="摘星分类">
         <KindLink kind="notes" current={kind} total={totals.notes} />
-        <span>文章</span>
+        <KindLink kind="articles" current={kind} total={totals.articles} />
         <KindLink
           kind="conversations"
           current={kind}
@@ -275,7 +294,7 @@ function KindLink({
 function byYear(rows: Row[]) {
   const years: [number, Row[]][] = [];
   for (const row of rows) {
-    const year = new Date(row.occurred_at).getFullYear();
+    const year = new Date(row.at).getFullYear();
     const last = years.at(-1);
     if (last?.[0] === year) last[1].push(row);
     else years.push([year, [row]]);

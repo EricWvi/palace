@@ -1,7 +1,7 @@
 use crate::{MediaStore, StoreError, object_key};
 use bytes::Bytes;
-use palace_db::{Database, DbError, Media, OwnerScope};
-use palace_domain::MediaUpload;
+use palace_db::{Database, DbError, Media, MediaForDelete, OwnerScope};
+use palace_domain::{InputError, MediaUpload};
 use palace_logging::palace_warn;
 use uuid::Uuid;
 
@@ -11,6 +11,14 @@ pub enum MediaError {
     Database(#[from] DbError),
     #[error(transparent)]
     Store(#[from] StoreError),
+    #[error(transparent)]
+    Input(#[from] InputError),
+    /// A record embeds the media, so it can only go together with that record.
+    #[error("media is embedded in a record")]
+    Embedded,
+    /// The request carries files but this deployment stores no media.
+    #[error("media storage is not configured")]
+    Unconfigured,
 }
 
 /// Stores the object first and registers it second, so every media row has its object. A row
@@ -44,14 +52,19 @@ pub async fn upload<S: MediaStore>(
 }
 
 /// Removes the object before the row. If either step fails the row survives, so a retry runs
-/// both steps again and success is only reported once the object is really gone.
+/// both steps again and success is only reported once the object is really gone. Media a record
+/// embeds is refused before anything is removed: removing its object first and failing on the
+/// row would leave the record pointing at bytes that are gone.
 pub async fn delete<S: MediaStore>(
     database: &Database,
     store: &S,
     owner: OwnerScope,
     id: Uuid,
 ) -> Result<(), MediaError> {
-    let key = database.media_object_key(owner, id).await?;
+    let MediaForDelete::Free { object_key: key } = database.media_for_delete(owner, id).await?
+    else {
+        return Err(MediaError::Embedded);
+    };
     if let Err(error) = store.delete(&key).await {
         palace_warn!(message = "Media object delete failed; the row is kept for a retry", key = %key, error = %error);
         return Err(error.into());

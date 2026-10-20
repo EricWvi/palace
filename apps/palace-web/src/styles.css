@@ -336,6 +336,19 @@ ol.timeline {
   content: " ]";
 }
 
+/* The author follows the title on the same line, set apart by the meta line's dot. */
+.moment-head .byline {
+  color: var(--text-2);
+  font-size: var(--font-size-md);
+}
+
+.moment-head .byline::before {
+  display: inline-block;
+  content: "·";
+  margin: 0 8px;
+  color: var(--text-3);
+}
+
 .moment-head:hover .title {
   text-decoration: underline;
   text-decoration-color: var(--text-3);
@@ -647,6 +660,18 @@ ol.messages {
 
 .markdown strong {
   font-weight: 600;
+}
+
+/* Embedded images and videos fit the column; a video takes its own line. */
+.markdown img,
+.markdown video {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown video {
+  display: block;
+  margin: 0 auto;
 }
 
 .markdown a {

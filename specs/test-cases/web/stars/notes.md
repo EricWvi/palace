@@ -2,21 +2,21 @@
 
 当前决策：[笔记来自挂载的 Markdown 文件夹](../../../decisions/web/stars/20261014-notes-from-mounted-folder.md)。列表样式、搜索交互与后退恢复沿用[摘星入口页](contents-page.md)的用例；本文件只记录笔记引入的新承诺。
 
-## Stars navigation must open the note list and keep articles inert
+## Stars navigation must open the note list and every kind
 
-风险：摘星仍落到对话列表，或笔记开放后导航当前项错乱；尚未开放的文章被误开放。前置：已登录，笔记索引中有若干笔记，另有对话。触发：点击顶部导航的「摘星」；分别打开 `/notes`、`/notes/<id>`、`/conversations`、`/conversations/:id`，读取无障碍树；用键盘 Tab 遍历类型列。
+风险：摘星仍落到对话列表，或某一类型开放后导航当前项错乱。前置：已登录，笔记索引中有若干笔记，另有文章与对话。触发：点击顶部导航的「摘星」；分别打开 `/notes`、`/notes/<id>`、`/articles`、`/articles/<id>`、`/conversations`、`/conversations/:id`，读取无障碍树；用键盘 Tab 遍历类型列。
 
-必须成立：「摘星」是指向 `/notes` 的链接；四种地址上导航中只有摘星带 `aria-current="page"`。类型列中「笔记」与「对话」都是链接并显示条数，当前类型带 `aria-current="page"`；「文章」不是链接、不进入 Tab 顺序、不显示条数。没有 `date` 的对话阅读页删除整个对话后仍落到 `/conversations`。禁止摘星指向 `/conversations`，禁止用 `?kind=` 选择类型。
+必须成立：「摘星」是指向 `/notes` 的链接；六种地址上导航中只有摘星带 `aria-current="page"`。类型列依次是「笔记」「文章」「对话」，都是链接并显示条数，当前类型带 `aria-current="page"`（文章自[文章决策](../../../decisions/web/stars/20261020-articles-imported-with-media.md)起开放）。没有 `date` 的对话阅读页删除整个对话后仍落到 `/conversations`。禁止摘星指向 `/conversations`，禁止用 `?kind=` 选择类型。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 摘星指向 `/notes`，笔记与对话的列表页、详情页上只有摘星是当前项 | Covered | `pages/stars.test.tsx::opens the note list from 摘星, where notes and conversations are open and articles stay inert`、`app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`、`pages/note.test.tsx::lists notes by date and opens one at the top, to read only` |
-| 类型列中笔记与对话可打开并显示条数，文章保持不可达 | Covered | `pages/stars.test.tsx::opens the note list from 摘星, where notes and conversations are open and articles stay inert` |
+| 摘星指向 `/notes`，笔记、文章与对话的列表页、详情页上只有摘星是当前项 | Covered | `pages/stars.test.tsx::opens the note list from 摘星, where every kind is open in order`、`pages/article.test.tsx::lists articles by publish date and reads one like a note, with its own media only`、`app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`、`pages/note.test.tsx::lists notes by date and opens one at the top, to read only` |
+| 类型列中三种类型都可打开并显示条数，顺序为笔记、文章、对话 | Covered | `pages/stars.test.tsx::opens the note list from 摘星, where every kind is open in order` |
 | 对话删除后的落点仍是 `/conversations` | Covered | `pages/stars.test.tsx::comes back to the same search, and drops the rows of a conversation deleted meanwhile`、`pages/conversation.test.tsx::after deleting %s, replaces the page with %s` |
 
-决策依据：D1，不变量 1。
+决策依据：D1，不变量 1；文章决策“继承与修改”中的类型列一行。
 
 ## Notes must be read-only and readable by every signed-in user
 

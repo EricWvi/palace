@@ -23,6 +23,7 @@ pub async fn fixed_user_router(
     notes: Arc<NoteLibrary>,
     media: MediaStorage,
     jottings: JottingService,
+    timezone: chrono_tz::Tz,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let owner = database
         .resolve_identity("palace:local-test", "single-user", "local-test@palace.test")
@@ -35,6 +36,7 @@ pub async fn fixed_user_router(
         notes,
         media,
         jottings,
+        timezone,
     })
     .merge(tokens)
     .route_layer(middleware::from_fn_with_state((owner, origin), identify))
@@ -55,9 +57,10 @@ async fn identify(
     }
     request.extensions_mut().insert(owner);
     let mut response = next.run(request).await;
-    response.headers_mut().insert(
-        header::CACHE_CONTROL,
-        axum::http::HeaderValue::from_static("no-store"),
-    );
+    // A handler that chose its own caching (a media redirect) keeps it.
+    response
+        .headers_mut()
+        .entry(header::CACHE_CONTROL)
+        .or_insert(axum::http::HeaderValue::from_static("no-store"));
     Ok(response)
 }

@@ -12,9 +12,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 本 Owner 的 Session 与 Access Token 都得到可取回字节的跳转（真实 MinIO） | Missing | — |
-| 其他 Owner 与不存在的 ID 得到相同 404，非 UUID 400（真实 PostgreSQL 与真实 Router） | Missing | — |
-| 未配置存储返回 503；对象缺失时跟随跳转得到 404 | Missing | — |
+| 本 Owner 的 Session 与 Access Token 都得到可取回字节的跳转（真实 MinIO） | Partial | `crates/backend/tests/http.rs::media::media_http_uploads_and_deletes_within_the_owner`（经 `tests/http/articles.rs::exercise_with_media`，浏览器 Session 跟随跳转从 MinIO 取回字节；Access Token 经同一认证中间件，读取接口未单独验证） |
+| 其他 Owner 与不存在的 ID 得到相同 404，非 UUID 400（真实 PostgreSQL 与真实 Router） | Covered | `crates/backend/tests/http.rs::media::media_http_uploads_and_deletes_within_the_owner`（经 `exercise_with_media`） |
+| 未配置存储返回 503；对象缺失时跟随跳转得到 404 | Partial | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `exercise_without_media`，503）、`crates/backend/tests/http.rs::media::media_http_uploads_and_deletes_within_the_owner`（文章删除后旧签名 URL 得到 404；“行存在而对象缺失”的中间状态未单独构造） |
 
 决策依据：D2，不变量 1、2。
 
@@ -28,9 +28,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 同一小时内 URL 相同、跨整点不同，至少 1 小时有效，`max-age` 不越过整点 | Missing | — |
-| 非媒体类型以附件下载，`Content-Type` 来自记录（真实 MinIO） | Missing | — |
-| 浏览器侧 endpoint 只用于签名；单独配置时启动失败 | Missing | — |
+| 同一小时内 URL 相同、跨整点不同，至少 1 小时有效，`max-age` 不越过整点 | Covered | `crates/media/src/presign.rs::urls_are_stable_within_the_signing_hour`（签名是纯函数，注入时间）、`crates/media/src/presign.rs::signature_matches_the_aws_example`（AWS 文档向量） |
+| 非媒体类型以附件下载，`Content-Type` 来自记录（真实 MinIO） | Covered | `crates/media/tests/minio/articles.rs::presigned_urls_fetch_the_stored_bytes`、`crates/backend/tests/http.rs::media::media_http_uploads_and_deletes_within_the_owner`（经 `exercise_with_media`：上传的 `text/html` 经读取接口跳转后以附件下载） |
+| 浏览器侧 endpoint 只用于签名；单独配置时启动失败 | Covered | `crates/media/src/config.rs::s3_settings_are_all_or_nothing`、`crates/media/src/config.rs::invalid_values_name_their_variable` |
 
 决策依据：D2、D3，不变量 3、4。
 
@@ -44,7 +44,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 被引用的媒体返回 409 且对象与行都不变（真实 PostgreSQL 与真实 MinIO） | Missing | — |
-| 未被引用媒体的删除行为不变 | Missing | — |
+| 被引用的媒体返回 409 且对象与行都不变（真实 PostgreSQL 与真实 MinIO） | Covered | `crates/media/tests/minio/articles.rs::deleting_an_article_removes_its_objects_before_its_rows`、`crates/backend/tests/http.rs::media::media_http_uploads_and_deletes_within_the_owner`（经 `exercise_with_media`） |
+| 未被引用媒体的删除行为不变 | Covered | `crates/media/tests/minio/articles.rs::deleting_an_article_removes_its_objects_before_its_rows`、`crates/media/tests/minio.rs::delete_removes_the_object_first_and_retries_converge` |
 
 决策依据：D4，不变量 5。

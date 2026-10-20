@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 date: 2026-10-20
 ---
 
@@ -7,7 +7,7 @@ date: 2026-10-20
 
 Palace 新增 `GET /api/media/{id}`：在 Owner Scope 内找到媒体后，返回 `302` 跳转到对象存储的现签 GET URL，浏览器从对象存储直接取字节。业务正文中引用媒体的唯一写法是 Palace 应用地址 `/api/media/<id>`，签名 URL 永不进入正文或数据库。签名时间按小时对齐，同一小时内同一媒体的跳转目标不变，浏览器缓存因此有效。被业务记录引用的媒体不能通过 `DELETE /api/media/{id}` 单独删除，只能随引用它的记录一起删除。
 
-当前为 `approved`，核心测试用例见[媒体读取](../../../test-cases/server/media/media-reading.md)。本决策基于[媒体根决策](0-uuid-v7-media-identity-over-s3-objects.md)，回答其“读取与展示”和“引用关系与回收”两个未解决问题中的读取与正文写法部分；第一个使用者是[文章](../../web/stars/20261020-articles-imported-with-media.md)。涉及 `palace-media` 的存储 trait 与 S3 实现、`palace-backend` 的媒体接口、`palace-server` 的配置与 `docs/server/环境变量.md`。孤儿对象的对账清理、缩略图、媒体列表、同步与旧 dashboard 媒体导入仍不在范围内。
+当前为 `implemented`，核心测试用例见[媒体读取](../../../test-cases/server/media/media-reading.md)。本决策基于[媒体根决策](0-uuid-v7-media-identity-over-s3-objects.md)，回答其“读取与展示”和“引用关系与回收”两个未解决问题中的读取与正文写法部分；第一个使用者是[文章](../../web/stars/20261020-articles-imported-with-media.md)。涉及 `palace-media` 的存储 trait 与 S3 实现、`palace-backend` 的媒体接口、`palace-server` 的配置与 `docs/server/环境变量.md`。孤儿对象的对账清理、缩略图、媒体列表、同步与旧 dashboard 媒体导入仍不在范围内。
 
 ## 继承与修改
 
@@ -50,10 +50,14 @@ Palace 新增 `GET /api/media/{id}`：在 Owner Scope 内找到媒体后，返�
 
 **为什么签名时间按小时对齐**：每次请求都现签时，`X-Amz-Date` 每秒不同，同一张图每次打开文章都是新 URL，浏览器缓存全部失效。对齐后 URL 在一小时内稳定；2 小时有效期保证在窗口末尾拿到的 URL 也不会在页面加载过程中过期。
 
+签名由 Palace 自己按 SigV4 查询串规则生成：`object_store` 的签名接口总以当前时间签名，也不能附加 `response-content-*` 参数，做不到对齐和指定响应头。实现用 AWS 文档中的预签名示例作为测试向量。
+
+认证层给业务响应统一加 `Cache-Control: no-store`，但保留处理器自己设置的缓存头，读取跳转因此能带 `private, max-age`。
+
 ## D3：浏览器侧 endpoint
 
 - 新增可选环境变量 `PALACE_S3_PUBLIC_ENDPOINT`（http 或 https URL）。配置时，签名 URL 使用它作为 endpoint；未配置时使用 `PALACE_S3_ENDPOINT`。写入与删除始终使用 `PALACE_S3_ENDPOINT`。
-- 它不属于六个变量的“全有或全无”：容器内能直接访问的 endpoint 往往就是浏览器能访问的地址，多数部署不需要它。单独配置它而没有配置存储时，启动失败并指出变量名。
+- 它不属于六个变量的“全有或全无”：容器内能直接访问的 endpoint 往往就是浏览器能访问的地址，多数部署不需要它。单独配置它而没有配置存储时，按“部分配置”启动失败，错误列出缺少的六个变量（评审稿写的是指出它自己的变量名，实现沿用已有的部分配置错误，指向需要补上的变量更有用）。
 
 **为什么需要**：签名覆盖 Host，签好的 URL 不能事后替换主机名。服务端在容器网络里通过内部主机名（例如 `http://minio:9000`）访问 MinIO 时，用它签出的 URL 浏览器打不开，只能用浏览器能解析的地址签名。
 
@@ -95,9 +99,12 @@ Palace 新增 `GET /api/media/{id}`：在 Owner Scope 内找到媒体后，返�
 - **未被引用的媒体**：`POST /api/media` 上传、尚未被任何记录引用的媒体如何回收，等第二个引用方出现时再定。
 - **缩略图与转码**：读取返回原文件，不生成缩略图或转码视频。
 
-## 落地顺序
+## 落地与验收
 
-1. 存储 trait 增加签名 GET；S3 实现按 D2 的对齐时间与响应头签名；配置增加 `PALACE_S3_PUBLIC_ENDPOINT`。完成条件：真实 MinIO 测试中签出的 URL 能取回字节，响应头符合 D2，同一小时两次签名结果相同。
-2. `GET /api/media/{id}` 与 `DELETE` 的引用检查。引用检查要等文章的引用表存在才能被真实测试覆盖，因此与文章的导入一起落地。完成条件：真实 PostgreSQL + MinIO 覆盖跨 Owner 404、未配置 503、被引用 409。
+- `palace-media`：`Presigner` 实现 D2 的对齐签名与响应头，`S3Config` 读取 `PALACE_S3_PUBLIC_ENDPOINT`，`MediaStorage` 持有签名器；`delete` 在删除对象前检查引用。
+- `palace-db`：`media_object` 读取对象与类型，`media_for_delete` 同时给出对象位置和是否被引用。
+- `palace-backend`：`GET /api/media/{id}` 与媒体上传、删除挂在同一个路由组；删除被引用的媒体返回 `409 media_in_use`。
+
+证据见核心测试用例：签名的对齐与 AWS 向量是纯函数单元测试；签名 URL 能否从真实 MinIO 取回字节与响应头、引用检查由真实 PostgreSQL 加真实 MinIO 验证；跨 Owner、未配置和非 UUID 的响应由真实 Router 验证。
 
 上传与删除未被引用媒体的行为保持不变。

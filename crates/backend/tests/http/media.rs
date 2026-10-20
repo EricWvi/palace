@@ -23,10 +23,10 @@ use tower::ServiceExt;
 const ORIGIN: &str = "https://palace.test";
 
 /// One multipart part: field name, optional filename, optional Content-Type and content.
-type Part<'a> = (&'a str, Option<&'a str>, Option<&'a str>, &'a [u8]);
+pub(super) type Part<'a> = (&'a str, Option<&'a str>, Option<&'a str>, &'a [u8]);
 
 /// Encodes parts exactly as a browser form would, so the real extractor parses them.
-fn form(parts: &[Part]) -> Vec<u8> {
+pub(super) fn form(parts: &[Part]) -> Vec<u8> {
     let mut body = Vec::new();
     for (name, file_name, content_type, content) in parts {
         body.extend_from_slice(b"--boundary\r\n");
@@ -51,7 +51,7 @@ fn form(parts: &[Part]) -> Vec<u8> {
 }
 
 /// Sends a request through the whole router and returns status and body text.
-async fn send(
+pub(super) async fn send(
     app: &Router,
     method: &str,
     uri: &str,
@@ -113,9 +113,17 @@ pub(super) async fn exercise_unconfigured(app: &Router, cookie: &str) {
 /// - `specs/test-cases/server/media/media-storage.md#deleting-media-must-remove-the-object-before-reporting-success`
 /// - `specs/test-cases/server/media/media-storage.md#media-access-must-stay-within-the-authenticated-owner-scope`
 /// - `specs/test-cases/server/media/media-storage.md#upload-limits-must-be-enforced-by-the-media-route-itself`
+/// - `specs/test-cases/web/stars/articles.md#article-import-must-commit-the-article-and-its-media-together-or-not-at-all`
+/// - `specs/test-cases/web/stars/articles.md#importing-the-same-url-must-converge-on-one-article`
+/// - `specs/test-cases/web/stars/articles.md#deleting-an-article-must-remove-its-media-objects-before-reporting-success`
+/// - `specs/test-cases/server/media/media-reading.md#reading-media-must-redirect-only-within-the-owner-scope`
+/// - `specs/test-cases/server/media/media-reading.md#presigned-media-urls-must-be-stable-within-the-hour-and-safe-to-open`
+/// - `specs/test-cases/server/media/media-reading.md#referenced-media-must-not-be-deletable-on-its-own`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine and minio/minio images and Docker/Podman socket"]
 async fn media_http_uploads_and_deletes_within_the_owner() {
+    // Read redirects are signed for the hour on the process clock.
+    palace_logging::initialize_test_clock();
     let postgres = palace_testkit::reaped(
         GenericImage::new("postgres", "17-alpine")
             .with_exposed_port(5432.tcp())
@@ -139,12 +147,16 @@ async fn media_http_uploads_and_deletes_within_the_owner() {
     let minio = palace_testkit::minio().await.unwrap();
     let config = S3Config {
         endpoint: url::Url::parse(&minio.endpoint).unwrap(),
+        public_endpoint: None,
         region: MINIO_REGION.into(),
         bucket: MINIO_BUCKET.into(),
         access_key_id: MINIO_ACCESS_KEY.into(),
         secret_access_key: MINIO_SECRET_KEY.into(),
         addressing: Addressing::Path,
-        limits: MediaLimits { max_bytes: 8 },
+        limits: MediaLimits {
+            max_bytes: 8,
+            ..MediaLimits::default()
+        },
     };
     let raw = AmazonS3Builder::new()
         .with_endpoint(&minio.endpoint)
@@ -184,8 +196,9 @@ async fn media_http_uploads_and_deletes_within_the_owner() {
         links: SourceLinks::standard().unwrap(),
         limits: ImportLimits::default(),
         notes: std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
-        media: MediaStorage::connect(&palace_media::MediaConfig::S3(config)).unwrap(),
+        media: MediaStorage::connect(&palace_media::MediaConfig::S3(Box::new(config))).unwrap(),
         jottings: palace_jottings::JottingService::Unconfigured,
+        timezone: chrono_tz::Asia::Shanghai,
         now,
     }));
     let objects = || async {
@@ -321,5 +334,6 @@ async fn media_http_uploads_and_deletes_within_the_owner() {
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
+    super::articles::exercise_with_media(&app, cookie, foreign, &pool).await;
     capture.verify(contract::Coverage::ObservedOperations);
 }

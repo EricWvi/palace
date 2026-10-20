@@ -1,5 +1,5 @@
-use chrono::{DateTime, NaiveDate, TimeZone};
 use chrono_tz::Tz;
+use palace_domain::DocumentDate;
 use serde::Deserialize;
 use std::{
     collections::HashMap,
@@ -72,7 +72,8 @@ impl NoteIndex {
             if entry.title.trim().is_empty() {
                 return Err(CacheError::Title(entry.id));
             }
-            let Some(occurred_at) = epoch_millis(&entry.date, timezone) else {
+            let Some(occurred_at) = DocumentDate::parse(&entry.date, timezone).map(|date| date.at)
+            else {
                 return Err(CacheError::Date {
                     id: entry.id,
                     date: entry.date,
@@ -134,29 +135,6 @@ pub(crate) fn note_id(file: &Path) -> Option<String> {
         .map(|segment| segment.to_str())
         .collect::<Option<Vec<_>>>()?;
     segments.join("/").strip_suffix(".md").map(str::to_owned)
-}
-
-/// Reads `YYYY-MM-DD` as midnight in `timezone`, or an RFC 3339 time with its own offset.
-fn epoch_millis(date: &str, timezone: Tz) -> Option<i64> {
-    if date.len() == 10 {
-        let day = NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()?;
-        let midnight = day.and_hms_opt(0, 0, 0)?;
-        // Where midnight falls into a daylight-saving gap the day starts at its first instant.
-        let start = timezone
-            .from_local_datetime(&midnight)
-            .earliest()
-            .or_else(|| {
-                (1..=24).find_map(|hour| {
-                    timezone
-                        .from_local_datetime(&(midnight + chrono::Duration::hours(hour)))
-                        .earliest()
-                })
-            })?;
-        return Some(start.timestamp_millis());
-    }
-    DateTime::parse_from_rfc3339(date)
-        .ok()
-        .map(|time| time.timestamp_millis())
 }
 
 #[cfg(test)]

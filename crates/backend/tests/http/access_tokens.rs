@@ -181,6 +181,7 @@ async fn access_tokens_authenticate_business_requests_only() {
         notes: std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
         media: palace_media::MediaStorage::Unconfigured,
         jottings: palace_jottings::JottingService::Unconfigured,
+        timezone: chrono_tz::Asia::Shanghai,
         now,
     }));
     let unauthorized = Answer {

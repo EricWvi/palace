@@ -16,6 +16,23 @@ pub struct Media {
     pub created_at: i64,
 }
 
+/// Whether a media file may be deleted on its own.
+#[derive(Debug, PartialEq, Eq)]
+pub enum MediaForDelete {
+    /// No record embeds it; deleting removes this object.
+    Free { object_key: String },
+    /// A record embeds it, so it goes only when that record is deleted.
+    Embedded,
+}
+
+/// A stored object and how to present it; internal to the server, never sent as is.
+#[derive(Debug, PartialEq, Eq)]
+pub struct MediaObject {
+    pub object_key: String,
+    pub content_type: String,
+    pub file_name: Option<String>,
+}
+
 impl Database {
     /// Registers an object that storage has already accepted, so a row always has its object.
     pub async fn insert_media(
@@ -44,14 +61,42 @@ impl Database {
         })
     }
 
-    /// Locates the object behind a media id; ids of other owners are indistinguishable from absent ones.
-    pub async fn media_object_key(&self, owner: OwnerScope, id: Uuid) -> Result<String, DbError> {
-        sqlx::query_scalar("SELECT object_key FROM media WHERE owner_id=$1 AND id=$2")
+    /// Locates the object behind a media id and whether a record embeds it; ids of other owners
+    /// are indistinguishable from absent ones.
+    pub async fn media_for_delete(
+        &self,
+        owner: OwnerScope,
+        id: Uuid,
+    ) -> Result<MediaForDelete, DbError> {
+        let row = sqlx::query("SELECT object_key,EXISTS(SELECT 1 FROM article_media am WHERE am.owner_id=md.owner_id AND am.media_id=md.id) AS embedded FROM media md WHERE md.owner_id=$1 AND md.id=$2")
             .bind(owner.id())
             .bind(id)
             .fetch_optional(&self.pool)
             .await?
-            .ok_or(DbError::NotFound)
+            .ok_or(DbError::NotFound)?;
+        let object_key = row.try_get("object_key")?;
+        Ok(if row.try_get("embedded")? {
+            MediaForDelete::Embedded
+        } else {
+            MediaForDelete::Free { object_key }
+        })
+    }
+
+    /// Reads what serving a media file needs: where its object is and how to present it.
+    pub async fn media_object(&self, owner: OwnerScope, id: Uuid) -> Result<MediaObject, DbError> {
+        let row = sqlx::query(
+            "SELECT object_key,content_type,file_name FROM media WHERE owner_id=$1 AND id=$2",
+        )
+        .bind(owner.id())
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or(DbError::NotFound)?;
+        Ok(MediaObject {
+            object_key: row.try_get("object_key")?,
+            content_type: row.try_get("content_type")?,
+            file_name: row.try_get("file_name")?,
+        })
     }
 
     /// Forgets a media row after its object is gone. A row a concurrent delete already removed

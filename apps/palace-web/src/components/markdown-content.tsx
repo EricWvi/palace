@@ -6,11 +6,14 @@ import remarkGfm from "remark-gfm";
 
 // Where images may be loaded from is the one rule that differs between callers: imported
 // conversations are third-party content and must not make the reader's browser fetch anything,
-// while notes and articles show images the owner uploaded to Palace.
+// while notes and articles show images and videos the owner keeps.
 export type ImagePolicy =
   | { kind: "placeholder" }
-  // `resolve` maps the address written in the Markdown to the one to load; null keeps a placeholder.
-  | { kind: "load"; resolve: (src: string) => string | null };
+  // `resolve` maps the address written in the Markdown to what to load; null keeps a placeholder.
+  | { kind: "load"; resolve: (src: string) => EmbeddedMedia | null };
+
+// Markdown has one embed syntax, `![alt](src)`; only the caller knows whether src is a video.
+export type EmbeddedMedia = { kind: "image" | "video"; src: string };
 
 // Only a language the source wrote down is trusted: guessing turns logs and command output into
 // confidently wrong colours, and trying every grammar on every block grows with the content.
@@ -41,11 +44,19 @@ export const MarkdownContent = memo(function MarkdownContent({
               images.kind === "load" && typeof src === "string"
                 ? images.resolve(src)
                 : null;
-            return resolved === null ? (
-              <span className="quiet">[图片：{alt || "未加载"}]</span>
+            if (resolved === null)
+              return <span className="quiet">[图片：{alt || "未加载"}]</span>;
+            // Only the metadata loads up front; the video itself waits for the reader to play it.
+            return resolved.kind === "video" ? (
+              <video
+                src={resolved.src}
+                aria-label={alt || undefined}
+                controls
+                preload="metadata"
+              />
             ) : (
               <img
-                src={resolved}
+                src={resolved.src}
                 alt={alt ?? ""}
                 loading="lazy"
                 referrerPolicy="no-referrer"

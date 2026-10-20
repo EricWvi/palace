@@ -58,6 +58,7 @@ pub(crate) async fn run(
         notes,
         media,
         jottings,
+        timezone,
         now: now_seconds,
     })
     .merge(crate::web_app::web_app(&web_dist));

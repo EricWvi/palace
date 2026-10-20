@@ -1,7 +1,12 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { address, mountApp } from "@/test-app";
-import type { ConversationListItem, Detail, NoteListItem } from "@/lib/api";
+import type {
+  ArticleListItem,
+  ConversationListItem,
+  Detail,
+  NoteListItem,
+} from "@/lib/api";
 import { requestPath, testRequest } from "@/lib/test-request";
 
 // Local wall-clock times, so years and `MM.DD` do not depend on the test machine's zone.
@@ -31,6 +36,16 @@ const notes: NoteListItem[] = [
     occurred_at: at(2026, 10, 6),
   },
   { id: "旅行/周末", title: "周末", occurred_at: at(2026, 9, 30) },
+];
+const articles: ArticleListItem[] = [
+  {
+    id: "a1",
+    title: "长文",
+    author: null,
+    site: "example.com",
+    published_at: at(2026, 5, 1),
+    date: "2026-05-01",
+  },
 ];
 function detail(paths: ConversationListItem[]): Detail {
   return {
@@ -71,6 +86,8 @@ function serve() {
     const path = requestPath(url);
     if (path === "/api/notes")
       return Response.json({ items: notes, next_cursor: null, total: 2 });
+    if (path === "/api/articles")
+      return Response.json({ items: articles, next_cursor: null, total: 1 });
     if (path === "/api/conversations") {
       const query = Object.fromEntries(new URL(request.url).searchParams);
       queries.push(query);
@@ -105,8 +122,10 @@ const titles = () =>
     (title) => title.textContent,
   );
 
-// Core test case: `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert`
-it("opens the note list from 摘星, where notes and conversations are open and articles stay inert", async () => {
+// Core test cases:
+// - `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-every-kind`
+// - `specs/test-cases/web/stars/articles.md#article-page-must-load-only-its-own-palace-media`
+it("opens the note list from 摘星, where every kind is open in order", async () => {
   serve();
   const { router, user } = mountApp("/?date=2025-09-30");
   await user.click(await screen.findByRole("link", { name: "摘星" }));
@@ -121,21 +140,25 @@ it("opens the note list from 摘星, where notes and conversations are open and 
   await waitFor(() =>
     expect([...kinds.children].map((kind) => kind.textContent)).toEqual([
       "笔记2",
-      "文章",
+      "文章1",
       "对话3",
     ]),
   );
   expect(current()).toEqual(["摘星", "笔记2"]);
   expect(within(kinds).getAllByRole("link")).toEqual([
     within(kinds).getByRole("link", { name: "笔记2" }),
+    within(kinds).getByRole("link", { name: "文章1" }),
     within(kinds).getByRole("link", { name: "对话3" }),
   ]);
-  // Tabbing through the page goes from the top bar to the open kinds, past 文章.
-  for (const name of ["时刻", "摘星", "回响", "笔记2", "对话3"]) {
+  // Tabbing through the page goes from the top bar through every kind.
+  for (const name of ["时刻", "摘星", "回响", "笔记2", "文章1", "对话3"]) {
     await user.tab();
     expect(document.activeElement).toHaveAccessibleName(name);
   }
 
+  await user.click(within(kinds).getByRole("link", { name: "文章1" }));
+  expect(address(router)).toBe("/articles");
+  await waitFor(() => expect(current()).toEqual(["摘星", "文章1"]));
   await user.click(within(kinds).getByRole("link", { name: "对话3" }));
   expect(address(router)).toBe("/conversations");
   await waitFor(() => expect(current()).toEqual(["摘星", "对话3"]));
@@ -226,7 +249,7 @@ it("searches only on Enter, in place, and clears with Escape before putting the 
 
 // Core test cases:
 // - `specs/test-cases/web/stars/contents-page.md#returning-to-the-list-must-restore-the-search-and-drop-stale-rows`
-// - `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert`
+// - `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-every-kind`
 it("comes back to the same search, and drops the rows of a conversation deleted meanwhile", async () => {
   const { queries } = serve();
   const { router, user } = mountApp("/conversations?q=e");

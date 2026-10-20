@@ -14,6 +14,7 @@ pub(crate) enum ErrorCode {
     IdentityUnavailable,
     SearchUnavailable,
     MediaStorageUnavailable,
+    MediaInUse,
     JottingIdConflict,
     JottingsUnavailable,
     PersistenceFailed,

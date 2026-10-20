@@ -66,7 +66,7 @@ beforeEach(() => {
 // - `specs/test-cases/web/stars/notes.md#note-list-must-page-every-indexed-note-exactly-once-by-its-date`
 // - `specs/test-cases/web/stars/notes.md#note-page-must-read-only-files-listed-in-the-index`
 // - `specs/test-cases/web/stars/notes.md#notes-must-be-read-only-and-readable-by-every-signed-in-user`
-// - `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert`
+// - `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-every-kind`
 it("lists notes by date and opens one at the top, to read only", async () => {
   const { opened } = serve();
   const { router, user } = mountApp("/notes");
@@ -126,7 +126,9 @@ it("lists notes by date and opens one at the top, to read only", async () => {
   ).toHaveTextContent("摘星");
 });
 
-// Core test case: `specs/test-cases/web/stars/notes.md#note-page-must-read-only-files-listed-in-the-index`
+// Core test cases:
+// - `specs/test-cases/web/stars/notes.md#note-page-must-read-only-files-listed-in-the-index`
+// - `specs/test-cases/web/stars/articles.md#article-page-must-load-only-its-own-palace-media`
 it("shows the owner's images as written", async () => {
   serve();
   mountApp("/notes/rust/advisory-lock");

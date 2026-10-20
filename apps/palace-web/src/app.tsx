@@ -8,6 +8,9 @@ const StarsPage = lazy(() =>
 const NotePage = lazy(() =>
   import("./pages/note").then((module) => ({ default: module.NotePage })),
 );
+const ArticlePage = lazy(() =>
+  import("./pages/article").then((module) => ({ default: module.ArticlePage })),
+);
 const EchoPage = lazy(() =>
   import("./pages/echo").then((module) => ({ default: module.EchoPage })),
 );
@@ -17,11 +20,11 @@ const ConversationPage = lazy(() =>
   })),
 );
 
-// Each page belongs to one section of the top bar; notes and conversations are listed and read
-// in 摘星, jottings in 回响.
+// Each page belongs to one section of the top bar; notes, articles and conversations are listed
+// and read in 摘星, jottings in 回响.
 function sectionOf(pathname: string): Section | undefined {
   if (pathname === "/") return "时刻";
-  if (/^\/(notes|conversations)(\/|$)/.test(pathname)) return "摘星";
+  if (/^\/(notes|articles|conversations)(\/|$)/.test(pathname)) return "摘星";
   if (pathname === "/jottings") return "回响";
   return undefined;
 }
@@ -31,7 +34,8 @@ export function App() {
   const section = sectionOf(pathname);
   // A reading page names the tab after what it shows; every other page is just Palace.
   useEffect(() => {
-    if (!/^\/(notes|conversations)\//.test(pathname)) document.title = "Palace";
+    if (!/^\/(notes|articles|conversations)\//.test(pathname))
+      document.title = "Palace";
   }, [pathname]);
   return (
     // 回响 needs room for its columns, so its sheet widens and the header stretches with it.
@@ -42,6 +46,8 @@ export function App() {
           <Route path="/" element={<TimelinePage />} />
           <Route path="/notes" element={<StarsPage kind="notes" />} />
           <Route path="/notes/*" element={<NotePage />} />
+          <Route path="/articles" element={<StarsPage kind="articles" />} />
+          <Route path="/articles/:id" element={<ArticlePage />} />
           <Route
             path="/conversations"
             element={<StarsPage kind="conversations" />}

@@ -1,5 +1,7 @@
 use crate::{Database, DbError, OwnerScope};
-use palace_domain::{EXCERPT_SOURCE_CHARS, InputError, InputErrorKind, Role, Source, excerpt};
+use palace_domain::{
+    EXCERPT_SOURCE_CHARS, InputError, InputErrorKind, Role, Source, article_site, excerpt,
+};
 use serde::Serialize;
 use sqlx::Row;
 use std::collections::HashMap;
@@ -19,6 +21,7 @@ pub struct Moment {
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub enum MomentDetail {
     Conversation(ConversationCard),
+    Article(ArticleCard),
 }
 /// A conversation moment is one path: its own title and messages, the tree's source.
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -28,6 +31,14 @@ pub struct ConversationCard {
     pub source: Source,
     pub message_count: i64,
     pub excerpt: Vec<ExcerptLine>,
+}
+/// An article moment is shown by its title and who wrote it, or where it came from.
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct ArticleCard {
+    pub title: String,
+    pub author: Option<String>,
+    /// The URL's host without `www.`, shown where the article names no author.
+    pub site: String,
 }
 /// The plain-text opening of one message on the path.
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -46,6 +57,7 @@ pub struct MomentOutline {
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 pub enum MomentKind {
     Conversation,
+    Article,
 }
 
 impl Database {
@@ -67,12 +79,15 @@ impl Database {
             .await?;
         let moments = day_moments(&mut *tx, owner, start, end).await?;
         let mut conversations = Vec::new();
+        let mut articles = Vec::new();
         for (outline, _) in &moments {
             match outline.kind {
                 MomentKind::Conversation => conversations.push(outline.id),
+                MomentKind::Article => articles.push(outline.id),
             }
         }
         let mut cards = conversation_cards(&mut tx, owner, &conversations).await?;
+        let mut article_cards = article_cards(&mut tx, owner, &articles).await?;
         tx.commit().await?;
         moments
             .into_iter()
@@ -80,6 +95,9 @@ impl Database {
                 let detail = match outline.kind {
                     MomentKind::Conversation => MomentDetail::Conversation(
                         cards.remove(&outline.id).ok_or(DbError::Conflict)?,
+                    ),
+                    MomentKind::Article => MomentDetail::Article(
+                        article_cards.remove(&outline.id).ok_or(DbError::Conflict)?,
                     ),
                 };
                 Ok(Moment {
@@ -129,7 +147,8 @@ async fn day_moments<'e>(
         .map(|row| {
             let kind = match row.try_get::<String, _>("kind")?.as_str() {
                 "conversation" => MomentKind::Conversation,
-                // The database check constraint admits no other kind yet.
+                "article" => MomentKind::Article,
+                // The database check constraint admits no other kind.
                 _ => return Err(DbError::Conflict),
             };
             Ok((
@@ -185,6 +204,35 @@ async fn conversation_cards(
                     source,
                     message_count: row.try_get("message_count")?,
                     excerpt: excerpts.remove(&id).unwrap_or_default(),
+                },
+            ))
+        })
+        .collect()
+}
+
+/// Reads the card fields of many article moments in one query.
+async fn article_cards(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    owner: OwnerScope,
+    ids: &[Uuid],
+) -> Result<HashMap<Uuid, ArticleCard>, DbError> {
+    if ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let rows =
+        sqlx::query("SELECT id,title,author,url FROM article WHERE owner_id=$1 AND id=ANY($2)")
+            .bind(owner.id())
+            .bind(ids)
+            .fetch_all(&mut **tx)
+            .await?;
+    rows.into_iter()
+        .map(|row| {
+            Ok((
+                row.try_get("id")?,
+                ArticleCard {
+                    title: row.try_get("title")?,
+                    author: row.try_get("author")?,
+                    site: article_site(row.try_get("url")?),
                 },
             ))
         })

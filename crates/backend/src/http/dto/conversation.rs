@@ -128,6 +128,20 @@ pub(crate) struct PathMetadataResponse {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum Moment {
     Conversation(ConversationMoment),
+    Article(ArticleMoment),
+}
+/// An article moment: the article on the day it was imported.
+#[derive(Serialize, ToSchema)]
+pub(crate) struct ArticleMoment {
+    /// Moment id, equal to the article id.
+    pub id: Uuid,
+    /// Unix epoch milliseconds of the import.
+    pub occurred_at: i64,
+    pub title: String,
+    #[schema(required = true)]
+    pub author: Option<String>,
+    /// The URL's host without `www.`, shown where there is no author.
+    pub site: String,
 }
 /// A conversation moment is one path of a conversation tree.
 #[derive(Serialize, ToSchema)]
@@ -171,6 +185,13 @@ impl From<palace_db::Moment> for Moment {
                     })
                     .collect(),
             }),
+            palace_db::MomentDetail::Article(card) => Self::Article(ArticleMoment {
+                id: value.id,
+                occurred_at: value.occurred_at,
+                title: card.title,
+                author: card.author,
+                site: card.site,
+            }),
         }
     }
 }
@@ -186,6 +207,7 @@ pub(crate) struct MomentOutline {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum MomentKind {
     Conversation,
+    Article,
 }
 impl From<palace_db::MomentOutline> for MomentOutline {
     /// Keeps the public kind vocabulary exhaustive when the database gains a kind.
@@ -194,6 +216,7 @@ impl From<palace_db::MomentOutline> for MomentOutline {
             id: value.id,
             kind: match value.kind {
                 palace_db::MomentKind::Conversation => MomentKind::Conversation,
+                palace_db::MomentKind::Article => MomentKind::Article,
             },
         }
     }

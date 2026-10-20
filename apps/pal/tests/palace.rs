@@ -60,6 +60,7 @@ fn palace(database: Database, media: MediaStorage) -> axum::Router {
         notes: std::sync::Arc::new(palace_notes::NoteLibrary::absent()),
         media,
         jottings: palace_jottings::JottingService::Unconfigured,
+        timezone: chrono_tz::Asia::Shanghai,
         now,
     })
 }
@@ -92,15 +93,19 @@ async fn pal_uploads_and_deletes_media_through_a_real_palace() {
     let db = Database::connect(&url).await.unwrap();
     let pool = sqlx::PgPool::connect(&url).await.unwrap();
     let minio = palace_testkit::minio().await.unwrap();
-    let storage = MediaStorage::connect(&MediaConfig::S3(S3Config {
+    let storage = MediaStorage::connect(&MediaConfig::S3(Box::new(S3Config {
         endpoint: url::Url::parse(&minio.endpoint).unwrap(),
+        public_endpoint: None,
         region: MINIO_REGION.into(),
         bucket: MINIO_BUCKET.into(),
         access_key_id: MINIO_ACCESS_KEY.into(),
         secret_access_key: MINIO_SECRET_KEY.into(),
         addressing: Addressing::Path,
-        limits: MediaLimits { max_bytes: 8 },
-    }))
+        limits: MediaLimits {
+            max_bytes: 8,
+            ..MediaLimits::default()
+        },
+    })))
     .unwrap();
     let mut tokens = Vec::new();
     for subject in ["a", "b"] {

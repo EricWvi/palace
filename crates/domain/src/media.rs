@@ -6,16 +6,21 @@ pub const FALLBACK_CONTENT_TYPE: &str = "application/octet-stream";
 // File names are display metadata; the same bound as other multipart metadata keeps rows small.
 const FILE_NAME_BYTES: usize = 1024;
 
-/// Per-deployment bounds on one uploaded media file.
+/// Per-deployment bounds on uploaded media.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MediaLimits {
+    /// One file, whether uploaded alone or embedded in an article.
     pub max_bytes: usize,
+    /// One whole article import: its body plus every file it embeds.
+    pub article_max_bytes: usize,
 }
 impl Default for MediaLimits {
-    /// Matches the single-file limit of the legacy dashboard editor that media replaces.
+    /// The single-file limit matches the legacy dashboard editor that media replaces; an
+    /// article may embed several such files, or a short video.
     fn default() -> Self {
         Self {
             max_bytes: 50 * 1024 * 1024,
+            article_max_bytes: 256 * 1024 * 1024,
         }
     }
 }
@@ -166,7 +171,10 @@ mod tests {
     /// - `specs/test-cases/server/media/media-storage.md#upload-limits-must-be-enforced-by-the-media-route-itself`
     #[test]
     fn upload_bounds_are_checked_per_field() {
-        let limits = MediaLimits { max_bytes: 3 };
+        let limits = MediaLimits {
+            max_bytes: 3,
+            ..MediaLimits::default()
+        };
         assert!(MediaUpload::new(b"abc".to_vec(), None, None, limits).is_ok());
         assert_eq!(
             MediaUpload::new(b"abcd".to_vec(), None, None, limits),

@@ -40,6 +40,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/articles": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Lists the owner's articles for 摘星, latest publish date first, one page at a time. */
+    get: operations["articles"];
+    put?: never;
+    /**
+     * Saves an article with its embedded files. A URL the owner already has returns that article
+     *     without reading the files or changing anything.
+     */
+    post: operations["import_article"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/articles/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Opens one of the owner's articles. */
+    get: operations["article"];
+    /** Replaces everything but the body; the moment keeps its import time. */
+    put: operations["update_article"];
+    post?: never;
+    /** Deletes the article with its media: objects first, then every row in one transaction. */
+    delete: operations["delete_article"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/conversations": {
     parameters: {
       query?: never;
@@ -275,10 +315,17 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * Redirects to a URL signed for the current hour, so the browser fetches the bytes straight
+     *     from object storage and caches them for that hour.
+     */
+    get: operations["read_media"];
     put?: never;
     post?: never;
-    /** Deletes the object, then the row; success means the stored bytes are gone. */
+    /**
+     * Deletes the object, then the row; success means the stored bytes are gone. Media an article
+     *     embeds is refused untouched: it goes only with its article.
+     */
     delete: operations["delete_media"];
     options?: never;
     head?: never;
@@ -468,6 +515,126 @@ export interface components {
       /** @description What the token is used for; trimmed, 1 to 100 characters. */
       note: string;
     };
+    /** @description An article opened for reading. */
+    Article: {
+      author: string | null;
+      /** @description Markdown body; its embedded files are `/api/media/<id>` addresses listed in `media`. */
+      content: string;
+      /**
+       * @description The publish date as an edit takes it back: `YYYY-MM-DD` when only a day was given,
+       *     otherwise RFC 3339 at the deployment's offset.
+       */
+      date: string;
+      /**
+       * Format: uuid
+       * @description Equal to the article's moment id.
+       */
+      id: string;
+      media: components["schemas"]["ArticleMedia"][];
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the import, the article's place on the timeline.
+       */
+      occurred_at: number;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the publish date.
+       */
+      published_at: number;
+      /** @description The URL's host without `www.`. */
+      site: string;
+      title: string;
+      url: string;
+    };
+    /** @description The `article` part of an import, sent before any file. */
+    ArticleImportFields: {
+      /** @description Optional; blank means none; at most 256 UTF-8 bytes. */
+      author?: string | null;
+      /**
+       * @description Markdown body, at most 4 MiB. Embedded files are inline images `![alt](media:<name>)`;
+       *     the server replaces each address with `/api/media/<id>`. Never editable afterwards.
+       */
+      content: string;
+      /** @description Publish date: `YYYY-MM-DD` (midnight in the deployment's zone) or RFC 3339 with an offset. */
+      date: string;
+      /** @description Nonblank after trimming; at most 1024 UTF-8 bytes; kept as sent. */
+      title: string;
+      /**
+       * @description Absolute http(s) URL of the original article, at most 2048 bytes; identifies the article
+       *     within the owner, compared byte for byte.
+       */
+      url: string;
+    };
+    /** @description One `article` part, then one `file` part per embedded file. */
+    ArticleImportForm: {
+      /** @description JSON text of ArticleImportFields; must be the first part. */
+      article: components["schemas"]["ArticleImportFields"];
+      /**
+       * @description Embedded files. Each filename is the `<name>` the body uses, 1-128 characters of
+       *     `[A-Za-z0-9._-]`, unique within the import; the part's Content-Type is recorded. Every
+       *     file must be embedded and every embedded name must have a file.
+       */
+      file?: Blob[] | null;
+    };
+    /** @description One article as the list shows it. */
+    ArticleListItem: {
+      author: string | null;
+      /** @description The publish date as written back by the server; see Article.date. */
+      date: string;
+      /** Format: uuid */
+      id: string;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the publish date.
+       */
+      published_at: number;
+      /** @description The URL's host without `www.`, shown where there is no author. */
+      site: string;
+      title: string;
+    };
+    /** @description One embedded file; the type tells an image from a video. */
+    ArticleMedia: {
+      content_type: string;
+      /** Format: uuid */
+      id: string;
+    };
+    /** @description An article moment: the article on the day it was imported. */
+    ArticleMoment: {
+      author: string | null;
+      /**
+       * Format: uuid
+       * @description Moment id, equal to the article id.
+       */
+      id: string;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the import.
+       */
+      occurred_at: number;
+      /** @description The URL's host without `www.`, shown where there is no author. */
+      site: string;
+      title: string;
+    };
+    /** @description One page of the 摘星 article list. */
+    ArticlePage: {
+      /** @description Articles, latest publish date first. */
+      items: components["schemas"]["ArticleListItem"][];
+      /** @description Opaque token for the next page; null on the last page. */
+      next_cursor: string | null;
+      /**
+       * Format: int64
+       * @description Number of articles the owner has, regardless of `q`.
+       */
+      total: number;
+    };
+    /** @description The fields an edit replaces; the body never changes. */
+    ArticleUpdate: {
+      author?: string | null;
+      date: string;
+      title: string;
+      /** @description Another article of the owner already at this URL is a conflict. */
+      url: string;
+    };
     Conversation: {
       /** Format: uuid */
       id: string;
@@ -595,6 +762,7 @@ export interface components {
       | "identity_unavailable"
       | "search_unavailable"
       | "media_storage_unavailable"
+      | "media_in_use"
       | "jotting_id_conflict"
       | "jottings_unavailable"
       | "persistence_failed";
@@ -803,12 +971,17 @@ export interface components {
       toc_line: string;
     };
     /** @description One timeline entry; `kind` selects the card fields that follow. */
-    Moment: components["schemas"]["ConversationMoment"] & {
-      /** @enum {string} */
-      kind: "conversation";
-    };
+    Moment:
+      | (components["schemas"]["ConversationMoment"] & {
+          /** @enum {string} */
+          kind: "conversation";
+        })
+      | (components["schemas"]["ArticleMoment"] & {
+          /** @enum {string} */
+          kind: "article";
+        });
     /** @enum {string} */
-    MomentKind: "conversation";
+    MomentKind: "conversation" | "article";
     /** @description One entry of a day's outline, in the same order as the timeline returns its cards. */
     MomentOutline: {
       /**
@@ -1204,6 +1377,424 @@ export interface operations {
         };
       };
       /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  articles: {
+    parameters: {
+      query?: {
+        /** @description Case-insensitive literal substring of the title, author or body; blank means no search. */
+        q?: string;
+        /** @description `next_cursor` from the previous page. */
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Up to 50 articles ordered by publish date, then id, both descending */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ArticlePage"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  import_article: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["ArticleImportForm"];
+      };
+    };
+    responses: {
+      /** @description The owner already has this URL; the existing article is returned unchanged */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Article"];
+        };
+      };
+      /** @description Imported */
+      201: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Article"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description A file, the body or the whole import exceeds its limit */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Internal persistence or response failure; nothing was saved */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider or media storage unavailable, including files sent without configured media storage; nothing was saved */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  article: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped article id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Article"];
+        };
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  update_article: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped article id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ArticleUpdate"];
+      };
+    };
+    responses: {
+      /** @description Updated */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Article"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Another article of the owner has this URL; nothing changed */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  delete_article: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped article id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Article, moment and media deleted */
+      204: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure; the article is kept and the delete can be retried */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider or media storage unavailable; the article is kept and the delete can be retried */
       503: {
         headers: {
           [name: string]: unknown;
@@ -2663,6 +3254,78 @@ export interface operations {
       };
     };
   };
+  read_media: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped media id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Redirect to a presigned object URL valid for at least an hour; images, video and audio open inline, anything else downloads */
+      302: {
+        headers: {
+          /** @description private, max-age=<seconds until the signing hour ends> */
+          "Cache-Control"?: string;
+          /** @description Presigned object storage URL */
+          Location?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider or media storage unavailable, including media storage not configured */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
   delete_media: {
     parameters: {
       query?: never;
@@ -2715,6 +3378,15 @@ export interface operations {
       };
       /** @description Resource unavailable in owner scope */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description An article embeds this media; nothing was deleted */
+      409: {
         headers: {
           [name: string]: unknown;
         };

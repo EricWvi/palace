@@ -31,6 +31,7 @@ palace-media = { workspace = true }
 palace-notes = { workspace = true }
 palace-testkit = { workspace = true }
 axum = { workspace = true }
+chrono-tz = { workspace = true }
 pretty_assertions = { workspace = true }
 sqlx = { workspace = true }
 testcontainers = { workspace = true }

@@ -37,10 +37,11 @@ pub(super) fn authenticated_response(
         header::SET_COOKIE,
         set_cookie(SESSION_COOKIE, &session.secret, 180 * 24 * 60 * 60)?,
     );
-    response.headers_mut().insert(
-        header::CACHE_CONTROL,
-        "no-store".parse().map_err(|_| ApiError::Internal)?,
-    );
+    // A handler that chose its own caching (a media redirect) keeps it; nothing else is cached.
+    response
+        .headers_mut()
+        .entry(header::CACHE_CONTROL)
+        .or_insert(header::HeaderValue::from_static("no-store"));
     Ok(response)
 }
 /// Starts a persisted, browser-bound Authorization Code Flow.
@@ -203,10 +204,10 @@ pub(super) async fn authenticate_request<P: LoginProvider + 'static>(
         .ok_or(ApiError::Unauthorized)?;
     request.extensions_mut().insert(owner);
     let mut response = next.run(request).await;
-    response.headers_mut().insert(
-        header::CACHE_CONTROL,
-        "no-store".parse().map_err(|_| ApiError::Internal)?,
-    );
+    response
+        .headers_mut()
+        .entry(header::CACHE_CONTROL)
+        .or_insert(header::HeaderValue::from_static("no-store"));
     Ok(response)
 }
 /// Admits only the browser session, for routes a leaked access token must never reach.

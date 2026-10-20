@@ -95,7 +95,7 @@ afterEach(() => {
 // - `specs/test-cases/web/navigation/text-nav-and-day-routes.md#navigation-must-mark-only-the-owning-section-and-keep-inert-items-out-of-reach`
 // - `specs/test-cases/web/navigation/text-nav-and-day-routes.md#each-moment-kind-must-open-in-exactly-one-way`
 // - `specs/test-cases/server/moment/moment-timeline.md#conversation-cards-must-summarize-their-own-path`
-// - `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-keep-articles-inert`
+// - `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-every-kind`
 // - `specs/test-cases/web/echo/echo-page.md#echo-navigation-must-open-the-wide-jotting-page`
 it("marks only 时刻, keeps other sections out of reach, and links cards to the reading page", async () => {
   const fetch = mockApi();

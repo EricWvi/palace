@@ -12,6 +12,8 @@ export type ConversationPath = components["schemas"]["ConversationPath"];
 export type ConversationListItem =
   components["schemas"]["ConversationListItem"];
 export type NoteListItem = components["schemas"]["NoteListItem"];
+export type Article = components["schemas"]["Article"];
+export type ArticleListItem = components["schemas"]["ArticleListItem"];
 export type AccessToken = components["schemas"]["AccessToken"];
 export type ListedJotting = components["schemas"]["ListedJotting"];
 export type JottingOverview = components["schemas"]["JottingOverview"];
@@ -155,6 +157,32 @@ export function noteOptions(id: string) {
 // The note page's address keeps the id's `/` as path separators and encodes each segment.
 export function notePath(id: string) {
   return `/notes/${id.split("/").map(encodeURIComponent).join("/")}`;
+}
+// 摘星's article list, latest publish date first; each search keeps its own pages.
+export function articleListOptions(q: string) {
+  return infiniteQueryOptions({
+    queryKey: ["articles", q],
+    queryFn: ({ pageParam }) =>
+      apiData(
+        api.GET("/api/articles", {
+          params: { query: { q: q || undefined, cursor: pageParam } },
+        }),
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
+  });
+}
+export function articleOptions(id: string) {
+  return {
+    queryKey: ["article", id],
+    queryFn: () =>
+      apiData(api.GET("/api/articles/{id}", { params: { path: { id } } })),
+  };
+}
+// Dropped rather than refetched in place after an edit or deletion, for the same reason as the
+// conversation list: an old page shown meanwhile would offer a deleted article or an old title.
+export function forgetArticleList(client: QueryClient) {
+  client.removeQueries({ queryKey: ["articles"] });
 }
 // The owner's access tokens, masked; a full token never enters the query cache.
 export function accessTokensOptions() {

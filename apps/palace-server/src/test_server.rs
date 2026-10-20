@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let (notes, _watch) = notes::notes_from_env(timezone)?;
         let media = media::media_from_env()?;
         let (jottings, _jottings_watch) = jottings::jottings_from_env(database.clone(), timezone).await?;
-        let app = palace_backend::fixed_user_router(database, origin.clone(), notes, media, jottings).await?;
+        let app = palace_backend::fixed_user_router(database, origin.clone(), notes, media, jottings, timezone).await?;
         palace_info!(message="Palace single-user test server listening",address=%address,origin=%origin);
         axum::serve(listener, app).with_graceful_shutdown(runtime::shutdown()).await?;
         Ok::<(), Box<dyn std::error::Error>>(())

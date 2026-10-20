@@ -24,6 +24,7 @@ time = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+chrono-tz = { workspace = true }
 palace-testkit = { workspace = true }
 testcontainers = { workspace = true }
 tokio = { workspace = true }
