@@ -15,7 +15,14 @@ import {
 import { JottingTime, PendingDot } from "./jotting-card";
 
 const images: ImagePolicy = { kind: "placeholder" };
-const MOTION = { duration: 300, easing: "ease-out" };
+// Each animation holds its last frame: the card and its backdrop are removed only after the
+// closing animation ends, and falling back to their resting styles first would flash the card
+// at full size in the middle of the screen for one frame.
+const MOTION: KeyframeAnimationOptions = {
+  duration: 300,
+  easing: "ease-out",
+  fill: "forwards",
+};
 
 // The card being read in full, and whether it is on its way back.
 type Zoom = { id: string; from: DOMRect; closing: boolean };

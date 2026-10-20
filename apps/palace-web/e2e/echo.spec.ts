@@ -98,3 +98,58 @@ test("puts a new jotting on top of the first column and moves no other card", as
   for (const [id, column] of Object.entries(before))
     expect([id, after[id]]).toEqual([id, column]);
 });
+
+// Core test case: `specs/test-cases/web/echo/echo-page.md#read-recall-cards-must-leave-the-pile-for-the-page-session`
+test("a closed recall card fades out at its slot and never flashes back at full size", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.route("**/api/**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const jottings = Array.from({ length: 5 }, (_, i) => ({
+      id: `r${i}`,
+      created_at: new Date(2026, 8, i + 1).getTime(),
+      title: null,
+      tags: [],
+      body: `回响第${i}张`,
+      pending: false,
+    }));
+    if (path === "/api/jottings/recall")
+      return route.fulfill({ json: { date: "2026-10-20", jottings } });
+    if (path === "/api/jottings/overview")
+      return route.fulfill({
+        json: { total: 0, days: 0, tags: [], daily: [] },
+      });
+    return route.fulfill({
+      json: { jottings: [], total: 0, next_cursor: null },
+    });
+  });
+  await page.goto("/jottings");
+  const cards = page
+    .getByRole("region", { name: "今日回响" })
+    .getByRole("button");
+  await cards.first().click();
+  await cards.nth(1).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.waitForTimeout(400);
+
+  // Watch every frame from the click that closes the card until the card is gone.
+  const frames = page.evaluate(
+    () =>
+      new Promise<number[]>((resolve) => {
+        const seen: number[] = [];
+        const watch = () => {
+          const zoom = document.querySelector(".zoom");
+          if (!zoom) return resolve(seen);
+          seen.push(Number(getComputedStyle(zoom).opacity));
+          requestAnimationFrame(watch);
+        };
+        requestAnimationFrame(watch);
+      }),
+  );
+  await page.mouse.click(1200, 850);
+  const opacities = await frames;
+  expect(opacities.length).toBeGreaterThan(3);
+  expect(opacities.at(-1)).toBeLessThan(0.05);
+  await expect(cards).toHaveCount(4);
+});

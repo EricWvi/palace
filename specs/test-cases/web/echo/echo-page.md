@@ -21,13 +21,14 @@
 
 风险：关闭放大的卡片后它仍留在卡片组中；已读状态被写进 `localStorage` 或服务端，刷新后不恢复；收起平铺卡片组的点击同时触发了瀑布流中的标签或“展开”；筛选时卡片组仍然占据顶部。前置：回顾接口返回 5 张札记；瀑布流中有可点击的标签。触发：点击卡片组使其平铺；点击瀑布流上的标签位置收起；再次平铺并逐张放大、关闭；读完全部 5 张；重新挂载页面；按标签筛选后再清除。
 
-必须成立：收起卡片组的点击不改变筛选；每关闭一张，卡片组少一张，其余顺序不变；全部读完后显示“今天的回响都已看过”；重新挂载后卡片组恢复为接口返回的 5 张；有筛选或搜索时卡片组收起，清除后恢复，已读的卡片不回来。禁止把已读状态写入任何持久存储。
+必须成立：收起卡片组的点击不改变筛选；关闭的卡片缩回原位并淡出，直到移除都不再以全尺寸出现；每关闭一张，卡片组少一张，其余顺序不变；全部读完后显示“今天的回响都已看过”；重新挂载后卡片组恢复为接口返回的 5 张；有筛选或搜索时卡片组收起，清除后恢复，已读的卡片不回来。禁止把已读状态写入任何持久存储。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 关闭即离开卡片组，读完显示提示，重新挂载后恢复 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again`（同时断言没有写入 `localStorage`） |
+| 关闭的卡片缩回原位并淡出，被移除前不会回到屏幕中央闪现（真实 Chromium） | Covered | `e2e/echo.spec.ts::a closed recall card fades out at its slot and never flashes back at full size`（逐帧记录不透明度；去掉 `fill: "forwards"` 时稳定失败） |
 | 收起卡片组的点击被拦截，不触发瀑布流操作 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again` |
 | 筛选与搜索时卡片组收起，清除后恢复 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again`（标签筛选与搜索使卡片组所在抽屉变为 inert，清除后恢复） |
 
