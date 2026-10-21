@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 date: 2026-10-21
 ---
 
@@ -7,7 +7,7 @@ date: 2026-10-21
 
 摘星的文章导入后正文不再改变，对话只会追加消息，已有消息同样不变，所以两者都可以按字符位置长期锚定标注。读者选中文字后，选区上方浮出一个小条：四种高亮颜色、划线、波浪线和「批注」。一处标注由锚点、可选的样式、可选的一段批注组成，二者至少有一个。宽屏上批注放在正文右侧的页边栏，与原文对齐；页面只在有批注时才加宽，加宽方式与回响页相同。窄屏上批注以浮层显示在原文下方。原文与批注在鼠标悬停时互相点亮。标题旁 `···` 菜单里的「只看标注」（快捷键 `a`）把没有标注的段落折叠成一行「省略 N 段」。交互定稿见原型 [`design/3.3-stars-annotation.html`](../../../../design/3.3-stars-annotation.html) 的变体 A。
 
-当前为 `approved`，核心测试用例见[摘星标注](../../../test-cases/web/stars/annotations.md)。本决策基于[文章通过 API 连同媒体一次导入](20261020-articles-imported-with-media.md)，同时用到对话阅读页的约定（[阅读页承担对话操作](../../server/conversation/20261004-reading-page-owns-conversation-actions.md)、[共享 Markdown 展示](../../server/conversation/20261010-shared-markdown-content-with-code-highlighting.md)）。涉及 `palace-db` 的新表与迁移、`palace-domain` 的标注校验、`palace-backend` 的标注接口与 OpenAPI、`apps/palace-web` 的 `MarkdownContent`、文章页、对话页与它们的菜单。笔记、标注的同步、跨文章汇总都不在范围内。
+当前为 `implemented`，核心测试用例见[摘星标注](../../../test-cases/web/stars/annotations.md)，接口与用法见[标注功能文档](../../../../docs/features/annotations/README.md)。本决策基于[文章通过 API 连同媒体一次导入](20261020-articles-imported-with-media.md)，同时用到对话阅读页的约定（[阅读页承担对话操作](../../server/conversation/20261004-reading-page-owns-conversation-actions.md)、[共享 Markdown 展示](../../server/conversation/20261010-shared-markdown-content-with-code-highlighting.md)）。涉及 `palace-db` 的新表与迁移、`palace-domain` 的标注校验、`palace-backend` 的标注接口与 OpenAPI、`apps/palace-web` 的 `MarkdownContent`、文章页、对话页与它们的菜单。笔记、标注的同步、跨文章汇总都不在范围内。
 
 ## 问题与约束
 
@@ -112,7 +112,7 @@ date: 2026-10-21
 - **页边批注栏**：窗口宽度至少 1180px、且本页至少有一处带批注的标注时，正文栏保持 712px，右侧留 56px 间距和 248px 宽的批注栏。页面连同页头以 `max-width 400ms ease-out` 加宽，批注卡片等页面展开后淡入；最后一条批注删除后，页面收回到 760px 居中。只有高亮或划线的页面不加宽。卡片与原文第一行对齐，重叠时依次下推；正在编辑或刚点开的那张对齐原文，上面的卡片向上让位。
 - **浮层批注**：窗口不足 1180px 时，悬停带批注的标记约 180ms，批注卡片浮现在原文下方；鼠标移入卡片时卡片保持，点击卡片即可编辑。
 - **互相点亮**：悬停带批注的标记时，它的全部片段加深，对应的卡片阴影加重、文字变深，并向原文靠近 4px；悬停卡片时，原文同样点亮。卡片左缘是一条细线，颜色取自它的标注样式。
-- **编辑批注**：在卡片上原地编辑。失去焦点、`Esc` 或 `⌘/Ctrl+Enter` 时保存。内容清空后，有样式的标注只去掉批注，只有批注的标注整处删除。
+- **编辑批注**：在卡片上原地编辑。失去焦点、`Esc` 或 `⌘/Ctrl+Enter` 时保存，保存前去掉首尾空白。内容清空后，有样式的标注只去掉批注，只有批注的标注整处删除。新建的只有批注的标注在写下文字之前不保存，只在页面上占位。
 - 保存失败时，标注保持保存前的状态，页面底部用一行提示说明失败原因。
 
 ## D7：只看标注
@@ -120,7 +120,7 @@ date: 2026-10-21
 - **入口**：`···` 菜单的第一项「只看标注」，快捷键 `a`。进入后菜单项和 meta 行末尾都变为「显示全文」，`a` 和 `Esc` 也能退出。本页没有标注时菜单项不可用，`a` 不起作用。
 - **meta 行**：平时在末尾显示「N 处标注」（N 为 0 时不显示），只看标注时显示「只看 N 处标注 · 显示全文」。
 - **文章折叠**：正文的顶层块里，不含任何标记的块被折叠；连续的折叠块合并成一行「⋯ 省略 N 段」，点击后单独展开这一串。列表的标记在某几项里时，列表本身保留，其中没有标记的项按「省略 N 项」折叠。小节标题在它到下一个同级或更高级标题之间还有保留的块时保留，否则一起折叠。
-- **对话折叠**：没有标注的消息按「省略 N 条消息」折叠；保留下来的消息内部按文章的规则折叠。
+- **对话折叠**：没有标注的消息按「省略 N 条消息」折叠；保留下来的消息内部按文章的规则折叠。分支切换行在只看标注时不显示，否则它们会悬在折叠行之间。
 - **突出标注**：保留下来的段落文字变浅，只有标记中的文字保持正文颜色；标题保持正文颜色。
 - **位置不变**：进入或退出时，屏幕上第一处标记保持在原来的视口位置。退出时，所有单独展开的记录都被丢弃。
 
@@ -175,12 +175,11 @@ date: 2026-10-21
 
 ## 落地与验收
 
-- 迁移 `0018_annotations.sql`：新建 `annotation` 表、外键、检查约束，以及禁止修改锚点、标注对象和 Owner 的触发器。
-- `palace-domain`：`AnnotationStyle`、`AnnotationNote`、`AnnotationAnchor` 与 `AnnotationContent` 的解析和校验，`AnnotationTarget` 枚举。
-- `palace-db`：在 Owner Scope 内列出、新建、替换、删除标注；新建时校验标注对象存在且属于 Owner，消息属于对话。
-- `palace-backend`：D5 的六个接口与 OpenAPI 合同，重新生成前端类型。
-- `apps/palace-web`：rehype 标注插件与 DOM 计数，`MarkdownContent` 的绘制参数，标注层（小条、页边栏、浮层、点亮、快捷键）、「只看标注」，文章菜单和对话菜单的新菜单项。
+- 迁移 `0018_annotations.sql` 新建 `annotation` 表、两组复合外键与检查约束，并用触发器禁止修改锚点、标注对象和 Owner。
+- `palace-domain` 的 `AnnotationAnchor`、`AnnotationContent`（样式与批注至少有一个，由枚举表达）、`AnnotationTarget` 负责校验；`palace-db` 在 Owner Scope 内读写，新建时直接从标注对象的行选取，别人的对象或别的对话里的消息写不进任何行。
+- `palace-backend` 提供 D5 的六个接口并写入 OpenAPI 合同。
+- `apps/palace-web`：`lib/annotation-paint.ts` 是绘制与折叠的 rehype 插件，`lib/annotation-dom.ts` 按同一规则把选区换算成锚点，`components/annotation-layer.tsx` 管数据与状态，`components/annotated-area.tsx` 管小条、页边栏、浮层与快捷键，样式在 `annotations.css`。
 
-证据见核心测试用例：领域单元测试覆盖字段校验；真实 PostgreSQL 覆盖 Owner 隔离、标注对象约束、锚点不可变和级联删除；真实 Router 覆盖接口形状与 OpenAPI 合同；前端单元测试与组件测试覆盖坐标一致、绘制、折叠与交互。
+证据见核心测试用例：领域单元测试覆盖字段校验；真实 PostgreSQL 覆盖 Owner 隔离、标注对象约束、锚点不可变和级联删除；真实 Router 覆盖接口形状与 OpenAPI 合同；jsdom 中的真实 `MarkdownContent` 覆盖坐标一致、绘制与折叠，组件测试覆盖交互。页边栏的加宽动画与卡片对齐依赖真实布局，尚无浏览器测试。
 
 文章与对话已有的阅读、编辑和删除行为保持不变，只是删除时连带删除标注。

@@ -78,6 +78,7 @@ function setup(route: string) {
         return Response.json({ id: pathId ?? "tree" });
       }
       if (path.startsWith("/api/timeline")) return Response.json([]);
+      if (path.endsWith("/annotations")) return Response.json({ items: [] });
       if (path === "/api/conversations")
         return Response.json({ items: [], next_cursor: null, total: 0 });
       return Response.json(current);
@@ -194,7 +195,7 @@ it("keeps conversation management in the title menu, destructive last", async ()
   await user.keyboard("{Enter}");
   expect(
     screen.getAllByRole("menuitem").map((item) => item.textContent),
-  ).toEqual(["更新分支", "管理分支", "编辑对话", "删除对话"]);
+  ).toEqual(["只看标注", "更新分支", "管理分支", "编辑对话", "删除对话"]);
 });
 
 // Core test cases:
@@ -473,8 +474,10 @@ it("lists the read path's messages by their server lines, and a jump keeps its m
 
 it("holds the header's place with a hidden skeleton until the conversation arrives", async () => {
   let arrive!: (response: Response) => void;
-  vi.spyOn(globalThis, "fetch").mockImplementation(
-    () => new Promise((resolve) => (arrive = resolve)),
+  vi.spyOn(globalThis, "fetch").mockImplementation((url) =>
+    requestPath(url).endsWith("/annotations")
+      ? Promise.resolve(Response.json({ items: [] }))
+      : new Promise((resolve) => (arrive = resolve)),
   );
   mountApp("/conversations/tree?path=p2&date=2025-10-02");
   const status = await screen.findByRole("status");

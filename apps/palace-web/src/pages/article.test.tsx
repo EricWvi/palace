@@ -66,6 +66,8 @@ function serve({ conflict = false } = {}) {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const request = testRequest(url);
     const path = requestPath(url);
+    if (path === "/api/articles/a1/annotations")
+      return Response.json({ items: [] });
     if (path === "/api/articles")
       return Response.json({
         items: stored ? listed : listed.slice(0, 1),

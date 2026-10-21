@@ -1,6 +1,8 @@
 //! PostgreSQL transactions enforce owner boundaries independently of HTTP inputs.
 mod access_token;
 pub use access_token::{AccessToken, IssuedAccessToken};
+mod annotation;
+pub use annotation::Annotation;
 mod article;
 pub use article::{Article, ArticleImport, ArticleMedia, StoredMedia};
 mod article_list;

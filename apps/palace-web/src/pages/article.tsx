@@ -13,6 +13,12 @@ import { ErrorState } from "@/components/error-state";
 import { ArticleMenu } from "@/components/article-menu";
 import { type ImagePolicy } from "@/components/markdown-content";
 import {
+  AnnotationFacts,
+  articleScope,
+  useAnnotations,
+} from "@/components/annotation-layer";
+import { AnnotatedArea } from "@/components/annotated-area";
+import {
   ReadingDocument,
   ReadingSkeleton,
   fullDate,
@@ -44,6 +50,7 @@ export function ArticlePage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const article = useQuery(articleOptions(id!));
+  const layer = useAnnotations({ kind: "article", id: id! });
   const from = parseDay(params.get("date"));
   const { state } = useLocation();
   const top = (state as { top?: boolean } | null)?.top;
@@ -80,34 +87,42 @@ export function ArticlePage() {
     );
   const published = new Date(article.data.published_at);
   return (
-    <ReadingDocument
-      id={article.data.id}
-      title={article.data.title}
-      content={article.data.content}
-      images={images!}
-      back={back}
-      menu={
-        <ArticleMenu
-          key={article.data.id}
-          article={article.data}
-          // Without a day the reader came from 摘星 or a bare link, so 摘星 takes them back.
-          onDeleted={() =>
-            navigate(from ? `/?date=${dayParam(from)}` : "/articles", {
-              replace: true,
-            })
-          }
-        />
-      }
-      meta={
-        <>
-          {article.data.author && <span>{article.data.author}</span>}
-          <time dateTime={published.toISOString()}>{fullDate(published)}</time>
-          <a href={article.data.url} target="_blank" rel="noreferrer">
-            原文 ↗
-          </a>
-        </>
-      }
-      tocLabel="文章目录"
-    />
+    <AnnotatedArea layer={layer}>
+      <ReadingDocument
+        id={article.data.id}
+        title={article.data.title}
+        content={article.data.content}
+        images={images!}
+        scope={articleScope}
+        painting={layer.paintingFor(articleScope)}
+        back={back}
+        menu={
+          <ArticleMenu
+            key={article.data.id}
+            article={article.data}
+            reading={layer.menuAction}
+            // Without a day the reader came from 摘星 or a bare link, so 摘星 takes them back.
+            onDeleted={() =>
+              navigate(from ? `/?date=${dayParam(from)}` : "/articles", {
+                replace: true,
+              })
+            }
+          />
+        }
+        meta={
+          <>
+            {article.data.author && <span>{article.data.author}</span>}
+            <time dateTime={published.toISOString()}>
+              {fullDate(published)}
+            </time>
+            <a href={article.data.url} target="_blank" rel="noreferrer">
+              原文 ↗
+            </a>
+            <AnnotationFacts layer={layer} />
+          </>
+        }
+        tocLabel="文章目录"
+      />
+    </AnnotatedArea>
   );
 }

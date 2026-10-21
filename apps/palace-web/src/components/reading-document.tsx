@@ -3,6 +3,7 @@ import Markdown from "react-markdown";
 import { noteHeadings } from "./note-toc";
 import { ReadingToc, type TocItem } from "./reading-toc";
 import { MarkdownContent, type ImagePolicy } from "./markdown-content";
+import type { Painting } from "@/lib/annotation-paint";
 
 // A level-1 ATX heading on the body's first line, with its optional closing `#`s.
 const leadingHeading = /^\s*# +(.*?\S)(?: +#+)? *(?:\n|$)/;
@@ -23,6 +24,8 @@ export function ReadingDocument({
   back,
   menu,
   tocLabel,
+  scope,
+  painting,
 }: {
   // Identifies the document, so its table of contents starts afresh when another one opens.
   id: string;
@@ -34,6 +37,10 @@ export function ReadingDocument({
   back?: ReactNode;
   menu?: ReactNode;
   tocLabel: string;
+  // An annotated document names its body's scope and passes what to draw on it; see
+  // MarkdownContent. The body excludes a leading heading promoted into the header.
+  scope?: string;
+  painting?: Painting;
 }) {
   const [headings, setHeadings] = useState<TocItem[]>([]);
   // Recollect after React commits a changed document, before it is painted. The rendered DOM is
@@ -77,7 +84,12 @@ export function ReadingDocument({
           <p className="meta">{meta}</p>
         </header>
         <div className="note-body">
-          <MarkdownContent content={body} images={images} />
+          <MarkdownContent
+            content={body}
+            images={images}
+            scope={scope}
+            painting={painting}
+          />
         </div>
       </div>
       <ReadingToc key={id} items={headings} label={tocLabel} />

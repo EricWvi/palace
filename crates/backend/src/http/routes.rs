@@ -18,6 +18,9 @@ pub(super) const JOTTING_OVERVIEW: &str = "/api/jottings/overview";
 pub(super) const JOTTING_RECALL: &str = "/api/jottings/recall";
 pub(super) const ARTICLES: &str = "/api/articles";
 pub(super) const ARTICLE: &str = "/api/articles/{id}";
+pub(super) const ARTICLE_ANNOTATIONS: &str = "/api/articles/{id}/annotations";
+pub(super) const CONVERSATION_ANNOTATIONS: &str = "/api/conversations/{id}/annotations";
+pub(super) const ANNOTATION: &str = "/api/annotations/{id}";
 pub(super) const MEDIA: &str = "/api/media";
 pub(super) const MEDIA_ITEM: &str = "/api/media/{id}";
 pub(super) const ACCESS_TOKENS: &str = "/api/access-tokens";
@@ -68,6 +71,12 @@ macro_rules! business_routes {
             get ARTICLE => articles::article,
             put ARTICLE => articles::update,
             delete ARTICLE => articles::delete,
+            get ARTICLE_ANNOTATIONS => annotations::article_list,
+            post ARTICLE_ANNOTATIONS => annotations::article_create,
+            get CONVERSATION_ANNOTATIONS => annotations::conversation_list,
+            post CONVERSATION_ANNOTATIONS => annotations::conversation_create,
+            put ANNOTATION => annotations::update,
+            delete ANNOTATION => annotations::delete,
         }
     };
 }

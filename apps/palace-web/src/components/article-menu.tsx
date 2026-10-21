@@ -20,7 +20,7 @@ import {
 } from "./ui/dialog";
 import { ErrorState } from "./error-state";
 import { FieldHelp } from "./field-help";
-import { MoreMenu } from "./more-menu";
+import { MoreMenu, type MenuAction } from "./more-menu";
 
 type Fields = { title: string; url: string; author: string; date: string };
 
@@ -29,9 +29,12 @@ type Fields = { title: string; url: string; author: string; date: string };
 // go with its images and videos.
 export function ArticleMenu({
   article,
+  reading,
   onDeleted,
 }: {
   article: Article;
+  // How the page is being read (只看标注 or the full text), listed first.
+  reading: MenuAction;
   onDeleted: () => void;
 }) {
   const [action, setAction] = useState<"edit" | "delete" | null>(null);
@@ -91,6 +94,7 @@ export function ArticleMenu({
       <MoreMenu
         label="管理文章"
         actions={[
+          reading,
           {
             label: "编辑文章",
             onSelect: () => {

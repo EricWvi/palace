@@ -12,9 +12,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 跨 Owner 的列出、新建、修改、删除都是 404 且不改变数据（真实 PostgreSQL） | Missing | — |
-| 消息必须属于路径中的对话，且对话属于当前 Owner（真实 PostgreSQL） | Missing | — |
-| 接口形状、状态码与 OpenAPI 合同一致（真实 Router） | Missing | — |
+| 跨 Owner 的列出、新建、修改、删除都是 404 且不改变数据（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/annotations.rs::annotations_must_stay_within_the_owner_scope` |
+| 消息必须属于路径中的对话，且对话属于当前 Owner（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/annotations.rs::annotations_must_stay_within_the_owner_scope`（别人的消息挂在自己的对话下、自己的消息挂在自己另一个对话下） |
+| 接口形状、状态码与 OpenAPI 合同一致（真实 Router） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `tests/http/annotations.rs::exercise_annotations`，响应由 OpenAPI 校验器逐一核对） |
 
 决策依据：D4、D5，不变量 1、2。
 
@@ -28,8 +28,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 字段校验与错误字段名（领域单元测试） | Missing | — |
-| 数据库检查约束与触发器拒绝非法行和锚点修改（真实 PostgreSQL） | Missing | — |
+| 字段校验与错误字段名（领域单元测试） | Covered | `crates/domain/src/annotation.rs::content_needs_a_style_or_a_note`、`crates/domain/src/annotation.rs::anchors_must_agree_with_their_quote`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `exercise_annotations`：缺样式与批注、`quote` 长度不符、`start = end`、空白批注、未知样式、`PUT` 清空两项） |
+| 数据库检查约束与触发器拒绝非法行和锚点修改（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/annotations.rs::annotation_rows_must_keep_content_and_anchor`；`PUT` 只替换两项并刷新 `updated_at` 见 `annotations_must_stay_within_the_owner_scope` |
 
 决策依据：D2、D3，不变量 3、5。
 
@@ -43,8 +43,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 文章删除级联删除其标注（真实 PostgreSQL） | Missing | — |
-| Path 删除只删被清理消息上的标注，对话删除删除全部（真实 PostgreSQL） | Missing | — |
+| 文章删除级联删除其标注（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/annotations.rs::annotations_must_disappear_with_the_text_they_mark` |
+| Path 删除只删被清理消息上的标注，对话删除删除全部（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/annotations.rs::annotations_must_disappear_with_the_text_they_mark` |
 
 决策依据：D4，不变量 4。
 
@@ -58,9 +58,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| DOM 计数与 hast 计数一致，绘制和折叠不改变坐标（前端单元测试，jsdom 中的真实渲染） | Missing | — |
-| 锚点解析：原位、最近的出现处、找不到时不画（前端单元测试） | Missing | — |
-| 选区到标注的完整流程：小条、快捷键、保存后显示（组件测试，请求经 mock fetch） | Missing | — |
+| DOM 计数与 hast 计数一致，绘制和折叠不改变坐标（前端单元测试，jsdom 中的真实 `MarkdownContent`） | Covered | `apps/palace-web/src/lib/annotation-paint.test.tsx` 的 “draws marks where the selection was, in every state”、“lifts wholly marked inline elements into one seamless mark” |
+| 锚点解析：原位、最近的出现处、找不到时不画（前端单元测试） | Covered | `apps/palace-web/src/lib/annotation-paint.test.tsx` 的 “relocates a quote to its nearest occurrence” |
+| 选区到标注的完整流程：小条、快捷键、保存后显示，跨消息的选区不弹出小条（组件测试，请求经 mock fetch） | Covered | `apps/palace-web/src/pages/annotations.test.tsx` 的 “highlights a selection and removes it from its mark”、“annotates one message at a time and folds the others” |
 
 决策依据：D3、D6、D8，不变量 5、6。
 
@@ -74,8 +74,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 文章块、标题与列表项的折叠规则（前端单元测试） | Missing | — |
-| 菜单、快捷键、meta 行与对话消息折叠（组件测试） | Missing | — |
+| 文章块、标题与列表项的折叠规则（前端单元测试） | Covered | `apps/palace-web/src/lib/annotation-paint.test.tsx` 的 “folds runs of unmarked blocks” |
+| 菜单、快捷键、meta 行与对话消息折叠（组件测试） | Covered | `apps/palace-web/src/pages/annotations.test.tsx` 的 “folds everything but the annotations and back”、“offers no focus mode without annotations”、“annotates one message at a time and folds the others” |
 
 决策依据：D7，不变量 6。
 
@@ -89,8 +89,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 页边栏只在有批注且宽屏时出现（组件测试） | Missing | — |
-| 窄屏浮层与保存失败的回退（组件测试） | Missing | — |
-| 加宽动画与卡片对齐（真实浏览器布局） | Missing | — |
+| 页边栏只在有批注且宽屏时出现（组件测试） | Covered | `apps/palace-web/src/pages/annotations.test.tsx` 的 “writes a note in the margin and removes it when emptied”、“highlights a selection and removes it from its mark” |
+| 窄屏浮层与保存失败的回退（组件测试） | Covered | `apps/palace-web/src/pages/annotations.test.tsx` 的 “floats a note under its mark on a narrow window”、“keeps the page unchanged when a save fails” |
+| 加宽动画与卡片对齐（真实浏览器布局） | Missing | jsdom 没有布局；需要真实 Chromium 回归测试 |
 
 决策依据：D6，不变量 7。

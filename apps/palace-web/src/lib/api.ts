@@ -13,6 +13,7 @@ export type ConversationListItem =
   components["schemas"]["ConversationListItem"];
 export type NoteListItem = components["schemas"]["NoteListItem"];
 export type Article = components["schemas"]["Article"];
+export type Annotation = components["schemas"]["Annotation"];
 export type ArticleListItem = components["schemas"]["ArticleListItem"];
 export type AccessToken = components["schemas"]["AccessToken"];
 export type ListedJotting = components["schemas"]["ListedJotting"];
@@ -177,6 +178,27 @@ export function articleOptions(id: string) {
     queryKey: ["article", id],
     queryFn: () =>
       apiData(api.GET("/api/articles/{id}", { params: { path: { id } } })),
+  };
+}
+// What a reading page annotates: an article body, or the messages of a conversation.
+export type AnnotationTarget = {
+  kind: "article" | "conversation";
+  id: string;
+};
+// Every annotation on one article or one conversation; changes write the list back in place.
+export function annotationsOptions({ kind, id }: AnnotationTarget) {
+  return {
+    queryKey: ["annotations", kind, id],
+    queryFn: () =>
+      apiData(
+        kind === "article"
+          ? api.GET("/api/articles/{id}/annotations", {
+              params: { path: { id } },
+            })
+          : api.GET("/api/conversations/{id}/annotations", {
+              params: { path: { id } },
+            }),
+      ),
   };
 }
 // Dropped rather than refetched in place after an edit or deletion, for the same reason as the

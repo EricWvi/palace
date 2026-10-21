@@ -4,6 +4,8 @@ import { DropdownMenu } from "radix-ui";
 export interface MenuAction {
   label: string;
   onSelect: () => void;
+  // Shown but not choosable, for an action that has nothing to act on yet.
+  disabled?: boolean;
 }
 
 // Rare actions wait behind a quiet "···" next to what they act on. The surrounding area reveals
@@ -72,7 +74,11 @@ export function MoreMenu({
           }}
         >
           {actions.map((action) => (
-            <DropdownMenu.Item key={action.label} onSelect={action.onSelect}>
+            <DropdownMenu.Item
+              key={action.label}
+              onSelect={action.onSelect}
+              disabled={action.disabled}
+            >
               {action.label}
             </DropdownMenu.Item>
           ))}

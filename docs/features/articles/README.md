@@ -52,14 +52,14 @@ curl https://palace.example.com/api/articles \
 - `GET /api/articles?q=&cursor=`：按发布日期倒序分页，每页 50 篇。`q` 按子串匹配标题、作者或正文，不区分大小写。
 - `GET /api/articles/{id}`：返回文章和 `media` 列表（每项含 `id` 与 `content_type`）。`date` 字段是编辑表单使用的写法：只写了日期的文章仍然只有日期。
 - `PUT /api/articles/{id}`：请求体为 `{ title, url, author, date }`，一起替换这四项，正文不变。新 `url` 已被另一篇文章使用时返回 409。
-- `DELETE /api/articles/{id}`：先删除文章的所有媒体对象，再删除文章、Moment 和媒体记录。中途失败返回 5xx，文章仍在，重试即可。
+- `DELETE /api/articles/{id}`：先删除文章的所有媒体对象，再删除文章、Moment、媒体记录和文章上的标注。中途失败返回 5xx，文章仍在，重试即可。
 - 文章嵌入的媒体不能用 `DELETE /api/media/{id}` 单独删除，返回 409 `media_in_use`。
 
 Web 端：
 
 - 摘星的类型列「笔记 · 文章 · 对话」中，「文章」进入 `/articles`。每一行显示标题、作者（没有作者时显示网站域名）和发布日期 `MM.DD`。
 - 文章页 `/articles/<id>` 的页首是标题，下面一行是作者、发布日期和“原文 ↗”。正文第一行的一级标题会代替页首标题。目录规则与笔记相同。
-- `···` 菜单里有“编辑文章”和“删除文章”。
+- `···` 菜单里有“只看标注”“编辑文章”和“删除文章”。正文可以标注，见[标注](../annotations/README.md)。
 - 时间线在导入当天显示 `[ 文章 ] 标题 · 作者`，点击进入文章页，可以从文章页返回那一天。
 
 ## 媒体读取

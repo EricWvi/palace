@@ -1,4 +1,5 @@
 mod access_tokens;
+mod annotations;
 mod article_import;
 mod articles;
 mod business;

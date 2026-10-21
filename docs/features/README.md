@@ -7,6 +7,7 @@
 - [对话分支与路径](conversations/分支与路径.md)：消息树、来源路径及管理分支。
 - [笔记](notes/README.md)：挂载的 Markdown 文件夹、cache 脚本、摘星中的笔记列表与笔记页。
 - [文章](articles/README.md)：通过 API 连同图片、视频一次导入的网页文章，摘星中的文章列表与文章页，媒体读取。
+- [标注](annotations/README.md)：文章正文与对话消息上的高亮、划线、页边批注和「只看标注」。
 - [札记](jottings/README.md)：Git 仓库中的短文、按 commit 索引、移动端增量同步与离线上传、Web 回响页。
 
 其他 Moment 类型尚未在此登记实现文档；产品设计中的规划不代表已经交付。

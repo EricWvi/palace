@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect } from "react";
+import { Fragment, useEffect, useLayoutEffect, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Link,
@@ -18,6 +18,13 @@ import {
   MarkdownContent,
   type ImagePolicy,
 } from "@/components/markdown-content";
+import {
+  AnnotationFacts,
+  useAnnotations,
+  type Annotations,
+} from "@/components/annotation-layer";
+import { AnnotatedArea } from "@/components/annotated-area";
+import type { Message } from "@/lib/api";
 
 // Imported messages are third-party content: showing them must not fetch anything on the reader's behalf.
 // Module-level, so the memoized content never sees a new policy object.
@@ -31,6 +38,7 @@ export function ConversationPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const detail = useQuery(conversationOptions(id!));
+  const layer = useAnnotations({ kind: "conversation", id: id! });
   const paths = detail.data ? resolvePaths(detail.data) : [];
   const wanted = params.get("path");
   const selected = paths.find(({ path }) => path.id === wanted) ?? paths[0];
@@ -96,7 +104,7 @@ export function ConversationPage() {
   if (!selected) return null;
   const source = sources[conversation!.source];
   return (
-    <>
+    <AnnotatedArea layer={layer}>
       <header className="conversation">
         {back}
         <div className="title-row reveals-more">
@@ -106,6 +114,7 @@ export function ConversationPage() {
             conversationId={id!}
             source={conversation!.source}
             path={selected.path}
+            reading={layer.menuAction}
             onImported={(result, occurredAt) =>
               show(result.path_id, dayParam(dayOf(occurredAt)))
             }
@@ -127,10 +136,11 @@ export function ConversationPage() {
           >
             继续对话 ↗
           </a>
+          <AnnotationFacts layer={layer} />
         </p>
       </header>
       <ol className="messages">
-        {selected.messages.map((message, index) => (
+        {foldMessages(selected.messages, layer, (message, index) => (
           <Fragment key={message.id}>
             <li
               id={messageAnchor(message)}
@@ -140,20 +150,73 @@ export function ConversationPage() {
                 {message.role === "user" ? "你" : source}
               </div>
               <div className="body">
-                <MarkdownContent content={message.content} images={imported} />
+                <MarkdownContent
+                  content={message.content}
+                  images={imported}
+                  scope={message.id}
+                  painting={layer.paintingFor(message.id)}
+                />
                 {!message.content && <span className="quiet">（空消息）</span>}
               </div>
             </li>
-            <PathFork
-              paths={paths}
-              selected={selected}
-              after={index}
-              onSelect={(pathId) => show(pathId)}
-            />
+            {/* While only annotations show, the forks would hang between folded messages. */}
+            {!layer.focus && (
+              <PathFork
+                paths={paths}
+                selected={selected}
+                after={index}
+                onSelect={(pathId) => show(pathId)}
+              />
+            )}
           </Fragment>
         ))}
       </ol>
       <MessageToc messages={selected.messages} />
-    </>
+    </AnnotatedArea>
   );
+}
+
+// Folded runs of whole messages are counted under their own name, apart from each message's.
+const messagesScope = "messages";
+
+// Draws the messages; while only annotations show, each run of unannotated messages becomes one
+// line that opens that run alone.
+function foldMessages(
+  messages: Message[],
+  layer: Annotations,
+  draw: (message: Message, index: number) => ReactNode,
+) {
+  if (!layer.focus) return messages.map(draw);
+  const annotated = new Set(layer.list.map((item) => item.message_id));
+  const out: ReactNode[] = [];
+  let run: number[] = [];
+  let number = 0;
+  const flush = () => {
+    if (!run.length) return;
+    const current = number++;
+    if (layer.opened(messagesScope).has(current))
+      for (const index of run) out.push(draw(messages[index], index));
+    else
+      out.push(
+        <li
+          key={`fold-${current}`}
+          className="fold-gap"
+          title="展开"
+          onClick={() => layer.open(messagesScope, current)}
+        >
+          省略 {run.length} 条消息
+        </li>,
+      );
+    run = [];
+  };
+  messages.forEach((message, index) => {
+    if (annotated.has(message.id)) {
+      flush();
+      out.push(draw(message, index));
+    } else {
+      run.push(index);
+    }
+  });
+  flush();
+  return out;
 }

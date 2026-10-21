@@ -12,7 +12,7 @@ use tower::ServiceExt;
 const ORIGIN: &str = "https://palace.test";
 
 /// Sends a JSON or empty request and returns the status and the parsed body (null when empty).
-async fn call(
+pub(super) async fn call(
     app: &Router,
     method: &str,
     uri: &str,
@@ -47,7 +47,7 @@ async fn call(
 }
 
 /// Posts an import whose `article` part carries `fields`, followed by `files`.
-async fn import(
+pub(super) async fn import(
     app: &Router,
     cookie: &str,
     fields: &Value,

@@ -1,6 +1,6 @@
 //! Offline contract assembly; operation metadata lives beside the real handlers.
 use super::{
-    access_tokens, article_import, articles, business, conversation_list, handlers,
+    access_tokens, annotations, article_import, articles, business, conversation_list, handlers,
     jotting_reading, jottings, media, notes, path_management, security, sync, timeline,
 };
 use utoipa::{
@@ -41,6 +41,12 @@ use utoipa::{
         articles::article,
         articles::update,
         articles::delete,
+        annotations::article_list,
+        annotations::article_create,
+        annotations::conversation_list,
+        annotations::conversation_create,
+        annotations::update,
+        annotations::delete,
         media::upload,
         media::read,
         media::delete,

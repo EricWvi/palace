@@ -9,6 +9,7 @@ import "@fontsource/eb-garamond/500.css";
 import "@fontsource/eb-garamond/400-italic.css";
 import { App } from "./app";
 import "./styles.css";
+import "./annotations.css";
 const client = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
 });

@@ -19,6 +19,8 @@ use tower::ServiceExt;
 
 #[path = "http/access_tokens.rs"]
 mod access_tokens;
+#[path = "http/annotations.rs"]
+mod annotations;
 #[path = "http/articles.rs"]
 mod articles;
 #[path = "http/contract.rs"]
@@ -112,6 +114,8 @@ fn request(
 /// - `specs/test-cases/web/stars/articles.md#article-list-must-order-by-published-date-while-the-timeline-uses-import-time`
 /// - `specs/test-cases/web/stars/articles.md#editing-an-article-must-replace-only-its-metadata`
 /// - `specs/test-cases/server/media/media-reading.md#reading-media-must-redirect-only-within-the-owner-scope`
+/// - `specs/test-cases/web/stars/annotations.md#annotations-must-stay-within-the-owner-scope`
+/// - `specs/test-cases/web/stars/annotations.md#an-annotation-must-keep-a-style-or-a-note-and-an-immutable-anchor`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image, git and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {
@@ -551,6 +555,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     paths::exercise_path_lifecycle(&app, &cookie, &foreign).await;
     media::exercise_unconfigured(&app, &cookie).await;
     articles::exercise_without_media(&app, &cookie, &foreign, &pool).await;
+    annotations::exercise_annotations(&app, &cookie, &foreign).await;
     jottings::exercise_jottings(&app, &cookie, &foreign, agent).await;
     jottings::exercise_unconfigured(&without_jottings, &cookie).await;
     inputs::exercise_contract_boundaries(&app, &cookie, &foreign, &pool, &sessions[0].owner).await;

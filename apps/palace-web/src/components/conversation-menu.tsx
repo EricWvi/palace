@@ -21,7 +21,7 @@ import {
 } from "./ui/dialog";
 import { BranchManager } from "./branch-manager";
 import { ErrorState } from "./error-state";
-import { MoreMenu } from "./more-menu";
+import { MoreMenu, type MenuAction } from "./more-menu";
 import { ImportDialog, type ImportResult } from "./import-dialog";
 
 // The reading page is the only place a conversation is managed; the timeline only links here.
@@ -29,6 +29,7 @@ export function ConversationMenu({
   conversationId,
   source,
   path,
+  reading,
   onImported,
   onDeleted,
 }: {
@@ -36,6 +37,8 @@ export function ConversationMenu({
   source: Source;
   // The path being read: the title edit applies to it, and new branches start from its title.
   path: ConversationPath;
+  // How the page is being read (只看标注 or the full text), listed first.
+  reading: MenuAction;
   onImported: (result: ImportResult, occurredAt: number) => void;
   onDeleted: () => void;
 }) {
@@ -49,6 +52,10 @@ export function ConversationMenu({
     forgetConversationList(client);
     return Promise.all([
       client.invalidateQueries({ queryKey: ["conversation", conversationId] }),
+      // Deleting a branch deletes the annotations on the messages only it had.
+      client.invalidateQueries({
+        queryKey: ["annotations", "conversation", conversationId],
+      }),
       client.invalidateQueries({ queryKey: ["timeline"] }),
     ]);
   };
@@ -91,6 +98,7 @@ export function ConversationMenu({
         // Most frequent first, the one that cannot be undone last. Updating the branch being read
         // is what a reader comes back for, so it needs no detour through 管理分支.
         actions={[
+          reading,
           { label: "更新分支", onSelect: () => setAction("update") },
           { label: "管理分支", onSelect: () => setAction("branches") },
           {

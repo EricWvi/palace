@@ -3,6 +3,7 @@ import Markdown from "react-markdown";
 import { Link } from "react-router-dom";
 import rehypeHighlight, { type Options } from "rehype-highlight";
 import remarkGfm from "remark-gfm";
+import { rehypeAnnotations, type Painting } from "@/lib/annotation-paint";
 
 // Where images may be loaded from is the one rule that differs between callers: imported
 // conversations are third-party content and must not make the reader's browser fetch anything,
@@ -23,20 +24,35 @@ const highlight: Options = {
 };
 
 // Shows Markdown the same way everywhere: GFM, no raw HTML, highlighted fenced code with a copy
-// button, external links in a new window and in-app paths through the router.
+// button, external links in a new window and in-app paths through the router. Text this
+// component adds itself (the copy button, image placeholders) carries `data-annotation-skip`, so
+// it is never part of the text annotations are anchored in.
 export const MarkdownContent = memo(function MarkdownContent({
   content,
   images,
+  scope,
+  painting,
 }: {
   content: string;
   // Pass a stable value (a module constant or a memoized object) so memoization holds.
   images: ImagePolicy;
+  // Names the annotation scope this text is, for turning a selection in it into an anchor.
+  scope?: string;
+  // The annotations to draw and the folding of 只看标注; stable, like `images`.
+  painting?: Painting;
 }) {
   return (
-    <div className="markdown">
+    <div className="markdown" data-annotation-scope={scope}>
       <Markdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[[rehypeHighlight, highlight]]}
+        rehypePlugins={
+          painting
+            ? [
+                [rehypeHighlight, highlight],
+                [rehypeAnnotations, painting],
+              ]
+            : [[rehypeHighlight, highlight]]
+        }
         skipHtml
         components={{
           img: ({ src, alt }) => {
@@ -45,7 +61,11 @@ export const MarkdownContent = memo(function MarkdownContent({
                 ? images.resolve(src)
                 : null;
             if (resolved === null)
-              return <span className="quiet">[图片：{alt || "未加载"}]</span>;
+              return (
+                <span className="quiet" data-annotation-skip="">
+                  [图片：{alt || "未加载"}]
+                </span>
+              );
             // Only the metadata loads up front; the video itself waits for the reader to play it.
             return resolved.kind === "video" ? (
               <video
@@ -74,7 +94,10 @@ export const MarkdownContent = memo(function MarkdownContent({
                 {children}
               </a>
             ),
-          pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
+          // The class carries 只看标注's folding onto the block the reader sees.
+          pre: ({ children, className }) => (
+            <CodeBlock className={className}>{children}</CodeBlock>
+          ),
         }}
       >
         {content}
@@ -86,7 +109,7 @@ export const MarkdownContent = memo(function MarkdownContent({
 const labels = { idle: "复制", copied: "已复制", failed: "复制失败" } as const;
 
 // The button sits outside the scrolling <pre>, so it stays in the corner while wide code scrolls.
-function CodeBlock({ children }: ComponentProps<"pre">) {
+function CodeBlock({ children, className }: ComponentProps<"pre">) {
   const code = useRef<HTMLPreElement>(null);
   const [state, setState] = useState<keyof typeof labels>("idle");
   useEffect(() => {
@@ -106,17 +129,18 @@ function CodeBlock({ children }: ComponentProps<"pre">) {
     }
   }
   return (
-    <div className="code-block">
+    <div className={className ? `code-block ${className}` : "code-block"}>
       <pre ref={code}>{children}</pre>
       <button
         type="button"
         className="copy-code"
+        data-annotation-skip=""
         aria-label="复制代码"
         onClick={copy}
       >
         {labels[state]}
       </button>
-      <span role="status" className="sr-only">
+      <span role="status" className="sr-only" data-annotation-skip="">
         {state === "idle" ? "" : labels[state]}
       </span>
     </div>
