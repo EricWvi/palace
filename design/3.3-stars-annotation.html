@@ -1,0 +1,1506 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<!--
+  Annotations on what never changes once in Palace: an imported article, and
+  the messages of a conversation (which only grows). Select text and a small
+  bar offers four highlighters, a straight line, a wavy line and 批注; click a
+  mark to restyle it, comment on it or remove it.
+  ?doc=article | chat picks the sample. Variant A keeps notes in a margin
+  column beside the text (from 1180px wide, narrower falls back to B);
+  variant B keeps the page at 760px and shows a note in a card under its mark.
+  Annotations persist in localStorage per sample; the prototype bar resets them.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>标注</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="components.css">
+  <link rel="stylesheet" href="reading-toc.css">
+  <script src="ornament.js"></script>
+  <script src="shared.js"></script>
+  <script src="variant-switcher.js"></script>
+  <style>
+    /*
+     * The margin layout widens the sheet by a gutter and a note column, and
+     * keeps the text column exactly as wide as on every other reading page,
+     * so line breaks and the reader's place do not move between layouts.
+     * A page without notes keeps the ordinary centered sheet; the first note
+     * stretches it the way 回响 does, header included, and the last one
+     * removed narrows it back.
+     */
+    :root {
+      --column: 712px;
+      --gutter: 56px;
+      --notes: 248px;
+    }
+
+    /* Only after the first paint: a page that opens with notes is wide from the start. */
+    [data-ready] .sheet {
+      transition: max-width 400ms ease-out;
+    }
+
+    [data-layout="margin"] .sheet {
+      max-width: calc(var(--column) + var(--gutter) + var(--notes) + 48px);
+    }
+
+    .column {
+      position: relative;
+      max-width: var(--column);
+    }
+
+    header.doc {
+      position: relative;
+      margin-top: 70px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: var(--font-size-3xl);
+      letter-spacing: -0.01em;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    /* Rare actions behind a hover-only mark, as on the other reading pages. */
+    .manage {
+      position: relative;
+      flex: none;
+    }
+
+    .more {
+      color: var(--text-3);
+      font-size: var(--font-size-lg);
+      letter-spacing: 2px;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+
+    .title-row:hover .more,
+    .more:focus-visible,
+    .more[aria-expanded="true"] {
+      opacity: 1;
+    }
+
+    .more:hover,
+    .more[aria-expanded="true"] {
+      color: var(--text-2);
+    }
+
+    @media (hover: none) {
+      .more {
+        opacity: 1;
+      }
+    }
+
+    .menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 1;
+      min-width: 128px;
+      margin: 0;
+      padding: 6px;
+      list-style: none;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgb(0 0 0 / .08);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .menu[hidden] {
+      display: none;
+    }
+
+    .menu button {
+      display: block;
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      text-align: left;
+      color: var(--text-2);
+      white-space: nowrap;
+    }
+
+    .menu button:hover:not(:disabled),
+    .menu button:focus-visible {
+      background: var(--bg-sunken);
+      color: var(--text);
+      outline: none;
+    }
+
+    .menu button:disabled {
+      color: var(--text-3);
+      cursor: default;
+    }
+
+    .meta button {
+      color: inherit;
+      text-decoration: underline;
+      text-decoration-color: var(--text-3);
+      text-underline-offset: 3px;
+    }
+
+    .meta button:hover {
+      color: var(--accent);
+    }
+
+    /*
+     * 只看标注: blocks without a mark fold away behind one quiet line per run,
+     * and what stays is dimmed except the marked words, so the eye lands on
+     * what the reader once picked out while the sentence around it remains.
+     */
+    .prose,
+    .body {
+      transition: color .2s;
+    }
+
+    [data-focus] .prose,
+    [data-focus] .body,
+    [data-focus] .prose blockquote {
+      color: var(--text-3);
+    }
+
+    [data-focus] .prose h2,
+    [data-focus] .anno {
+      color: var(--text);
+    }
+
+    .folded {
+      display: none !important;
+    }
+
+    .fold-gap {
+      margin: 0 0 14px;
+      list-style: none;
+      color: var(--text-3);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-xs);
+      cursor: pointer;
+    }
+
+    .fold-gap::before {
+      content: "⋯";
+      margin-right: 8px;
+      letter-spacing: 2px;
+    }
+
+    .fold-gap:hover {
+      color: var(--text-2);
+    }
+
+    .messages>.fold-gap {
+      margin: 32px 0 0;
+    }
+
+    .messages>.fold-gap:first-child {
+      margin-top: 0;
+    }
+
+    .meta a {
+      color: inherit;
+      text-decoration: underline;
+      text-decoration-color: var(--text-3);
+      text-underline-offset: 3px;
+    }
+
+    .meta a:hover {
+      color: var(--accent);
+    }
+
+    /* Article body: the same prose as the note page (3.2). */
+    .prose {
+      margin-top: 54px;
+      font-family: var(--font-content);
+      font-size: var(--font-size-base);
+      line-height: 1.75;
+    }
+
+    .prose> :first-child {
+      margin-top: 0;
+    }
+
+    .prose p,
+    .prose ul,
+    .prose pre,
+    .prose blockquote {
+      margin: 0 0 14px;
+    }
+
+    .prose ul {
+      padding-left: 22px;
+    }
+
+    .prose h2 {
+      margin: 32px 0 8px;
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+    }
+
+    .prose code,
+    .body code {
+      padding: 1px 5px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: var(--font-size-sm);
+    }
+
+    .prose :not(pre)>code,
+    .body :not(pre)>code {
+      background: var(--code-inline-bg);
+      color: var(--code-inline-text);
+    }
+
+    .prose pre {
+      padding: 14px 18px;
+      overflow-x: auto;
+      background: var(--bg-sunken);
+      border-radius: var(--radius-md);
+      line-height: 1.6;
+    }
+
+    .prose pre code {
+      padding: 0;
+      background: none;
+    }
+
+    .prose blockquote {
+      padding-left: 16px;
+      border-left: 2px solid var(--border);
+      color: var(--text-2);
+    }
+
+    /* Conversation transcript: the same page of text as 2.1. */
+    ol.messages {
+      list-style: none;
+      margin: 54px 0 0;
+      padding: 0;
+      font-family: var(--font-content);
+      line-height: 1.75;
+    }
+
+    .message+.message {
+      margin-top: 32px;
+    }
+
+    .who {
+      margin-bottom: 6px;
+      color: var(--text-3);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .message.user .body {
+      padding: 14px 18px;
+      background: var(--bg-sunken);
+      border-radius: var(--radius-md);
+    }
+
+    .body> :first-child {
+      margin-top: 0;
+    }
+
+    .body> :last-child {
+      margin-bottom: 0;
+    }
+
+    .body p,
+    .body ul {
+      margin: 0 0 12px;
+    }
+
+    .body ul {
+      padding-left: 22px;
+    }
+
+    .body b {
+      font-weight: 600;
+    }
+
+    /*
+     * Marks. An annotation is one <mark> per text run it covers; its look
+     * comes from the style the reader picked, never from the Markdown under
+     * it, so a highlight drawn across inline code or a quote reads as one
+     * stroke. No padding: annotating must never reflow a line.
+     */
+    .anno {
+      --m: transparent;
+      color: inherit;
+      background: none;
+      border-radius: 2px;
+      cursor: pointer;
+      -webkit-box-decoration-break: clone;
+      box-decoration-break: clone;
+      transition: background-color .15s, border-color .15s;
+    }
+
+    .anno[data-style="yellow"] {
+      --m: var(--mark-yellow);
+    }
+
+    .anno[data-style="green"] {
+      --m: var(--mark-green);
+    }
+
+    .anno[data-style="blue"] {
+      --m: var(--mark-blue);
+    }
+
+    .anno[data-style="rose"] {
+      --m: var(--mark-rose);
+    }
+
+    .anno.hl {
+      background-color: var(--m);
+    }
+
+    /* Drawn with the ink skipping nothing, like a pen stroke under the line. */
+    .anno.line {
+      text-decoration: underline 2px var(--mark-line);
+      text-decoration-skip-ink: none;
+      text-underline-offset: 5px;
+    }
+
+    .anno.wave {
+      text-decoration: underline wavy 1.5px var(--mark-wave);
+      text-decoration-skip-ink: none;
+      text-underline-offset: 4px;
+    }
+
+    /*
+     * A note with no style of its own still needs a look, and it must not be
+     * mistaken for a highlight: a faint accent wash over an accent rule.
+     */
+    .anno.plain {
+      background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+      border-bottom: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    }
+
+    /* A styled mark that also carries a note ends in a small accent dot. */
+    .anno[data-tail]::after {
+      content: "";
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      margin-left: 2px;
+      border-radius: var(--radius-round);
+      background: var(--accent);
+      vertical-align: super;
+    }
+
+    /* The note and its words light up together, from either side. */
+    .anno.hl.hot {
+      background-color: color-mix(in srgb, var(--m), var(--text) 14%);
+    }
+
+    .anno.plain.hot {
+      background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+      border-bottom-color: var(--accent);
+    }
+
+    .anno.line.hot,
+    .anno.wave.hot {
+      background-color: color-mix(in srgb, var(--accent) 9%, transparent);
+    }
+
+    /* The annotation outranks the Markdown underneath it. */
+    .anno code,
+    .anno a,
+    .anno b {
+      color: inherit;
+    }
+
+    .prose .anno code,
+    .body .anno code {
+      background: transparent;
+    }
+
+    .prose blockquote .anno {
+      color: var(--text);
+    }
+
+    /* Selection bar: a row of swatches and two pen samples, then words. */
+    .anno-bar {
+      position: absolute;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 4px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgb(0 0 0 / .1);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    .anno-bar[hidden] {
+      display: none;
+    }
+
+    .anno-bar button {
+      display: grid;
+      place-items: center;
+      min-width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      color: var(--text-2);
+    }
+
+    .anno-bar button:hover,
+    .anno-bar button:focus-visible {
+      background: var(--bg-sunken);
+      color: var(--text);
+      outline: none;
+    }
+
+    .anno-bar .swatch::before {
+      content: "";
+      width: 14px;
+      height: 14px;
+      border-radius: var(--radius-round);
+      background: var(--m);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent);
+    }
+
+    .anno-bar .swatch[aria-pressed="true"]::before {
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent),
+        0 0 0 2px var(--surface-raised), 0 0 0 3.5px var(--text-3);
+    }
+
+    .anno-bar .pen {
+      font-size: var(--font-size-md);
+      text-decoration-skip-ink: none;
+    }
+
+    .anno-bar .pen.line {
+      text-decoration: underline 2px var(--mark-line);
+      text-underline-offset: 4px;
+    }
+
+    .anno-bar .pen.wave {
+      text-decoration: underline wavy 1.5px var(--mark-wave);
+      text-underline-offset: 3px;
+    }
+
+    .anno-bar .pen[aria-pressed="true"] {
+      background: var(--bg-sunken);
+      color: var(--text);
+    }
+
+    .anno-bar .word {
+      padding: 0 8px;
+    }
+
+    .anno-bar .remove:hover {
+      color: var(--accent);
+    }
+
+    .anno-bar .rule {
+      width: 1px;
+      height: 16px;
+      margin: 0 4px;
+      background: var(--border);
+    }
+
+    /*
+     * A note card. Quiet by default, a little paper on the page; when its
+     * words are under the pointer it lifts, darkens and leans toward them.
+     * The rule on its left edge carries the mark's own color.
+     */
+    .note-card {
+      --swatch: var(--accent);
+      position: absolute;
+      padding: 9px 14px 10px 16px;
+      background: var(--surface-raised);
+      border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+      border-radius: var(--radius-md);
+      box-shadow: 0 1px 2px rgb(0 0 0 / .04), 0 3px 10px rgb(0 0 0 / .04);
+      color: var(--text-2);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+      line-height: 1.65;
+      cursor: text;
+      transition: top .2s ease-out, transform .2s ease-out, box-shadow .2s, color .2s, border-color .2s;
+    }
+
+    .note-card::before {
+      content: "";
+      position: absolute;
+      top: 9px;
+      bottom: 9px;
+      left: -1px;
+      width: 2px;
+      border-radius: 1px;
+      background: var(--swatch);
+    }
+
+    .note-card.hot,
+    .note-card:focus-within {
+      z-index: 1;
+      border-color: var(--border);
+      box-shadow: 0 2px 6px rgb(0 0 0 / .07), 0 12px 32px rgb(0 0 0 / .13);
+      color: var(--text);
+      transform: translateX(-4px);
+    }
+
+    .note-text {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .note-text:focus {
+      outline: none;
+    }
+
+    .note-text:empty::before {
+      content: "写下批注…";
+      color: var(--text-3);
+    }
+
+    /* Cards wait for the sheet to open up before they fade in. */
+    .notes {
+      animation: notes-in 250ms ease-out 250ms backwards;
+      position: absolute;
+      top: 0;
+      left: calc(100% + var(--gutter));
+      width: var(--notes);
+    }
+
+    @keyframes notes-in {
+      from {
+        opacity: 0;
+      }
+    }
+
+    [data-layout="popover"] .notes {
+      animation: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      [data-ready] .sheet,
+      .notes {
+        transition: none;
+        animation: none;
+      }
+    }
+
+    .notes .note-card {
+      left: 0;
+      right: 0;
+    }
+
+    /* Variant B: the same card, floated under its mark. */
+    .note-card.pop {
+      z-index: 35;
+      width: 300px;
+      border-color: var(--border);
+      box-shadow: 0 2px 6px rgb(0 0 0 / .07), 0 12px 32px rgb(0 0 0 / .13);
+      color: var(--text);
+      transform: none;
+      transition: none;
+    }
+
+    .note-card.pop[hidden] {
+      display: none;
+    }
+
+    /* PROTOTYPE ONLY: picks the sample and clears annotations; inverted like the variant bar. */
+    .proto {
+      position: fixed;
+      left: 20px;
+      bottom: 20px;
+      z-index: 10;
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--text);
+      color: var(--bg);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgb(0 0 0 / .2);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .proto a,
+    .proto button {
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .proto a:hover,
+    .proto button:hover {
+      background: color-mix(in srgb, var(--bg) 15%, transparent);
+    }
+
+    .proto [aria-current="page"] {
+      background: color-mix(in srgb, var(--bg) 22%, transparent);
+    }
+
+    @media (max-width: 720px) {
+      header.doc {
+        margin-top: 41px;
+      }
+
+      h1 {
+        font-size: var(--font-size-2xl);
+      }
+
+      .message.user .body {
+        padding: 12px 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="sheet">
+    <palace-header active="摘星"></palace-header>
+    <div class="column" id="column">
+      <header class="doc">
+        <div class="title-row">
+          <h1 id="title"></h1>
+          <div class="manage">
+            <button class="more" id="more" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false"
+              aria-controls="menu">···</button>
+            <ul class="menu" id="menu" role="menu" hidden></ul>
+          </div>
+        </div>
+        <p class="meta" id="meta"></p>
+      </header>
+      <div id="content"></div>
+      <div class="notes" id="notes"></div>
+    </div>
+  </main>
+
+  <div class="anno-bar" id="bar" role="toolbar" aria-label="标注" hidden></div>
+  <div class="note-card pop" id="pop" hidden>
+    <div class="note-text"></div>
+  </div>
+
+  <nav class="toc" aria-label="文章目录">
+    <div class="toc-rail" aria-hidden="true"></div>
+    <ol class="toc-panel"></ol>
+  </nav>
+
+  <div class="proto">
+    <a href="?doc=article" data-doc="article">文章</a>
+    <a href="?doc=chat" data-doc="chat">对话</a>
+    <button id="reset">重置标注</button>
+  </div>
+  <variant-switcher variants="A:页边批注,B:浮层批注"></variant-switcher>
+
+  <script>
+    const esc = (s) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+    const inline = (s) => esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+
+    // Just enough Markdown for the sample: headings, lists, quotes, fenced code, paragraphs.
+    const markdown = (src) => {
+      const lines = src.split("\n");
+      const out = [];
+      let i = 0;
+      const run = (test) => {
+        const taken = [];
+        while (i < lines.length && test(lines[i])) taken.push(lines[i++]);
+        return taken;
+      };
+      while (i < lines.length) {
+        const line = lines[i];
+        if (!line.trim()) {
+          i++;
+        } else if (line.startsWith("```")) {
+          i++;
+          const code = run((l) => !l.startsWith("```"));
+          i++;
+          out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`);
+        } else if (/^#{1,6} /.test(line)) {
+          i++;
+          const level = line.match(/^#+/)[0].length;
+          out.push(`<h${level}>${inline(line.replace(/^#+ /, ""))}</h${level}>`);
+        } else if (line.startsWith("- ")) {
+          out.push(`<ul>${run((l) => l.startsWith("- ")).map((l) => `<li>${inline(l.slice(2))}</li>`).join("")}</ul>`);
+        } else if (line.startsWith("> ")) {
+          out.push(`<blockquote>${run((l) => l.startsWith("> ")).map((l) => inline(l.slice(2))).join("<br>")}</blockquote>`);
+        } else {
+          out.push(`<p>${run((l) => l.trim() && !/^(#{1,6} |- |> |```)/.test(l)).map(inline).join("<br>")}</p>`);
+        }
+      }
+      return out.join("");
+    };
+
+    /*
+     * Two samples. Each has scopes: an annotation lives inside one scope and
+     * is anchored by character offsets into its rendered text. That only holds
+     * because the text never changes: an article is fixed once imported, and a
+     * conversation only appends messages, so an existing message is fixed too.
+     */
+    const DOCS = {
+      article: {
+        title: "把一篇长文读慢一点",
+        meta: ["林间", "2024 年 5 月 3 日", '<a href="#">原文 ↗</a>'],
+        kind: "prose",
+        scopes: [{
+          id: "body",
+          html: markdown([
+            "收藏夹里躺着的文章，大多数再也没有被打开过。问题不在于没有时间，而在于我们把「存下来」误当成了「读过了」。存下来只是延后了判断，真正的阅读需要在文字上留下一点痕迹。",
+            "",
+            "## 痕迹比摘要更诚实",
+            "读完之后写一段摘要，看起来是在整理，其实常常是在复述作者的结构。**划线和旁批不一样**：它们发生在阅读的当下，记录的是哪一句话让你停了下来。几个月后回看，摘要告诉你文章说了什么，划线告诉你当时的你在想什么。",
+            "",
+            "> 一本书真正属于你，是在你往它的页边写字之后。",
+            "",
+            "这也是为什么纸书的页边那么重要。页边是作者留给读者的空间，窄，但足够写下一句反驳、一个问号，或者另一本书的名字。",
+            "",
+            "## 三种痕迹",
+            "- 高亮：这句话本身值得再读一遍。",
+            "- 划线：这里有一个需要记住的事实或数字。",
+            "- 旁批：我对这句话有话要说，可能同意，也可能不同意。",
+            "",
+            "颜色的意义最好由自己约定，但约定要少。超过四种颜色之后，回看时你会先花时间回忆每种颜色代表什么，痕迹反而变成了噪音。",
+            "",
+            "## 让工具退后一步",
+            "标注工具最常见的失败，是让读者在每一次划线时都面对一排按钮。选中文字之后出现的东西越少越好：几种颜色、一条线、一个写字的地方。快捷键可以更少：按 `h` 高亮，按 `c` 写批注。",
+            "",
+            "```",
+            "{ \"start\": 128, \"end\": 164, \"style\": \"yellow\", \"note\": null }",
+            "```",
+            "锚点只要记住字符位置就够了——前提是原文永远不变。导入之后不再改写的文章、只会继续增长的对话，正好满足这个前提。",
+            "",
+            "## 回看",
+            "标注的价值在回看时才兑现。一年后重读同一篇文章，旧的批注会和新的想法并排出现；有时你会发现自己当年反对的东西，现在已经完全接受了。这种变化，比文章本身更值得保存。",
+          ].join("\n")),
+        }],
+        seeds: [
+          { scope: "body", quote: "存下来只是延后了判断", style: "yellow", note: null },
+          { scope: "body", quote: "划线和旁批不一样", style: "green", note: null },
+          { scope: "body", quote: "摘要告诉你文章说了什么，划线告诉你当时的你在想什么", style: null, note: "这句可以放进摘星首页当引语。" },
+          { scope: "body", quote: "一本书真正属于你，是在你往它的页边写字之后", style: "blue", note: "出处记不清了，像是 Adler《如何阅读一本书》的意思，但不是原话。" },
+          { scope: "body", quote: "超过四种颜色之后", style: "wave", note: "所以这里只给四种颜色。" },
+          { scope: "body", quote: "按 h 高亮", style: "yellow", note: null },
+          { scope: "body", quote: "导入之后不再改写的文章、只会继续增长的对话", style: "line", note: null },
+        ],
+      },
+      chat: {
+        title: "写 ADR 时替代方案怎么写",
+        meta: ["Claude", "4 条消息", '<a href="#">继续对话 ↗</a>'],
+        kind: "chat",
+        scopes: [
+          { id: "m1", role: "user", html: "<p>写 ADR 的时候，替代方案那一节总是写得很敷衍，基本就是“考虑过 X，但不好”。怎么写才有用？</p>" },
+          { id: "m2", role: "assistant", html: "<p>替代方案那一节真正的读者，是半年后想推翻这个决策的人——很可能就是你自己。他需要知道的不是“X 不好”，而是<b>当时放弃了什么</b>。</p><p>可以按三句话来写：</p><ul><li>这个方案能解决什么问题；</li><li>选它要付出什么代价；</li><li>在什么条件下它会变成更好的选择。</li></ul><p>第三句最常被省略，但它决定了这条记录会不会过期：条件变了，读者就知道该重新评估了。</p>" },
+          { id: "m3", role: "user", html: "<p>第三句确实没想过。那如果替代方案很多呢？</p>" },
+          { id: "m4", role: "assistant", html: "<p>只写认真比较过的两三个。列一长串只看过名字的方案，会让读者以为每一个都评估过，反而误导。没有展开的方案可以合成一句：“另外看过 A、B，因为某某原因没有深入。”</p>" },
+        ],
+        seeds: [
+          { scope: "m2", quote: "当时放弃了什么", style: "yellow", note: null },
+          { scope: "m2", quote: "在什么条件下它会变成更好的选择", style: null, note: "以后 ADR 模板的替代方案里固定加这一句。" },
+          { scope: "m4", quote: "反而误导", style: "wave", note: null },
+        ],
+      },
+    };
+
+    const STYLES = [
+      { key: "yellow", kind: "hl", label: "黄色高亮", hotkey: "1" },
+      { key: "green", kind: "hl", label: "绿色高亮", hotkey: "2" },
+      { key: "blue", kind: "hl", label: "蓝色高亮", hotkey: "3" },
+      { key: "rose", kind: "hl", label: "红色高亮", hotkey: "4" },
+      { key: "line", kind: "line", label: "划线", hotkey: "u" },
+      { key: "wave", kind: "wave", label: "波浪线", hotkey: "w" },
+    ];
+    const kindOf = (style) => STYLES.find((s) => s.key === style)?.kind ?? "plain";
+    // The color a note card's edge takes from its mark; pale highlighter grounds are deepened to show on a card.
+    const swatchOf = (style) => ({
+      hl: `color-mix(in srgb, var(--mark-${style}), var(--text) 28%)`,
+      line: "var(--mark-line)",
+      wave: "var(--mark-wave)",
+      plain: "var(--accent)",
+    })[kindOf(style)];
+
+    const docKey = new URLSearchParams(location.search).get("doc") === "chat" ? "chat" : "article";
+    const doc = DOCS[docKey];
+    const storeKey = `palace-3.3-annotations-${docKey}`;
+    document.querySelector(`.proto [data-doc="${docKey}"]`).setAttribute("aria-current", "page");
+
+    const title = document.getElementById("title");
+    const meta = document.getElementById("meta");
+    const content = document.getElementById("content");
+    const column = document.getElementById("column");
+    const notesBox = document.getElementById("notes");
+    const bar = document.getElementById("bar");
+    const pop = document.getElementById("pop");
+    const popText = pop.querySelector(".note-text");
+
+    title.textContent = doc.title;
+    document.title = doc.title;
+    if (doc.kind === "prose") {
+      content.innerHTML = `<div class="prose" data-scope="${doc.scopes[0].id}"></div>`;
+    } else {
+      content.innerHTML = `<ol class="messages">${doc.scopes.map((s) => `
+        <li class="message ${s.role}">
+          <div class="who">${s.role === "user" ? "你" : "Claude"}</div>
+          <div class="body" data-scope="${s.id}"></div>
+        </li>`).join("")}</ol>`;
+    }
+    const scopeEl = (id) => content.querySelector(`[data-scope="${id}"]`);
+    const htmlOf = Object.fromEntries(doc.scopes.map((s) => [s.id, s.html]));
+
+    // Seeds name their text by quote so the sample stays readable; offsets are what is stored.
+    const seed = () => doc.seeds.map((s, index) => {
+      const probe = document.createElement("div");
+      probe.innerHTML = htmlOf[s.scope];
+      const start = probe.textContent.indexOf(s.quote);
+      return { id: `seed-${index}`, scope: s.scope, start, end: start + s.quote.length, style: s.style, note: s.note };
+    }).filter((a) => a.start >= 0);
+
+    const load = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storeKey));
+        if (Array.isArray(saved)) return saved;
+      } catch { }
+      return seed();
+    };
+    let annos = load();
+    const save = () => {
+      try {
+        localStorage.setItem(storeKey, JSON.stringify(annos));
+      } catch { }
+    };
+    const find = (id) => annos.find((a) => a.id === id);
+
+    // An inline element whose whole text is marked moves inside the mark, so its own ground cannot show around it.
+    const LIFT = new Set(["CODE", "A", "B", "STRONG", "EM", "I"]);
+
+    // Wraps every text run of [start, end) in a <mark>; earlier annotations end up outside later ones.
+    const paint = (root, a) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const runs = [];
+      let pos = 0;
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const s = Math.max(a.start, pos);
+        const e = Math.min(a.end, pos + node.data.length);
+        if (s < e) runs.push([node, s - pos, e - pos]);
+        pos += node.data.length;
+      }
+      const marks = [];
+      for (const [node, s, e] of runs) {
+        if (e < node.data.length) node.splitText(e);
+        let target = s > 0 ? node.splitText(s) : node;
+        while (target.parentNode !== root && LIFT.has(target.parentNode.tagName)
+          && target.parentNode.textContent === target.textContent) target = target.parentNode;
+        // Neighbouring runs share one mark, so a stroke across inline code has no seams.
+        if (target.previousSibling && target.previousSibling === marks.at(-1)) {
+          marks.at(-1).append(target);
+          continue;
+        }
+        const mark = document.createElement("mark");
+        mark.className = `anno ${kindOf(a.style)}`;
+        mark.dataset.id = a.id;
+        if (a.style) mark.dataset.style = a.style;
+        if (a.note !== null) mark.dataset.note = "";
+        target.replaceWith(mark);
+        mark.append(target);
+        marks.push(mark);
+      }
+      if (a.note !== null && a.style && marks.length) marks.at(-1).dataset.tail = "";
+    };
+
+    // The margin column exists only in variant A, on a wide enough window, and only once there is a note to put in it.
+    const marginMode = () => document.documentElement.dataset.variant === "A" && innerWidth >= 1180
+      && annos.some((a) => a.note !== null);
+
+    let active = null;
+    let editing = null;
+    let focusMode = false;
+    let wasMargin = false;
+
+    // Text never changes, so redrawing from the original HTML each time is simple and cannot drift.
+    const render = () => {
+      wasMargin = marginMode();
+      document.documentElement.dataset.layout = wasMargin ? "margin" : "popover";
+      for (const s of doc.scopes) {
+        const root = scopeEl(s.id);
+        root.innerHTML = s.html;
+        annos.filter((a) => a.scope === s.id).forEach((a) => paint(root, a));
+      }
+      if (!annos.length) focusMode = false;
+      const metaParts = [...doc.meta];
+      if (focusMode) metaParts.push(`只看 ${annos.length} 处标注`, '<button data-act="unfocus">显示全文</button>');
+      else if (annos.length) metaParts.push(`${annos.length} 处标注`);
+      meta.innerHTML = metaParts.map((p) => p.startsWith("<") ? p : `<span>${p}</span>`).join("");
+      drawMenu();
+      fold();
+      layoutNotes();
+    };
+
+    // Hides one run of consecutive items behind a line that counts them; clicking the line opens that run alone.
+    const foldRuns = (items, folds, noun) => {
+      let run = [];
+      const flush = () => {
+        if (!run.length) return;
+        const hidden = run;
+        const parent = hidden[0].parentElement;
+        const gap = document.createElement(/^(UL|OL)$/.test(parent.tagName) ? "li" : "div");
+        gap.className = "fold-gap";
+        gap.textContent = `省略 ${hidden.length} ${noun}`;
+        gap.title = "展开";
+        gap.addEventListener("click", () => {
+          hidden.forEach((el) => el.classList.remove("folded"));
+          gap.remove();
+          layoutNotes();
+        });
+        parent.insertBefore(gap, hidden[0]);
+        hidden.forEach((el) => el.classList.add("folded"));
+        run = [];
+      };
+      for (const item of items) {
+        if (folds(item)) run.push(item);
+        else flush();
+      }
+      flush();
+    };
+
+    // A heading stays when its section kept something, so what remains keeps its outline.
+    const foldBlocks = (blocks) => {
+      const isHeading = (b) => /^H[1-6]$/.test(b.tagName);
+      const keep = new Set(blocks.filter((b) => b.querySelector(".anno")));
+      blocks.forEach((b, i) => {
+        if (!isHeading(b)) return;
+        for (let j = i + 1; j < blocks.length && !isHeading(blocks[j]); j++) {
+          if (keep.has(blocks[j])) {
+            keep.add(b);
+            break;
+          }
+        }
+      });
+      for (const b of keep) {
+        if (b.tagName === "UL") foldRuns([...b.children], (li) => !li.querySelector(".anno"), "项");
+      }
+      foldRuns(blocks, (b) => !keep.has(b), "段");
+    };
+
+    // Folding is redone from scratch after every render, since render rebuilds the marked text.
+    const fold = () => {
+      content.querySelectorAll(".fold-gap").forEach((g) => g.remove());
+      content.querySelectorAll(".folded").forEach((el) => el.classList.remove("folded"));
+      document.documentElement.toggleAttribute("data-focus", focusMode);
+      if (!focusMode) return;
+      if (doc.kind === "prose") {
+        foldBlocks([...scopeEl("body").children]);
+        return;
+      }
+      const messages = [...content.querySelectorAll(".message")];
+      for (const m of messages) {
+        if (m.querySelector(".anno")) foldBlocks([...m.querySelector(".body").children]);
+      }
+      foldRuns(messages, (m) => !m.querySelector(".anno"), "条消息");
+    };
+
+    const more = document.getElementById("more");
+    const menu = document.getElementById("menu");
+    const MENU = {
+      article: ["编辑信息", "删除文章"],
+      chat: ["编辑对话", "删除对话"],
+    };
+    const drawMenu = () => {
+      const focusItem = focusMode
+        ? '<li role="none"><button role="menuitem" data-act="unfocus" title="显示全文（a）">显示全文</button></li>'
+        : `<li role="none"><button role="menuitem" data-act="focus" title="只看标注（a）"${annos.length ? "" : " disabled"}>只看标注</button></li>`;
+      menu.innerHTML = focusItem + MENU[docKey].map((label) => `<li role="none"><button role="menuitem">${label}</button></li>`).join("");
+    };
+    const closeMenu = () => {
+      menu.hidden = true;
+      more.setAttribute("aria-expanded", "false");
+    };
+
+    /*
+     * Switching folds or unfolds most of the page; the first mark on screen is
+     * held where it was so the reader does not lose their place.
+     */
+    const setFocus = (on) => {
+      closeMenu();
+      closeBar();
+      hidePop();
+      const anchor = [...content.querySelectorAll(".anno")].find((m) => m.getBoundingClientRect().bottom > 0);
+      const id = anchor?.dataset.id;
+      const before = anchor?.getBoundingClientRect().top;
+      focusMode = on;
+      render();
+      const after = id && firstMark(id);
+      if (after) scrollBy(0, after.getBoundingClientRect().top - before);
+    };
+
+    more.addEventListener("click", () => {
+      menu.hidden = !menu.hidden;
+      more.setAttribute("aria-expanded", String(!menu.hidden));
+    });
+    for (const box of [menu, meta]) {
+      box.addEventListener("click", (e) => {
+        const act = e.target.closest("[data-act]")?.dataset.act;
+        if (act === "focus") setFocus(true);
+        if (act === "unfocus") setFocus(false);
+      });
+    }
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".manage")) closeMenu();
+    });
+    // `a` flips between the marks and the full text; the selection bar's own keys win while it is open.
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "a" || e.metaKey || e.ctrlKey || e.altKey || !bar.hidden || editing) return;
+      if (e.target.closest("input, textarea, [contenteditable='true'], [contenteditable='plaintext-only']")) return;
+      if (!focusMode && !annos.length) return;
+      e.preventDefault();
+      setFocus(!focusMode);
+    });
+    document.addEventListener("keydown", (e) => {
+      // A note editor's own Escape has already been handled and marked.
+      if (e.key !== "Escape" || e.defaultPrevented || !bar.hidden || editing) return;
+      if (!menu.hidden) {
+        closeMenu();
+        more.focus();
+      } else if (focusMode) {
+        setFocus(false);
+      }
+    });
+
+    const firstMark = (id) => content.querySelector(`.anno[data-id="${id}"]`);
+    const topIn = (el, box) => el.getBoundingClientRect().top - box.getBoundingClientRect().top;
+
+    /*
+     * Margin cards sit level with their marks and push each other down when
+     * they would overlap. The card the reader is working with is pinned level
+     * with its mark, and the ones above it give way upward instead.
+     */
+    const layoutNotes = () => {
+      if (!marginMode()) {
+        notesBox.replaceChildren();
+        return;
+      }
+      const withNotes = annos.filter((a) => a.note !== null && firstMark(a.id));
+      for (const card of [...notesBox.children]) {
+        if (!withNotes.some((a) => a.id === card.dataset.id)) card.remove();
+      }
+      const items = withNotes.map((a) => {
+        let card = notesBox.querySelector(`[data-id="${a.id}"]`);
+        if (!card) {
+          card = document.createElement("div");
+          card.className = "note-card";
+          card.dataset.id = a.id;
+          card.innerHTML = '<div class="note-text"></div>';
+          notesBox.append(card);
+        }
+        card.style.setProperty("--swatch", swatchOf(a.style));
+        const text = card.querySelector(".note-text");
+        if (editing !== a.id) text.textContent = a.note;
+        return { id: a.id, card, anchor: topIn(firstMark(a.id), column) - 9, h: card.offsetHeight };
+      }).sort((x, y) => x.anchor - y.anchor);
+
+      const GAP = 10;
+      const pin = items.findIndex((i) => i.id === active);
+      let floor = -Infinity;
+      items.forEach((item, index) => {
+        item.y = index === pin ? item.anchor : Math.max(item.anchor, floor);
+        floor = item.y + item.h + GAP;
+      });
+      for (let i = pin - 1; i >= 0; i--) items[i].y = Math.min(items[i].y, items[i + 1].y - items[i].h - GAP);
+      for (const item of items) item.card.style.top = `${item.y}px`;
+    };
+
+    // Lights a note and every run of its mark together.
+    let hot = null;
+    const setHot = (id) => {
+      if (hot === id) return;
+      hot = id;
+      content.querySelectorAll(".anno.hot").forEach((m) => m.classList.remove("hot"));
+      notesBox.querySelectorAll(".note-card.hot").forEach((c) => c.classList.remove("hot"));
+      if (!id) return;
+      content.querySelectorAll(`.anno[data-id="${id}"]`).forEach((m) => m.classList.add("hot"));
+      notesBox.querySelector(`[data-id="${id}"]`)?.classList.add("hot");
+    };
+
+    /*
+     * Variant B: the card under the mark. It opens on hover after a moment,
+     * stays while the pointer travels to it, and is pinned while being edited.
+     */
+    let popId = null;
+    let popTimer;
+    const showPop = (id) => {
+      const a = find(id);
+      const marks = [...content.querySelectorAll(`.anno[data-id="${id}"]`)];
+      if (!a || !marks.length) return;
+      popId = id;
+      pop.style.setProperty("--swatch", swatchOf(a.style));
+      if (editing !== id) popText.textContent = a.note;
+      pop.hidden = false;
+      const rect = marks.at(-1).getClientRects()[marks.at(-1).getClientRects().length - 1];
+      const left = Math.min(Math.max(16, rect.left), innerWidth - pop.offsetWidth - 16);
+      pop.style.left = `${left + scrollX}px`;
+      pop.style.top = `${rect.bottom + scrollY + 8}px`;
+      setHot(id);
+    };
+    const hidePop = () => {
+      if (editing && editing === popId) return;
+      pop.hidden = true;
+      popId = null;
+    };
+
+    // Toolbar: `pending` is a fresh selection, `target` an existing annotation.
+    let pending = null;
+    let target = null;
+
+    const drawBar = () => {
+      const a = target ? find(target) : null;
+      const pressed = (key) => a?.style === key ? ' aria-pressed="true"' : "";
+      const swatches = STYLES.filter((s) => s.kind === "hl").map((s) =>
+        `<button class="swatch" style="--m: var(--mark-${s.key})" data-style="${s.key}" title="${s.label}（${s.hotkey}）"${pressed(s.key)}></button>`).join("");
+      const pens = STYLES.filter((s) => s.kind !== "hl").map((s) =>
+        `<button class="pen ${s.kind}" data-style="${s.key}" title="${s.label}（${s.hotkey}）"${pressed(s.key)}>文</button>`).join("");
+      const noteWord = a?.note != null ? "改批注" : "批注";
+      const remove = a ? '<span class="rule"></span><button class="word remove" data-act="remove" title="删除（Delete）">删除</button>' : "";
+      bar.innerHTML = `${swatches}<span class="rule"></span>${pens}<span class="rule"></span>
+        <button class="word" data-act="note" title="批注（c）">${noteWord}</button>${remove}`;
+    };
+
+    const placeBar = (rect) => {
+      bar.hidden = false;
+      const half = bar.offsetWidth / 2;
+      const x = Math.min(Math.max(rect.left + rect.width / 2, half + 16), innerWidth - half - 16);
+      const above = rect.top - bar.offsetHeight - 10;
+      const y = above > 8 ? above : rect.bottom + 10;
+      bar.style.left = `${x + scrollX}px`;
+      bar.style.top = `${y + scrollY}px`;
+    };
+
+    const closeBar = () => {
+      bar.hidden = true;
+      pending = null;
+      target = null;
+    };
+
+    // Character offset of a boundary point within a scope, counted the way paint() counts text.
+    const offsetIn = (root, node, offset) => {
+      const r = document.createRange();
+      r.setStart(root, 0);
+      r.setEnd(node, offset);
+      return r.toString().length;
+    };
+
+    const openForSelection = () => {
+      const sel = getSelection();
+      if (!sel.rangeCount || sel.isCollapsed) return false;
+      const range = sel.getRangeAt(0);
+      const startScope = range.startContainer.parentElement?.closest("[data-scope]") ?? range.startContainer.closest?.("[data-scope]");
+      const endScope = range.endContainer.parentElement?.closest("[data-scope]") ?? range.endContainer.closest?.("[data-scope]");
+      // One annotation never spans two messages: each message is its own fixed text.
+      if (!startScope || startScope !== endScope) return false;
+      const text = range.toString();
+      if (!text.trim()) return false;
+      let start = offsetIn(startScope, range.startContainer, range.startOffset);
+      let end = offsetIn(startScope, range.endContainer, range.endOffset);
+      start += text.length - text.trimStart().length;
+      end -= text.length - text.trimEnd().length;
+      pending = { scope: startScope.dataset.scope, start, end };
+      target = null;
+      drawBar();
+      placeBar(range.getBoundingClientRect());
+      return true;
+    };
+
+    const openForMark = (id) => {
+      pending = null;
+      target = id;
+      active = id;
+      drawBar();
+      const marks = [...content.querySelectorAll(`.anno[data-id="${id}"]`)];
+      const r = marks[0].getClientRects()[0];
+      placeBar(r);
+      layoutNotes();
+      setHot(id);
+    };
+
+    // Puts the caret in the note for `id`, in the margin card or the floating card.
+    const editNote = (id) => {
+      editing = id;
+      active = id;
+      let text;
+      if (marginMode()) {
+        layoutNotes();
+        text = notesBox.querySelector(`[data-id="${id}"] .note-text`);
+      } else {
+        showPop(id);
+        text = popText;
+      }
+      text.contentEditable = "plaintext-only";
+      text.focus();
+      const r = document.createRange();
+      r.selectNodeContents(text);
+      r.collapse(false);
+      getSelection().removeAllRanges();
+      getSelection().addRange(r);
+    };
+
+    // An emptied note goes away; so does an annotation that was only a note.
+    const finishNote = (text) => {
+      const id = editing;
+      editing = null;
+      text.contentEditable = "false";
+      const a = find(id);
+      if (!a) return;
+      const value = text.textContent.trim();
+      if (value) a.note = value;
+      else if (a.style) a.note = null;
+      else annos = annos.filter((x) => x.id !== id);
+      save();
+      if (!marginMode()) hidePop();
+      render();
+    };
+
+    const apply = (style) => {
+      if (pending) {
+        annos.push({ id: `a-${Date.now()}`, ...pending, style, note: null });
+        getSelection().removeAllRanges();
+      } else if (target) {
+        const a = find(target);
+        // Pressing the current style again takes it off, which only leaves something if a note remains.
+        if (a.style === style) {
+          if (a.note === null) annos = annos.filter((x) => x !== a);
+          else a.style = null;
+        } else {
+          a.style = style;
+        }
+      }
+      save();
+      closeBar();
+      render();
+    };
+
+    const note = () => {
+      let id = target;
+      if (pending) {
+        id = `a-${Date.now()}`;
+        annos.push({ id, ...pending, style: null, note: "" });
+        getSelection().removeAllRanges();
+      } else {
+        const a = find(target);
+        if (a.note === null) a.note = "";
+      }
+      closeBar();
+      render();
+      editNote(id);
+    };
+
+    const remove = () => {
+      annos = annos.filter((a) => a.id !== target);
+      save();
+      closeBar();
+      hidePop();
+      render();
+    };
+
+    bar.addEventListener("mousedown", (e) => e.preventDefault());
+    bar.addEventListener("click", (e) => {
+      const button = e.target.closest("button");
+      if (!button) return;
+      if (button.dataset.style) apply(button.dataset.style);
+      else if (button.dataset.act === "note") note();
+      else if (button.dataset.act === "remove") remove();
+    });
+
+    document.addEventListener("mouseup", (e) => {
+      if (e.target.closest(".anno-bar, .note-card, .proto, variant-switcher, .manage, .fold-gap")) return;
+      // Wait for the browser to settle the selection a click inside it collapses.
+      setTimeout(() => {
+        if (openForSelection()) return;
+        const mark = e.target.closest?.(".anno");
+        if (mark && getSelection().isCollapsed) {
+          openForMark(mark.dataset.id);
+          return;
+        }
+        closeBar();
+        if (active) {
+          active = null;
+          layoutNotes();
+        }
+      });
+    });
+
+    document.addEventListener("keyup", (e) => {
+      if (e.shiftKey && e.key.startsWith("Arrow")) openForSelection();
+    });
+
+    // Hover links a mark with its note; nested marks resolve to the innermost one that has a note.
+    content.addEventListener("mouseover", (e) => {
+      const mark = e.target.closest(".anno[data-note]");
+      if (!mark) return;
+      setHot(mark.dataset.id);
+      if (!marginMode()) {
+        clearTimeout(popTimer);
+        popTimer = setTimeout(() => showPop(mark.dataset.id), popId ? 0 : 180);
+      }
+    });
+    content.addEventListener("mouseout", (e) => {
+      const mark = e.target.closest(".anno[data-note]");
+      if (!mark || mark.contains(e.relatedTarget)) return;
+      if (!editing) setHot(null);
+      clearTimeout(popTimer);
+      popTimer = setTimeout(() => {
+        if (!pop.matches(":hover")) hidePop();
+      }, 220);
+    });
+    pop.addEventListener("mouseenter", () => clearTimeout(popTimer));
+    pop.addEventListener("mouseleave", () => {
+      popTimer = setTimeout(() => {
+        hidePop();
+        if (!editing) setHot(null);
+      }, 220);
+    });
+
+    notesBox.addEventListener("mouseover", (e) => {
+      const card = e.target.closest(".note-card");
+      if (card) setHot(card.dataset.id);
+    });
+    notesBox.addEventListener("mouseleave", () => {
+      if (!editing) setHot(null);
+    });
+
+    // Clicking a card's words edits them in place.
+    for (const box of [notesBox, pop]) {
+      box.addEventListener("click", (e) => {
+        const card = e.target.closest(".note-card");
+        const id = card === pop ? popId : card?.dataset.id;
+        if (id && editing !== id) editNote(id);
+      });
+      box.addEventListener("focusout", (e) => {
+        if (e.target.classList.contains("note-text") && editing) finishNote(e.target);
+      });
+      box.addEventListener("keydown", (e) => {
+        if (!e.target.classList.contains("note-text")) return;
+        if (e.key === "Escape" || (e.key === "Enter" && (e.metaKey || e.ctrlKey))) {
+          e.preventDefault();
+          e.target.blur();
+        }
+      });
+      // Typing grows a margin card, which may push the ones below it.
+      box.addEventListener("input", () => {
+        if (marginMode()) layoutNotes();
+      });
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (bar.hidden || editing || e.metaKey || e.ctrlKey || e.altKey) return;
+      const style = STYLES.find((s) => s.hotkey === e.key) ?? (e.key === "h" ? STYLES[0] : null);
+      if (style) {
+        e.preventDefault();
+        apply(style.key);
+      } else if (e.key === "c") {
+        e.preventDefault();
+        note();
+      } else if (target && (e.key === "Delete" || e.key === "Backspace")) {
+        e.preventDefault();
+        remove();
+      } else if (e.key === "Escape") {
+        closeBar();
+        getSelection().removeAllRanges();
+      }
+    });
+
+    document.getElementById("reset").addEventListener("click", () => {
+      try {
+        localStorage.removeItem(storeKey);
+      } catch { }
+      annos = seed();
+      closeBar();
+      hidePop();
+      render();
+    });
+
+    document.addEventListener("variantchange", () => {
+      closeBar();
+      pop.hidden = true;
+      popId = null;
+      render();
+    });
+    window.addEventListener("resize", () => {
+      if (marginMode() !== wasMargin) {
+        render();
+      } else {
+        layoutNotes();
+      }
+      closeBar();
+    });
+
+    render();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.documentElement.dataset.ready = "";
+    }));
+    document.fonts.ready.then(layoutNotes);
+
+    // Heading rail, as on the note page (3.2); a transcript has no headings, so it drops out.
+    const toc = document.querySelector(".toc");
+    const rail = toc.querySelector(".toc-rail");
+    const panel = toc.querySelector(".toc-panel");
+    const headings = [...document.querySelectorAll("header.doc h1, .prose h2")];
+    let current = 0;
+    headings.forEach((heading, index) => {
+      heading.id ||= `heading-${index}`;
+      const level = heading.tagName.slice(1);
+      const tick = document.createElement("span");
+      tick.dataset.level = level;
+      rail.append(tick);
+      const row = document.createElement("li");
+      const link = document.createElement("a");
+      link.href = `#${heading.id}`;
+      link.textContent = heading.textContent;
+      link.dataset.level = level;
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        heading.scrollIntoView({ behavior: "smooth" });
+      });
+      row.append(link);
+      panel.append(row);
+    });
+    if (headings.length < 2) toc.remove();
+    const markCurrent = () => {
+      current = headings.reduce((read, heading, index) => heading.getBoundingClientRect().top <= innerHeight / 3 ? index : read, 0);
+      [...rail.children].forEach((tick, index) => tick.toggleAttribute("data-current", index === current));
+      [...panel.querySelectorAll("a")].forEach((link, index) => {
+        if (index === current) link.setAttribute("aria-current", "true");
+        else link.removeAttribute("aria-current");
+      });
+    };
+    window.addEventListener("scroll", markCurrent, { passive: true });
+    let hoverTimer;
+    toc.addEventListener("mouseenter", () => {
+      clearTimeout(hoverTimer);
+      hoverTimer = setTimeout(() => { toc.dataset.open = "true"; }, 350);
+    });
+    toc.addEventListener("mouseleave", () => {
+      clearTimeout(hoverTimer);
+      delete toc.dataset.open;
+    });
+    markCurrent();
+  </script>
+</body>
+
+</html>

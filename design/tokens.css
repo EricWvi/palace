@@ -70,6 +70,16 @@
   --code-comment: #6e6a60;
   --code-literal: #8a5a12;
   --code-name: #335b7a;
+  /*
+   * Reader annotations: four highlighter grounds, each keeping --text at 4.5:1 or better,
+   * plus the two pen colors for a straight and a wavy underline.
+   */
+  --mark-yellow: #f5e3a0;
+  --mark-green: #d9e7cc;
+  --mark-blue: #d5e2ef;
+  --mark-rose: #f3d6d2;
+  --mark-line: var(--accent);
+  --mark-wave: #4a7aa0;
 }
 
 /*
@@ -98,6 +108,12 @@
   --code-comment: #8f8a7f;
   --code-literal: #d6a764;
   --code-name: #8fb4d0;
+  --mark-yellow: #5a4a18;
+  --mark-green: #2e4232;
+  --mark-blue: #2a3b4d;
+  --mark-rose: #4f2f30;
+  --mark-line: var(--accent);
+  --mark-wave: #8fb4d0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -123,5 +139,11 @@
     --code-comment: #8f8a7f;
     --code-literal: #d6a764;
     --code-name: #8fb4d0;
+    --mark-yellow: #5a4a18;
+    --mark-green: #2e4232;
+    --mark-blue: #2a3b4d;
+    --mark-rose: #4f2f30;
+    --mark-line: var(--accent);
+    --mark-wave: #8fb4d0;
   }
 }
