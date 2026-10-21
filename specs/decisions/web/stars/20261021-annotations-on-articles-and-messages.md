@@ -180,6 +180,6 @@ date: 2026-10-21
 - `palace-backend` 提供 D5 的六个接口并写入 OpenAPI 合同。
 - `apps/palace-web`：`lib/annotation-paint.ts` 是绘制与折叠的 rehype 插件，`lib/annotation-dom.ts` 按同一规则把选区换算成锚点，`components/annotation-layer.tsx` 管数据与状态，`components/annotated-area.tsx` 管小条、页边栏、浮层与快捷键，样式在 `annotations.css`。
 
-证据见核心测试用例：领域单元测试覆盖字段校验；真实 PostgreSQL 覆盖 Owner 隔离、标注对象约束、锚点不可变和级联删除；真实 Router 覆盖接口形状与 OpenAPI 合同；jsdom 中的真实 `MarkdownContent` 覆盖坐标一致、绘制与折叠，组件测试覆盖交互。页边栏的加宽动画与卡片对齐依赖真实布局，尚无浏览器测试。
+证据见核心测试用例：领域单元测试覆盖字段校验；真实 PostgreSQL 覆盖 Owner 隔离、标注对象约束、锚点不可变和级联删除；真实 Router 覆盖接口形状与 OpenAPI 合同；jsdom 中的真实 `MarkdownContent` 覆盖坐标一致、绘制与折叠，组件测试覆盖交互，真实 Chromium 覆盖页边栏的加宽、卡片对齐与窄屏浮层。
 
 文章与对话已有的阅读、编辑和删除行为保持不变，只是删除时连带删除标注。

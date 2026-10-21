@@ -406,10 +406,12 @@ export function AnnotatedArea({
                   cards.current.delete(item.id);
                 }
               }}
+              // Unplaced cards are only transparent: a new note must take focus before the
+              // first layout has measured it, and hidden elements cannot be focused.
               position={
                 item.id in tops
                   ? { top: tops[item.id] }
-                  : { top: 0, visibility: "hidden" }
+                  : { top: 0, opacity: 0 }
               }
               onHover={(inside) => {
                 if (!editing) setHot(inside ? item.id : null);

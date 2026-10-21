@@ -91,6 +91,6 @@
 | --- | --- | --- |
 | 页边栏只在有批注且宽屏时出现（组件测试） | Covered | `apps/palace-web/src/pages/annotations.test.tsx` 的 “writes a note in the margin and removes it when emptied”、“highlights a selection and removes it from its mark” |
 | 窄屏浮层与保存失败的回退（组件测试） | Covered | `apps/palace-web/src/pages/annotations.test.tsx` 的 “floats a note under its mark on a narrow window”、“keeps the page unchanged when a save fails” |
-| 加宽动画与卡片对齐（真实浏览器布局） | Missing | jsdom 没有布局；需要真实 Chromium 回归测试 |
+| 加宽动画、卡片对齐与避让、悬停点亮，窄屏浮层的位置（真实 Chromium） | Covered | `apps/palace-web/e2e/annotations.spec.ts` 的 “the margin opens with the first note, keeps cards level with their marks and closes with the last”、“a narrow window floats a note under its mark instead of widening” |
 
 决策依据：D6，不变量 7。

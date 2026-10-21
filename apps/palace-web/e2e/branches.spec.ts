@@ -93,6 +93,7 @@ test("nested forks, internal endpoints, the branch list and its update form", as
   await page.getByRole("heading", { level: 1 }).hover();
   await page.getByRole("button", { name: "管理对话" }).click();
   await expect(page.getByRole("menuitem")).toHaveText([
+    "只看标注",
     "更新分支",
     "管理分支",
     "编辑对话",
