@@ -1,6 +1,6 @@
 # 网页标注核心测试用例
 
-当前决策：[浏览器插件在原网页上标注，绑定到文章后迁移](../../decisions/extension/0-web-page-annotations-bound-and-migrated-into-articles.md)。文章标注自身的规则见[摘星标注](../web/stars/annotations.md)，本文件只记录原网页标注、绑定与迁移引入的新承诺。决策尚未实现，所有证据都是 `Missing`。数据库约束、级联、事务与并发顺序只能以真实 PostgreSQL 为直接证据。
+当前决策：[浏览器插件在原网页上标注，绑定到文章后迁移](../../decisions/extension/0-web-page-annotations-bound-and-migrated-into-articles.md)。文章标注自身的规则见[摘星标注](../web/stars/annotations.md)，本文件只记录原网页标注、绑定与迁移引入的新承诺。数据库约束、级联、事务与并发顺序只能以真实 PostgreSQL 为直接证据。
 
 ## Web pages and web annotations must stay within the owner scope
 
@@ -12,8 +12,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 跨 Owner 的读、写、绑定与迁移都不触及别人的行（真实 PostgreSQL） | Missing | — |
-| 接口形状、状态码与 OpenAPI 合同一致（真实 Router） | Missing | — |
+| 跨 Owner 的读、写、绑定与迁移都不触及别人的行（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/web_pages.rs::web_pages_must_stay_within_the_owner_scope`；迁移请求列出别人的标注、请求别人的文章见 `crates/db/tests/postgres/web_migration.rs::migration_must_atomically_replace_web_annotations` |
+| 接口形状、状态码与 OpenAPI 合同一致（真实 Router） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `tests/http/web_pages.rs::exercise_web_pages`，响应由 OpenAPI 校验器逐一核对；未登录请求由同一测试对业务路由层的检查覆盖） |
 
 决策依据：D9，不变量 1、2。
 
@@ -27,9 +27,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 已绑定网页拒绝新建与修改，允许删除（真实 PostgreSQL） | Missing | — |
-| 未绑定网页随最后一处标注一起删除；绑定与改绑的状态转换（真实 PostgreSQL） | Missing | — |
-| 字段校验：网址、标题、引文、前后文长度、`position` 范围、样式与批注至少一个（领域单元测试） | Missing | — |
+| 已绑定网页拒绝新建与修改，允许删除（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/web_pages.rs::a_bound_web_page_must_reject_new_and_changed_web_annotations`；409 `web_page_bound` 的接口形状见 `exercise_web_pages` |
+| 未绑定网页随最后一处标注一起删除；绑定与改绑的状态转换（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/web_pages.rs::a_bound_web_page_must_reject_new_and_changed_web_annotations`；表上的提交时检查拒绝没有标注的未绑定网页、触发器拒绝改锚点，见 `web_page_rows_must_keep_annotations_and_anchors` |
+| 字段校验：网址、标题、引文、前后文长度、`position` 范围、样式与批注至少一个（领域单元测试） | Covered | `crates/domain/src/web_page.rs` 的 `addresses_are_absolute_without_fragment`、`titles_fall_back_to_the_address_and_fit_the_limit`、`anchors_check_quote_context_and_position`；样式与批注沿用 `crates/domain/src/annotation.rs::content_needs_a_style_or_a_note` |
 
 决策依据：D2、D3、D9，不变量 3、8。
 
@@ -43,9 +43,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 删除与新建在一个事务中提交或回滚（真实 PostgreSQL，注入校验失败） | Missing | — |
-| 并发迁移同一批标注收敛为每处一份（真实 PostgreSQL，barrier 对齐） | Missing | — |
-| 新标注继承样式、批注与创建时间，并满足标注锚点约束（真实 PostgreSQL） | Missing | — |
+| 删除与新建在一个事务中提交或回滚（真实 PostgreSQL，注入校验失败） | Covered | `crates/db/tests/postgres/web_migration.rs::migration_must_atomically_replace_web_annotations`（一个违反 `annotation` 检查约束的锚点让整条迁移语句失败，三处原网页标注全部保留） |
+| 并发迁移同一批标注收敛为每处一份（真实 PostgreSQL，barrier 对齐） | Covered | `crates/db/tests/postgres/web_migration.rs::concurrent_migrations_create_one_annotation_each`（第三个事务锁住这批行，等两个迁移都排队在删除这一步上再放行） |
+| 新标注继承样式、批注与创建时间，并满足标注锚点约束（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/web_migration.rs::migration_must_atomically_replace_web_annotations`；`quote` 长度不符的整个请求返回 400 见 `exercise_web_pages` |
 
 决策依据：D5，不变量 4、5。
 
@@ -59,8 +59,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 空白规范化、候选打分与下标换算（前端单元测试） | Missing | — |
-| 从原网页标注到文章页标记的完整迁移流程，以及未定位条目的显示与丢弃（真实 Chromium，接口直接写入原网页标注） | Missing | — |
+| 空白规范化、候选打分与下标换算（前端单元测试） | Covered | `apps/palace-web/src/lib/text-quote.test.ts`；插件一侧选区到前后文、再到 DOM 范围的换算见 `apps/palace-extension/src/page-text.test.ts` |
+| 从原网页标注到文章页标记的完整迁移流程，以及未定位条目的显示与丢弃（真实 Chromium，接口直接写入原网页标注） | Covered | `apps/palace-web/e2e/web-annotations.spec.ts` 的 “web annotations migrate onto the same words, and the unmatched one can be discarded”（接口由 `page.route` 按服务端规则模拟；服务端一侧见上一个用例） |
 
 决策依据：D5，不变量 5、6。
 
@@ -74,7 +74,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 文章删除级联删除绑定网页与剩余原网页标注，失败时全部保留（真实 PostgreSQL） | Missing | — |
+| 文章删除级联删除绑定网页与剩余原网页标注，失败时全部保留（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/web_pages.rs::deleting_an_article_must_take_its_bound_web_pages_with_it`（提交时触发器注入失败） |
 
 决策依据：D3、D9，不变量 7。
 
@@ -88,7 +88,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| `near` 排序、分页游标与 `q` 组合（真实 PostgreSQL） | Missing | — |
+| `near` 排序、分页游标与 `q` 组合（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/web_migration.rs::candidate_articles_must_rank_the_nearest_address_first`；排序规则本身见 `crates/domain/src/web_page/nearness.rs::nearness_counts_host_then_shared_segments` |
 
 决策依据：D4。
 
@@ -102,6 +102,6 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| token 只存在于 service worker 与 `chrome.storage.local`（真实 Chromium） | Missing | — |
+| token 只存在于 service worker 与 `chrome.storage.local`（真实 Chromium） | Covered | `apps/palace-extension/e2e/extension.spec.ts` 的 “annotating, binding and the read-only display never put the token in the page”、“an invalid token turns the bar off and marks the toolbar icon”（加载构建后的插件，Palace 由测试内的 HTTP 服务模拟）；内容脚本只能发出本页的四种请求、设置不回传 token 见 `apps/palace-extension/src/palace.test.ts` |
 
 决策依据：D8，不变量 9。

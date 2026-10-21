@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 date: 2026-10-21
 ---
 
@@ -7,7 +7,7 @@ date: 2026-10-21
 
 新增一个 Chromium 浏览器插件。读者在任意网页上选中文字，可以留下与 Palace 相同的高亮、划线、波浪线和批注。这些**原网页标注**用 Access Token 直接存进 Palace 服务端，按网页地址归组，每次保存时顺带记下标签页标题，供插件的列表页浏览。文章被抓取项目导入 Palace 后，读者在插件里把这个网页**绑定**到一篇文章：插件给出候选文章，同一域名、路径相近的排在最前，最终由读者选定。绑定后打开 Palace 文章页，前端在渲染后的正文里按引文和上下文重新定位每一处原网页标注。定位成功的，在一个事务里新建为文章标注，同时删除原网页标注；定位失败的留在文章页上，由读者手动重标或丢弃。绑定之后，原网页不能再标注，插件改为只读显示这篇文章当前的标注。插件不在本地保存数据，每次操作直接写服务端，多台电脑之间以最后写入的为准。
 
-当前为 `approved`，评审通过、尚未实现，核心测试用例见[网页标注](../../test-cases/extension/web-annotations.md)。本决策是插件领域的根决策。它沿用[摘星标注决策](../web/stars/20261021-annotations-on-articles-and-messages.md)的标注组成、样式与文章锚点坐标系，沿用[文章导入决策](../web/stars/20261020-articles-imported-with-media.md)的文章模型，认证使用 [Access Token 决策](../server/owner/20261018-owner-access-tokens-for-cli-and-services.md)。涉及新增的 `apps/palace-extension`，`palace-db` 的新表与迁移，`palace-domain` 的校验，`palace-backend` 的新接口、OpenAPI 和文章列表排序，以及 `apps/palace-web` 文章页的迁移流程与未定位标注的展示。对话页、笔记、Firefox 与 Safari、离线标注、自动匹配文章都不在范围内。
+当前为 `implemented`，核心测试用例见[网页标注](../../test-cases/extension/web-annotations.md)。本决策是插件领域的根决策。它沿用[摘星标注决策](../web/stars/20261021-annotations-on-articles-and-messages.md)的标注组成、样式与文章锚点坐标系，沿用[文章导入决策](../web/stars/20261020-articles-imported-with-media.md)的文章模型，认证使用 [Access Token 决策](../server/owner/20261018-owner-access-tokens-for-cli-and-services.md)。涉及新增的 `apps/palace-extension`，`palace-db` 的新表与迁移，`palace-domain` 的校验与排序规则，`palace-backend` 的新接口、OpenAPI 和文章列表排序，以及 `apps/palace-web` 文章页的迁移流程与未定位标注的展示。实现与本决策评审稿的差异集中记录在[实现中的调整](#实现中的调整)。对话页、笔记、Firefox 与 Safari、离线标注、自动匹配文章都不在范围内。
 
 ## 问题与约束
 
@@ -34,7 +34,7 @@ date: 2026-10-21
 
 ## D1：范围与组成
 
-- 插件是 Manifest V3 的 Chromium 扩展，放在 `apps/palace-extension`，与 `palace-web` 一样用 TypeScript 和 Vite 构建，颜色取自 `design/tokens.css`。
+- 插件是 Manifest V3 的 Chromium 扩展，放在 `apps/palace-extension`，与 `palace-web` 一样用 TypeScript 和 Vite 构建，颜色取自 `design/tokens.css`。定位函数（D5、D6）与 API 类型直接取自 `palace-web`，插件与文章页按同一套规则找引文。
 - 插件有三个部分：
   - 在网页上运行的内容脚本，负责选区小条、绘制标注和批注浮层；
   - 后台 service worker，负责持有 token 并调用 Palace API；
@@ -52,8 +52,8 @@ date: 2026-10-21
 | `position` | 引文起点在整个页面文字中的比例，取值 `[0, 1]` |
 | 样式与批注 | 与标注决策 D2 相同，至少有一个 |
 
-- 网页地址取 `location.href` 去掉 `#` 及其后的部分，不做其他规范化。规则与 `article.url` 相同：绝对 `http`/`https` 地址，不超过 2048 字节。
-- 标签页标题在每次新建或修改标注、以及绑定时更新为当前标题。为空时用地址代替；不超过 1024 字节，与文章标题的上限相同。
+- 网页地址取 `location.href` 去掉 `#` 及其后的部分，不做其他规范化。规则与 `article.url` 相同：绝对 `http`/`https` 地址，不超过 2048 字节。服务端拒绝带 `#` 的地址而不是替客户端去掉，忘了去掉的客户端不会为同一个地址建出第二个网页。
+- 标签页标题在每次新建或修改标注、以及绑定时更新为当前标题。为空时用地址代替；超过 1024 字节（与文章标题的上限相同）时在字符边界截断而不是拒绝：标题由站点决定，读者无从修改。
 - 原网页上的显示与 Palace 一致：四种高亮、划线、波浪线和批注样式。
 
 **为什么原网页标注不存位置坐标，而存前后文**：原网页的文字下标只在那一刻的 DOM 里有意义。站点改版、广告位变化，甚至同一页面换一种语言加载，都会平移所有下标，而这些下标本来也无法换算成 Palace 坐标。引文加前后文是 W3C Web Annotation 的 TextQuoteSelector，Hypothesis 等工具就用它在不同版本的文档之间重新定位标注。`position` 存比例而不是下标，因为原网页和 Palace 正文的文字总长相差很大，比例在两边都还能大致对应。
@@ -86,7 +86,8 @@ date: 2026-10-21
 2. 同一主机名内，路径按 `/` 切段后，开头相同的段越多越靠前。
 3. 其余按导入时间倒序。
 
-- 可以与 `q` 同时使用：先按 `q` 过滤，再按上述规则排序。游标、`total` 和响应形状与摘星根决策 D5 相同，游标同时编码排序键。
+- 可以与 `q` 同时使用：先按 `q` 过滤，再按上述规则排序。`total` 和响应形状与摘星根决策 D5 相同，列表项另带原文 `url`，供候选列表区分同名文章。游标编码 `(接近程度, 导入时间, id)`，与按发布日期排序的游标形状不同，不能混用。
+- 主机名与路径段按浏览器同样的 URL 解析规则取得，所以接近程度在服务端的 Rust 代码里计算：一次读出符合 `q` 的全部文章的地址与导入时间，排序后只加载当前页的行。一个人的文章数量有限，这一步的代价可以接受；SQL 里用正则拆 URL 会与浏览器的解析出现偏差。
 - 插件的候选列表默认带 `near` 请求第一页，搜索框输入时加上 `q`。
 
 **为什么在服务端排序**：列表是分页的，插件只拿得到其中一页，无法对全部文章排序。
@@ -143,7 +144,7 @@ date: 2026-10-21
 ## D8：认证与请求路径
 
 - 插件页的设置里填写 Palace 地址和 Access Token，保存在 `chrome.storage.local`。不用 `chrome.storage.sync`：token 不应经由浏览器厂商的同步服务传播；每台电脑各自生成一个带备注的 token，在密钥管理里可以分别删除。
-- 所有 API 请求由后台 service worker 发出。manifest 用 `host_permissions` 声明 Palace 的地址，请求不受 CORS 限制，服务端不需要为插件开放 CORS。内容脚本不持有 token，只通过消息请求 service worker 代为调用。
+- 所有 API 请求由后台 service worker 发出，带 `credentials: "omit"`，浏览器里登录 Palace 的会话 cookie 不会代替 token。manifest 的 `host_permissions` 声明 `<all_urls>`，请求不受 CORS 限制，服务端不需要为插件开放 CORS。内容脚本不持有 token，只通过消息请求 service worker 代为调用，且只能读写所在网页的原网页标注；列出网页、搜索候选、绑定和设置只接受插件自己的页面。
 - 请求返回 401 时，插件提示 token 无效，并停止在页面上显示小条。
 
 **为什么内容脚本不直接请求**：内容脚本运行在任意网页里，与页面共享 DOM；把 token 留在 service worker 中，网页的脚本就无法读到它。
@@ -164,16 +165,17 @@ date: 2026-10-21
 | 方法与路径 | 作用 |
 | --- | --- |
 | `GET /api/web-pages` | 全部网页：`{ items: [{ id, url, title, article_id, annotation_count, updated_at }] }`，按 `updated_at` 倒序 |
-| `GET /api/web-pages/lookup?url=` | 一个网页及其原网页标注；没有记录时返回 404 |
+| `GET /api/web-pages/lookup?url=` | `{ page, annotations }`：一个网页及其原网页标注；没有记录时返回 404 |
 | `POST /api/web-pages/annotations` | 请求体 `{ url, title, quote, prefix, suffix, position, style, note }`，网页不存在时一并创建；网页已绑定时返回 409 |
-| `PUT /api/web-annotations/{id}` | 替换 `style` 与 `note`；所属网页已绑定时返回 409 |
+| `PUT /api/web-annotations/{id}` | 请求体 `{ title, style, note }`，替换 `style` 与 `note` 并记下标签页标题；所属网页已绑定时返回 409 |
 | `DELETE /api/web-annotations/{id}` | 删除；未绑定网页上的最后一处被删除时，网页一起删除 |
 | `PUT /api/web-pages/binding` | 请求体 `{ url, title, article_id }`，绑定或改绑，网页不存在时一并创建 |
 | `GET /api/articles?near=` | 见 D4 |
 | `GET /api/articles/{id}/web-annotations` | 绑定到这篇文章的所有网页上剩余的原网页标注 |
-| `POST /api/articles/{id}/web-annotations/migrate` | 见 D5 |
+| `POST /api/articles/{id}/web-annotations/migrate` | 见 D5；响应 `{ items }` 是新建的文章标注 |
 
-- 跨 Owner 的网页、原网页标注、文章都与不存在一样返回 404。
+- 跨 Owner 的网页、原网页标注、文章都与不存在一样返回 404。网页已绑定时的 409 带错误码 `web_page_bound`，插件据此转为只读显示。
+- 未绑定网页至少有一处原网页标注（不变量 8）由提交时检查的约束触发器兜底；写入方仍在删除最后一处标注的同一事务中删除网页。对同一网页的新建、修改、删除和绑定都先锁住网页行，彼此串行。
 - `GET /api/web-pages` 不分页：网页是读者亲手标注过的，数量有限，与标注列表不分页的理由相同。
 - 网页与原网页标注不进入同步域，不分配 `serverVersion`。
 - 领域层用枚举表达网页状态（`Unbound`、`Bound(ArticleId)`），数据库用可空外键表达同样的两种状态。
@@ -217,10 +219,11 @@ date: 2026-10-21
 - **模糊匹配与字符归一化**：等有了实际的定位失败数据再决定。
 - **在 Palace 里浏览未绑定的网页标注**：目前只在插件页里列出。
 
-## 落地顺序
+## 实现中的调整
 
-1. **服务端**：迁移新建 `web_page`、`web_annotation` 两张表；`palace-domain` 负责校验；`palace-backend` 提供 D9 的接口，写入 OpenAPI。完成条件：真实 PostgreSQL 测试覆盖 Owner 隔离、已绑定网页拒绝写入、迁移事务的原子性、并发迁移收敛，以及删除文章时级联删除。这一步不改变任何现有页面。
-2. **Palace 文章页**：定位算法写成纯函数，用表驱动测试覆盖空白差异、引文多次出现、前后文打分和定位失败；文章页接入迁移流程，并显示未定位的标注。完成条件：真实 Chromium 测试从原网页标注开始，迁移后标注画在正确的位置。没有绑定网页的文章，行为与现在相同。
-3. **插件**：先完成未绑定网页的标注与列表页，再完成绑定、候选排序和只读显示。完成条件：在真实 Chromium 中加载插件，覆盖标注、绑定、迁移、只读显示的完整流程。
+以下几处与评审稿不同，正文已按实现改写：
 
-前两步不需要插件就能单独验收：可以用接口直接写入原网页标注来测试迁移。所以插件的界面迭代不会阻塞服务端与迁移规则的评审。现有的文章、标注和 Access Token 行为在所有阶段都保持不变。
+- **D2、D9：修改标注时也带标签页标题。** D2 要求修改标注时更新标题，评审稿 D9 的 `PUT` 请求体却只有 `style` 与 `note`，所以请求体加上 `title`。
+- **D4：接近程度在 Rust 中计算。** 理由见 D4；列表项增加 `url` 字段，摘星列表不使用它。
+- **D8：`host_permissions` 声明 `<all_urls>` 而不是 Palace 地址。** Palace 地址由读者在设置里填写，安装时写不进 manifest；内容脚本本来就要在所有网页上运行，安装时的权限提示相同。
+- **D9：迁移只用一条语句。** 「删除并取回、按删除结果新建」写成一条带数据修改 CTE 的语句，原子性由语句本身保证，不需要显式事务。
