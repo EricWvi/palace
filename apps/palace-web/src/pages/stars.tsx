@@ -15,6 +15,10 @@ import {
   sources,
 } from "@/lib/api";
 import { ErrorState } from "@/components/error-state";
+import {
+  useShortcutHelp,
+  type ShortcutGroup,
+} from "@/components/shortcut-help";
 
 // The kinds, each with its own list address, in the order the kind column shows them.
 export type Kind = "notes" | "articles" | "conversations";
@@ -37,6 +41,10 @@ type Row = {
 // Where the reader had scrolled each visit of the list, by history entry, so going back from a
 // conversation lands on the row they left. Module scope outlives the page's own unmount.
 const offsets = new Map<string, number>();
+const shortcuts: ShortcutGroup = {
+  title: "摘星",
+  shortcuts: [{ keys: ["/"], action: "搜索" }],
+};
 
 // 摘星's entry: a contents page. The kinds stand in a column on the left; the current kind's list
 // runs on the right, one entry per line, grouped by year. `/` opens a search that runs on Enter.
@@ -111,6 +119,7 @@ export function StarsPage({ kind }: { kind: Kind }) {
     setParams(term ? { q: term } : {}, { replace: true });
   }
 
+  useShortcutHelp(shortcuts);
   useEffect(() => {
     function open(event: KeyboardEvent) {
       if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey)

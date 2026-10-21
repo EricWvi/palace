@@ -7,11 +7,35 @@ import { EchoSide, TagFlow } from "@/components/echo/echo-side";
 import { JottingComposer } from "@/components/echo/jotting-composer";
 import { JottingWall } from "@/components/echo/jotting-wall";
 import { RecallPile } from "@/components/echo/recall-pile";
+import {
+  modKey,
+  useShortcutHelp,
+  type ShortcutGroup,
+} from "@/components/shortcut-help";
 
 // 回响: every jotting on a wide masonry wall, with today's recall pile and the counts in the
 // left column. `n` writes and `/` searches; neither has a visible entry. The tag filter and
 // the search live in the address, so going back returns to them.
 // See specs/decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md.
+const shortcuts: ShortcutGroup = {
+  title: "回响",
+  shortcuts: [
+    { keys: ["n"], action: "写札记" },
+    { keys: ["/"], action: "搜索札记" },
+    { keys: ["Esc"], action: "合上回响卡片，退出全部标签或标签筛选" },
+  ],
+};
+// The composer handles these itself; they are listed here because 回响 is where it lives.
+const composerShortcuts: ShortcutGroup = {
+  title: "写札记时",
+  shortcuts: [
+    { keys: [`${modKey} Enter`], action: "保存" },
+    { keys: ["↑", "↓"], action: "选择标签建议" },
+    { keys: ["Enter", "Tab"], action: "填入标签" },
+    { keys: ["Esc"], action: "未写内容时收起" },
+  ],
+};
+
 export function EchoPage() {
   const [params, setParams] = useSearchParams();
   const tag = params.get("tag") ?? "";
@@ -50,6 +74,8 @@ export function EchoPage() {
     search.current?.blur();
   }
 
+  useShortcutHelp(shortcuts);
+  useShortcutHelp(composerShortcuts);
   // Escape steps back one layer at a time; the recall pile takes it first while open.
   useEffect(() => {
     function key(event: KeyboardEvent) {

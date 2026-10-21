@@ -13,6 +13,7 @@ import type { AnnotationStyle } from "@/lib/annotation-paint";
 import { selectedText, type SelectedText } from "@/lib/annotation-dom";
 import { AnnotationBar, styleKeys } from "./annotation-bar";
 import { NoteCard } from "./note-card";
+import { modKey, useShortcutHelp, type ShortcutGroup } from "./shortcut-help";
 import { draftId, type Anchor, type Annotations } from "./annotation-layer";
 
 // The margin column needs this much window; below it notes float under their marks instead.
@@ -56,6 +57,27 @@ function barPoint(rect: Box) {
 const marksOf = (root: ParentNode, id: string) => [
   ...root.querySelectorAll<HTMLElement>(`mark[data-annotation="${id}"]`),
 ];
+
+const readingShortcuts: ShortcutGroup = {
+  title: "阅读",
+  shortcuts: [
+    { keys: ["a"], action: "只看标注" },
+    { keys: ["Esc"], action: "显示全文" },
+  ],
+};
+const barShortcuts: ShortcutGroup = {
+  title: "选中文字或点击标注后",
+  shortcuts: [
+    { keys: ["1", "h"], action: "黄色高亮" },
+    { keys: ["2", "3", "4"], action: "绿色、蓝色、红色高亮" },
+    { keys: ["u"], action: "划线" },
+    { keys: ["w"], action: "波浪线" },
+    { keys: ["c"], action: "批注" },
+    { keys: ["Delete"], action: "删除标注" },
+    { keys: ["Esc"], action: "关闭" },
+    { keys: [`${modKey} Enter`, "Esc"], action: "写完批注" },
+  ],
+};
 
 const typing = (target: EventTarget | null) =>
   target instanceof Element &&
@@ -287,6 +309,8 @@ export function AnnotatedArea({
     };
   });
 
+  useShortcutHelp(readingShortcuts);
+  useShortcutHelp(barShortcuts);
   // The bar's keys while it shows; otherwise `a` flips 只看标注 and Escape leaves it.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {

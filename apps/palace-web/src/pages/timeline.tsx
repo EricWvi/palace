@@ -16,6 +16,10 @@ import { DayMoments } from "@/components/day-moments";
 import { ErrorState } from "@/components/error-state";
 import { MoreMenu } from "@/components/more-menu";
 import {
+  useShortcutHelp,
+  type ShortcutGroup,
+} from "@/components/shortcut-help";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -38,6 +42,14 @@ const keyManager = preloadable(() =>
   import("@/components/key-manager").then((module) => module.KeyManager),
 );
 const KeyManager = keyManager.Component;
+
+const shortcuts: ShortcutGroup = {
+  title: "时刻",
+  shortcuts: [
+    { keys: ["←"], action: "前一天" },
+    { keys: ["→"], action: "后一天" },
+  ],
+};
 
 export function TimelinePage() {
   const [params, setParams] = useSearchParams();
@@ -63,6 +75,7 @@ export function TimelinePage() {
     setParams({ date: dayParam(next) }, { replace: true });
   }
 
+  useShortcutHelp(shortcuts);
   useEffect(() => {
     function step(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey) return;

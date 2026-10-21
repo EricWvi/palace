@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { PalaceHeader, type Section } from "./components/palace-header";
+import { ShortcutHelp } from "./components/shortcut-help";
 import { TimelinePage } from "./pages/timeline";
 const StarsPage = lazy(() =>
   import("./pages/stars").then((module) => ({ default: module.StarsPage })),
@@ -38,32 +39,34 @@ export function App() {
       document.title = "Palace";
   }, [pathname]);
   return (
-    // 回响 needs room for its columns, so its sheet widens and the header stretches with it.
-    <main className={section === "回响" ? "sheet wide" : "sheet"}>
-      <PalaceHeader active={section} />
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/" element={<TimelinePage />} />
-          <Route path="/notes" element={<StarsPage kind="notes" />} />
-          <Route path="/notes/*" element={<NotePage />} />
-          <Route path="/articles" element={<StarsPage kind="articles" />} />
-          <Route path="/articles/:id" element={<ArticlePage />} />
-          <Route
-            path="/conversations"
-            element={<StarsPage kind="conversations" />}
-          />
-          <Route path="/conversations/:id" element={<ConversationPage />} />
-          <Route path="/jottings" element={<EchoPage />} />
-          <Route
-            path="*"
-            element={
-              <p className="quiet-note">
-                这里什么也没有。<Link to="/">回到今天</Link>
-              </p>
-            }
-          />
-        </Routes>
-      </Suspense>
-    </main>
+    <ShortcutHelp>
+      {/* 回响 needs room for its columns, so its sheet widens and the header stretches with it. */}
+      <main className={section === "回响" ? "sheet wide" : "sheet"}>
+        <PalaceHeader active={section} />
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/" element={<TimelinePage />} />
+            <Route path="/notes" element={<StarsPage kind="notes" />} />
+            <Route path="/notes/*" element={<NotePage />} />
+            <Route path="/articles" element={<StarsPage kind="articles" />} />
+            <Route path="/articles/:id" element={<ArticlePage />} />
+            <Route
+              path="/conversations"
+              element={<StarsPage kind="conversations" />}
+            />
+            <Route path="/conversations/:id" element={<ConversationPage />} />
+            <Route path="/jottings" element={<EchoPage />} />
+            <Route
+              path="*"
+              element={
+                <p className="quiet-note">
+                  这里什么也没有。<Link to="/">回到今天</Link>
+                </p>
+              }
+            />
+          </Routes>
+        </Suspense>
+      </main>
+    </ShortcutHelp>
   );
 }
