@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
-const child = spawn("npm", ["run", "test", "-w", "apps/palace-web"], {
-  stdio: ["inherit", "inherit", "pipe"],
-});
+const child = spawn(
+  "npm",
+  ["run", "test", "-w", "apps/palace-web", "-w", "apps/palace-extension"],
+  { stdio: ["inherit", "inherit", "pipe"] },
+);
 let dirty = false;
 child.stderr.on("data", (data) => {
   dirty = true;

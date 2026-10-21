@@ -3,6 +3,8 @@ FROM node:24-alpine AS frontend
 WORKDIR /build
 COPY package.json package-lock.json ./
 COPY apps/palace-web/package.json apps/palace-web/package.json
+# npm ci installs every workspace the lockfile names; the extension itself is never built here.
+COPY apps/palace-extension/package.json apps/palace-extension/package.json
 RUN npm ci
 COPY apps/palace-web apps/palace-web
 # The app imports the shared design tokens and ornament geometry by path.

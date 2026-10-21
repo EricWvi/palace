@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Palace 原网页标注",
+  "version": "0.1.0",
+  "description": "在原网页上高亮、划线和批注，存进 Palace；文章导入后迁移到 Palace 文章。",
+  "minimum_chrome_version": "105",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "Palace" },
+  "options_page": "pages.html",
+  "icons": { "64": "icon.png" }
+}

@@ -68,6 +68,11 @@ tasks:
     cmds:
       - npm run build
 
+  build:extension:
+    desc: Build the Chromium extension into apps/palace-extension/dist (load it unpacked)
+    cmds:
+      - npm run build -w apps/palace-extension
+
   build:test:
     desc: Precompile Rust workspace checks and test targets
     env:
@@ -196,9 +201,10 @@ tasks:
       - cargo test -p palace-server --features test-server --bin palace-test-server -- --ignored
 
   test:browser:
-    desc: Run Chromium frontend regressions against an isolated Vite server
+    desc: Run Chromium frontend regressions against an isolated Vite server, then the extension
     cmds:
       - npm run test:browser -w apps/palace-web
+      - npm run test:browser -w apps/palace-extension
 
   ###################################################
   ############# Run Development Servers #############

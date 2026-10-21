@@ -3,14 +3,15 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "apps/palace-web"
+    "apps/palace-web",
+    "apps/palace-extension"
   ],
   "scripts": {
     "dev": "npm run dev -w apps/palace-web",
     "build": "npm run build -w apps/palace-web",
     "test": "node scripts/run-with-clean-stderr.ts",
-    "lint": "npm run lint -w apps/palace-web",
-    "format": "prettier --ignore-path apps/palace-web/.prettierignore --write apps/palace-web scripts package.json"
+    "lint": "npm run lint -w apps/palace-web && npm run lint -w apps/palace-extension",
+    "format": "prettier --ignore-path apps/palace-web/.prettierignore --write apps/palace-web apps/palace-extension scripts package.json"
   },
   "devDependencies": {
     "ajv": "8.20.0",

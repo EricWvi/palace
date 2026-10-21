@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Palace 原网页标注</title>
+    <link rel="stylesheet" href="./src/extension.css" />
+  </head>
+  <body class="pages">
+    <main class="sheet">
+      <h1>标注过的网页</h1>
+      <p id="pages-status" class="quiet" role="status"></p>
+      <ol id="pages" class="page-list"></ol>
+      <h2>设置</h2>
+      <form id="settings" class="settings">
+        <label>
+          <span>Palace 地址</span>
+          <input
+            name="server"
+            type="url"
+            placeholder="https://palace.example.com"
+            required
+          />
+        </label>
+        <label>
+          <span>Access Token</span>
+          <input name="token" type="password" autocomplete="off" required />
+        </label>
+        <p class="actions">
+          <button type="submit">保存</button>
+          <span id="settings-status" class="quiet" role="status"></span>
+        </p>
+      </form>
+    </main>
+    <script type="module" src="./src/pages.ts"></script>
+  </body>
+</html>
