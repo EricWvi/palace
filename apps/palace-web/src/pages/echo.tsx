@@ -103,6 +103,11 @@ export function EchoPage() {
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
   });
+  // A shut drawer is inert, so the keystroke that opens it cannot focus the field; focus waits
+  // for the render that lifts it, before the reader's next key arrives.
+  useEffect(() => {
+    if (searching) search.current?.focus({ preventScroll: true });
+  }, [searching]);
 
   let main: ReactNode;
   if (allTags)

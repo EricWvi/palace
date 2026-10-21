@@ -76,6 +76,18 @@ test("keeps text typed right after n in order while the composer slides open", a
   );
 });
 
+// The search drawer is inert while shut, which jsdom ignores; only a real browser refuses focus.
+test("takes text typed right after / in the search field", async ({ page }) => {
+  await serve(page);
+  await page.goto("/jottings");
+  await expect(page.locator(".wall [data-id]")).toHaveCount(12);
+  await page.keyboard.press("/");
+  await page.keyboard.type("第三");
+  await expect(page.getByRole("searchbox", { name: "搜索札记" })).toHaveValue(
+    "第三",
+  );
+});
+
 // Core test case: `specs/test-cases/web/echo/echo-page.md#composing-must-extract-inline-tags-and-keep-the-rest-of-the-body-intact`
 test("puts a new jotting on top of the first column and moves no other card", async ({
   page,
