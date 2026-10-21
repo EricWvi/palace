@@ -1,5 +1,6 @@
-// The toolbar popup: what the current page is to Palace, and binding it to an imported article.
-// Binding opens the article in Palace, where the page's annotations migrate (D3, D4).
+// The toolbar popup: turning annotating on or off for the current tab, what the page is to
+// Palace, and binding it to an imported article. Binding opens the article in Palace, where the
+// page's annotations migrate (D3, D4). A tab left off asks Palace nothing.
 import { h } from "./dom";
 import {
   pageAddress,
@@ -8,6 +9,7 @@ import {
   type PageState,
   type Reply,
 } from "./protocol";
+import { onPalace, readSwitch, writeSwitch, type SwitchOrder } from "./switch";
 import { reportTheme } from "./theme";
 
 const main = document.getElementById("popup")!;
@@ -18,11 +20,12 @@ function show(...children: Node[]) {
   main.replaceChildren(...children);
 }
 
-// The way to the extension page, under every view.
-function footer() {
+// A view's actions, then the way to the extension page, under every view.
+function footer(...actions: Node[]) {
   return h(
     "p",
     { className: "row" },
+    ...actions,
     h(
       "button",
       {
@@ -34,8 +37,70 @@ function footer() {
   );
 }
 
-function problem(reply: Extract<Reply<unknown>, { ok: false }>) {
-  show(h("p", {}, reply.message), footer());
+// Every view of a tab turned on offers to turn it off again.
+function turnOffButton(tab: Tab) {
+  return h(
+    "button",
+    { className: "link", onclick: () => void turnOff(tab) },
+    "关闭标注",
+  );
+}
+
+function problem(tab: Tab, reply: Extract<Reply<unknown>, { ok: false }>) {
+  show(h("p", {}, reply.message), footer(turnOffButton(tab)));
+}
+
+// Tells the tab's content script; a tab opened before the extension was loaded has none.
+function order(tab: Tab, to: SwitchOrder["to"]): Promise<boolean> {
+  return chrome.tabs
+    .sendMessage(tab.id, { kind: "turn", to } satisfies SwitchOrder)
+    .then(
+      () => true,
+      () => false,
+    );
+}
+
+function off(tab: Tab) {
+  show(
+    h("p", {}, "这个标签页没有开启标注。"),
+    h(
+      "p",
+      { className: "quiet" },
+      "开启后，插件在这个标签页里显示和保存标注；换网页、刷新都保持开启，直到关闭标注或关掉标签页。",
+    ),
+    footer(
+      h(
+        "button",
+        { className: "link", onclick: () => void turnOn(tab) },
+        "在这个标签页开启标注",
+      ),
+    ),
+  );
+}
+
+async function turnOn(tab: Tab) {
+  await writeSwitch(tab.id, "on");
+  const reached = await order(tab, "on");
+  await view(tab);
+  if (!reached)
+    main.prepend(h("p", { className: "quiet" }, "刷新这个网页后开始标注。"));
+}
+
+async function turnOff(tab: Tab) {
+  await writeSwitch(tab.id, "off");
+  await order(tab, "off");
+  // The badge spoke for the page's annotations, which the tab no longer shows.
+  await chrome.action.setBadgeText({ tabId: tab.id, text: "" });
+  await chrome.action.setTitle({ tabId: tab.id, title: "Palace" });
+  off(tab);
+}
+
+// What a tab turned on shows: the page as Palace knows it.
+async function view(tab: Tab) {
+  const url = pageAddress(tab.url);
+  const reply = await send({ kind: "page", url });
+  if (!reply.ok) return problem(tab, reply);
+  render(tab, url, reply.data);
 }
 
 async function openArticle(tab: Tab, state: PageState) {
@@ -66,7 +131,7 @@ function choose(tab: Tab, url: string) {
       cursor,
     });
     if (asked !== query) return;
-    if (!reply.ok) return problem(reply);
+    if (!reply.ok) return problem(tab, reply);
     if (cursor === null) list.replaceChildren();
     list.querySelector(".more")?.remove();
     append(reply.data);
@@ -89,7 +154,7 @@ function choose(tab: Tab, url: string) {
                   title: tab.title,
                   article_id: item.id,
                 });
-                if (!reply.ok) return problem(reply);
+                if (!reply.ok) return problem(tab, reply);
                 await openArticle(tab, reply.data);
               },
             },
@@ -141,22 +206,13 @@ function render(tab: Tab, url: string, state: PageState) {
           state.article.title,
         ),
       ),
-      h(
-        "p",
-        { className: "row" },
+      footer(
         h(
           "button",
           { className: "link", onclick: () => choose(tab, url) },
           "改绑到另一篇",
         ),
-        h(
-          "button",
-          {
-            className: "link",
-            onclick: () => void chrome.runtime.openOptionsPage(),
-          },
-          "标注过的网页与设置",
-        ),
+        turnOffButton(tab),
       ),
     );
     return;
@@ -164,22 +220,13 @@ function render(tab: Tab, url: string, state: PageState) {
   const count = state.annotations.length;
   show(
     h("p", {}, count ? `这个网页有 ${count} 处标注。` : "这个网页还没有标注。"),
-    h(
-      "p",
-      { className: "row" },
+    footer(
       h(
         "button",
         { className: "link", onclick: () => choose(tab, url) },
         "收进 Palace",
       ),
-      h(
-        "button",
-        {
-          className: "link",
-          onclick: () => void chrome.runtime.openOptionsPage(),
-        },
-        "标注过的网页与设置",
-      ),
+      turnOffButton(tab),
     ),
   );
 }
@@ -194,10 +241,25 @@ async function start() {
     return;
   }
   const tab = { id: active.id, url: active.url, title: active.title ?? "" };
-  const url = pageAddress(tab.url);
-  const reply = await send({ kind: "page", url });
-  if (!reply.ok) return problem(reply);
-  render(tab, url, reply.data);
+  // Reading the settings stays inside the extension; it asks Palace nothing.
+  const settings = await send({ kind: "settings" });
+  if (
+    settings.ok &&
+    settings.data.configured &&
+    onPalace(tab.url, settings.data.server)
+  ) {
+    show(
+      h(
+        "p",
+        { className: "quiet" },
+        "这是 Palace 本身，请用 Palace 自己的标注。",
+      ),
+      footer(),
+    );
+    return;
+  }
+  if ((await readSwitch(tab.id)) === "off") return off(tab);
+  await view(tab);
 }
 
 reportTheme();

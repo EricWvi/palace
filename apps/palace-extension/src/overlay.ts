@@ -146,7 +146,12 @@ export class Overlay {
     this.host = document.createElement("palace-annotator");
     this.root = this.host.attachShadow({ mode: "closed" });
     this.root.append(element("style", "", css));
-    document.documentElement.append(this.host);
+  }
+
+  // The host joins the page only when something first shows, so a page where annotating stays
+  // off never gets a node from the extension.
+  private mount() {
+    if (!this.host.isConnected) document.documentElement.append(this.host);
   }
 
   // Whether an event happened on the overlay rather than the page.
@@ -169,6 +174,7 @@ export class Overlay {
     actions: BarActions,
   ) {
     this.hideBar();
+    this.mount();
     const current = subject.kind === "annotation" ? subject.style : null;
     const pressed = (style: AnnotationStyle) =>
       subject.kind === "annotation" ? String(style === current) : "";
@@ -232,6 +238,7 @@ export class Overlay {
   // Shows a note card under `under`, a mark's last line, kept inside the window.
   showNote(under: DOMRect, note: NoteCard) {
     this.hideNote();
+    this.mount();
     const card = element("div", note.onEdit ? "card editable" : "card");
     card.style.setProperty("--swatch", swatch(note.style));
     card.style.left = `${Math.max(8, Math.min(under.left, innerWidth - 288))}px`;
@@ -282,6 +289,7 @@ export class Overlay {
   flash(text: string) {
     this.root.querySelector(".message")?.remove();
     clearTimeout(this.timer);
+    this.mount();
     const message = element("p", "message", text);
     message.setAttribute("role", "status");
     this.root.append(message);

@@ -5,6 +5,8 @@ date: 2026-10-21
 
 # 浏览器插件在原网页上标注，标注按网页地址存进 Palace；网页由用户绑定到已导入的文章后，标注在文章页重新定位并迁移，原网页转为只读显示
 
+> 历史决策：D7 中「插件打开网页时，按地址拉取这个网页的状态和原网页标注」已被[标注默认关闭，按标签页开启](20261021-annotating-off-until-turned-on-per-tab.md)修改：插件只在读者开启了标注的标签页里工作，Palace 自己的页面不能开启。
+
 新增一个 Chromium 浏览器插件。读者在任意网页上选中文字，可以留下与 Palace 相同的高亮、划线、波浪线和批注。这些**原网页标注**用 Access Token 直接存进 Palace 服务端，按网页地址归组，每次保存时顺带记下标签页标题，供插件的列表页浏览。文章被抓取项目导入 Palace 后，读者在插件里把这个网页**绑定**到一篇文章：插件给出候选文章，同一域名、路径相近的排在最前，最终由读者选定。绑定后打开 Palace 文章页，前端在渲染后的正文里按引文和上下文重新定位每一处原网页标注。定位成功的，在一个事务里新建为文章标注，同时删除原网页标注；定位失败的留在文章页上，由读者手动重标或丢弃。绑定之后，原网页不能再标注，插件改为只读显示这篇文章当前的标注。插件不在本地保存数据，每次操作直接写服务端，多台电脑之间以最后写入的为准。
 
 当前为 `implemented`，核心测试用例见[网页标注](../../test-cases/extension/web-annotations.md)。本决策是插件领域的根决策。它沿用[摘星标注决策](../web/stars/20261021-annotations-on-articles-and-messages.md)的标注组成、样式与文章锚点坐标系，沿用[文章导入决策](../web/stars/20261020-articles-imported-with-media.md)的文章模型，认证使用 [Access Token 决策](../server/owner/20261018-owner-access-tokens-for-cli-and-services.md)。涉及新增的 `apps/palace-extension`，`palace-db` 的新表与迁移，`palace-domain` 的校验与排序规则，`palace-backend` 的新接口、OpenAPI 和文章列表排序，以及 `apps/palace-web` 文章页的迁移流程与未定位标注的展示。实现与本决策评审稿的差异集中记录在[实现中的调整](#实现中的调整)。对话页、笔记、Firefox 与 Safari、离线标注、自动匹配文章都不在范围内。

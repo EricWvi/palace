@@ -1,6 +1,6 @@
 # 网页标注核心测试用例
 
-当前决策：[浏览器插件在原网页上标注，绑定到文章后迁移](../../decisions/extension/0-web-page-annotations-bound-and-migrated-into-articles.md)。文章标注自身的规则见[摘星标注](../web/stars/annotations.md)，本文件只记录原网页标注、绑定与迁移引入的新承诺。数据库约束、级联、事务与并发顺序只能以真实 PostgreSQL 为直接证据。
+当前决策：[浏览器插件在原网页上标注，绑定到文章后迁移](../../decisions/extension/0-web-page-annotations-bound-and-migrated-into-articles.md)，[标注默认关闭，按标签页开启](../../decisions/extension/20261021-annotating-off-until-turned-on-per-tab.md)。文章标注自身的规则见[摘星标注](../web/stars/annotations.md)，本文件只记录原网页标注、绑定与迁移引入的新承诺。数据库约束、级联、事务与并发顺序只能以真实 PostgreSQL 为直接证据。
 
 ## Web pages and web annotations must stay within the owner scope
 
@@ -105,3 +105,18 @@
 | token 只存在于 service worker 与 `chrome.storage.local`（真实 Chromium） | Covered | `apps/palace-extension/e2e/extension.spec.ts` 的 “annotating, binding and the read-only display never put the token in the page”、“an invalid token turns the bar off and marks the toolbar icon”（加载构建后的插件，Palace 由测试内的 HTTP 服务模拟）；内容脚本只能发出本页的四种请求、设置不回传 token 见 `apps/palace-extension/src/palace.test.ts` |
 
 决策依据：D8，不变量 9。
+
+## Annotating must stay off until turned on for the tab
+
+风险：插件在读者没有要求时自动工作，把每个打开的网页地址送进 Palace，相当于在服务端留下完整的浏览记录；关闭的网页上仍出现选区小条，或者往网页 DOM 里插入节点；开启状态漏到其他标签页，或者在同一标签页里换网页、刷新后丢失；关闭后已画的标注没有清除；插件的小条叠在 Palace 自己的标注小条上。前置：真实 Chromium 加载插件，Palace 与被标注的网站由测试内的 HTTP 服务以两个不同的源模拟。触发：打开网页后不开启，选中文字并按快捷键；在弹窗里开启，标注一处；同一标签页导航到 Palace 自己的文章页，再回到网页并刷新；另开一个标签页打开网页；在弹窗里关闭，再刷新。
+
+必须成立：开启前没有任何查询或写入请求，网页 DOM 里没有插件的节点，弹窗只提供开启按钮；开启后小条可以保存标注；Palace 页面上弹窗不提供开启，内容脚本不查询；开启状态跨导航与刷新保持，另一个标签页保持关闭；关闭后标注立即消失，之后的加载不再查询。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 关闭时不请求、不绘制、不改 DOM；开启只作用于一个标签页并跨导航与刷新保持；关闭后清除（真实 Chromium） | Covered | `apps/palace-extension/e2e/extension.spec.ts` 的 “annotating stays off until it is turned on, for that tab alone”（Palace 由测试内的 HTTP 服务模拟） |
+| Palace 自己的页面不能开启（真实 Chromium；同源判断的单元测试） | Covered | 同上测试中导航到 Palace 文章页的一段；同源规则的边界见 `apps/palace-extension/src/switch.test.ts` |
+
+决策依据：[标注默认关闭，按标签页开启](../../decisions/extension/20261021-annotating-off-until-turned-on-per-tab.md) D1、D2，不变量 1、2、3。

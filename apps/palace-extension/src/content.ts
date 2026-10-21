@@ -1,7 +1,9 @@
-// Runs in every web page. On a page not yet bound it lets the reader annotate as in Palace and
-// draws the page's annotations; on a bound page it draws the article's current annotations,
-// read only. It holds no data of its own: every change goes straight to Palace through the
-// service worker, and a page that cannot reach Palace offers nothing (D3, D6, D7).
+// Runs in every web page but stays idle, asking Palace nothing and touching nothing, until the
+// reader turns annotating on for the tab (see switch.ts). Once on, on a page not yet bound it lets
+// the reader annotate as in Palace and draws the page's annotations; on a bound page it draws the
+// article's current annotations, read only. It holds no data of its own: every change goes
+// straight to Palace through the service worker, and a page that cannot reach Palace offers
+// nothing (D3, D6, D7).
 import {
   findQuote,
   relocate,
@@ -23,6 +25,7 @@ import {
   type Reply,
   type WebAnnotation,
 } from "./protocol";
+import type { Switch, SwitchOrder, SwitchQuery } from "./switch";
 import { reportTheme } from "./theme";
 
 // One annotation as drawn now, with the range its words occupy on the page.
@@ -34,6 +37,8 @@ type Drawn = {
 };
 
 const overlay = new Overlay();
+// Whether annotating is on in this tab. Off, `state` stays null and nothing is drawn.
+let on = false;
 let state: PageState | null = null;
 let drawn: Drawn[] = [];
 // The selection the bar was opened for, kept as a selector so a lost selection loses nothing.
@@ -267,7 +272,8 @@ document.addEventListener("mouseup", (event) => {
 // Hovering a noted mark shows its note under it; on an unbound page a click on it edits.
 let pending = 0;
 document.addEventListener("mousemove", (event) => {
-  if (overlay.noteEditing || overlay.barShown || overlay.owns(event)) return;
+  if (!on || overlay.noteEditing || overlay.barShown || overlay.owns(event))
+    return;
   cancelAnimationFrame(pending);
   pending = requestAnimationFrame(() => {
     const item = hit(event.clientX, event.clientY);
@@ -315,6 +321,7 @@ document.addEventListener(
 addEventListener(
   "scroll",
   () => {
+    if (!on) return;
     hideBar();
     if (!overlay.noteEditing) overlay.hideNote();
   },
@@ -323,22 +330,51 @@ addEventListener(
 
 // Pages fill in after load and change as they are read; find the words again once they settle.
 let settling = 0;
-new MutationObserver(() => {
+const observer = new MutationObserver(() => {
   clearTimeout(settling);
   settling = window.setTimeout(draw, 400);
-}).observe(document.body, {
-  childList: true,
-  subtree: true,
-  characterData: true,
 });
 
 // A site that follows the browser's appearance changes its ink with it; the marks follow.
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
-
-// The popup asks again after binding the page.
-chrome.runtime.onMessage.addListener((message: { kind: string }) => {
-  if (message.kind === "refresh") void load();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  if (on) draw();
 });
 
+async function turn(to: Switch) {
+  if ((to === "on") === on) return;
+  on = to === "on";
+  if (on) {
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    await load();
+    return;
+  }
+  observer.disconnect();
+  clearTimeout(settling);
+  state = null;
+  hideBar();
+  overlay.hideNote();
+  draw();
+}
+
+// The popup turns the tab on or off, and asks again after binding the page. Answering an order
+// tells the popup the page has a content script to obey it.
+chrome.runtime.onMessage.addListener(
+  (message: SwitchOrder | { kind: "refresh" }, _sender, respond) => {
+    if (message.kind === "turn") {
+      void turn(message.to);
+      respond(null);
+    } else if (on) void load();
+  },
+);
+
 reportTheme();
-void load();
+// A tab turned on keeps annotating as it navigates and reloads.
+void chrome.runtime
+  .sendMessage({ kind: "switch" } satisfies SwitchQuery)
+  .then((to: Switch) => turn(to))
+  // An extension reloaded under an open page no longer answers; the page stays off.
+  .catch(() => {});

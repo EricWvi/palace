@@ -179,16 +179,24 @@ let context: BrowserContext;
 let worker: Worker;
 let profile: string;
 let fake: ReturnType<typeof palace>;
+// Palace, and the site whose pages are annotated: the same server under two origins, since
+// annotating cannot be turned on over Palace's own pages.
 let origin: string;
+let site: string;
 let extension: string;
 
 test.beforeEach(async () => {
   fake = palace();
   origin = await fake.origin();
+  site = origin.replace("127.0.0.1", "site.test");
   profile = await mkdtemp(join(tmpdir(), "palace-extension-"));
   context = await chromium.launchPersistentContext(profile, {
     channel: "chromium",
-    args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
+    args: [
+      `--disable-extensions-except=${dist}`,
+      `--load-extension=${dist}`,
+      "--host-resolver-rules=MAP site.test 127.0.0.1",
+    ],
   });
   worker =
     context.serviceWorkers()[0] ??
@@ -250,16 +258,44 @@ const tabOf = (url: string) =>
     url,
   );
 
+// The popup as opened over `page`'s tab: the test stands in for the toolbar, so the popup is told
+// which tab is active.
+async function popupFor(page: Page) {
+  const url = page.url();
+  const tab = await tabOf(url);
+  const popup = await context.newPage();
+  await popup.addInitScript(
+    ({ tab, url }) => {
+      chrome.tabs.query = (async () => [
+        { id: tab, url, title: "原网页标题" },
+      ]) as never;
+    },
+    { tab, url },
+  );
+  await popup.goto(`chrome-extension://${extension}/popup.html`);
+  return popup;
+}
+
+// Turns annotating on for `page`'s tab in the popup, as the reader does.
+async function turnOn(page: Page) {
+  const popup = await popupFor(page);
+  await popup.getByRole("button", { name: "在这个标签页开启标注" }).click();
+  await expect(popup.getByRole("button", { name: "关闭标注" })).toBeVisible();
+  await popup.close();
+}
+
+const lookups = () =>
+  fake.requests.filter((request) => request.path === "/api/web-pages/lookup")
+    .length;
+
 // Core test case:
 // - `specs/test-cases/extension/web-annotations.md#the-access-token-must-never-reach-the-page-context`
 test("annotating, binding and the read-only display never put the token in the page", async () => {
   const page = await context.newPage();
-  await page.goto(`${origin}/article`);
-  await expect
-    .poll(() =>
-      fake.requests.some((request) => request.path === "/api/web-pages/lookup"),
-    )
-    .toBe(true);
+  await page.goto(`${site}/article`);
+  await turnOn(page);
+  // The popup and the page each look the page up.
+  await expect.poll(lookups).toBe(2);
 
   // Annotate with the bar's key: the page is unbound, so the extension writes to Palace.
   await select(page, "大多数再也没有被打开过");
@@ -280,17 +316,7 @@ test("annotating, binding and the read-only display never put the token in the p
     });
 
   // Bind through the popup, opened for the page's tab.
-  const tab = await tabOf(`${origin}/article`);
-  const popup = await context.newPage();
-  await popup.addInitScript(
-    ({ tab, url }) => {
-      chrome.tabs.query = (async () => [
-        { id: tab, url, title: "原网页标题" },
-      ]) as never;
-    },
-    { tab, url: `${origin}/article` },
-  );
-  await popup.goto(`chrome-extension://${extension}/popup.html`);
+  const popup = await popupFor(page);
   await expect(popup.getByText("这个网页有 1 处标注。")).toBeVisible();
   await popup.getByRole("button", { name: "收进 Palace" }).click();
   await popup.setViewportSize({ width: 360, height: 240 });
@@ -305,7 +331,7 @@ test("annotating, binding and the read-only display never put the token in the p
     fake.requests.find((request) => request.path === "/api/web-pages/binding")
       ?.body,
   ).toEqual({
-    url: `${origin}/article`,
+    url: `${site}/article`,
     title: "原网页标题",
     article_id: "a1",
   });
@@ -330,6 +356,7 @@ test("annotating, binding and the read-only display never put the token in the p
   expect(
     fake.requests.filter((request) => request.method === "POST").length,
   ).toBe(posted);
+  const tab = await tabOf(`${site}/article`);
   expect(
     await worker.evaluate(
       (tab) => chrome.action.getBadgeText({ tabId: tab }),
@@ -369,15 +396,91 @@ test("annotating, binding and the read-only display never put the token in the p
   ).toBe(true);
 });
 
+// Core test case:
+// - `specs/test-cases/extension/web-annotations.md#annotating-must-stay-off-until-turned-on-for-the-tab`
+test("annotating stays off until it is turned on, for that tab alone", async () => {
+  // Count the content scripts asking whether their tab is on, to know each page has started.
+  await worker.evaluate(() => {
+    const self = globalThis as { asked?: number };
+    chrome.runtime.onMessage.addListener((message: { kind: string }) => {
+      if (message.kind === "switch") self.asked = (self.asked ?? 0) + 1;
+    });
+  });
+  const asked = () =>
+    worker.evaluate(() => (globalThis as { asked?: number }).asked ?? 0);
+  const page = await context.newPage();
+  await page.goto(`${site}/article`);
+  await expect.poll(asked).toBe(1);
+
+  // Off: no bar, no request to Palace, nothing added to the page.
+  await select(page, "大多数再也没有被打开过");
+  await page.keyboard.press("1");
+  const popup = await popupFor(page);
+  await expect(popup.getByText("这个标签页没有开启标注。")).toBeVisible();
+  expect(
+    fake.requests.filter(
+      (request) =>
+        request.path === "/api/web-pages/lookup" || request.method === "POST",
+    ),
+  ).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.querySelector("palace-annotator") === null,
+    ),
+  ).toBe(true);
+
+  // On: the popup and the page look the page up, and the bar saves.
+  await popup.getByRole("button", { name: "在这个标签页开启标注" }).click();
+  await expect(popup.getByText("这个网页还没有标注。")).toBeVisible();
+  await expect.poll(lookups).toBe(2);
+  await select(page, "大多数再也没有被打开过");
+  await page.keyboard.press("1");
+  await expect.poll(() => fake.web.length).toBe(1);
+  await expect
+    .poll(() => highlights(page))
+    .toEqual({ "palace-yellow-light": ["大多数再也没有被打开过"] });
+
+  // Palace's own pages stay off, even in a tab turned on.
+  await page.goto(`${origin}/articles/a1`);
+  await expect.poll(asked).toBe(2);
+  expect(lookups()).toBe(2);
+  const own = await popupFor(page);
+  await expect(
+    own.getByText("这是 Palace 本身，请用 Palace 自己的标注。"),
+  ).toBeVisible();
+  await own.close();
+
+  // The tab stays on as it navigates and reloads; another tab stays off.
+  await page.goto(`${site}/article`);
+  await expect.poll(lookups).toBe(3);
+  await page.reload();
+  await expect.poll(asked).toBe(4);
+  await expect.poll(lookups).toBe(4);
+  await expect
+    .poll(() => highlights(page))
+    .toEqual({ "palace-yellow-light": ["大多数再也没有被打开过"] });
+  const other = await context.newPage();
+  await other.goto(`${site}/dark`);
+  await expect.poll(asked).toBe(5);
+  expect(await highlights(other)).toEqual({});
+
+  // Off again: the marks go and the page asks Palace nothing more.
+  await popup.reload();
+  await popup.getByRole("button", { name: "关闭标注" }).click();
+  await expect(popup.getByText("这个标签页没有开启标注。")).toBeVisible();
+  await expect.poll(() => highlights(page)).toEqual({});
+  await page.reload();
+  await expect.poll(asked).toBe(6);
+  // The one lookup since is the popup's, made while the tab was still on.
+  expect(lookups()).toBe(5);
+});
+
 // A site with its own dark ground gets Palace's dark marks, whatever the browser's appearance.
 test("marks on a dark page take the dark palette", async () => {
   const page = await context.newPage();
-  await page.goto(`${origin}/dark`);
-  await expect
-    .poll(() =>
-      fake.requests.some((request) => request.path === "/api/web-pages/lookup"),
-    )
-    .toBe(true);
+  await page.goto(`${site}/dark`);
+  await turnOn(page);
+  await expect.poll(lookups).toBe(2);
   await select(page, "大多数再也没有被打开过");
   await page.keyboard.press("1");
   await expect
@@ -390,8 +493,9 @@ test("marks on a dark page take the dark palette", async () => {
 test("an invalid token turns the bar off and marks the toolbar icon", async () => {
   fake.revoke();
   const page = await context.newPage();
-  await page.goto(`${origin}/article`);
-  const tab = await tabOf(`${origin}/article`);
+  await page.goto(`${site}/article`);
+  await turnOn(page);
+  const tab = await tabOf(`${site}/article`);
   await expect
     .poll(() =>
       worker.evaluate((tab) => chrome.action.getTitle({ tabId: tab }), tab),
