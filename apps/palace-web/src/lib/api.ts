@@ -14,6 +14,7 @@ export type ConversationListItem =
 export type NoteListItem = components["schemas"]["NoteListItem"];
 export type Article = components["schemas"]["Article"];
 export type Annotation = components["schemas"]["Annotation"];
+export type WebAnnotation = components["schemas"]["WebAnnotation"];
 export type ArticleListItem = components["schemas"]["ArticleListItem"];
 export type AccessToken = components["schemas"]["AccessToken"];
 export type ListedJotting = components["schemas"]["ListedJotting"];
@@ -198,6 +199,19 @@ export function annotationsOptions({ kind, id }: AnnotationTarget) {
           : api.GET("/api/conversations/{id}/annotations", {
               params: { path: { id } },
             }),
+      ),
+  };
+}
+// The web annotations still on the pages bound to an article: those the article page has yet
+// to migrate, then those it could not place.
+export function webAnnotationsOptions(id: string) {
+  return {
+    queryKey: ["web-annotations", id],
+    queryFn: () =>
+      apiData(
+        api.GET("/api/articles/{id}/web-annotations", {
+          params: { path: { id } },
+        }),
       ),
   };
 }

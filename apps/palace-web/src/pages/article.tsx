@@ -19,6 +19,10 @@ import {
 } from "@/components/annotation-layer";
 import { AnnotatedArea } from "@/components/annotated-area";
 import {
+  UnmatchedFacts,
+  useWebAnnotations,
+} from "@/components/web-annotations";
+import {
   ReadingDocument,
   ReadingSkeleton,
   fullDate,
@@ -51,6 +55,8 @@ export function ArticlePage() {
   const navigate = useNavigate();
   const article = useQuery(articleOptions(id!));
   const layer = useAnnotations({ kind: "article", id: id! });
+  // Annotations left on the original page migrate once the body is on screen.
+  const web = useWebAnnotations(id!, article.isSuccess);
   const from = parseDay(params.get("date"));
   const { state } = useLocation();
   const top = (state as { top?: boolean } | null)?.top;
@@ -119,10 +125,16 @@ export function ArticlePage() {
               原文 ↗
             </a>
             <AnnotationFacts layer={layer} />
+            <UnmatchedFacts web={web} />
           </>
         }
         tocLabel="文章目录"
       />
+      {web.error && (
+        <p role="status" className="annotation-error">
+          {web.error}
+        </p>
+      )}
     </AnnotatedArea>
   );
 }

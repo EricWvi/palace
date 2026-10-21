@@ -414,3 +414,61 @@ ol.messages > .fold-gap:first-child {
     animation: none;
   }
 }
+
+/*
+ * Web annotations the article page could not place (specs/decisions/extension/
+ * 0-web-page-annotations-bound-and-migrated-into-articles.md, D5): each quote with its mark's
+ * colour as a left rule, its note under it, and a way to discard it.
+ */
+.unmatched {
+  max-height: min(420px, 70vh);
+  overflow-y: auto;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+  line-height: 1.65;
+}
+
+.unmatched-hint {
+  margin: 0;
+  padding: 10px 16px 6px;
+  color: var(--text-3);
+}
+
+.unmatched ul {
+  margin: 0;
+  padding: 0 0 6px;
+  list-style: none;
+}
+
+.unmatched li {
+  padding: 8px 16px;
+}
+
+.unmatched li + li {
+  border-top: 1px solid var(--border);
+}
+
+.unmatched blockquote {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--swatch);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.unmatched-note {
+  margin: 4px 0 0 12px;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.unmatched li button {
+  margin: 4px 0 0 12px;
+  color: var(--text-3);
+}
+
+.unmatched li button:hover {
+  color: var(--accent);
+}

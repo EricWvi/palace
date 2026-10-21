@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, type CSSProperties, type Ref } from "react";
 import { markKind, type AnnotationStyle } from "@/lib/annotation-paint";
 
 // The card's left rule takes its mark's colour; pale highlighter grounds are deepened to show.
-function swatch(style: AnnotationStyle | null) {
+export function swatch(style: AnnotationStyle | null) {
   switch (markKind(style)) {
     case "hl":
       return `color-mix(in srgb, var(--mark-${style}), var(--text) 28%)`;
