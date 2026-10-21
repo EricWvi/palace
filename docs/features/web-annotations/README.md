@@ -17,6 +17,7 @@ token 只保存在本机的 `chrome.storage.local`，不经浏览器同步；所
 - 标注用 CSS Custom Highlight API 绘制，不改动网页 DOM；小条和批注放在 closed shadow root 里。网页加载后内容变化时，插件会在页面安静下来后重新定位。
 - 网页地址取 `location.href` 去掉 `#` 之后的部分，不做其他规范化。每次新建、修改标注都会记下当前标签页标题，供列表页显示。
 - 插件不在本地保存任何标注，每次操作直接写 Palace，多台电脑之间以后写入的为准。连不上 Palace 或 token 无效时，选区小条不出现，工具栏图标显示 `!`。
+- 工具栏图标随浏览器的亮暗外观切换：插件运行的页面把 `prefers-color-scheme` 报给 service worker，由它调用 `chrome.action.setIcon`。manifest 只能写一套静态图标，所以浏览器刚启动、还没打开任何网页时显示的是亮色版本。
 - 只处理顶层页面正文里的文字；iframe、输入框、可编辑区域和 PDF 查看器不支持。
 
 ## 收进 Palace：绑定与迁移

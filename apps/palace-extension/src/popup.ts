@@ -8,6 +8,7 @@ import {
   type PageState,
   type Reply,
 } from "./protocol";
+import { reportTheme } from "./theme";
 
 const main = document.getElementById("popup")!;
 
@@ -199,4 +200,5 @@ async function start() {
   render(tab, url, reply.data);
 }
 
+reportTheme();
 void start();

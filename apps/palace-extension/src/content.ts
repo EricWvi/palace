@@ -23,6 +23,7 @@ import {
   type Reply,
   type WebAnnotation,
 } from "./protocol";
+import { reportTheme } from "./theme";
 
 // One annotation as drawn now, with the range its words occupy on the page.
 type Drawn = {
@@ -336,4 +337,5 @@ chrome.runtime.onMessage.addListener((message: { kind: string }) => {
   if (message.kind === "refresh") void load();
 });
 
+reportTheme();
 void load();

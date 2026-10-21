@@ -2,6 +2,7 @@
 // field is write only: the service worker never hands a stored token back.
 import { h } from "./dom";
 import { send } from "./protocol";
+import { reportTheme } from "./theme";
 
 const list = document.getElementById("pages") as HTMLOListElement;
 const listStatus = document.getElementById("pages-status")!;
@@ -71,5 +72,6 @@ form.addEventListener("submit", async (event) => {
   await Promise.all([loadSettings(), loadPages()]);
 });
 
+reportTheme();
 void loadSettings();
 void loadPages();
