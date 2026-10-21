@@ -332,6 +332,9 @@ new MutationObserver(() => {
   characterData: true,
 });
 
+// A site that follows the browser's appearance changes its ink with it; the marks follow.
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+
 // The popup asks again after binding the page.
 chrome.runtime.onMessage.addListener((message: { kind: string }) => {
   if (message.kind === "refresh") void load();

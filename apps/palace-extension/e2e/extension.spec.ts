@@ -61,6 +61,15 @@ function palace() {
       response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       return response.end(article);
     }
+    if (url.pathname === "/dark") {
+      response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      return response.end(
+        article.replace(
+          "<body>",
+          '<body style="background: #1f1e1c; color: #e6e6e6">',
+        ),
+      );
+    }
     if (url.pathname === "/articles/a1") {
       response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       return response.end("<title>Palace 文章页</title>");
@@ -267,7 +276,7 @@ test("annotating, binding and the read-only display never put the token in the p
   await expect
     .poll(() => highlights(page))
     .toEqual({
-      "palace-yellow": ["大多数再也没有被打开过"],
+      "palace-yellow-light": ["大多数再也没有被打开过"],
     });
 
   // Bind through the popup, opened for the page's tab.
@@ -304,10 +313,10 @@ test("annotating, binding and the read-only display never put the token in the p
   // The bound page shows the article's annotations and takes no new ones.
   await expect
     .poll(() => highlights(page))
-    .toEqual({ "palace-wavy": ["划线和旁批"] });
+    .toEqual({ "palace-wavy-light": ["划线和旁批"] });
   // Hovering the noted mark shows its note, read only.
   const mark = await page.evaluate(() => {
-    const range = [...CSS.highlights.get("palace-wavy")!][0] as Range;
+    const range = [...CSS.highlights.get("palace-wavy-light")!][0] as Range;
     const box = range.getBoundingClientRect();
     return { x: box.left + 4, y: box.top + box.height / 2 };
   });
@@ -358,6 +367,22 @@ test("annotating, binding and the read-only display never put the token in the p
   expect(
     fake.requests.every((request) => request.auth === `Bearer ${token}`),
   ).toBe(true);
+});
+
+// A site with its own dark ground gets Palace's dark marks, whatever the browser's appearance.
+test("marks on a dark page take the dark palette", async () => {
+  const page = await context.newPage();
+  await page.goto(`${origin}/dark`);
+  await expect
+    .poll(() =>
+      fake.requests.some((request) => request.path === "/api/web-pages/lookup"),
+    )
+    .toBe(true);
+  await select(page, "大多数再也没有被打开过");
+  await page.keyboard.press("1");
+  await expect
+    .poll(() => highlights(page))
+    .toEqual({ "palace-yellow-dark": ["大多数再也没有被打开过"] });
 });
 
 // Core test case:

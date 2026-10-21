@@ -22,6 +22,8 @@ export default defineConfig({
   test: {
     exclude: ["e2e/**", "node_modules/**"],
     environment: "jsdom",
+    // Vitest empties CSS imports by default; the highlights read their colours from the tokens.
+    css: { include: /tokens\.css/ },
     restoreMocks: true,
   },
 });
