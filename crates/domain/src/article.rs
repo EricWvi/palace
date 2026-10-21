@@ -33,22 +33,9 @@ impl ArticleMetadata {
     /// their original spelling, and a blank author means the article names none.
     pub fn parse(input: ArticleMetadataInput, timezone: Tz) -> Result<Self, InputError> {
         validate_title(&input.title)?;
-        let invalid_url = || {
-            InputError::new(
-                InputErrorKind::Field,
-                "url",
-                "expected an absolute http or https URL of at most 2048 bytes",
-            )
-        };
         // The URL is the article's identity within an owner, so it is kept byte for byte and
         // never normalized: whatever the importer sends again must match it.
-        if input.url.len() > URL_BYTES || input.url.trim() != input.url {
-            return Err(invalid_url());
-        }
-        let parsed = url::Url::parse(&input.url).map_err(|_| invalid_url())?;
-        if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
-            return Err(invalid_url());
-        }
+        validate_web_url(&input.url, "url")?;
         let author = input.author.filter(|author| !author.trim().is_empty());
         if author
             .as_ref()
@@ -102,6 +89,26 @@ impl ArticleMetadata {
     pub fn published(&self) -> DocumentDate {
         self.published
     }
+}
+
+/// Accepts an absolute `http`/`https` URL of at most 2048 bytes with no surrounding blanks.
+/// Articles and annotated web pages share it, since a page is bound to an article by address.
+pub(crate) fn validate_web_url(url: &str, field: &str) -> Result<(), InputError> {
+    let invalid = || {
+        InputError::new(
+            InputErrorKind::Field,
+            field,
+            "expected an absolute http or https URL of at most 2048 bytes",
+        )
+    };
+    if url.len() > URL_BYTES || url.trim() != url {
+        return Err(invalid());
+    }
+    let parsed = url::Url::parse(url).map_err(|_| invalid())?;
+    if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
+        return Err(invalid());
+    }
+    Ok(())
 }
 
 /// Names the site an article came from: the URL's host without a leading `www.`. Lists show it

@@ -28,6 +28,10 @@ mod import_times;
 mod moments;
 #[path = "postgres/paths.rs"]
 mod paths;
+#[path = "postgres/web_migration.rs"]
+mod web_migration;
+#[path = "postgres/web_pages.rs"]
+mod web_pages;
 
 /// Starts an isolated database whose container Ryuk removes even if the test process is killed.
 async fn database() -> (ContainerAsync<GenericImage>, Database, PgPool) {

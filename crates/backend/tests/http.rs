@@ -36,6 +36,8 @@ mod notes;
 
 #[path = "http/paths.rs"]
 mod paths;
+#[path = "http/web_pages.rs"]
+mod web_pages;
 
 struct Provider;
 impl IdentityProvider for Provider {
@@ -116,6 +118,8 @@ fn request(
 /// - `specs/test-cases/server/media/media-reading.md#reading-media-must-redirect-only-within-the-owner-scope`
 /// - `specs/test-cases/web/stars/annotations.md#annotations-must-stay-within-the-owner-scope`
 /// - `specs/test-cases/web/stars/annotations.md#an-annotation-must-keep-a-style-or-a-note-and-an-immutable-anchor`
+/// - `specs/test-cases/extension/web-annotations.md#web-pages-and-web-annotations-must-stay-within-the-owner-scope`
+/// - `specs/test-cases/extension/web-annotations.md#a-bound-web-page-must-reject-new-and-changed-web-annotations`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image, git and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {
@@ -556,6 +560,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     media::exercise_unconfigured(&app, &cookie).await;
     articles::exercise_without_media(&app, &cookie, &foreign, &pool).await;
     annotations::exercise_annotations(&app, &cookie, &foreign).await;
+    web_pages::exercise_web_pages(&app, &cookie, &foreign).await;
     jottings::exercise_jottings(&app, &cookie, &foreign, agent).await;
     jottings::exercise_unconfigured(&without_jottings, &cookie).await;
     inputs::exercise_contract_boundaries(&app, &cookie, &foreign, &pool, &sessions[0].owner).await;

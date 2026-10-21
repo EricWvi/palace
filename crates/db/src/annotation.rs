@@ -18,7 +18,7 @@ pub struct Annotation {
     pub updated_at: i64,
 }
 
-const COLUMNS: &str = "id,article_id,conversation_id,message_id,start_offset,end_offset,quote,style,note,(extract(epoch FROM created_at)*1000)::bigint AS created_at,(extract(epoch FROM updated_at)*1000)::bigint AS updated_at";
+pub(crate) const COLUMNS: &str = "id,article_id,conversation_id,message_id,start_offset,end_offset,quote,style,note,(extract(epoch FROM created_at)*1000)::bigint AS created_at,(extract(epoch FROM updated_at)*1000)::bigint AS updated_at";
 
 impl Database {
     /// Lists an article's annotations in creation order; another owner's article is not found.
@@ -154,7 +154,7 @@ impl Database {
 }
 
 /// Reads one row selected with [`COLUMNS`].
-fn annotation(row: &PgRow) -> Result<Annotation, DbError> {
+pub(crate) fn annotation(row: &PgRow) -> Result<Annotation, DbError> {
     let article: Option<Uuid> = row.try_get("article_id")?;
     let conversation: Option<Uuid> = row.try_get("conversation_id")?;
     let message: Option<Uuid> = row.try_get("message_id")?;
@@ -188,7 +188,7 @@ fn annotation(row: &PgRow) -> Result<Annotation, DbError> {
 
 /// A target deleted between the select and the insert fails its foreign key; that is the same
 /// as never having existed.
-fn vanished_target(error: sqlx::Error) -> DbError {
+pub(crate) fn vanished_target(error: sqlx::Error) -> DbError {
     let missing = error
         .as_database_error()
         .is_some_and(|error| error.code().as_deref() == Some("23503"));

@@ -42,6 +42,7 @@ const articles: ArticleListItem[] = [
     id: "a1",
     title: "长文",
     author: null,
+    url: "https://example.com/long",
     site: "example.com",
     published_at: at(2026, 5, 1),
     date: "2026-05-01",

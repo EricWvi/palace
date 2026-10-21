@@ -1,7 +1,8 @@
 use super::database;
 use palace_db::{
-    Article, ArticleCard, ArticleImport, ArticleListRequest, ArticleMedia, ArticlePage, Database,
-    DbError, ListCursor, MomentDetail, OwnerScope, SearchTerm, StoredMedia,
+    Article, ArticleCard, ArticleCursor, ArticleImport, ArticleListRequest, ArticleMedia,
+    ArticleOrder, ArticlePage, Database, DbError, ListCursor, MomentDetail, OwnerScope, SearchTerm,
+    StoredMedia,
 };
 use palace_domain::{ArticleMetadata, ArticleMetadataInput, MediaLimits, MediaUpload};
 use pretty_assertions::assert_eq;
@@ -45,12 +46,15 @@ async fn all_pages(db: &Database, owner: OwnerScope, search: Option<&str>) -> Ve
                 owner,
                 &ArticleListRequest {
                     search: search.and_then(SearchTerm::parse),
-                    after,
+                    order: ArticleOrder::Published { after },
                 },
             )
             .await
             .unwrap();
-        after = page.next_cursor;
+        after = page.next_cursor.map(|cursor| match cursor {
+            ArticleCursor::Published(cursor) => cursor,
+            ArticleCursor::Near(cursor) => panic!("published list returned {cursor}"),
+        });
         pages.push(page);
         if after.is_none() {
             return pages;
@@ -342,10 +346,10 @@ async fn article_list_orders_by_publish_date_while_the_timeline_uses_import_time
     );
     assert_eq!(
         pages[0].next_cursor,
-        Some(ListCursor {
+        Some(ArticleCursor::Published(ListCursor {
             at: expected[49].metadata.published().at,
             id: expected[49].id,
-        })
+        }))
     );
     assert!(pages.iter().all(|page| page.total == 53));
 

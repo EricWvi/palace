@@ -5,19 +5,20 @@ use axum::{
     extract::{Path, Query, State, rejection::JsonRejection, rejection::QueryRejection},
     http::StatusCode,
 };
-use palace_db::{ArticleListRequest, ListCursor, SearchTerm};
+use palace_db::{ArticleListRequest, ArticleOrder, ListCursor, NearCursor, SearchTerm};
 use palace_domain::{ArticleMetadata, ArticleMetadataInput, InputError, InputErrorKind};
 use palace_media::MediaStorage;
 use std::sync::Arc;
 use uuid::Uuid;
 
-/// Lists the owner's articles for 摘星, latest publish date first, one page at a time.
+/// Lists the owner's articles for 摘星, latest publish date first, one page at a time; with
+/// `near`, the extension's binding candidates, nearest that address first.
 #[utoipa::path(
     get, path = routes::ARTICLES, operation_id = "articles",
     params(dto::ArticleListQuery),
     security(("session" = []), ("access_token" = [])),
     responses(
-        (status = 200, description = "Up to 50 articles ordered by publish date, then id, both descending", body = dto::ArticlePage, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
+        (status = 200, description = "Up to 50 articles ordered by publish date, then id, both descending; with `near`, by nearness to that address, then import time, then id", body = dto::ArticlePage, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
         (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
@@ -31,13 +32,20 @@ pub(super) async fn list(
 ) -> Result<Json<dto::ArticlePage>, ApiError> {
     let Query(query) = query
         .map_err(|error| InputError::new(InputErrorKind::Field, "query", error.body_text()))?;
+    let cursor = query.cursor.as_deref();
+    // Each order reads only its own cursor shape, so a cursor cannot resume the other order.
+    let order = match query.near {
+        Some(url) => ArticleOrder::Near {
+            url,
+            after: cursor.map(str::parse::<NearCursor>).transpose()?,
+        },
+        None => ArticleOrder::Published {
+            after: cursor.map(str::parse::<ListCursor>).transpose()?,
+        },
+    };
     let request = ArticleListRequest {
         search: query.q.as_deref().and_then(SearchTerm::parse),
-        after: query
-            .cursor
-            .as_deref()
-            .map(str::parse::<ListCursor>)
-            .transpose()?,
+        order,
     };
     let page = server
         .database

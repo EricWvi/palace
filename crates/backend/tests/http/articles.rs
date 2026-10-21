@@ -135,7 +135,7 @@ pub(super) async fn exercise_without_media(
     assert_eq!(articles, 1);
 
     // The list and the article belong to their owner only.
-    let item = json!({"id":id,"title":"标题","author":null,"site":"example.com","published_at":1_791_129_600_000_i64,"date":"2026-10-05"});
+    let item = json!({"id":id,"title":"标题","author":null,"url":"https://www.example.com/a","site":"example.com","published_at":1_791_129_600_000_i64,"date":"2026-10-05"});
     assert_eq!(
         call(app, "GET", "/api/articles", cookie, Value::Null).await,
         (

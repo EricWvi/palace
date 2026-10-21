@@ -11,6 +11,7 @@ mod media;
 mod notes;
 mod requests;
 mod sync;
+mod web_pages;
 
 pub(super) use access_tokens::*;
 pub(super) use annotations::*;
@@ -24,3 +25,4 @@ pub(super) use media::*;
 pub(super) use notes::*;
 pub(super) use requests::*;
 pub(super) use sync::*;
+pub(super) use web_pages::*;

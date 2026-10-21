@@ -65,7 +65,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Lists the owner's articles for 摘星, latest publish date first, one page at a time. */
+    /**
+     * Lists the owner's articles for 摘星, latest publish date first, one page at a time; with
+     *     `near`, the extension's binding candidates, nearest that address first.
+     */
     get: operations["articles"];
     put?: never;
     /**
@@ -110,6 +113,40 @@ export interface paths {
     put?: never;
     /** Annotates the article body. */
     post: operations["create_article_annotation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/articles/{id}/web-annotations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Lists the web annotations left on every page bound to the article. */
+    get: operations["article_web_annotations"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/articles/{id}/web-annotations/migrate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Replaces located web annotations with article annotations in one transaction. */
+    post: operations["migrate_web_annotations"];
     delete?: never;
     options?: never;
     head?: never;
@@ -475,6 +512,92 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/web-annotations/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Replaces a web annotation's style and note together; the last write wins. */
+    put: operations["update_web_annotation"];
+    post?: never;
+    /** Deletes a web annotation; an unbound page goes with its last one. */
+    delete: operations["delete_web_annotation"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/web-pages": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Lists every web page of the owner, most recently changed first. */
+    get: operations["web_pages"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/web-pages/annotations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Annotates a web page, creating the page with its first annotation. */
+    post: operations["create_web_annotation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/web-pages/binding": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Binds a web page to an article or moves its binding; the page stops taking annotations. */
+    put: operations["bind_web_page"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/web-pages/lookup": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Opens the web page at exactly this address, with the annotations still on it. */
+    get: operations["web_page"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/auth/callback": {
     parameters: {
       query?: never;
@@ -705,6 +828,8 @@ export interface components {
       /** @description The URL's host without `www.`, shown where there is no author. */
       site: string;
       title: string;
+      /** @description The original address, which the extension shows to tell candidates apart. */
+      url: string;
     };
     /** @description One embedded file; the type tells an image from a video. */
     ArticleMedia: {
@@ -731,7 +856,7 @@ export interface components {
     };
     /** @description One page of the 摘星 article list. */
     ArticlePage: {
-      /** @description Articles, latest publish date first. */
+      /** @description Articles, latest publish date first, or nearest `near` first. */
       items: components["schemas"]["ArticleListItem"][];
       /** @description Opaque token for the next page; null on the last page. */
       next_cursor: string | null;
@@ -879,6 +1004,7 @@ export interface components {
       | "media_in_use"
       | "jotting_id_conflict"
       | "jottings_unavailable"
+      | "web_page_bound"
       | "persistence_failed";
     ErrorResponse: {
       error: components["schemas"]["ErrorCode"];
@@ -1107,6 +1233,10 @@ export interface components {
       start: number;
       style?: null | components["schemas"]["AnnotationStyle"];
     };
+    /** @description The article annotations a migration created; skipped items create none. */
+    MigratedAnnotations: {
+      items: components["schemas"]["Annotation"][];
+    };
     /** @description One timeline entry; `kind` selects the card fields that follow. */
     Moment:
       | (components["schemas"]["ConversationMoment"] & {
@@ -1293,6 +1423,139 @@ export interface components {
       /** Format: uuid */
       id: string;
       version: components["schemas"]["Cursor"];
+    };
+    /** @description An annotation the extension left on a web page. */
+    WebAnnotation: {
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds.
+       */
+      created_at: number;
+      /** Format: uuid */
+      id: string;
+      note: string | null;
+      /** Format: uuid */
+      page_id: string;
+      /** Format: double */
+      position: number;
+      prefix: string;
+      quote: string;
+      style: null | components["schemas"]["AnnotationStyle"];
+      suffix: string;
+      /** Format: int64 */
+      updated_at: number;
+    };
+    /** @description A new annotation on a web page; the page is created with its first annotation. */
+    WebAnnotationCreate: {
+      /** @description Plain text, nonblank, at most 16 KiB. A style, a note or both are required. */
+      note?: string | null;
+      /**
+       * Format: double
+       * @description Where the quote starts, as a fraction of the page text in [0, 1].
+       */
+      position: number;
+      /** @description Up to 32 UTF-16 code units of page text just before the quote; empty at the start. */
+      prefix: string;
+      /** @description The selected text; nonblank, at most 16 KiB. */
+      quote: string;
+      style?: null | components["schemas"]["AnnotationStyle"];
+      /** @description Up to 32 UTF-16 code units of page text just after the quote; empty at the end. */
+      suffix: string;
+      /** @description The tab title; blank means the address, longer than 1024 bytes is cut. */
+      title: string;
+      /**
+       * @description The page address without its fragment: absolute http(s), at most 2048 bytes, never
+       *     normalized further.
+       */
+      url: string;
+    };
+    /** @description The web annotations left on every page bound to an article, oldest first. */
+    WebAnnotationList: {
+      items: components["schemas"]["WebAnnotation"][];
+    };
+    /** @description Where the article page found each web annotation in the rendered body. */
+    WebAnnotationMigration: {
+      items: components["schemas"]["WebAnnotationMigrationItem"][];
+    };
+    /** @description One web annotation and its article anchor. */
+    WebAnnotationMigrationItem: {
+      /**
+       * Format: int64
+       * @description Exclusive; after `start`.
+       */
+      end: number;
+      /** @description The rendered text in `[start, end)`; exactly `end - start` UTF-16 units. */
+      quote: string;
+      /**
+       * Format: int64
+       * @description UTF-16 code units into the rendered body text, inclusive.
+       */
+      start: number;
+      /**
+       * Format: uuid
+       * @description A web annotation on a page bound to this article; one already gone is skipped.
+       */
+      web_annotation_id: string;
+    };
+    /** @description The parts an edit replaces together, and the tab title to record on the page. */
+    WebAnnotationUpdate: {
+      note?: string | null;
+      style?: null | components["schemas"]["AnnotationStyle"];
+      /** @description The tab title; blank means the page address. */
+      title: string;
+    };
+    /** @description A web page the reader annotated or bound. */
+    WebPage: {
+      /**
+       * Format: uuid
+       * @description The article the page is bound to; null while the page takes annotations of its own.
+       */
+      article_id: string | null;
+      /** Format: uuid */
+      id: string;
+      title: string;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the last annotation, edit or binding.
+       */
+      updated_at: number;
+      url: string;
+    };
+    /** @description Binds the page at `url` to an article, creating the page when it has no annotations. */
+    WebPageBinding: {
+      /**
+       * Format: uuid
+       * @description An article of the owner.
+       */
+      article_id: string;
+      /** @description The tab title; blank means the address. */
+      title: string;
+      url: string;
+    };
+    /** @description A web page with the annotations still on it, oldest first. */
+    WebPageDetail: {
+      annotations: components["schemas"]["WebAnnotation"][];
+      page: components["schemas"]["WebPage"];
+    };
+    /** @description Every web page of the owner, most recently changed first; not paged. */
+    WebPageList: {
+      items: components["schemas"]["WebPageListItem"][];
+    };
+    /** @description One row of the extension's list. */
+    WebPageListItem: {
+      /**
+       * Format: int64
+       * @description Annotations still on the page: all of them while unbound, the unmatched ones after.
+       */
+      annotation_count: number;
+      /** Format: uuid */
+      article_id: string | null;
+      /** Format: uuid */
+      id: string;
+      title: string;
+      /** Format: int64 */
+      updated_at: number;
+      url: string;
     };
   };
   responses: never;
@@ -1703,8 +1966,14 @@ export interface operations {
       query?: {
         /** @description Case-insensitive literal substring of the title, author or body; blank means no search. */
         q?: string;
-        /** @description `next_cursor` from the previous page. */
+        /** @description `next_cursor` from the previous page, listed with the same `near`. */
         cursor?: string;
+        /**
+         * @description A page address: articles on the same host (ignoring `www.` and case) come first, those
+         *     sharing more leading path segments before others, then latest import first. Combines
+         *     with `q`, which only filters.
+         */
+        near?: string;
       };
       header?: never;
       path?: never;
@@ -1712,7 +1981,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Up to 50 articles ordered by publish date, then id, both descending */
+      /** @description Up to 50 articles ordered by publish date, then id, both descending; with `near`, by nearness to that address, then import time, then id */
       200: {
         headers: {
           /** @description no-store */
@@ -2218,6 +2487,173 @@ export interface operations {
         };
       };
       /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  article_web_annotations: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped article id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WebAnnotationList"];
+        };
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  migrate_web_annotations: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped article id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WebAnnotationMigration"];
+      };
+    };
+    responses: {
+      /** @description The article annotations created; items already migrated or not on a page bound to this article are skipped */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MigratedAnnotations"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared; nothing migrated */
       400: {
         headers: {
           [name: string]: unknown;
@@ -4521,6 +4957,496 @@ export interface operations {
       };
       /** @description Identity, source session or idempotency conflict */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  update_web_annotation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped web annotation id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WebAnnotationUpdate"];
+      };
+    };
+    responses: {
+      /** @description Updated */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WebAnnotation"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description The page is bound to an article */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  delete_web_annotation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped web annotation id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  web_pages: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WebPageList"];
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  create_web_annotation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WebAnnotationCreate"];
+      };
+    };
+    responses: {
+      /** @description Created */
+      201: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WebAnnotation"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description The page is bound to an article */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  bind_web_page: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WebPageBinding"];
+      };
+    };
+    responses: {
+      /** @description Bound */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WebPage"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Article unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  web_page: {
+    parameters: {
+      query: {
+        /** @description The page address without its fragment, exactly as it was annotated. */
+        url: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WebPageDetail"];
+        };
+      };
+      /** @description Invalid input; JSON domain error */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description No page at this address in owner scope */
+      404: {
         headers: {
           [name: string]: unknown;
         };

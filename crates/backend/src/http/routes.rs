@@ -21,6 +21,14 @@ pub(super) const ARTICLE: &str = "/api/articles/{id}";
 pub(super) const ARTICLE_ANNOTATIONS: &str = "/api/articles/{id}/annotations";
 pub(super) const CONVERSATION_ANNOTATIONS: &str = "/api/conversations/{id}/annotations";
 pub(super) const ANNOTATION: &str = "/api/annotations/{id}";
+pub(super) const WEB_PAGES: &str = "/api/web-pages";
+pub(super) const WEB_PAGE_LOOKUP: &str = "/api/web-pages/lookup";
+pub(super) const WEB_PAGE_ANNOTATIONS: &str = "/api/web-pages/annotations";
+pub(super) const WEB_PAGE_BINDING: &str = "/api/web-pages/binding";
+pub(super) const WEB_ANNOTATION: &str = "/api/web-annotations/{id}";
+pub(super) const ARTICLE_WEB_ANNOTATIONS: &str = "/api/articles/{id}/web-annotations";
+pub(super) const ARTICLE_WEB_ANNOTATION_MIGRATION: &str =
+    "/api/articles/{id}/web-annotations/migrate";
 pub(super) const MEDIA: &str = "/api/media";
 pub(super) const MEDIA_ITEM: &str = "/api/media/{id}";
 pub(super) const ACCESS_TOKENS: &str = "/api/access-tokens";
@@ -77,6 +85,14 @@ macro_rules! business_routes {
             post CONVERSATION_ANNOTATIONS => annotations::conversation_create,
             put ANNOTATION => annotations::update,
             delete ANNOTATION => annotations::delete,
+            get WEB_PAGES => web_pages::list,
+            get WEB_PAGE_LOOKUP => web_pages::lookup,
+            post WEB_PAGE_ANNOTATIONS => web_pages::create,
+            put WEB_PAGE_BINDING => web_pages::bind,
+            put WEB_ANNOTATION => web_pages::update,
+            delete WEB_ANNOTATION => web_pages::delete,
+            get ARTICLE_WEB_ANNOTATIONS => web_pages::article_list,
+            post ARTICLE_WEB_ANNOTATION_MIGRATION => web_pages::migrate,
         }
     };
 }

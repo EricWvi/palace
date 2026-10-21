@@ -594,7 +594,7 @@
         "tags": [
           "articles"
         ],
-        "summary": "Lists the owner's articles for 摘星, latest publish date first, one page at a time.",
+        "summary": "Lists the owner's articles for 摘星, latest publish date first, one page at a time; with\n`near`, the extension's binding candidates, nearest that address first.",
         "operationId": "articles",
         "parameters": [
           {
@@ -609,7 +609,16 @@
           {
             "name": "cursor",
             "in": "query",
-            "description": "`next_cursor` from the previous page.",
+            "description": "`next_cursor` from the previous page, listed with the same `near`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "near",
+            "in": "query",
+            "description": "A page address: articles on the same host (ignoring `www.` and case) come first, those\nsharing more leading path segments before others, then latest import first. Combines\nwith `q`, which only filters.",
             "required": false,
             "schema": {
               "type": "string"
@@ -618,7 +627,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Up to 50 articles ordered by publish date, then id, both descending",
+            "description": "Up to 50 articles ordered by publish date, then id, both descending; with `near`, by nearness to that address, then import time, then id",
             "headers": {
               "Cache-Control": {
                 "schema": {
@@ -1398,6 +1407,260 @@
           },
           "400": {
             "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Input capacity exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/articles/{id}/web-annotations": {
+      "get": {
+        "tags": [
+          "web_pages"
+        ],
+        "summary": "Lists the web annotations left on every page bound to the article.",
+        "operationId": "article_web_annotations",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped article id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAnnotationList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; native extractor text",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/articles/{id}/web-annotations/migrate": {
+      "post": {
+        "tags": [
+          "web_pages"
+        ],
+        "summary": "Replaces located web annotations with article annotations in one transaction.",
+        "operationId": "migrate_web_annotations",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped article id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAnnotationMigration"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The article annotations created; items already migrated or not on a page bound to this article are skipped",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigratedAnnotations"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared; nothing migrated",
             "content": {
               "application/json": {
                 "schema": {
@@ -4956,6 +5219,735 @@
         ]
       }
     },
+    "/api/web-annotations/{id}": {
+      "put": {
+        "tags": [
+          "web_pages"
+        ],
+        "summary": "Replaces a web annotation's style and note together; the last write wins.",
+        "operationId": "update_web_annotation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped web annotation id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAnnotationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAnnotation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The page is bound to an article",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Input capacity exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "web_pages"
+        ],
+        "summary": "Deletes a web annotation; an unbound page goes with its last one.",
+        "operationId": "delete_web_annotation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped web annotation id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; native extractor text",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/web-pages": {
+      "get": {
+        "tags": [
+          "web_pages"
+        ],
+        "summary": "Lists every web page of the owner, most recently changed first.",
+        "operationId": "web_pages",
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPageList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/web-pages/annotations": {
+      "post": {
+        "tags": [
+          "web_pages"
+        ],
+        "summary": "Annotates a web page, creating the page with its first annotation.",
+        "operationId": "create_web_annotation",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAnnotationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAnnotation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The page is bound to an article",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Input capacity exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/web-pages/binding": {
+      "put": {
+        "tags": [
+          "web_pages"
+        ],
+        "summary": "Binds a web page to an article or moves its binding; the page stops taking annotations.",
+        "operationId": "bind_web_page",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebPageBinding"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Bound",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Article unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Input capacity exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/web-pages/lookup": {
+      "get": {
+        "tags": [
+          "web_pages"
+        ],
+        "summary": "Opens the web page at exactly this address, with the annotations still on it.",
+        "operationId": "web_page",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "description": "The page address without its fragment, exactly as it was annotated.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPageDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No page at this address in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
     "/auth/callback": {
       "get": {
         "tags": [
@@ -5623,6 +6615,7 @@
           "id",
           "title",
           "author",
+          "url",
           "site",
           "published_at",
           "date"
@@ -5653,6 +6646,10 @@
           },
           "title": {
             "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "The original address, which the extension shows to tell candidates apart."
           }
         }
       },
@@ -5723,7 +6720,7 @@
             "items": {
               "$ref": "#/components/schemas/ArticleListItem"
             },
-            "description": "Articles, latest publish date first."
+            "description": "Articles, latest publish date first, or nearest `near` first."
           },
           "next_cursor": {
             "type": [
@@ -6048,6 +7045,7 @@
           "media_in_use",
           "jotting_id_conflict",
           "jottings_unavailable",
+          "web_page_bound",
           "persistence_failed"
         ]
       },
@@ -6614,6 +7612,21 @@
         },
         "additionalProperties": false
       },
+      "MigratedAnnotations": {
+        "type": "object",
+        "description": "The article annotations a migration created; skipped items create none.",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Annotation"
+            }
+          }
+        }
+      },
       "Moment": {
         "oneOf": [
           {
@@ -7102,6 +8115,354 @@
           },
           "version": {
             "$ref": "#/components/schemas/Cursor"
+          }
+        }
+      },
+      "WebAnnotation": {
+        "type": "object",
+        "description": "An annotation the extension left on a web page.",
+        "required": [
+          "id",
+          "page_id",
+          "quote",
+          "prefix",
+          "suffix",
+          "position",
+          "style",
+          "note",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "position": {
+            "type": "number",
+            "format": "double"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "quote": {
+            "type": "string"
+          },
+          "style": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AnnotationStyle"
+              }
+            ]
+          },
+          "suffix": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "WebAnnotationCreate": {
+        "type": "object",
+        "description": "A new annotation on a web page; the page is created with its first annotation.",
+        "required": [
+          "url",
+          "title",
+          "quote",
+          "prefix",
+          "suffix",
+          "position"
+        ],
+        "properties": {
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Plain text, nonblank, at most 16 KiB. A style, a note or both are required."
+          },
+          "position": {
+            "type": "number",
+            "format": "double",
+            "description": "Where the quote starts, as a fraction of the page text in [0, 1]."
+          },
+          "prefix": {
+            "type": "string",
+            "description": "Up to 32 UTF-16 code units of page text just before the quote; empty at the start."
+          },
+          "quote": {
+            "type": "string",
+            "description": "The selected text; nonblank, at most 16 KiB."
+          },
+          "style": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AnnotationStyle"
+              }
+            ]
+          },
+          "suffix": {
+            "type": "string",
+            "description": "Up to 32 UTF-16 code units of page text just after the quote; empty at the end."
+          },
+          "title": {
+            "type": "string",
+            "description": "The tab title; blank means the address, longer than 1024 bytes is cut."
+          },
+          "url": {
+            "type": "string",
+            "description": "The page address without its fragment: absolute http(s), at most 2048 bytes, never\nnormalized further."
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebAnnotationList": {
+        "type": "object",
+        "description": "The web annotations left on every page bound to an article, oldest first.",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebAnnotation"
+            }
+          }
+        }
+      },
+      "WebAnnotationMigration": {
+        "type": "object",
+        "description": "Where the article page found each web annotation in the rendered body.",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebAnnotationMigrationItem"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebAnnotationMigrationItem": {
+        "type": "object",
+        "description": "One web annotation and its article anchor.",
+        "required": [
+          "web_annotation_id",
+          "start",
+          "end",
+          "quote"
+        ],
+        "properties": {
+          "end": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Exclusive; after `start`."
+          },
+          "quote": {
+            "type": "string",
+            "description": "The rendered text in `[start, end)`; exactly `end - start` UTF-16 units."
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64",
+            "description": "UTF-16 code units into the rendered body text, inclusive."
+          },
+          "web_annotation_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A web annotation on a page bound to this article; one already gone is skipped."
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebAnnotationUpdate": {
+        "type": "object",
+        "description": "The parts an edit replaces together, and the tab title to record on the page.",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "style": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AnnotationStyle"
+              }
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "The tab title; blank means the page address."
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebPage": {
+        "type": "object",
+        "description": "A web page the reader annotated or bound.",
+        "required": [
+          "id",
+          "url",
+          "title",
+          "article_id",
+          "updated_at"
+        ],
+        "properties": {
+          "article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The article the page is bound to; null while the page takes annotations of its own."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the last annotation, edit or binding."
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "WebPageBinding": {
+        "type": "object",
+        "description": "Binds the page at `url` to an article, creating the page when it has no annotations.",
+        "required": [
+          "url",
+          "title",
+          "article_id"
+        ],
+        "properties": {
+          "article_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "An article of the owner."
+          },
+          "title": {
+            "type": "string",
+            "description": "The tab title; blank means the address."
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebPageDetail": {
+        "type": "object",
+        "description": "A web page with the annotations still on it, oldest first.",
+        "required": [
+          "page",
+          "annotations"
+        ],
+        "properties": {
+          "annotations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebAnnotation"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/WebPage"
+          }
+        }
+      },
+      "WebPageList": {
+        "type": "object",
+        "description": "Every web page of the owner, most recently changed first; not paged.",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebPageListItem"
+            }
+          }
+        }
+      },
+      "WebPageListItem": {
+        "type": "object",
+        "description": "One row of the extension's list.",
+        "required": [
+          "id",
+          "url",
+          "title",
+          "article_id",
+          "updated_at",
+          "annotation_count"
+        ],
+        "properties": {
+          "annotation_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Annotations still on the page: all of them while unbound, the unmatched ones after."
+          },
+          "article_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "url": {
+            "type": "string"
           }
         }
       }

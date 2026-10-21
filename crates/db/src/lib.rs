@@ -6,7 +6,10 @@ pub use annotation::Annotation;
 mod article;
 pub use article::{Article, ArticleImport, ArticleMedia, StoredMedia};
 mod article_list;
-pub use article_list::{ARTICLE_PAGE_SIZE, ArticleListItem, ArticleListRequest, ArticlePage};
+pub use article_list::{
+    ARTICLE_PAGE_SIZE, ArticleCursor, ArticleListItem, ArticleListRequest, ArticleOrder,
+    ArticlePage, NearCursor,
+};
 mod conversation_delete;
 mod conversation_list;
 pub use conversation_list::{
@@ -34,6 +37,7 @@ mod session;
 mod session_crypto;
 mod sync;
 mod timeline;
+mod web_page;
 pub use session::{
     AuthenticatedSession, IdentityProvider, IdentityTokens, ProviderError, RevokeScope,
     SessionError,
@@ -42,6 +46,7 @@ pub use session_crypto::CredentialKey;
 pub use timeline::{
     ArticleCard, ConversationCard, ExcerptLine, Moment, MomentDetail, MomentKind, MomentOutline,
 };
+pub use web_page::{WebAnnotation, WebPage, WebPageDetail, WebPageSummary};
 
 pub use import::ImportResult;
 pub use owner::{Owner, OwnerScope};
@@ -61,6 +66,8 @@ pub enum DbError {
     StaleHead,
     #[error("record is unavailable in this owner scope")]
     NotFound,
+    #[error("the web page is bound to an article and takes no annotations of its own")]
+    WebPageBound,
     #[error("owner or identity is disabled")]
     Disabled,
     #[error(transparent)]

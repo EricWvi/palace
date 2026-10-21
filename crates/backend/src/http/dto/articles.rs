@@ -85,14 +85,18 @@ pub(crate) struct ArticleMedia {
 pub(crate) struct ArticleListQuery {
     /// Case-insensitive literal substring of the title, author or body; blank means no search.
     pub q: Option<String>,
-    /// `next_cursor` from the previous page.
+    /// `next_cursor` from the previous page, listed with the same `near`.
     pub cursor: Option<String>,
+    /// A page address: articles on the same host (ignoring `www.` and case) come first, those
+    /// sharing more leading path segments before others, then latest import first. Combines
+    /// with `q`, which only filters.
+    pub near: Option<String>,
 }
 
 /// One page of the 摘星 article list.
 #[derive(Serialize, ToSchema)]
 pub(crate) struct ArticlePage {
-    /// Articles, latest publish date first.
+    /// Articles, latest publish date first, or nearest `near` first.
     pub items: Vec<ArticleListItem>,
     /// Opaque token for the next page; null on the last page.
     #[schema(required = true)]
@@ -108,6 +112,8 @@ pub(crate) struct ArticleListItem {
     pub title: String,
     #[schema(required = true)]
     pub author: Option<String>,
+    /// The original address, which the extension shows to tell candidates apart.
+    pub url: String,
     /// The URL's host without `www.`, shown where there is no author.
     pub site: String,
     /// Unix epoch milliseconds of the publish date.
@@ -150,6 +156,7 @@ impl ArticleListItem {
             id,
             title: metadata.title().to_owned(),
             author: metadata.author().map(str::to_owned),
+            url: metadata.url().to_owned(),
             site: article_site(metadata.url()),
             published_at: published.at,
             date: published.to_text(timezone),

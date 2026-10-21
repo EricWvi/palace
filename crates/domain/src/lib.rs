@@ -8,6 +8,7 @@ mod excerpt;
 mod import;
 mod jotting;
 mod media;
+mod web_page;
 
 pub use access_token::{ACCESS_TOKEN_PREFIX, AccessTokenNote, AccessTokenSecret};
 pub use annotation::{
@@ -23,5 +24,6 @@ pub use import::{
 };
 pub use jotting::{JOTTING_BODY_MAX_BYTES, Jotting, JottingCensus, JottingError, JottingProblem};
 pub use media::{FALLBACK_CONTENT_TYPE, MediaLimits, MediaMetadata, MediaUpload};
+pub use web_page::{WebAnchor, WebPageState, WebPageTitle, WebPageUrl, address_nearness};
 mod sync;
 pub use sync::{PublishedRecord, Record, ServerVersion, SyncPage, UploadResult, accepts_record};

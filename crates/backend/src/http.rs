@@ -24,6 +24,7 @@ mod sync;
 #[cfg(test)]
 mod tests;
 mod timeline;
+mod web_pages;
 
 use crate::{LoginRedirect, OidcProvider};
 use axum::{Router, extract::DefaultBodyLimit};

@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 // Room for a long marginal note or a highlight across several paragraphs, never a document.
 const NOTE_BYTES: usize = 16 * 1024;
-const QUOTE_BYTES: usize = 16 * 1024;
+pub(crate) const QUOTE_BYTES: usize = 16 * 1024;
 
 /// What an annotation marks: one article body, or one message of one conversation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

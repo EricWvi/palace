@@ -16,6 +16,8 @@ use uuid::Uuid;
 /// conversation. Migration tests replay from here to reach the current schema. Article tables
 /// from `0017_articles.sql` hang off `moment` and are dropped first; the replays never reach them.
 pub(super) const BEFORE_MOMENTS: &str = "
+    DROP TABLE web_annotation;
+    DROP TABLE web_page;
     DROP TABLE annotation;
     DROP TABLE article_media;
     DROP TABLE article;

@@ -17,6 +17,8 @@ pub(crate) enum ErrorCode {
     MediaInUse,
     JottingIdConflict,
     JottingsUnavailable,
+    /// The web page is bound to an article; annotate the article in Palace instead.
+    WebPageBound,
     PersistenceFailed,
 }
 #[derive(Serialize, ToSchema)]

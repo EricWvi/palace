@@ -1,7 +1,14 @@
 //! The 摘星 article list: the owner's articles by publish date, newest first, one page at a time.
+//! The extension's binding dialog lists the same articles nearest a page address first; see
+//! [`near`].
+mod near;
+
+pub use near::NearCursor;
+
 use crate::{Database, DbError, ListCursor, OwnerScope, SearchTerm, article::stored_metadata};
 use palace_domain::ArticleMetadata;
 use sqlx::Row;
+use std::fmt;
 use uuid::Uuid;
 
 /// Rows per page; one more is read to learn whether another page follows.
@@ -18,17 +25,46 @@ pub struct ArticleListItem {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ArticlePage {
     pub items: Vec<ArticleListItem>,
-    /// Present only when more rows follow this page; its time is a publish date.
-    pub next_cursor: Option<ListCursor>,
+    /// Present only when more rows follow this page, in the order the page was listed in.
+    pub next_cursor: Option<ArticleCursor>,
     /// Every article of the owner, whatever the search; the kind column shows it as a count.
     pub total: i64,
 }
 
-/// What to list: everything or a search, from the start or after a cursor.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// What to list: everything or a search, in one of two orders.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArticleListRequest {
     pub search: Option<SearchTerm>,
-    pub after: Option<ListCursor>,
+    pub order: ArticleOrder,
+}
+
+/// The order of the list, each with its own cursor, so a cursor never resumes the other order.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ArticleOrder {
+    /// Latest publish date first; the cursor's time is a publish date.
+    Published { after: Option<ListCursor> },
+    /// Nearest to a page address first, then latest import; see [`NearCursor`].
+    Near {
+        url: String,
+        after: Option<NearCursor>,
+    },
+}
+
+/// Where the next page starts, in the order the page was listed in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ArticleCursor {
+    Published(ListCursor),
+    Near(NearCursor),
+}
+
+impl fmt::Display for ArticleCursor {
+    /// Writes the opaque token clients send back unchanged.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Published(cursor) => cursor.fmt(f),
+            Self::Near(cursor) => cursor.fmt(f),
+        }
+    }
 }
 
 // A blank pattern never reaches the query: without a search `$5` is NULL and matches every row.
@@ -52,10 +88,23 @@ impl Database {
             .bind(owner.id())
             .fetch_one(&mut *tx)
             .await?;
+        let after = match &request.order {
+            ArticleOrder::Published { after } => *after,
+            ArticleOrder::Near { url, after } => {
+                let (items, next_cursor) =
+                    near::page(&mut tx, owner, request.search.as_ref(), url, *after).await?;
+                tx.commit().await?;
+                return Ok(ArticlePage {
+                    items,
+                    next_cursor: next_cursor.map(ArticleCursor::Near),
+                    total,
+                });
+            }
+        };
         let rows = sqlx::query(LIST)
             .bind(owner.id())
-            .bind(request.after.map(|cursor| cursor.at))
-            .bind(request.after.map(|cursor| cursor.id))
+            .bind(after.map(|cursor| cursor.at))
+            .bind(after.map(|cursor| cursor.id))
             .bind(ARTICLE_PAGE_SIZE + 1)
             .bind(request.search.as_ref().map(SearchTerm::like_pattern))
             .fetch_all(&mut *tx)
@@ -72,9 +121,11 @@ impl Database {
             .collect::<Result<Vec<_>, DbError>>()?;
         let next_cursor = if items.len() as i64 > ARTICLE_PAGE_SIZE {
             items.truncate(ARTICLE_PAGE_SIZE as usize);
-            items.last().map(|last| ListCursor {
-                at: last.metadata.published().at,
-                id: last.id,
+            items.last().map(|last| {
+                ArticleCursor::Published(ListCursor {
+                    at: last.metadata.published().at,
+                    id: last.id,
+                })
             })
         } else {
             None
