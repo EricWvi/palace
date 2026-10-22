@@ -14,7 +14,12 @@ import { selectedText, type SelectedText } from "@/lib/annotation-dom";
 import { AnnotationBar, styleKeys } from "./annotation-bar";
 import { NoteCard } from "./note-card";
 import { modKey, useShortcutHelp, type ShortcutGroup } from "./shortcut-help";
-import { draftId, type Anchor, type Annotations } from "./annotation-layer";
+import {
+  draftId,
+  unsaved,
+  type Anchor,
+  type Annotations,
+} from "./annotation-layer";
 
 // The margin column needs this much window; below it notes float under their marks instead.
 const marginQuery = "(min-width: 1180px)";
@@ -95,12 +100,13 @@ export function AnnotatedArea({
 }) {
   const area = useRef<HTMLDivElement>(null);
   const wide = useWide();
-  const margin = wide && layer.hasNotes;
   const [bar, setBar] = useState<Bar | null>(null);
   const [hot, setHot] = useState<string | null>(null);
   // The card being worked with: pinned level with its mark in the margin.
   const [active, setActive] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  // A note being added to an annotation that has none needs the margin as much as a saved one.
+  const margin = wide && (layer.hasNotes || editing !== null);
   // Narrow windows: the note floating under its mark, and where it floats.
   const [floating, setFloating] = useState<string | null>(null);
   const [floatAt, setFloatAt] = useState<{ x: number; y: number } | null>(null);
@@ -357,7 +363,7 @@ export function AnnotatedArea({
       "mark.anno[data-note]",
     );
     const id = mark?.dataset.annotation;
-    if (!id || id === draftId) return;
+    if (!id || unsaved(id)) return;
     setHot(id);
     if (!margin && !editing) {
       clearTimeout(hoverTimer.current);
@@ -386,7 +392,7 @@ export function AnnotatedArea({
     }
     const mark = target.closest<HTMLElement>("mark.anno");
     const id = mark?.dataset.annotation;
-    if (!mark || !id || id === draftId || !document.getSelection()?.isCollapsed)
+    if (!mark || !id || unsaved(id) || !document.getSelection()?.isCollapsed)
       return;
     setActive(id);
     setBar({
@@ -403,7 +409,9 @@ export function AnnotatedArea({
     note: item.note,
     editing: editing === item.id,
     hot: hot === item.id || editing === item.id,
-    onEdit: () => edit(item.id),
+    onEdit: () => {
+      if (!unsaved(item.id)) edit(item.id);
+    },
     onFinish: (text: string) => finish(item.id, text),
   });
   return (

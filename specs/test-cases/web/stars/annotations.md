@@ -81,16 +81,17 @@
 
 ## Margin notes must widen the page only while notes exist
 
-风险：没有批注的文章也被推离中心；最后一条批注删除后页面仍保持加宽；窄屏上仍渲染页边栏，挤出横向滚动；批注保存失败后，界面显示的内容与服务端不一致。前置：组件测试；`matchMedia` 按测试注入宽屏或窄屏。触发：宽屏下打开只有高亮的文章，新建第一条批注，再清空它；窄屏下悬停带批注的标记；让保存批注的请求失败。
+风险：没有批注的文章也被推离中心；最后一条批注删除后页面仍保持加宽；给没有批注的标注写批注时页边栏不出现，编辑框无处可开；第一条批注的编辑框在定位前获得焦点，页面跳到顶部；第一条批注保存期间页边栏先收起再展开；窄屏上仍渲染页边栏，挤出横向滚动；批注保存失败后，界面显示的内容与服务端不一致。前置：组件测试；`matchMedia` 按测试注入宽屏或窄屏。触发：宽屏下打开只有高亮的文章，新建第一条批注，再清空它；窄屏下悬停带批注的标记；让保存批注的请求失败。
 
-必须成立：只有高亮时不渲染页边栏、页面不加宽；第一条批注出现后渲染页边栏，页面加宽；清空最后一条批注后页边栏消失；窄屏下不渲染页边栏，悬停时出现浮层卡片；保存失败时标注保持保存前的状态，并显示失败提示。
+必须成立：只有高亮时不渲染页边栏、页面不加宽；第一条批注出现后渲染页边栏，页面加宽；给没有批注的标注写批注时页边栏打开、编辑框获得焦点；打开编辑框不改变页面滚动位置；第一条批注从写完到保存成功，页边栏一直存在；清空最后一条批注后页边栏消失；窄屏下不渲染页边栏，悬停时出现浮层卡片；保存失败时标注保持保存前的状态，并显示失败提示。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 页边栏只在有批注且宽屏时出现（组件测试） | Covered | `apps/palace-web/src/pages/annotations.test.tsx` 的 “writes a note in the margin and removes it when emptied”、“highlights a selection and removes it from its mark” |
+| 给无批注的标注写批注时打开页边栏，第一条批注保存期间页边栏不收起（组件测试） | Covered | `apps/palace-web/src/pages/annotations.test.tsx` 的 “opens the margin to add a note to a mark without one”、“keeps the first note in its margin while it is saved” |
 | 窄屏浮层与保存失败的回退（组件测试） | Covered | `apps/palace-web/src/pages/annotations.test.tsx` 的 “floats a note under its mark on a narrow window”、“keeps the page unchanged when a save fails” |
-| 加宽动画、卡片对齐与避让、悬停点亮，窄屏浮层的位置（真实 Chromium） | Covered | `apps/palace-web/e2e/annotations.spec.ts` 的 “the margin opens with the first note, keeps cards level with their marks and closes with the last”、“a narrow window floats a note under its mark instead of widening” |
+| 加宽动画、卡片对齐与避让、悬停点亮，窄屏浮层的位置，打开编辑框不滚动页面（真实 Chromium） | Covered | `apps/palace-web/e2e/annotations.spec.ts` 的 “the margin opens with the first note, keeps cards level with their marks and closes with the last”、“a narrow window floats a note under its mark instead of widening”、“the first note opens beside its words without moving the page” |
 
 决策依据：D6，不变量 7。

@@ -51,7 +51,9 @@ export function NoteCard({
   useLayoutEffect(() => {
     const element = field.current;
     if (!editing || !element) return;
-    element.focus();
+    // A margin card is focused before the page has placed it level with its mark; letting focus
+    // scroll it into view would carry the page to wherever the card first sits, its top.
+    element.focus({ preventScroll: true });
     element.setSelectionRange(element.value.length, element.value.length);
   }, [editing]);
   const classes = [className, "note-card", hot && "hot", editing && "editing"]

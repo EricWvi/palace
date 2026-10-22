@@ -42,13 +42,13 @@ function annotation(
 }
 
 // Serves the article and keeps its annotations in memory, as the server would.
-async function serve(page: Page, initial: Annotation[]) {
+async function serve(page: Page, initial: Annotation[], served = article) {
   let stored = [...initial];
   let next = 1;
   await page.route("**/api/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
-    if (path === "/api/articles/a1") return route.fulfill({ json: article });
+    if (path === "/api/articles/a1") return route.fulfill({ json: served });
     if (path === "/api/articles/a1/annotations" && request.method() === "GET")
       return route.fulfill({ json: { items: stored } });
     if (path === "/api/articles/a1/annotations") {
@@ -210,4 +210,53 @@ test("a narrow window floats a note under its mark instead of widening", async (
   const floating = (await card.boundingBox())!;
   expect(Math.round(floating.y - (under.y + under.height))).toBe(8);
   await page.screenshot({ path: "test-results/annotations-floating.png" });
+});
+
+// The first note on a page, or the first added to a highlight, opens the margin where the reader
+// is reading: the page never jumps to the top to show a card not yet placed.
+// Core test case:
+// - `specs/test-cases/web/stars/annotations.md#margin-notes-must-widen-the-page-only-while-notes-exist`
+test("the first note opens beside its words without moving the page", async ({
+  page,
+}) => {
+  // Long enough that the words read are far below the top of the margin column.
+  const padding = Array<string>(8).fill("铺垫的一段话，让页面足够长。");
+  const long = {
+    ...article,
+    content: [...padding, ...paragraphs].join("\n\n"),
+  };
+  const quote = "页边是作者留给读者的空间";
+  const start = [...padding, ...paragraphs].join("\n").indexOf(quote);
+  await page.setViewportSize({ width: 1400, height: 360 });
+  await serve(
+    page,
+    [
+      annotation("h1", quote, {
+        style: "yellow",
+        start,
+        end: start + quote.length,
+      }),
+    ],
+    long,
+  );
+  await page.goto("/articles/a1");
+  await expect(page.locator("mark.anno")).toHaveText([quote]);
+  await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
+  const scrolled = await page.evaluate(() => scrollY);
+  expect(scrolled).toBeGreaterThan(0);
+
+  await page.locator("mark.anno").click();
+  await page.keyboard.press("c");
+  const field = page.getByRole("textbox", { name: "批注" });
+  await expect(field).toBeFocused();
+  await expect(field).toBeInViewport();
+  expect(await page.evaluate(() => scrollY)).toBe(scrolled);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".margin-notes")).toHaveCount(0);
+
+  await select(page, "窄，但足够写下一句反驳");
+  await page.keyboard.press("c");
+  await expect(field).toBeFocused();
+  await expect(field).toBeInViewport();
+  expect(await page.evaluate(() => scrollY)).toBe(scrolled);
 });

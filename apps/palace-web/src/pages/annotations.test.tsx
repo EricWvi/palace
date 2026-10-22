@@ -64,8 +64,14 @@ const conversation: Detail = {
 type Sent = { method: string; path: string; body: unknown };
 
 // Serves one article and one conversation with annotations kept in memory, recording every
-// change that reaches the server; `fail` makes every change fail.
-function serve(initial: Annotation[] = [], { fail = false } = {}) {
+// change that reaches the server; `fail` makes every change fail, and changes wait for `held`.
+function serve(
+  initial: Annotation[] = [],
+  {
+    fail = false,
+    held = Promise.resolve(),
+  }: { fail?: boolean; held?: Promise<void> } = {},
+) {
   let stored = [...initial];
   let next = 1;
   const sent: Sent[] = [];
@@ -75,6 +81,7 @@ function serve(initial: Annotation[] = [], { fail = false } = {}) {
     if (request.method !== "GET") {
       const body = request.method === "DELETE" ? null : await request.json();
       sent.push({ method: request.method, path, body });
+      await held;
       if (fail)
         return Response.json({ error: "internal", login: "" }, { status: 500 });
       if (request.method === "POST") {
@@ -269,6 +276,76 @@ it("writes a note in the margin and removes it when emptied", async () => {
     body: null,
   });
   expect(marks()).toEqual([["第三段", "第三段"]]);
+});
+
+// The margin opens for a note added to a mark that had none, even when no other note exists yet.
+// Core test case:
+// - `specs/test-cases/web/stars/annotations.md#margin-notes-must-widen-the-page-only-while-notes-exist`
+it("opens the margin to add a note to a mark without one", async () => {
+  windowWide(true);
+  const sent = serve([annotation("值得记住的话", { id: "n9" })]);
+  const { user } = mountApp("/articles/a1");
+  await screen.findByText(/第二段/);
+  await user.click(document.querySelector("mark.anno")!);
+  await screen.findByRole("toolbar", { name: "标注" });
+  await user.keyboard("c");
+  const field = await screen.findByRole("textbox", { name: "批注" });
+  expect(field).toHaveFocus();
+  expect(field.closest(".note-card")).toHaveClass("in-margin");
+  await user.type(field, "补一句");
+  await act(async () => field.blur());
+  await waitFor(() =>
+    expect(document.querySelector(".margin-notes")?.textContent).toBe("补一句"),
+  );
+  expect(sent).toEqual([
+    {
+      method: "PUT",
+      path: "/api/annotations/n9",
+      body: { style: "yellow", note: "补一句" },
+    },
+  ]);
+});
+
+// The first note's margin stays open from the moment it is written until Palace has it: closing
+// while the save is on the way would narrow the page and widen it again.
+// Core test case:
+// - `specs/test-cases/web/stars/annotations.md#margin-notes-must-widen-the-page-only-while-notes-exist`
+it("keeps the first note in its margin while it is saved", async () => {
+  windowWide(true);
+  let release = () => {};
+  const sent = serve([], {
+    held: new Promise((resolve) => (release = resolve)),
+  });
+  const { user } = mountApp("/articles/a1");
+  await screen.findByText(/第二段/);
+  await select("值得记住的话");
+  await user.keyboard("c");
+  const field = await screen.findByRole("textbox", { name: "批注" });
+  let closed = false;
+  const watch = new MutationObserver((records) => {
+    for (const record of records)
+      for (const node of record.removedNodes)
+        if (
+          node instanceof Element &&
+          (node.matches(".margin-notes") || node.querySelector(".margin-notes"))
+        )
+          closed = true;
+  });
+  watch.observe(document.body, { childList: true, subtree: true });
+  await user.type(field, "这句可以当引语");
+  await act(async () => field.blur());
+  await waitFor(() => expect(sent).toHaveLength(1));
+  expect(document.querySelector(".margin-notes")?.textContent).toBe(
+    "这句可以当引语",
+  );
+  expect(marks()).toEqual([["draft-1", "值得记住的话"]]);
+  await act(async () => release());
+  await waitFor(() => expect(marks()).toEqual([["n1", "值得记住的话"]]));
+  watch.disconnect();
+  expect(closed).toBe(false);
+  expect(document.querySelector(".margin-notes")?.textContent).toBe(
+    "这句可以当引语",
+  );
 });
 
 // On a narrow window a note floats under its mark on hover instead of taking a margin.
