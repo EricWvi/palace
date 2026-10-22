@@ -5,6 +5,7 @@ mod article;
 mod conversation;
 mod document_date;
 mod excerpt;
+mod frontmatter;
 mod import;
 mod jotting;
 mod media;
@@ -18,6 +19,7 @@ pub use article::{ArticleBody, ArticleMetadata, ArticleMetadataInput, MediaName,
 pub use conversation::{Conversation, Message, Role, SessionId, Source, SourceLinks, read_path};
 pub use document_date::{DatePrecision, DocumentDate};
 pub use excerpt::{EXCERPT_CHARS, EXCERPT_SOURCE_CHARS, TOC_LINE_CHARS, excerpt, toc_line};
+pub use frontmatter::split_frontmatter;
 pub use import::{
     ImportInput, ImportLimits, ImportRequest, ImportTarget, InputError, InputErrorKind,
     MessageInput, PathInput, UpdateHistory, validate_title,

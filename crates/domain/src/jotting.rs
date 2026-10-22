@@ -3,7 +3,7 @@
 //! endpoint all read and write the format through this module, so a file the pre-commit check
 //! accepts is exactly a file the server indexes.
 //! See `specs/decisions/server/jotting/0-jottings-indexed-from-git-commits.md`.
-use crate::{InputError, InputErrorKind};
+use crate::{InputError, InputErrorKind, split_frontmatter};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use time::{OffsetDateTime, UtcOffset, format_description::well_known::Rfc3339};
@@ -175,28 +175,6 @@ impl Jotting {
         ]);
         Sha256::digest(canonical.to_string().as_bytes()).into()
     }
-}
-
-/// Splits a file into its frontmatter and body; `None` when the file has no closed block.
-fn split_frontmatter(text: &str) -> Option<(&str, &str)> {
-    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let mut lines = text.split_inclusive('\n');
-    if lines.next()?.trim_end_matches(['\r', '\n']) != "---" {
-        return None;
-    }
-    let start = text.find('\n')? + 1;
-    let mut offset = start;
-    for line in lines {
-        let end = offset + line.len();
-        if matches!(line.trim_end_matches(['\r', '\n']), "---" | "...") {
-            return Some((
-                &text[start..offset],
-                text[end..].trim_start_matches(['\r', '\n']),
-            ));
-        }
-        offset = end;
-    }
-    None
 }
 
 /// Accepts only the canonical lowercase hyphenated spelling, so one id has one spelling in files.

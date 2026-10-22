@@ -41,6 +41,11 @@ pub(crate) enum Failure {
     UnreadableArticle(serde_json::Error),
     #[error("{}", jottings(.0))]
     Jottings(Vec<JottingProblem>),
+    #[error("{}: {error}", path.display())]
+    Tags {
+        path: PathBuf,
+        error: crate::tags::Error,
+    },
 }
 
 /// A non-success answer from Palace.

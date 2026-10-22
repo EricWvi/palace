@@ -30,7 +30,7 @@ Linux 附件的目标名为 `x86_64-unknown-linux-musl`、`aarch64-unknown-linux
 | `PAL_URL`   | Palace 外部地址，例如 `https://palace.example.com`，可带路径前缀。必须是 `https`；回环地址（`localhost`、`127.0.0.0/8`、`::1`）可以用 `http`。不能包含用户名密码、query 或 fragment |
 | `PAL_TOKEN` | 在 Web「时刻」页日期菜单的“密钥管理”中生成的 `palace_pat_…` token                                                                                                                   |
 
-访问 Palace 的命令两者都必需（`pal uuid`、`pal update` 和 `pal jottings check` 不需要），只能来自环境变量，不提供命令行参数或配置文件，避免 token 进入 shell 历史或 `ps`。
+访问 Palace 的命令两者都必需（`pal uuid`、`pal update`、`pal jottings check` 和 `pal tags` 不需要），只能来自环境变量，不提供命令行参数或配置文件，避免 token 进入 shell 历史或 `ps`。
 配置不合法时 `pal` 不发出任何请求。变量使用 `PAL_` 前缀，与服务端的 `PALACE_*` 配置互不干扰。
 
 `pal update` 使用标准代理环境变量：`HTTPS_PROXY`、`HTTP_PROXY`、`ALL_PROXY`、`NO_PROXY`，以及各自的
@@ -60,6 +60,10 @@ pal s3 delete 0199…
 
 pal jottings check ./jottings
 
+pal tags ./notes
+# rust
+# cli
+
 pal article upload ./article-directory
 ```
 
@@ -79,6 +83,11 @@ pal article upload ./article-directory
 - `pal jottings check <folder>` 用服务端的同一份规则校验札记文件夹（跳过 `.git`），不需要 `PAL_URL` 和
   `PAL_TOKEN`，也不发出请求。全部合格时没有输出；否则 stderr 逐行列出每个问题，退出码为 1。可以作为札记
   仓库的 pre-commit hook，见[札记](../features/jottings/README.md)。
+- `pal tags <path-to-dir>` 递归读取目录下（跳过 `.git`）每个 `.md` 文件 frontmatter 的 `tags`，stdout 每行
+  输出一个标签。标签去重、不排序：文件按相对路径顺序读取，标签按首次出现的顺序输出。没有 frontmatter、
+  frontmatter 为空或没有 `tags`（含 `tags:` 空值、空列表）的文件被跳过；`draft: true` 的文件照常读取。
+  `tags` 必须是字符串列表，frontmatter 不是合法 YAML 映射或 `tags` 写成其他形式时，stderr 报告文件路径与原因，
+  退出码为 1。不需要 `PAL_URL` 和 `PAL_TOKEN`，也不发出请求。
 
 ## 上传文章目录
 

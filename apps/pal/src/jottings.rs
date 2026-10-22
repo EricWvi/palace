@@ -1,42 +1,20 @@
 //! `pal jottings check`: the server's verdict on a jottings folder before it is committed. It
 //! judges the work tree with the same parser and census the server applies to a commit, so a
 //! folder that passes is a commit the server indexes.
-use crate::failure::Failure;
+use crate::{
+    failure::Failure,
+    markdown_tree::{markdown_files, unreadable},
+};
 use palace_domain::{Jotting, JottingCensus};
 use std::{fs, path::Path};
 
 /// Checks every `.md` file below `folder`, `.git` excluded, and returns how many jottings it
 /// holds, or every problem that would make the server refuse the commit.
 pub(crate) fn check(folder: &Path) -> Result<usize, Failure> {
-    let unreadable = |path: &Path| {
-        let path = path.to_owned();
-        move |source| Failure::File { path, source }
-    };
-    let mut files = Vec::new();
-    let mut pending = vec![(folder.to_owned(), String::new())];
-    while let Some((directory, relative)) = pending.pop() {
-        for entry in fs::read_dir(&directory).map_err(unreadable(&directory))? {
-            let entry = entry.map_err(unreadable(&directory))?;
-            let name = entry.file_name().to_string_lossy().into_owned();
-            let path = entry.path();
-            let child = if relative.is_empty() {
-                name.clone()
-            } else {
-                format!("{relative}/{name}")
-            };
-            let kind = entry.file_type().map_err(unreadable(&path))?;
-            if kind.is_dir() && name != ".git" {
-                pending.push((path, child));
-            } else if kind.is_file() && name.ends_with(".md") {
-                files.push((child, path));
-            }
-        }
-    }
-    // The server lists a commit's files sorted by path; judging them in the same order names
-    // the same file as the first holder of a reused id.
-    files.sort();
     let mut census = JottingCensus::default();
-    for (relative, path) in files {
+    // The files come sorted by path like a commit's; judging them in the same order names the
+    // same file as the first holder of a reused id.
+    for (relative, path) in markdown_files(folder)? {
         let bytes = fs::read(&path).map_err(unreadable(&path))?;
         census.admit(&relative, Jotting::parse(&bytes));
     }
