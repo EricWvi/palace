@@ -6,6 +6,7 @@ import {
   forgetConversationList,
   sources,
   type ConversationPath,
+  type Message,
   type Source,
 } from "@/lib/api";
 import { Button } from "./ui/button";
@@ -29,6 +30,7 @@ export function ConversationMenu({
   conversationId,
   source,
   path,
+  messages,
   reading,
   onImported,
   onDeleted,
@@ -37,6 +39,8 @@ export function ConversationMenu({
   source: Source;
   // The path being read: the title edit applies to it, and new branches start from its title.
   path: ConversationPath;
+  // The messages of that path, root first, which 导出分支 writes out.
+  messages: Message[];
   // How the page is being read (只看标注 or the full text), listed first.
   reading: MenuAction;
   onImported: (result: ImportResult, occurredAt: number) => void;
@@ -101,6 +105,27 @@ export function ConversationMenu({
           reading,
           { label: "更新分支", onSelect: () => setAction("update") },
           { label: "管理分支", onSelect: () => setAction("branches") },
+          {
+            label: "导出分支",
+            // The file is the import format itself, so it can be uploaded again as a full history.
+            onSelect: () => {
+              const history = messages.map(({ role, content }) => ({
+                role,
+                content,
+              }));
+              const url = URL.createObjectURL(
+                new Blob([JSON.stringify(history, null, 2)], {
+                  type: "application/json",
+                }),
+              );
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `${path.title}.json`;
+              link.click();
+              // Some browsers read the blob after click returns, so it is released on a later task.
+              setTimeout(() => URL.revokeObjectURL(url));
+            },
+          },
           {
             label: "编辑对话",
             onSelect: () => {

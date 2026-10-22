@@ -96,6 +96,7 @@ test("nested forks, internal endpoints, the branch list and its update form", as
     "只看标注",
     "更新分支",
     "管理分支",
+    "导出分支",
     "编辑对话",
     "删除对话",
   ]);

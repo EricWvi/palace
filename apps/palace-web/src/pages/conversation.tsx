@@ -114,6 +114,7 @@ export function ConversationPage() {
             conversationId={id!}
             source={conversation!.source}
             path={selected.path}
+            messages={selected.messages}
             reading={layer.menuAction}
             onImported={(result, occurredAt) =>
               show(result.path_id, dayParam(dayOf(occurredAt)))

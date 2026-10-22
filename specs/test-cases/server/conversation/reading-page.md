@@ -1,6 +1,6 @@
 # 对话阅读页核心测试用例
 
-当前决策：[对话在摘星阅读页阅读与管理](../../../decisions/server/conversation/20261004-reading-page-owns-conversation-actions.md)，菜单项与分支列表见[分支管理改为分支列表](../../../decisions/server/conversation/20261006-branch-list-and-update-from-title-menu.md)，标题归属见[标题从 Conversation 移到 Path](../../../decisions/server/conversation/20261005-title-belongs-to-path.md)，消息目录见[阅读页右侧加消息目录](../../../decisions/server/conversation/20261006-message-toc-on-the-reading-page.md)。分叉选择的 Path 解析规则沿用 [Conversation 树与 Session Path](message-tree.md#fork-selection-must-resolve-to-one-real-source-session)；返回链接与来源日期见[文字导航与时刻地址](../../web/navigation/text-nav-and-day-routes.md)。
+当前决策：[对话在摘星阅读页阅读与管理](../../../decisions/server/conversation/20261004-reading-page-owns-conversation-actions.md)，菜单项与分支列表见[分支管理改为分支列表](../../../decisions/server/conversation/20261006-branch-list-and-update-from-title-menu.md)，导出见[标题菜单加“导出分支”](../../../decisions/server/conversation/20261022-export-branch-from-title-menu.md)，标题归属见[标题从 Conversation 移到 Path](../../../decisions/server/conversation/20261005-title-belongs-to-path.md)，消息目录见[阅读页右侧加消息目录](../../../decisions/server/conversation/20261006-message-toc-on-the-reading-page.md)。分叉选择的 Path 解析规则沿用 [Conversation 树与 Session Path](message-tree.md#fork-selection-must-resolve-to-one-real-source-session)；返回链接与来源日期见[文字导航与时刻地址](../../web/navigation/text-nav-and-day-routes.md)。
 
 ## Reading page header must describe the current path
 
@@ -22,17 +22,31 @@
 
 风险：会话收藏页或时间线卡片上残留旧的管理入口，同一操作出现两套行为。前置：迁移完成后的应用。触发：在时间线、阅读页中寻找更新、管理分支、编辑与删除入口；从标题菜单的“更新分支”提交一次追加更新。
 
-必须成立：阅读页标题菜单依次为“只看标注”（见[摘星标注](../../web/stars/annotations.md)）“更新分支”“管理分支”“编辑对话”“删除对话”，分别打开对应对话框；“更新分支”作用于正在阅读的 Path，回填它的标题与发生时间，提交到它的地址，成功后的落点与分支列表里的“更新”相同；时间线卡片没有管理操作，会话收藏页及其卡片菜单不再存在；界面文案使用“对话”而不是“会话”。禁止存在第二个入口。
+必须成立：阅读页标题菜单依次为“只看标注”（见[摘星标注](../../web/stars/annotations.md)）“更新分支”“管理分支”“导出分支”“编辑对话”“删除对话”，除“导出分支”外分别打开对应对话框；“更新分支”作用于正在阅读的 Path，回填它的标题与发生时间，提交到它的地址，成功后的落点与分支列表里的“更新”相同；时间线卡片没有管理操作，会话收藏页及其卡片菜单不再存在；界面文案使用“对话”而不是“会话”。禁止存在第二个入口。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 标题菜单的四项、顺序与各自打开的对话框 | Covered | `pages/conversation.test.tsx::keeps conversation management in the title menu, destructive last`、`e2e/timeline.spec.ts`、`e2e/branches.spec.ts` |
+| 标题菜单的各项、顺序与各自打开的对话框 | Covered | `pages/conversation.test.tsx::keeps conversation management in the title menu, destructive last`、`e2e/timeline.spec.ts`、`e2e/branches.spec.ts` |
 | “更新分支”更新当前 Path 并按提交日期改返回日期 | Covered | `pages/conversation.test.tsx::updates the branch being read straight from the title menu` |
 | 时间线与其他页面不提供管理入口 | Covered | `app.test.tsx::marks only 时刻, keeps other sections out of reach, and links cards to the reading page`（卡片内没有按钮） |
 
-决策依据：D3，不变量 3；20261006 D1，不变量 1、2。
+决策依据：D3，不变量 3；20261006 D1，不变量 1、2；20261022 不变量 1。
+
+## Exporting a branch must write the import format
+
+风险：导出的文件混入其他 Path 的消息、带上导入不认识的字段，或文件名与分支对不上，读者无法把它重新导入，也认不出是哪一支。前置：一个 Conversation 有多条 Path，阅读页正显示其中一条非默认 Path。触发：从标题菜单选择“导出分支”。
+
+必须成立：下载一个文件，文件名为当前 Path 标题加 `.json`；内容是当前 Path 从根到末端的消息数组，每项恰好有 `role` 与 `content`。禁止包含其他 Path 独有的消息，禁止为导出请求服务端。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 文件名与内容属于当前 Path，格式与导入格式相同 | Covered | `pages/conversation.test.tsx::exports the branch being read in the format it can be imported from` |
+
+决策依据：20261022 D1、D2，不变量 2。
 
 ## Editing must update the current path title and the conversation source everywhere
 

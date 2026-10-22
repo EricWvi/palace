@@ -195,7 +195,40 @@ it("keeps conversation management in the title menu, destructive last", async ()
   await user.keyboard("{Enter}");
   expect(
     screen.getAllByRole("menuitem").map((item) => item.textContent),
-  ).toEqual(["只看标注", "更新分支", "管理分支", "编辑对话", "删除对话"]);
+  ).toEqual([
+    "只看标注",
+    "更新分支",
+    "管理分支",
+    "导出分支",
+    "编辑对话",
+    "删除对话",
+  ]);
+});
+
+// Core test case: `specs/test-cases/server/conversation/reading-page.md#exporting-a-branch-must-write-the-import-format`
+it("exports the branch being read in the format it can be imported from", async () => {
+  const { user } = setup("/conversations/tree?path=p2");
+  let blob: Blob | undefined;
+  // jsdom has no object URLs and cannot follow a download link, so both are observed instead.
+  URL.createObjectURL = (object) => {
+    blob = object as Blob;
+    return "blob:branch";
+  };
+  URL.revokeObjectURL = () => {};
+  const downloads: string[][] = [];
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    downloads.push([this.href, this.download]);
+  });
+  await choose(user, "导出分支");
+  expect(downloads).toEqual([["blob:branch", "第 2 支.json"]]);
+  expect(JSON.parse(await blob!.text())).toEqual(
+    ["U1", "A1", "U3", "A3", "U4", "A4"].map((id) => ({
+      role: id.startsWith("U") ? "user" : "assistant",
+      content: id,
+    })),
+  );
 });
 
 // Core test cases:
