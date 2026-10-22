@@ -5,7 +5,10 @@
 //
 // Palace trusts the cache and never parses a note's frontmatter itself, so every rule a note
 // must meet is checked here; one bad note fails the whole run and leaves the old cache alone.
-// See specs/decisions/web/stars/20261014-notes-from-mounted-folder.md.
+// A file without frontmatter (a README) or marked `draft: true` (a template) is not a note and
+// is skipped quietly; only their count is reported, since a folder may hold many of them.
+// See specs/decisions/web/stars/20261014-notes-from-mounted-folder.md and
+// specs/decisions/web/stars/20261022-notes-skip-files-without-frontmatter-or-drafts.md.
 import { execFile } from "node:child_process";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join, sep } from "node:path";
@@ -17,6 +20,10 @@ export const CACHE_FILE = ".palace-cache.json";
 export type NoteEntry = { id: string; title: string; date: string };
 export type Cache = { version: 1; notes: NoteEntry[] };
 export type Problem = { file: string; message: string };
+export type NoteOutcome =
+  | { kind: "note"; note: NoteEntry }
+  | { kind: "skipped" }
+  | { kind: "invalid"; problems: Problem[] };
 
 const run = promisify(execFile);
 
@@ -82,13 +89,14 @@ function dateProblem(value: unknown): string | null {
   return null;
 }
 
-// Reads the note's leading `---` block. The YAML core schema keeps `2026-10-05` a string
-// instead of turning it into a UTC midnight, which would move the day across time zones.
+// Reads the note's leading `---` block, or null when the file has none. The YAML core schema
+// keeps `2026-10-05` a string instead of turning it into a UTC midnight, which would move the
+// day across time zones.
 export function readFrontmatter(
   text: string,
-): Record<string, unknown> | string {
+): Record<string, unknown> | string | null {
   const lines = text.replace(/^﻿/, "").split(/\r?\n/);
-  if (lines[0] !== "---") return "缺少 frontmatter";
+  if (lines[0] !== "---") return null;
   const end = lines.findIndex(
     (line, index) => index > 0 && (line === "---" || line === "..."),
   );
@@ -105,36 +113,58 @@ export function readFrontmatter(
   }
 }
 
-// Checks one note and returns its cache entry, or every problem it has.
-export function noteEntry(file: string, text: string): NoteEntry | Problem[] {
+// Checks one file and returns its cache entry, why it is not a note, or every problem it has.
+// A draft skips the other checks so a template may keep placeholder values in its frontmatter.
+export function noteEntry(file: string, text: string): NoteOutcome {
   const frontmatter = readFrontmatter(text);
-  if (typeof frontmatter === "string") return [{ file, message: frontmatter }];
+  if (frontmatter === null) return { kind: "skipped" };
+  if (typeof frontmatter === "string")
+    return { kind: "invalid", problems: [{ file, message: frontmatter }] };
+  const { title, date, draft } = frontmatter;
+  if (draft === true) return { kind: "skipped" };
   const problems: Problem[] = [];
-  const { title, date } = frontmatter;
+  if (draft !== undefined && draft !== false)
+    problems.push({ file, message: "draft 必须是 true 或 false" });
   if (typeof title !== "string" || title.trim() === "")
     problems.push({ file, message: "title 必须是非空字符串" });
   const invalidDate = dateProblem(date);
   if (invalidDate) problems.push({ file, message: invalidDate });
-  if (problems.length > 0) return problems;
+  if (problems.length > 0) return { kind: "invalid", problems };
   return {
-    id: file.replace(/\.md$/, ""),
-    title: (title as string).trim(),
-    date: date as string,
+    kind: "note",
+    note: {
+      id: file.replace(/\.md$/, ""),
+      title: (title as string).trim(),
+      date: date as string,
+    },
   };
 }
 
-// Collects every note of the folder, or all problems found so they can be fixed in one pass.
+// Collects every note of the folder and counts the files skipped as not notes, or all problems
+// found so they can be fixed in one pass.
 export async function buildCache(
   folder: string,
-): Promise<{ cache: Cache } | { problems: Problem[] }> {
+): Promise<{ cache: Cache; skipped: number } | { problems: Problem[] }> {
   const notes: NoteEntry[] = [];
+  let skipped = 0;
   const problems: Problem[] = [];
   for (const file of await listNoteFiles(folder)) {
-    const entry = noteEntry(file, await readFile(join(folder, file), "utf8"));
-    if (Array.isArray(entry)) problems.push(...entry);
-    else notes.push(entry);
+    const outcome = noteEntry(file, await readFile(join(folder, file), "utf8"));
+    switch (outcome.kind) {
+      case "note":
+        notes.push(outcome.note);
+        break;
+      case "skipped":
+        skipped += 1;
+        break;
+      case "invalid":
+        problems.push(...outcome.problems);
+        break;
+    }
   }
-  return problems.length > 0 ? { problems } : { cache: { version: 1, notes } };
+  return problems.length > 0
+    ? { problems }
+    : { cache: { version: 1, notes }, skipped };
 }
 
 // Replaces the cache by rename, so Palace never reads a half-written file.
@@ -163,7 +193,9 @@ async function main(argv: string[]) {
     return 1;
   }
   await writeCache(folder, result.cache);
-  console.log(`已写入 ${result.cache.notes.length} 篇笔记到 ${CACHE_FILE}`);
+  console.log(
+    `已写入 ${result.cache.notes.length} 篇笔记到 ${CACHE_FILE}，跳过 ${result.skipped} 个文件`,
+  );
   return 0;
 }
 

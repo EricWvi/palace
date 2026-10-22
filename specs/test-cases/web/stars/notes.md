@@ -1,6 +1,6 @@
 # 摘星笔记核心测试用例
 
-当前决策：[笔记来自挂载的 Markdown 文件夹](../../../decisions/web/stars/20261014-notes-from-mounted-folder.md)。列表样式、搜索交互与后退恢复沿用[摘星入口页](contents-page.md)的用例；本文件只记录笔记引入的新承诺。
+当前决策：[笔记来自挂载的 Markdown 文件夹](../../../decisions/web/stars/20261014-notes-from-mounted-folder.md)，以及[跳过没有 frontmatter 或草稿的 Markdown](../../../decisions/web/stars/20261022-notes-skip-files-without-frontmatter-or-drafts.md)。列表样式、搜索交互与后退恢复沿用[摘星入口页](contents-page.md)的用例；本文件只记录笔记引入的新承诺。
 
 ## Stars navigation must open the note list and every kind
 
@@ -52,19 +52,20 @@
 
 ## Cache script must enumerate the files search sees and reject invalid frontmatter
 
-风险：脚本与 rg 对 ignore 规则理解不同，列表出现搜不到的文件，或被忽略的草稿出现在列表里；frontmatter 不合格的笔记被写进 cache，Palace 展示空标题或错误日期；写到一半的 cache 被服务端读到。前置：真实 ripgrep；临时笔记文件夹不在 git 仓库内，含 `.gitignore` 排除的目录、`.ignore` 排除的文件、隐藏目录、非 `.md` 文件；另准备缺 `title`、`date` 格式错误的笔记各一篇。触发：对合格文件夹运行脚本；再加入不合格笔记运行脚本。
+风险：脚本与 rg 对 ignore 规则理解不同，列表出现搜不到的文件，或被忽略的草稿出现在列表里；frontmatter 不合格的笔记被写进 cache，Palace 展示空标题或错误日期；README、模板这类不是笔记的文件让生成失败或进入列表；写到一半的 cache 被服务端读到。前置：真实 ripgrep；临时笔记文件夹不在 git 仓库内，含 `.gitignore` 排除的目录、`.ignore` 排除的文件、隐藏目录、非 `.md` 文件、没有 frontmatter 的 README、带占位值的 `draft: true` 模板、`draft: false` 的笔记；另准备缺 `title`、`date` 格式错误、`draft` 非布尔值的文件各一篇。触发：对合格文件夹运行脚本；再加入不合格笔记运行脚本。
 
-必须成立：合格时 cache 恰好包含 `rg --files --no-require-git -g '*.md'` 列出的文件，ID 为去掉 `.md` 的相对路径且分隔符为 `/`，每项的 `title`、`date` 与 frontmatter 一致，不含 `tag` 等其他字段；cache 以 rename 原子替换。不合格时报告所有问题、以非零状态退出，原有 cache 保持不变。禁止 `.gitignore` 或 `.ignore` 排除的文件进入 cache，禁止 cache 自身被枚举。
+必须成立：合格时 cache 恰好包含 rg 列出的 `*.md` 中有 frontmatter 且 `draft` 不为 `true` 的文件；没有 frontmatter 或 `draft: true` 的文件不校验、不进入 cache，输出只报告跳过数量；ID 为去掉 `.md` 的相对路径且分隔符为 `/`，每项的 `title`、`date` 与 frontmatter 一致，不含 `tag` 等其他字段；cache 以 rename 原子替换。不合格（含 `draft` 非布尔值）时报告所有问题、以非零状态退出，原有 cache 保持不变。禁止 `.gitignore` 或 `.ignore` 排除的文件进入 cache，禁止 cache 自身被枚举。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 枚举结果与 rg 一致，不在 git 仓库内时仍应用 `.gitignore`（真实 ripgrep） | Covered | `scripts/notes-cache.test.ts::collects the title and date of exactly the notes ripgrep sees`（真实 ripgrep，临时目录不在 git 仓库内） |
-| 不合格 frontmatter 全部报告、非零退出、不改动原 cache | Covered | `scripts/notes-cache.test.ts::reports every invalid note and keeps the previous cache` |
+| 不合格 frontmatter 全部报告、非零退出、不改动原 cache | Covered | `scripts/notes-cache.test.ts::reports every invalid note and keeps the previous cache`（含 `draft: yes`；没有 frontmatter 的文件不报错） |
+| 没有 frontmatter 或 `draft: true` 的文件被跳过且只报告数量，草稿不校验占位值 | Covered | `scripts/notes-cache.test.ts::collects the title and date of exactly the notes ripgrep sees`（README、带占位值的模板、`draft: false` 的笔记） |
 | cache 原子替换，只收集 `title` 与 `date` | Covered | `scripts/notes-cache.test.ts::replaces the cache without leaving a temporary file behind`、`scripts/notes-cache.test.ts::collects the title and date of exactly the notes ripgrep sees`（`tag` 不进入 cache） |
 
-决策依据：D4、D5，不变量 7。
+决策依据：D4、D5，不变量 7；跳过决策 D1、D2，不变量 1–4。
 
 ## Cache reload must swap the whole index and keep it when the cache is broken
 

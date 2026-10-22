@@ -10,9 +10,12 @@
 `date`；其他字段（如 `tag`）保留在文件里，暂不使用。笔记 ID 是文件相对文件夹根目录的路径去掉 `.md`，例如
 `rust/advisory-lock`，改名或移动文件会改变 ID。
 
+没有 frontmatter 的 `.md`（如目录说明 README）和 frontmatter 中 `draft: true` 的 `.md`（如模板、未完成的笔记）
+不是笔记：脚本跳过它们，也不校验草稿里的占位值。`draft` 只能是 `true` 或 `false`。
+
 服务端不解析 frontmatter，只读文件夹根目录的 `.palace-cache.json`。在宿主机上运行
 `node scripts/notes-cache.ts <笔记文件夹>` 生成它：脚本用 ripgrep 的规则枚举笔记（尊重 `.gitignore`、`.ignore`，
-跳过隐藏文件，不要求是 git 仓库），任何一篇不合格都列出全部问题、以非零状态退出且不改动原 cache。
+跳过隐藏文件，不要求是 git 仓库），任何一篇不合格都列出全部问题、以非零状态退出且不改动原 cache；成功时只报告写入的笔记数与跳过的文件数。
 挂载与配置见[环境变量](../../server/环境变量.md#摘星笔记)。
 
 ## 摘星中的笔记

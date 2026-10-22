@@ -39,12 +39,20 @@ test("collects the title and date of exactly the notes ripgrep sees", async () =
     "private.md": note("私人", "2026-10-02"),
     ".hidden/secret.md": note("隐藏", "2026-10-03"),
     "image.png": "not a note",
+    "interview/README.md": "# 面试\n",
+    "interview/case-template.md": note("<题目>", "YYYY-MM-DD", "draft: true\n"),
+    "interview/published.md": note("系统设计", "2026-10-06", "draft: false\n"),
   });
   const { stdout } = await run("node", [script, root]);
-  assert.match(stdout, /已写入 2 篇笔记/);
+  assert.equal(stdout, "已写入 3 篇笔记到 .palace-cache.json，跳过 2 个文件\n");
   assert.deepEqual(JSON.parse(await readFile(join(root, CACHE_FILE), "utf8")), {
     version: 1,
     notes: [
+      {
+        id: "interview/published",
+        title: "系统设计",
+        date: "2026-10-06",
+      },
       {
         id: "rust/advisory-lock",
         title: "PostgreSQL advisory lock 的用法",
@@ -60,6 +68,7 @@ test("collects the title and date of exactly the notes ripgrep sees", async () =
   // Running again over the folder holding the cache sees the same notes.
   assert.deepEqual(await buildCache(root), {
     cache: JSON.parse(await readFile(join(root, CACHE_FILE), "utf8")),
+    skipped: 2,
   });
 });
 
@@ -74,8 +83,12 @@ test("reports every invalid note and keeps the previous cache", async () => {
     join(root, "local.md"),
     note("无时区", "2026-10-05T10:00:00"),
   );
-  await writeFile(join(root, "bare.md"), "# 没有 frontmatter\n");
+  await writeFile(join(root, "bare.md"), "# 没有 frontmatter，不是笔记\n");
   await writeFile(join(root, "both.md"), "---\ntag: x\n---\n");
+  await writeFile(
+    join(root, "maybe-draft.md"),
+    note("草稿？", "2026-10-05", "draft: yes\n"),
+  );
 
   const failure = await run("node", [script, root]).then(
     () => assert.fail("the script must fail"),
@@ -84,10 +97,10 @@ test("reports every invalid note and keeps the previous cache", async () => {
   assert.equal(failure.code, 1);
   assert.deepEqual(failure.stderr.trim().split("\n"), [
     "bad-date.md: date 不是有效的 YYYY-MM-DD 或带时区偏移的 RFC 3339 时间：2026-02-30",
-    "bare.md: 缺少 frontmatter",
     "both.md: title 必须是非空字符串",
     "both.md: date 必须是 YYYY-MM-DD 或带时区偏移的 RFC 3339 时间",
     "local.md: date 不是有效的 YYYY-MM-DD 或带时区偏移的 RFC 3339 时间：2026-10-05T10:00:00",
+    "maybe-draft.md: draft 必须是 true 或 false",
     "untitled.md: title 必须是非空字符串",
     "6 个问题，未写入 .palace-cache.json",
   ]);
