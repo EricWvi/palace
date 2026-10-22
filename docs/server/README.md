@@ -77,7 +77,10 @@ CLI 和第三方服务用 `Authorization: Bearer palace_pat_…` 调用全部业
 
 配置 `PALACE_DATABASE_URL`、`PALACE_ORIGIN`（外部 HTTPS origin）、`PALACE_OIDC_ISSUER`、`PALACE_OIDC_CLIENT_ID`、`PALACE_OIDC_CLIENT_SECRET`、`PALACE_SESSION_KEY`（32 字节随机密钥的标准 base64）。可选 `PALACE_LISTEN` 默认 `127.0.0.1:8080`、`PALACE_TIMEZONE` 默认 `Asia/Shanghai`、`PALACE_WEB_DIST` 默认 `apps/palace-web/dist`。由可信反向代理终止 HTTPS 后转发给 server（`palace-server` 二进制）。
 
-生产镜像使用仓库根目录的 `Dockerfile` 构建，镜像内 server 会从 `/app/dist` 提供前端静态资源：
+生产镜像使用仓库根目录的 `Dockerfile` 构建，镜像内 server 会从 `/app/dist` 提供前端静态资源。
+Rust 依赖由 cargo-chef 在单独一层编译，只要 `Cargo.lock` 与各 crate 的 manifest 不变就保持缓存；
+CI 在推送 `v*` tag 时构建镜像，层缓存存于 `ghcr.io/<owner>/palace:buildcache`，因为 GitHub Actions
+缓存按 ref 隔离，下一个 tag 读不到上一个 tag 存的缓存。
 
 ```bash
 docker build --tag palace:local .

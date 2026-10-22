@@ -11,11 +11,30 @@ COPY apps/palace-web apps/palace-web
 COPY design/tokens.css design/ornament.js design/ornament.d.ts design/
 RUN npm run build -w apps/palace-web
 
-FROM rust:1.95-alpine AS server
+FROM rust:1.95-alpine AS chef
 
 WORKDIR /build
 RUN apk add --no-cache build-base perl
-COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+# The pinned toolchain is installed here, once, rather than by the first cargo call of each build.
+COPY rust-toolchain.toml ./
+RUN cargo install cargo-chef --locked --version 0.1.78
+
+# Every release changes the workspace sources, which invalidates the layer that compiles them. The
+# recipe keeps only what decides the dependency build, so that layer stays cached until it changes.
+FROM chef AS planner
+
+COPY Cargo.toml Cargo.lock ./
+COPY crates crates
+COPY apps/pal apps/pal
+COPY apps/palace-server apps/palace-server
+COPY xtask xtask
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS server
+
+COPY --from=planner /build/recipe.json recipe.json
+RUN cargo chef cook --release --locked -p palace-server --recipe-path recipe.json
+COPY Cargo.toml Cargo.lock ./
 COPY crates crates
 COPY apps/pal apps/pal
 COPY apps/palace-server apps/palace-server

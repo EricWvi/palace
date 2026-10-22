@@ -75,12 +75,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The default docker driver cannot export a build cache.
+      - name: Set up Docker Buildx
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/setup-buildx-action@v4
+
+      # The cache lives in the registry because GitHub's cache is scoped by ref: a tag cannot read
+      # what the previous tag saved, and main never builds the image.
       - name: Build and push Docker image
         if: startsWith(github.ref, 'refs/tags/v')
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
+          cache-from: type=registry,ref=ghcr.io/${{ env.OWNER_LC }}/palace:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ env.OWNER_LC }}/palace:buildcache,mode=max
           build-args: |
             VERSION=${{ env.VERSION }}
             BUILDTIME=${{ env.BUILDTIME }}
