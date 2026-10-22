@@ -24,13 +24,15 @@ import {
   type PageState,
   type Reply,
   type WebAnnotation,
+  type WebAnnotationCreate,
 } from "./protocol";
 import type { Switch, SwitchOrder, SwitchQuery } from "./switch";
 import { reportTheme } from "./theme";
 
-// One annotation as drawn now, with the range its words occupy on the page.
+// One annotation as drawn now, with the range its words occupy on the page. A new annotation
+// still on its way to Palace has no id yet, and nothing to change until it has one.
 type Drawn = {
-  id: string;
+  id: string | null;
   range: Range;
   style: AnnotationStyle | null;
   note: string | null;
@@ -40,6 +42,9 @@ const overlay = new Overlay();
 // Whether annotating is on in this tab. Off, `state` stays null and nothing is drawn.
 let on = false;
 let state: PageState | null = null;
+// New annotations on an unbound page whose save is on the way. They are drawn at once, so the
+// words keep a mark through the round trip to Palace instead of losing it until the reply.
+let saving: WebAnnotationCreate[] = [];
 let drawn: Drawn[] = [];
 // The selection the bar was opened for, kept as a selector so a lost selection loses nothing.
 let selected: ReturnType<typeof selectionQuote> = null;
@@ -72,6 +77,15 @@ function draw() {
       const at = relocate(page.text, annotation);
       if (at) drawn.push(mark(annotation, at));
     }
+    for (const draft of saving) {
+      const at = relocate(page.text, draft);
+      const shown = {
+        id: null,
+        style: draft.style ?? null,
+        note: draft.note ?? null,
+      };
+      if (at) drawn.push(mark(shown, at));
+    }
   } else if (state?.kind === "bound") {
     const length = Math.max(state.article.length, 1);
     for (const annotation of state.annotations) {
@@ -87,7 +101,7 @@ function draw() {
 
   function mark(
     annotation: {
-      id: string;
+      id: string | null;
       style: AnnotationStyle | null;
       note: string | null;
     },
@@ -125,15 +139,28 @@ function hit(x: number, y: number): Drawn | null {
   return null;
 }
 
-// Applies a reply: a failure is said once; a page bound meanwhile elsewhere turns read only.
-function settled<T>(reply: Reply<T>, apply: (data: T) => void) {
-  if (reply.ok) {
-    apply(reply.data);
-    draw();
-    return;
+// Applies a reply to what was drawn ahead of it: a failure puts the page back as it was and is
+// said once; a page bound meanwhile elsewhere turns read only.
+function settled<T>(
+  reply: Reply<T>,
+  apply: (data: T) => void,
+  undo: () => void,
+) {
+  if (reply.ok) apply(reply.data);
+  else {
+    undo();
+    overlay.flash(`标注没有保存：${reply.message}`);
+    if (reply.problem === "bound") void load();
   }
-  overlay.flash(`标注没有保存：${reply.message}`);
-  if (reply.problem === "bound") void load();
+  draw();
+}
+
+// Puts `annotation` in place of the page's annotation with its id.
+function replace(annotation: WebAnnotation) {
+  if (state?.kind === "unbound")
+    state.annotations = own().map((other) =>
+      other.id === annotation.id ? annotation : other,
+    );
 }
 
 function own(): WebAnnotation[] {
@@ -145,52 +172,60 @@ async function create(style: AnnotationStyle | null, note: string | null) {
   if (!quote) return;
   hideBar();
   getSelection()?.removeAllRanges();
-  const reply = await send({
-    kind: "create",
-    annotation: {
-      url: address(),
-      title: document.title,
-      quote: quote.quote,
-      prefix: quote.prefix,
-      suffix: quote.suffix,
-      position: quote.position,
-      style,
-      note,
-    },
-  });
-  settled(reply, (created) => own().push(created));
+  const draft: WebAnnotationCreate = {
+    url: address(),
+    title: document.title,
+    quote: quote.quote,
+    prefix: quote.prefix,
+    suffix: quote.suffix,
+    position: quote.position,
+    style,
+    note,
+  };
+  saving.push(draft);
+  draw();
+  const reply = await send({ kind: "create", annotation: draft });
+  saving = saving.filter((other) => other !== draft);
+  settled(
+    reply,
+    (created) => own().push(created),
+    () => {},
+  );
 }
 
-// Replaces the style and the note together; with neither left, the annotation goes.
+// Replaces the style and the note together, drawn at once; with neither left, the annotation
+// goes.
 async function change(
-  item: Drawn,
+  id: string,
   style: AnnotationStyle | null,
   note: string | null,
 ) {
   hideBar();
-  if (style === null && note === null) return remove(item);
+  if (style === null && note === null) return remove(id);
+  const previous = own().find((annotation) => annotation.id === id);
+  if (!previous) return;
+  replace({ ...previous, style, note });
+  draw();
   const reply = await send({
     kind: "update",
-    id: item.id,
+    id,
     change: { title: document.title, style, note },
   });
-  settled(reply, (updated) => {
-    if (state?.kind === "unbound")
-      state.annotations = own().map((annotation) =>
-        annotation.id === updated.id ? updated : annotation,
-      );
-  });
+  settled(reply, replace, () => replace(previous));
 }
 
-async function remove(item: Drawn) {
+// A deleted annotation stays drawn until Palace confirms it is gone, as in Palace.
+async function remove(id: string) {
   hideBar();
-  const reply = await send({ kind: "delete", id: item.id });
-  settled(reply, () => {
-    if (state?.kind === "unbound")
-      state.annotations = own().filter(
-        (annotation) => annotation.id !== item.id,
-      );
-  });
+  const reply = await send({ kind: "delete", id });
+  settled(
+    reply,
+    () => {
+      if (state?.kind === "unbound")
+        state.annotations = own().filter((annotation) => annotation.id !== id);
+    },
+    () => {},
+  );
 }
 
 // Opens a note editor under `under`; blank words write nothing.
@@ -214,8 +249,8 @@ function lastRect(range: Range) {
   return rects[rects.length - 1] ?? range.getBoundingClientRect();
 }
 
-// Opens the bar for a clicked annotation.
-function openAnnotation(item: Drawn) {
+// Opens the bar for a clicked annotation that Palace has saved.
+function openAnnotation(item: Drawn, id: string) {
   const first =
     item.range.getClientRects()[0] ?? item.range.getBoundingClientRect();
   overlay.hideNote();
@@ -225,15 +260,15 @@ function openAnnotation(item: Drawn) {
     {
       // Picking the current style again takes it off.
       onStyle: (style) =>
-        void change(item, style === item.style ? null : style, item.note),
+        void change(id, style === item.style ? null : style, item.note),
       onNote: () =>
         editNote(
           lastRect(item.range),
           item.note ?? "",
           item.style,
-          (note) => void change(item, item.style, note),
+          (note) => void change(id, item.style, note),
         ),
-      onRemove: () => void remove(item),
+      onRemove: () => void remove(id),
     },
   );
 }
@@ -264,7 +299,7 @@ document.addEventListener("mouseup", (event) => {
       return;
     }
     const item = hit(event.clientX, event.clientY);
-    if (item) openAnnotation(item);
+    if (item?.id) openAnnotation(item, item.id);
     else hideBar();
   });
 });
@@ -278,18 +313,18 @@ document.addEventListener("mousemove", (event) => {
   pending = requestAnimationFrame(() => {
     const item = hit(event.clientX, event.clientY);
     if (!item || item.note === null) return overlay.hideNote();
-    const editable = state?.kind === "unbound";
+    const id = state?.kind === "unbound" ? item.id : null;
     overlay.showNote(lastRect(item.range), {
       text: item.note,
       style: item.style,
       editing: false,
-      onEdit: editable
+      onEdit: id
         ? () =>
             editNote(
               lastRect(item.range),
               item.note ?? "",
               item.style,
-              (note) => void change(item, item.style, note),
+              (note) => void change(id, item.style, note),
             )
         : undefined,
     });
@@ -355,6 +390,7 @@ async function turn(to: Switch) {
   observer.disconnect();
   clearTimeout(settling);
   state = null;
+  saving = [];
   hideBar();
   overlay.hideNote();
   draw();

@@ -41,6 +41,8 @@ function palace() {
   const web: Body[] = [];
   let bound: string | null = null;
   let tokenValid = true;
+  // While set, new annotations wait for it before Palace answers.
+  let held: Promise<void> | null = null;
   const server: Server = createServer(async (request, response) => {
     const url = new URL(request.url!, "http://localhost");
     let text = "";
@@ -99,6 +101,7 @@ function palace() {
           annotations: bound ? [] : web,
         });
       case "POST /api/web-pages/annotations": {
+        await held;
         if (bound) return send(409, { error: "web_page_bound", login: "" });
         const created: Body = {
           id: `w${web.length + 1}`,
@@ -165,6 +168,12 @@ function palace() {
     requests,
     web,
     revoke: () => (tokenValid = false),
+    // Holds new annotations until the returned function lets them through.
+    hold: () => {
+      let release = () => {};
+      held = new Promise((resolve) => (release = resolve));
+      return release;
+    },
     origin: async () => {
       await new Promise<void>((resolve) =>
         server.listen(0, "127.0.0.1", resolve),
@@ -512,4 +521,29 @@ test("an invalid token turns the bar off and marks the toolbar icon", async () =
       tab,
     ),
   ).toBe("!");
+});
+
+// A new mark is drawn while Palace saves it, so the words never go unmarked between the
+// selection going and the reply coming back.
+test("a new note is drawn while it is being saved", async () => {
+  const page = await context.newPage();
+  await page.goto(`${site}/article`);
+  await turnOn(page);
+  await expect.poll(lookups).toBe(2);
+  const release = fake.hold();
+  await select(page, "大多数再也没有被打开过");
+  await page.keyboard.press("c");
+  await page.keyboard.type("一个想法");
+  await page.keyboard.press("Control+Enter");
+  await expect
+    .poll(() => fake.requests.filter((request) => request.method === "POST"))
+    .toHaveLength(1);
+  expect(await highlights(page)).toEqual({
+    "palace-plain-light": ["大多数再也没有被打开过"],
+  });
+  release();
+  await expect.poll(() => fake.web.length).toBe(1);
+  expect(await highlights(page)).toEqual({
+    "palace-plain-light": ["大多数再也没有被打开过"],
+  });
 });
