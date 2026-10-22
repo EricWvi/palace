@@ -320,6 +320,14 @@
   right: 0;
 }
 
+/*
+ * A card placed for the first time appears in its place: easing `top` from where it waited to
+ * be measured would drop it down from the top of the margin. Later moves still ease.
+ */
+.margin-notes .note-card.arriving {
+  transition-property: transform, box-shadow, color, border-color;
+}
+
 .note-card.floating {
   z-index: 35;
   width: 300px;

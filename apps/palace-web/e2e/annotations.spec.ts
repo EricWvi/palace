@@ -260,3 +260,41 @@ test("the first note opens beside its words without moving the page", async ({
   await expect(field).toBeInViewport();
   expect(await page.evaluate(() => scrollY)).toBe(scrolled);
 });
+
+// A margin card appears where it belongs: neither the first note, through its save, nor a new
+// note opened beside it slides down from the top of the margin.
+// Core test case:
+// - `specs/test-cases/web/stars/annotations.md#margin-notes-must-widen-the-page-only-while-notes-exist`
+test("margin cards appear in place instead of dropping from the top", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await serve(page, []);
+  await page.goto("/articles/a1");
+  await expect(page.getByText(/页边是作者/)).toBeVisible();
+  // Every `top` transition a note card starts, as it starts.
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { slid: string[] }).slid = seen;
+    document.addEventListener("transitionrun", (event) => {
+      const target = event.target as Element;
+      if (event.propertyName === "top" && target.matches(".note-card"))
+        seen.push(target.textContent ?? "");
+    });
+  });
+  const slid = () =>
+    page.evaluate(() => (window as unknown as { slid: string[] }).slid);
+
+  await select(page, "划线和旁批不一样");
+  await page.keyboard.press("c");
+  await page.keyboard.type("第一条。");
+  await page.keyboard.press("Control+Enter");
+  await expect(page.locator(".margin-notes .note-card")).toHaveText([
+    "第一条。",
+  ]);
+  await select(page, "页边是作者留给读者的空间");
+  await page.keyboard.press("c");
+  await expect(page.getByRole("textbox", { name: "批注" })).toBeFocused();
+  await expect(page.locator(".margin-notes .note-card")).toHaveCount(2);
+  expect(await slid()).toEqual([]);
+});

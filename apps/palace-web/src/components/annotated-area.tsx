@@ -110,7 +110,12 @@ export function AnnotatedArea({
   // Narrow windows: the note floating under its mark, and where it floats.
   const [floating, setFloating] = useState<string | null>(null);
   const [floatAt, setFloatAt] = useState<{ x: number; y: number } | null>(null);
-  const [tops, setTops] = useState<Record<string, number>>({});
+  // Where each margin card sits, and the cards placed there for the first time.
+  const [placement, setPlacement] = useState<{
+    tops: Record<string, number>;
+    arriving: ReadonlySet<string>;
+  }>({ tops: {}, arriving: new Set() });
+  const { tops } = placement;
   const [layoutTick, setLayoutTick] = useState(0);
   const cards = useRef(new Map<string, HTMLDivElement>());
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -176,8 +181,15 @@ export function AnnotatedArea({
         placed[index + 1].y - placed[index].height - cardGap,
       );
     const next = Object.fromEntries(placed.map((item) => [item.id, item.y]));
-    setTops((current) =>
-      JSON.stringify(current) === JSON.stringify(next) ? current : next,
+    setPlacement((current) =>
+      JSON.stringify(current.tops) === JSON.stringify(next)
+        ? current
+        : {
+            tops: next,
+            arriving: new Set(
+              Object.keys(next).filter((id) => !(id in current.tops)),
+            ),
+          },
     );
     // Folding and reflow move marks without changing the notes, so they are listed too.
   }, [margin, notes, active, layoutTick, layer.focus, layer.openedRuns]);
@@ -429,7 +441,11 @@ export function AnnotatedArea({
             <NoteCard
               key={item.id}
               {...cardProps(item)}
-              className="in-margin"
+              className={
+                placement.arriving.has(item.id)
+                  ? "in-margin arriving"
+                  : "in-margin"
+              }
               cardRef={(element) => {
                 if (element) {
                   cards.current.set(item.id, element);
