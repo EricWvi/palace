@@ -62,9 +62,12 @@ function swatch(style: AnnotationStyle | null) {
   }
 }
 
+// The tokens declare the dark palette for the OS preference on `:root:not([data-theme="light"])`,
+// which as `:host:not(...)` would match nothing inside a shadow root; the host takes the plain
+// `:host` so the overlay follows the browser's appearance like Palace's own pages.
 const css = `
-${tokens.replaceAll(":root", ":host")}
-:host { all: initial; }
+${tokens.replaceAll(':root:not([data-theme="light"])', ":host").replaceAll(":root", ":host")}
+:host { all: initial; color-scheme: light dark; }
 * { box-sizing: border-box; margin: 0; }
 button { all: unset; cursor: pointer; }
 .bar {
