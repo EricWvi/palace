@@ -24,6 +24,8 @@ mod sync;
 #[cfg(test)]
 mod tests;
 mod timeline;
+mod todo_lists;
+mod todos;
 mod web_pages;
 
 use crate::{LoginRedirect, OidcProvider};

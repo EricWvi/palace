@@ -15,20 +15,32 @@ const ArticlePage = lazy(() =>
 const EchoPage = lazy(() =>
   import("./pages/echo").then((module) => ({ default: module.EchoPage })),
 );
+const TodoPage = lazy(() =>
+  import("./pages/todo").then((module) => ({ default: module.TodoPage })),
+);
 const ConversationPage = lazy(() =>
   import("./pages/conversation").then((module) => ({
     default: module.ConversationPage,
   })),
 );
 
-// Each page belongs to one section of the top bar; notes, articles and conversations are listed
-// and read in 摘星, jottings in 回响.
+// Each page belongs to one section of the top bar; tasks are kept in 行事, notes, articles and
+// conversations are listed and read in 摘星, jottings in 回响.
 function sectionOf(pathname: string): Section | undefined {
   if (pathname === "/") return "时刻";
+  if (/^\/todos(\/|$)/.test(pathname)) return "行事";
   if (/^\/(notes|articles|conversations)(\/|$)/.test(pathname)) return "摘星";
   if (pathname === "/jottings") return "回响";
   return undefined;
 }
+
+const sheetClass: Record<Section, string> = {
+  时刻: "sheet",
+  行事: "sheet roomy",
+  旅途: "sheet",
+  摘星: "sheet",
+  回响: "sheet wide",
+};
 
 export function App() {
   const { pathname } = useLocation();
@@ -40,8 +52,11 @@ export function App() {
   }, [pathname]);
   return (
     <ShortcutHelp>
-      {/* 回响 needs room for its columns, so its sheet widens and the header stretches with it. */}
-      <main className={section === "回响" ? "sheet wide" : "sheet"}>
+      {/*
+       * 回响 needs room for its columns and 行事 for its list column, so their sheets widen and the
+       * header stretches with them.
+       */}
+      <main className={sheetClass[section ?? "时刻"]}>
         <PalaceHeader active={section} />
         <Suspense fallback={null}>
           <Routes>
@@ -56,6 +71,9 @@ export function App() {
             />
             <Route path="/conversations/:id" element={<ConversationPage />} />
             <Route path="/jottings" element={<EchoPage />} />
+            <Route path="/todos" element={<TodoPage view="today" />} />
+            <Route path="/todos/inbox" element={<TodoPage view="inbox" />} />
+            <Route path="/todos/lists/:id" element={<TodoPage view="list" />} />
             <Route
               path="*"
               element={

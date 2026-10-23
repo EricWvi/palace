@@ -152,7 +152,15 @@ it("opens the note list from 摘星, where every kind is open in order", async (
     within(kinds).getByRole("link", { name: "对话3" }),
   ]);
   // Tabbing through the page goes from the top bar through every kind.
-  for (const name of ["时刻", "摘星", "回响", "笔记2", "文章1", "对话3"]) {
+  for (const name of [
+    "时刻",
+    "行事",
+    "摘星",
+    "回响",
+    "笔记2",
+    "文章1",
+    "对话3",
+  ]) {
     await user.tab();
     expect(document.activeElement).toHaveAccessibleName(name);
   }

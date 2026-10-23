@@ -148,12 +148,22 @@
       color: var(--text-3);
     }
 
-    /* Plain list rows have no circle; a hairline dash keeps titles aligned with today's. */
+    /* Plain list rows have no circle; a drawn dot keeps titles aligned with today's. */
     .dash {
       flex: none;
+      align-self: center;
+      display: flex;
+      justify-content: center;
       width: 14px;
-      color: var(--text-3);
-      text-align: center;
+      font-size: 0;
+    }
+
+    .dash::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: var(--radius-round);
+      background: var(--text-3);
     }
 
     .title {

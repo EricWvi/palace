@@ -512,6 +512,181 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/todo-lists": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Adds a list after the existing ones. */
+    post: operations["create_todo_list"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/todo-lists/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Renames a list. */
+    put: operations["rename_todo_list"];
+    post?: never;
+    /** Deletes a list together with all its tasks. */
+    delete: operations["delete_todo_list"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/todo-lists/{id}/completed": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** A list's finished tasks, the most recently finished first. */
+    get: operations["completed_todos"];
+    put?: never;
+    post?: never;
+    /** Deletes every finished task of a list. */
+    delete: operations["clear_completed_todos"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/todos": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Every list and every open task. */
+    get: operations["todo_board"];
+    put?: never;
+    /** Adds an unscheduled task to a list or the inbox. */
+    post: operations["create_todo"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/todos/plan": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Puts the unscheduled tasks among `ids` on a day. */
+    post: operations["plan_todos"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/todos/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Replaces an open task's list, title, link, position and plan. */
+    put: operations["update_todo"];
+    post?: never;
+    /** Deletes a task, finished or not. */
+    delete: operations["delete_todo"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/todos/{id}/body": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Reads a task's body. */
+    get: operations["todo_body"];
+    /** Replaces or clears a task's body. */
+    put: operations["set_todo_body"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/todos/{id}/complete": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Finishes a task in a list; it leaves its plan and keeps its count. */
+    post: operations["complete_todo"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/todos/{id}/done": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Marks a task done or not done for the day it is planned on. */
+    put: operations["set_todo_done"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/todos/{id}/restore": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Brings a finished task back to its list, unscheduled. */
+    post: operations["restore_todo"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/web-annotations/{id}": {
     parameters: {
       query?: never;
@@ -873,6 +1048,25 @@ export interface components {
       title: string;
       /** @description Another article of the owner already at this URL is a conflict. */
       url: string;
+    };
+    /** @description A finished task. */
+    CompletedTodo: {
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds.
+       */
+      completed_at: number;
+      /** Format: int32 */
+      done_days: number;
+      has_body: boolean;
+      /** Format: uuid */
+      id: string;
+      link: string | null;
+      title: string;
+    };
+    /** @description A list's finished tasks, the most recently finished first. */
+    CompletedTodoList: {
+      items: components["schemas"]["CompletedTodo"][];
     };
     Conversation: {
       /** Format: uuid */
@@ -1379,6 +1573,126 @@ export interface components {
       session_id: string;
       source: components["schemas"]["Source"];
       /** @description Nonblank after trimming; preserve the original value; at most 1024 UTF-8 bytes. */
+      title: string;
+    };
+    /** @description An open task. */
+    Todo: {
+      /**
+       * Format: int32
+       * @description Days the task was marked done.
+       */
+      done_days: number;
+      /** @description Read the body itself from `/api/todos/{id}/body`. */
+      has_body: boolean;
+      /** Format: uuid */
+      id: string;
+      link: string | null;
+      /**
+       * Format: uuid
+       * @description The list; null is the inbox.
+       */
+      list_id: string | null;
+      plan: components["schemas"]["TodoPlan"];
+      /** @description fractional-indexing key; tasks in one place sort by it as bytes, smallest first. */
+      position: string;
+      title: string;
+    };
+    /** @description Every list in creation order and every open task, in key order within each place. */
+    TodoBoard: {
+      lists: components["schemas"]["TodoList"][];
+      todos: components["schemas"]["Todo"][];
+    };
+    /** @description A task's body: Markdown, nonblank, at most 256 KiB; null when there is none. */
+    TodoBodyContent: {
+      body: string | null;
+    };
+    /** @description A new task, unscheduled. */
+    TodoCreate: {
+      /**
+       * Format: uuid
+       * @description The list; null puts the task in the inbox.
+       */
+      list_id?: string | null;
+      /** @description fractional-indexing key, at most 1024 bytes, not taken by another open task in the place. */
+      position: string;
+      /** @description Trimmed; nonblank, at most 1024 bytes. */
+      title: string;
+    };
+    /** @description Done or not done for the day the task is planned on. */
+    TodoDone: {
+      /** @description The reader's today, `YYYY-MM-DD`; it must be the task's planned day. */
+      day: string;
+      done: boolean;
+    };
+    /** @description A list of 行事. */
+    TodoList: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    /** @description A list's name: trimmed, nonblank, at most 256 bytes. */
+    TodoListInput: {
+      name: string;
+    };
+    /**
+     * @description A task's plan. A `day` before the reader's today means the plan lapsed; the page reads it as
+     *     `open`. Inbox tasks are always `open`.
+     */
+    TodoPlan:
+      | {
+          /** @enum {string} */
+          kind: "open";
+        }
+      | {
+          /** @enum {string} */
+          kind: "shelved";
+        }
+      | {
+          /** @description `YYYY-MM-DD`. */
+          day: string;
+          /** @description Done for that day. */
+          done: boolean;
+          /** @enum {string} */
+          kind: "day";
+        };
+    /** @description The plan an edit writes; done is not written by an edit and resets whenever the day changes. */
+    TodoPlanInput:
+      | {
+          /** @enum {string} */
+          kind: "open";
+        }
+      | {
+          /** @enum {string} */
+          kind: "shelved";
+        }
+      | {
+          /** @description `YYYY-MM-DD`. */
+          day: string;
+          /** @enum {string} */
+          kind: "day";
+        };
+    /** @description Tasks to put on a day. */
+    TodoPlanRequest: {
+      /** @description `YYYY-MM-DD`. */
+      day: string;
+      /** @description At most 1000. Tasks that are not open, unscheduled and in a list are left alone. */
+      ids: string[];
+    };
+    /** @description Where a finished task returns in its list. */
+    TodoRestore: {
+      position: string;
+    };
+    /** @description Everything an edit replaces together on an open task. */
+    TodoUpdate: {
+      /** @description Absolute http or https URL of at most 2048 bytes; null removes it. */
+      link?: string | null;
+      /**
+       * Format: uuid
+       * @description The list; null is the inbox, which takes only an `open` plan.
+       */
+      list_id?: string | null;
+      plan: components["schemas"]["TodoPlanInput"];
+      position: string;
       title: string;
     };
     UpdatePath: {
@@ -4962,6 +5276,1291 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  create_todo_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TodoListInput"];
+      };
+    };
+    responses: {
+      /** @description Created */
+      201: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TodoList"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  rename_todo_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped list id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TodoListInput"];
+      };
+    };
+    responses: {
+      /** @description Renamed */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TodoList"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  delete_todo_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped list id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  completed_todos: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped list id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CompletedTodoList"];
+        };
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  clear_completed_todos: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped list id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Cleared */
+      204: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  todo_board: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TodoBoard"];
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  create_todo: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TodoCreate"];
+      };
+    };
+    responses: {
+      /** @description Created */
+      201: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Todo"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description List unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Another open task in the place has this position */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  plan_todos: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TodoPlanRequest"];
+      };
+    };
+    responses: {
+      /** @description Planned */
+      204: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  update_todo: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped task id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TodoUpdate"];
+      };
+    };
+    responses: {
+      /** @description Updated */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Todo"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Task or list unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description The task is finished, or another open task in the place has this position */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  delete_todo: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped task id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  todo_body: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped task id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TodoBodyContent"];
+        };
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  set_todo_body: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped task id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TodoBodyContent"];
+      };
+    };
+    responses: {
+      /** @description Saved */
+      204: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  complete_todo: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped task id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Finished */
+      204: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description The task is in the inbox or already finished */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  set_todo_done: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped task id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TodoDone"];
+      };
+    };
+    responses: {
+      /** @description Updated */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Todo"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description The task is not planned on this day, or is finished */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  restore_todo: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped task id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TodoRestore"];
+      };
+    };
+    responses: {
+      /** @description Restored */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Todo"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Resource unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description The task is not finished, or another open task in the list has this position */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
         };
       };
       /** @description Internal persistence or response failure */

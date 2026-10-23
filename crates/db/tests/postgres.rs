@@ -28,6 +28,8 @@ mod import_times;
 mod moments;
 #[path = "postgres/paths.rs"]
 mod paths;
+#[path = "postgres/todos.rs"]
+mod todos;
 #[path = "postgres/web_migration.rs"]
 mod web_migration;
 #[path = "postgres/web_pages.rs"]

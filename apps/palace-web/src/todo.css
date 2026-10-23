@@ -1,0 +1,509 @@
+/*
+ * 行事 (design/5.1-todo.html). Rules are scoped to the page, except the task menu's extra parts,
+ * the body panel and the undo line, which open over everything as children of <body>.
+ */
+
+/*
+ * Wider than the default sheet so the list column and the tasks stand well apart, but short of
+ * 回响's 1200px: rows here are one line each. The width change animates with 回响's rule.
+ */
+.sheet.roomy {
+  max-width: 920px;
+}
+
+.todo {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 104px;
+  margin-top: 70px;
+}
+
+/* ---------- Left column ---------- */
+
+.todo-side {
+  position: sticky;
+  top: 32px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+}
+
+.todo-side > a,
+.todo-side > button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--text-3);
+  text-align: left;
+  text-decoration: none;
+}
+
+.todo-side > a:hover,
+.todo-side > button:hover {
+  color: var(--text-2);
+}
+
+.todo-side > [aria-current="page"] {
+  color: var(--text);
+}
+
+.todo-side small {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  color: var(--text-3);
+}
+
+/* 今日 stands apart from the places it is drawn from. */
+.todo-side .gap {
+  height: 10px;
+}
+
+.todo-list-name {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--text-3);
+  outline: none;
+  font: inherit;
+}
+
+/* ---------- Heads ---------- */
+
+.todo-main {
+  min-width: 0;
+}
+
+.todo-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 0 0 18px;
+}
+
+.todo-head h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-3xl);
+  font-weight: 400;
+}
+
+.todo-head .meta {
+  margin: 0;
+}
+
+.todo-head-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 18px;
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+}
+
+.todo-head-actions button:hover {
+  color: var(--accent-hover);
+}
+
+.todo-head-actions .go {
+  color: var(--accent);
+}
+
+.todo-group {
+  margin: 22px 0 4px;
+  color: var(--text-3);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 400;
+}
+
+section:first-of-type > .todo-group {
+  margin-top: 0;
+}
+
+/* ---------- Rows ---------- */
+
+.todo-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.todo-row {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 0;
+  font-family: var(--font-content);
+  outline-offset: 2px;
+}
+
+.todo-row.dragging {
+  z-index: 1;
+  opacity: 0.6;
+}
+
+/*
+ * Done for today: a filled circle and faded words, but no strike-through. The task is still open;
+ * only finishing it strikes it out.
+ */
+.tick {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--text-3);
+  border-radius: var(--radius-round);
+  transform: translateY(2px);
+}
+
+.tick:hover {
+  border-color: var(--success);
+}
+
+.todo-row.done .tick {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.todo-row.done .todo-title {
+  color: var(--text-3);
+}
+
+/* Set aside: still listed, a step quieter than the tasks in play. */
+.todo-row.shelved .todo-title {
+  color: var(--text-2);
+}
+
+/*
+ * List rows have no circle; a faint dot in its place keeps titles aligned with today's. The dot
+ * is drawn rather than typed: a middle dot glyph is a pixel or two wide at this size.
+ */
+.dash {
+  flex: none;
+  align-self: center;
+  display: flex;
+  justify-content: center;
+  width: 14px;
+  font-size: 0;
+}
+
+.dash::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-round);
+  background: var(--text-3);
+}
+
+.todo-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+a.todo-title:hover {
+  color: var(--accent-hover);
+}
+
+.todo-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--text-3);
+  outline: none;
+  font: inherit;
+}
+
+/* 正文 and the link arrow: words, not icons. */
+.todo-marks {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  color: var(--text-3);
+  font-size: var(--font-size-xs);
+}
+
+.todo-marks button:hover {
+  color: var(--accent-hover);
+}
+
+.todo-aside {
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  color: var(--text-3);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.todo-aside .when.today {
+  color: var(--accent);
+}
+
+/* Row actions show on hover only; the row stays text when the pointer is elsewhere. */
+.todo-aside .row-action {
+  visibility: hidden;
+}
+
+.todo-row:hover .row-action,
+.row-action:focus-visible {
+  visibility: visible;
+}
+
+.row-action:hover {
+  color: var(--accent-hover);
+}
+
+.todo-add {
+  display: block;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 6px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+  font-family: var(--font-content);
+}
+
+.todo-add:focus {
+  border-bottom-color: var(--text-3);
+}
+
+.todo-add::placeholder {
+  color: var(--text-3);
+}
+
+.todo-empty {
+  margin: 0;
+  padding: 7px 0;
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+}
+
+/* ---------- 已完成 ---------- */
+
+.todo-completed {
+  margin-top: 28px;
+}
+
+.todo-completed-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+}
+
+.todo-completed-head button:hover {
+  color: var(--text-2);
+}
+
+.todo-completed-head .clear {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+}
+
+.todo-completed-head .danger {
+  color: var(--accent);
+}
+
+.todo-row.finished .todo-title {
+  color: var(--text-3);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--text-3) 60%, transparent);
+}
+
+/* ---------- Planning ---------- */
+
+.pick-row label {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+/* A square, not today's circle: here it means "take this one", not "done". */
+.pick {
+  flex: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1.5px solid var(--text-3);
+  border-radius: 3px;
+  transform: translateY(2px);
+  cursor: pointer;
+}
+
+.pick:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.pick-row.taken label {
+  cursor: default;
+}
+
+.pick-row.taken .pick {
+  background: transparent;
+  border-style: dotted;
+  cursor: default;
+}
+
+.pick-row.taken .todo-title {
+  color: var(--text-3);
+}
+
+/* ---------- Menu parts beyond the shared ones ---------- */
+
+.menu .menu-separator {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--border);
+}
+
+.menu [role="menuitem"][aria-current="true"] {
+  color: var(--accent);
+}
+
+.menu [role="menuitem"].danger {
+  color: var(--accent);
+}
+
+.menu .menu-sub::after {
+  content: "›";
+  float: right;
+  margin-left: 16px;
+  color: var(--text-3);
+}
+
+/* ---------- Body panel ---------- */
+
+.todo-panel {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(520px, 100vw);
+  display: flex;
+  flex-direction: column;
+  padding: 36px 36px 28px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 32px rgb(0 0 0 / 0.1);
+  animation: todo-panel-in 200ms ease-out;
+}
+
+@keyframes todo-panel-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+.todo-panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.todo-panel-head h2 {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: var(--font-size-2xl);
+  font-weight: 400;
+}
+
+.todo-panel-head span {
+  flex: none;
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+}
+
+.todo-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+}
+
+.todo-panel-actions button:hover {
+  color: var(--accent-hover);
+}
+
+.todo-panel textarea {
+  flex: 1;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+  color: var(--text);
+  font-family: var(--font-content);
+  font-size: var(--font-size-base);
+  line-height: 1.7;
+}
+
+/* ---------- Undo line ---------- */
+
+.todo-toast {
+  position: fixed;
+  z-index: 35;
+  left: 50%;
+  bottom: 32px;
+  display: flex;
+  gap: 16px;
+  padding: 8px 16px;
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
+  font-size: var(--font-size-sm);
+}
+
+.todo-toast button {
+  color: var(--accent);
+}
+
+.todo-date {
+  width: auto;
+}
+
+@media (max-width: 720px) {
+  .todo {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    margin-top: 41px;
+  }
+
+  .todo-side {
+    position: static;
+    flex-flow: row wrap;
+    gap: 6px 18px;
+  }
+
+  .todo-side .gap {
+    display: none;
+  }
+}

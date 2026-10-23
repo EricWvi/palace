@@ -97,13 +97,15 @@ afterEach(() => {
 // - `specs/test-cases/server/moment/moment-timeline.md#conversation-cards-must-summarize-their-own-path`
 // - `specs/test-cases/web/stars/notes.md#stars-navigation-must-open-the-note-list-and-every-kind`
 // - `specs/test-cases/web/echo/echo-page.md#echo-navigation-must-open-the-wide-jotting-page`
-it("marks only 时刻, keeps other sections out of reach, and links cards to the reading page", async () => {
+// - `specs/test-cases/web/todo/todos.md#todo-navigation-must-open-the-roomy-todo-page`
+it("marks only 时刻, keeps unbuilt sections out of reach, and links cards to the reading page", async () => {
   const fetch = mockApi();
   const { user } = mountApp("/?date=2025-09-30");
   const card = (await screen.findByText("计划周末出行")).closest("li")!;
   const nav = screen.getByRole("navigation", { name: "主导航" });
   expect(within(nav).getAllByRole("link")).toEqual([
     within(nav).getByRole("link", { name: "时刻" }),
+    within(nav).getByRole("link", { name: "行事" }),
     within(nav).getByRole("link", { name: "摘星" }),
     within(nav).getByRole("link", { name: "回响" }),
   ]);
@@ -115,15 +117,21 @@ it("marks only 时刻, keeps other sections out of reach, and links cards to the
     "href",
     "/notes",
   );
+  expect(within(nav).getByRole("link", { name: "行事" })).toHaveAttribute(
+    "href",
+    "/todos",
+  );
   expect(within(nav).getByRole("link", { name: "时刻" })).toHaveAttribute(
     "aria-current",
     "page",
   );
   for (const section of ["行事", "旅途", "摘星", "回响"])
     expect(within(nav).getByText(section)).not.toHaveAttribute("aria-current");
-  // Tabbing from the start reaches 时刻, 摘星 and 回响, then the date; inert words are skipped.
+  // Tabbing from the start reaches 时刻, 行事, 摘星 and 回响, then the date; inert words are skipped.
   await user.tab();
   expect(document.activeElement).toHaveTextContent("时刻");
+  await user.tab();
+  expect(document.activeElement).toHaveTextContent("行事");
   await user.tab();
   expect(document.activeElement).toHaveTextContent("摘星");
   await user.tab();

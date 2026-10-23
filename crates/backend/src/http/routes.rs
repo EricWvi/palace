@@ -29,6 +29,16 @@ pub(super) const WEB_ANNOTATION: &str = "/api/web-annotations/{id}";
 pub(super) const ARTICLE_WEB_ANNOTATIONS: &str = "/api/articles/{id}/web-annotations";
 pub(super) const ARTICLE_WEB_ANNOTATION_MIGRATION: &str =
     "/api/articles/{id}/web-annotations/migrate";
+pub(super) const TODOS: &str = "/api/todos";
+pub(super) const TODO_PLAN: &str = "/api/todos/plan";
+pub(super) const TODO: &str = "/api/todos/{id}";
+pub(super) const TODO_BODY: &str = "/api/todos/{id}/body";
+pub(super) const TODO_DONE: &str = "/api/todos/{id}/done";
+pub(super) const TODO_COMPLETE: &str = "/api/todos/{id}/complete";
+pub(super) const TODO_RESTORE: &str = "/api/todos/{id}/restore";
+pub(super) const TODO_LISTS: &str = "/api/todo-lists";
+pub(super) const TODO_LIST: &str = "/api/todo-lists/{id}";
+pub(super) const TODO_LIST_COMPLETED: &str = "/api/todo-lists/{id}/completed";
 pub(super) const MEDIA: &str = "/api/media";
 pub(super) const MEDIA_ITEM: &str = "/api/media/{id}";
 pub(super) const ACCESS_TOKENS: &str = "/api/access-tokens";
@@ -93,6 +103,21 @@ macro_rules! business_routes {
             delete WEB_ANNOTATION => web_pages::delete,
             get ARTICLE_WEB_ANNOTATIONS => web_pages::article_list,
             post ARTICLE_WEB_ANNOTATION_MIGRATION => web_pages::migrate,
+            get TODOS => todos::board,
+            post TODOS => todos::create,
+            post TODO_PLAN => todos::plan,
+            put TODO => todos::update,
+            delete TODO => todos::delete,
+            get TODO_BODY => todos::body,
+            put TODO_BODY => todos::set_body,
+            put TODO_DONE => todos::done,
+            post TODO_COMPLETE => todos::complete,
+            post TODO_RESTORE => todos::restore,
+            post TODO_LISTS => todo_lists::create,
+            put TODO_LIST => todo_lists::rename,
+            delete TODO_LIST => todo_lists::delete,
+            get TODO_LIST_COMPLETED => todo_lists::completed,
+            delete TODO_LIST_COMPLETED => todo_lists::clear_completed,
         }
     };
 }

@@ -277,3 +277,33 @@ export function refreshJottings(client: QueryClient) {
   void client.invalidateQueries({ queryKey: ["jottings", "list"] });
   void client.invalidateQueries({ queryKey: ["jottings", "overview"] });
 }
+
+// 行事's lists and open tasks. Every change writes the cached board in place first, so the page
+// answers at once; a failed change refetches it.
+export function todoBoardOptions() {
+  return {
+    queryKey: ["todos", "board"],
+    queryFn: () => apiData(api.GET("/api/todos")),
+  };
+}
+// One list's finished tasks, fetched when the list is open.
+export function completedTodosOptions(list: string) {
+  return {
+    queryKey: ["todos", "completed", list],
+    queryFn: () =>
+      apiData(
+        api.GET("/api/todo-lists/{id}/completed", {
+          params: { path: { id: list } },
+        }),
+      ),
+  };
+}
+// A task's body, read when its panel opens and never shared with another view.
+export function todoBodyOptions(id: string) {
+  return {
+    queryKey: ["todos", "body", id],
+    queryFn: () =>
+      apiData(api.GET("/api/todos/{id}/body", { params: { path: { id } } })),
+    staleTime: 0,
+  };
+}
