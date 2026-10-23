@@ -1,0 +1,1306 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<!--
+  PROTOTYPE · 行事 page: 今日 and every list in a left column, the open one on the right.
+  The circle before a today task marks it done for today (count + 1), which is not
+  completing it; 完成 files it under 已完成. `p` or 安排 plans the day in place from every
+  list but the inbox, skipping tasks set aside (搁置). Right-click or `···` opens a task's
+  menu; rows drag within a list, ordered by fractional-index keys. `n` adds a task to the
+  open list (from 今日, to the inbox), Esc closes whatever is open. Nothing is saved.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>行事</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="components.css">
+  <script src="ornament.js"></script>
+  <script src="shared.js"></script>
+  <script src="5-todo-data.js"></script>
+  <style>
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    /*
+     * Wider than the default sheet so the list column and the tasks can stand
+     * well apart, but short of 回响's 1200px: rows here are one line each.
+     */
+    .sheet {
+      max-width: 920px;
+    }
+
+    .muted {
+      color: var(--text-3);
+    }
+
+    /* ---------- Section heads ---------- */
+
+    .head {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      margin: 0 0 18px;
+    }
+
+    .head h1,
+    .head h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: var(--font-size-3xl);
+      font-weight: 400;
+    }
+
+    .head .meta {
+      margin: 0;
+    }
+
+    /* Quiet text actions at the end of a head line. */
+    .head-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 16px;
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    .head-actions button:hover,
+    .text-action:hover {
+      color: var(--accent-hover);
+    }
+
+    .text-action {
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    .group-name {
+      margin: 22px 0 4px;
+      color: var(--text-3);
+      font-family: var(--font-display);
+      font-size: var(--font-size-lg);
+    }
+
+    .group-name:first-child {
+      margin-top: 0;
+    }
+
+    /* ---------- Task rows ---------- */
+
+    .rows {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .row {
+      position: relative;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 7px 0;
+      font-family: var(--font-content);
+    }
+
+    .row.dragging {
+      opacity: .4;
+    }
+
+    .row.drop-above {
+      box-shadow: 0 -1px 0 var(--accent);
+    }
+
+    .row.drop-below {
+      box-shadow: 0 1px 0 var(--accent);
+    }
+
+    /*
+     * Done for today: a filled circle and faded words, but no strike-through.
+     * The task is still open; only completion strikes it out.
+     */
+    .tick {
+      flex: none;
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid var(--text-3);
+      border-radius: var(--radius-round);
+      transform: translateY(2px);
+    }
+
+    .tick:hover {
+      border-color: var(--success);
+    }
+
+    .row.done .tick {
+      background: var(--success);
+      border-color: var(--success);
+    }
+
+    .row.done .title {
+      color: var(--text-3);
+    }
+
+    /* Plain list rows have no circle; a hairline dash keeps titles aligned with today's. */
+    .dash {
+      flex: none;
+      width: 14px;
+      color: var(--text-3);
+      text-align: center;
+    }
+
+    .title {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Set aside: still listed, but a step quieter than the tasks in play. */
+    .row.shelved .title {
+      color: var(--text-2);
+    }
+
+    .title[href]:hover {
+      color: var(--accent-hover);
+    }
+
+    .title-input {
+      flex: 1;
+      min-width: 0;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--text-3);
+      outline: none;
+    }
+
+    /* 正文 and the link arrow: words, not icons. */
+    .marks {
+      flex: none;
+      display: flex;
+      gap: 8px;
+      color: var(--text-3);
+      font-size: var(--font-size-xs);
+    }
+
+    .marks button:hover {
+      color: var(--accent-hover);
+    }
+
+    .aside {
+      flex: none;
+      margin-left: auto;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      color: var(--text-3);
+      font-size: var(--font-size-xs);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .when.today {
+      color: var(--accent);
+    }
+
+    /* Row actions show on hover only; the row stays text when the pointer is elsewhere. */
+    .hover-only {
+      visibility: hidden;
+    }
+
+    .row:hover .hover-only,
+    .row:focus-within .hover-only {
+      visibility: visible;
+    }
+
+    .more {
+      padding: 0 2px;
+      letter-spacing: 1px;
+    }
+
+    .send {
+      color: var(--text-3);
+      font-size: var(--font-size-xs);
+    }
+
+    .more:hover,
+    .send:hover {
+      color: var(--accent-hover);
+    }
+
+    .add {
+      display: block;
+      width: 100%;
+      margin: 0 0 10px;
+      padding: 6px 0;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      outline: none;
+      font-family: var(--font-content);
+    }
+
+    .add:focus {
+      border-bottom-color: var(--text-3);
+    }
+
+    .add::placeholder {
+      color: var(--text-3);
+    }
+
+    .empty {
+      padding: 7px 0;
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    /* ---------- Completed ---------- */
+
+    .completed {
+      margin-top: 28px;
+    }
+
+    .completed-head {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    .completed-head button:hover {
+      color: var(--text-2);
+    }
+
+    .completed-head .clear {
+      margin-left: auto;
+    }
+
+    .completed .title {
+      color: var(--text-3);
+      text-decoration: line-through;
+      text-decoration-color: color-mix(in srgb, var(--text-3) 60%, transparent);
+    }
+
+    /* ---------- Planning ---------- */
+
+    .plan-row {
+      cursor: pointer;
+    }
+
+    /* A square, not today's circle: here it means "take this one", not "done". */
+    .pick {
+      flex: none;
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid var(--text-3);
+      border-radius: 3px;
+      transform: translateY(2px);
+    }
+
+    .plan-row.picked .pick {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .plan-row.taken {
+      cursor: default;
+    }
+
+    .plan-row.taken .pick {
+      border-style: dotted;
+    }
+
+    .plan-row.taken .title {
+      color: var(--text-3);
+    }
+
+    .plan-bar {
+      display: flex;
+      gap: 18px;
+      margin-left: auto;
+      font-size: var(--font-size-sm);
+    }
+
+    .plan-bar .go {
+      color: var(--accent);
+    }
+
+    .plan-bar .go:hover {
+      color: var(--accent-hover);
+    }
+
+    .plan-bar .cancel {
+      color: var(--text-3);
+    }
+
+    /* ---------- Layout: lists on the left, the open one on the right ---------- */
+
+    .b-grid {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 104px;
+      margin-top: 70px;
+    }
+
+    .b-side {
+      position: sticky;
+      top: 32px;
+      align-self: start;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-family: var(--font-display);
+      font-size: var(--font-size-lg);
+    }
+
+    .b-side button {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      color: var(--text-3);
+      text-align: left;
+    }
+
+    .b-side button:hover {
+      color: var(--text-2);
+    }
+
+    .b-side button[aria-current="page"] {
+      color: var(--text);
+    }
+
+    .b-side small {
+      font-family: var(--font-ui);
+      font-size: var(--font-size-xs);
+      color: var(--text-3);
+    }
+
+    /* 今日 stands apart from the lists it is drawn from. */
+    .b-side .gap {
+      height: 10px;
+    }
+
+    .new-list {
+      width: 100%;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--text-3);
+      outline: none;
+      font-family: var(--font-display);
+      font-size: var(--font-size-lg);
+    }
+
+    /* ---------- Menu ---------- */
+
+    .menu {
+      position: fixed;
+      z-index: 20;
+      min-width: 148px;
+      padding: 6px 0;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 8px 24px rgb(0 0 0 / .14);
+      font-size: var(--font-size-sm);
+    }
+
+    .menu[hidden] {
+      display: none;
+    }
+
+    .menu button {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      width: 100%;
+      padding: 5px 14px;
+      text-align: left;
+    }
+
+    .menu button:hover {
+      background: var(--bg-sunken);
+    }
+
+    .menu button[aria-current="true"] {
+      color: var(--accent);
+    }
+
+    .menu .danger {
+      color: var(--accent);
+    }
+
+    .menu kbd {
+      color: var(--text-3);
+      font-family: var(--font-ui);
+    }
+
+    .menu hr {
+      margin: 6px 0;
+      border: 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .menu .back {
+      color: var(--text-3);
+    }
+
+    .menu input {
+      display: block;
+      width: calc(100% - 28px);
+      margin: 4px 14px 6px;
+      padding: 3px 0;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--text-3);
+      outline: none;
+      font-size: var(--font-size-sm);
+    }
+
+    /* ---------- Panel for 正文 ---------- */
+
+    .panel {
+      position: fixed;
+      z-index: 15;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(520px, 100vw);
+      display: flex;
+      flex-direction: column;
+      padding: 36px 36px 28px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      box-shadow: -12px 0 32px rgb(0 0 0 / .1);
+    }
+
+    .panel[hidden] {
+      display: none;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: var(--font-display);
+      font-size: var(--font-size-2xl);
+      font-weight: 400;
+    }
+
+    .panel-head span {
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    .panel-head button {
+      margin-left: auto;
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    .panel textarea {
+      flex: 1;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      outline: none;
+      resize: none;
+      color: var(--text);
+      font-family: var(--font-content);
+      font-size: var(--font-size-base);
+      line-height: 1.7;
+    }
+
+    /* ---------- Toast with undo ---------- */
+
+    .toast {
+      position: fixed;
+      z-index: 25;
+      left: 50%;
+      bottom: 72px;
+      display: flex;
+      gap: 16px;
+      padding: 8px 16px;
+      transform: translateX(-50%);
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgb(0 0 0 / .12);
+      font-size: var(--font-size-sm);
+    }
+
+    .toast[hidden] {
+      display: none;
+    }
+
+    .toast button {
+      color: var(--accent);
+    }
+
+    @media (max-width: 720px) {
+
+      .b-grid {
+        grid-template-columns: 1fr;
+        gap: 32px;
+        margin-top: 41px;
+      }
+
+      .b-side {
+        position: static;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="sheet">
+    <palace-header active="行事"></palace-header>
+    <div id="app"></div>
+  </main>
+
+  <div class="menu" id="menu" hidden></div>
+  <aside class="panel" id="panel" hidden></aside>
+  <div class="toast" id="toast" hidden></div>
+
+  <script>
+    const { lists, todos } = globalThis.todoData;
+    const app = document.getElementById("app");
+    const menu = document.getElementById("menu");
+    const panel = document.getElementById("panel");
+    const toast = document.getElementById("toast");
+
+    const INBOX = 0;
+    const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+
+    // `view` is "today" or the id of the list on the right.
+    const ui = {
+      view: "today",
+      planning: false,
+      picked: new Set(),
+      adding: false,
+      newList: false,
+      editing: null,
+      completedOpen: false,
+    };
+
+    // ---------- Fractional indexing ----------
+
+    /*
+     * Order keys as in rocicorp/fractional-indexing: an integer part whose
+     * length is encoded in its head letter, then a base-62 fraction. Moving a
+     * task writes one new key between its new neighbours and touches no other
+     * row, and appending at either end grows the integer part instead of the
+     * fraction, so keys stay short. Keys compare as plain strings (code-unit
+     * order, never localeCompare), smallest on top.
+     */
+    const DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+    // A fraction strictly between a and b (b null = 1); neither may end in "0".
+    const midpoint = (a, b) => {
+      if (b !== null) {
+        let n = 0;
+        while ((a[n] || "0") === b[n]) n++;
+        if (n > 0) return b.slice(0, n) + midpoint(a.slice(n), b.slice(n));
+      }
+      const digitA = a ? DIGITS.indexOf(a[0]) : 0;
+      const digitB = b !== null ? DIGITS.indexOf(b[0]) : DIGITS.length;
+      if (digitB - digitA > 1) return DIGITS[Math.round((digitA + digitB) / 2)];
+      if (b !== null && b.length > 1) return b.slice(0, 1);
+      return DIGITS[digitA] + midpoint(a.slice(1), null);
+    };
+
+    // a..z head a 2..27-char integer counting up; Z..A head one counting down below "a0".
+    const integerLength = (head) =>
+      head >= "a" ? head.charCodeAt(0) - 97 + 2 : 90 - head.charCodeAt(0) + 2;
+    const integerPart = (key) => key.slice(0, integerLength(key[0]));
+
+    const incrementInteger = (x) => {
+      const [head, ...digits] = x.split("");
+      for (let i = digits.length - 1; i >= 0; i--) {
+        const d = DIGITS.indexOf(digits[i]) + 1;
+        if (d < DIGITS.length) {
+          digits[i] = DIGITS[d];
+          return head + digits.join("");
+        }
+        digits[i] = "0";
+      }
+      // Every digit carried over: move to the next head, one digit longer above "a".
+      if (head === "Z") return "a0";
+      if (head === "z") return null;
+      const next = String.fromCharCode(head.charCodeAt(0) + 1);
+      if (next > "a") digits.push("0");
+      else digits.pop();
+      return next + digits.join("");
+    };
+
+    const decrementInteger = (x) => {
+      const [head, ...digits] = x.split("");
+      for (let i = digits.length - 1; i >= 0; i--) {
+        const d = DIGITS.indexOf(digits[i]) - 1;
+        if (d >= 0) {
+          digits[i] = DIGITS[d];
+          return head + digits.join("");
+        }
+        digits[i] = "z";
+      }
+      if (head === "a") return "Zz";
+      if (head === "A") return null;
+      const next = String.fromCharCode(head.charCodeAt(0) - 1);
+      if (next < "Z") digits.push("z");
+      else digits.pop();
+      return next + digits.join("");
+    };
+
+    // A key strictly between a and b; null stands for the open end of the list.
+    const keyBetween = (a, b) => {
+      if (a === null && b === null) return "a0";
+      if (a === null) {
+        const ib = integerPart(b);
+        if (ib < b) return ib;
+        return decrementInteger(ib) ?? ib + midpoint("", b.slice(ib.length));
+      }
+      const ia = integerPart(a);
+      const fa = a.slice(ia.length);
+      if (b === null) return incrementInteger(ia) ?? ia + midpoint(fa, null);
+      const ib = integerPart(b);
+      if (ia === ib) return ia + midpoint(fa, b.slice(ib.length));
+      const next = incrementInteger(ia);
+      return next !== null && next < b ? next : ia + midpoint(fa, null);
+    };
+
+    const byOrder = (a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0);
+
+    // The sample rows come in display order; give each list its keys top to bottom.
+    for (const list of lists) {
+      let last = null;
+      for (const todo of todos.filter((t) => t.list === list.id)) todo.order = last = keyBetween(last, null);
+    }
+
+    // ---------- Dates ----------
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const dayKey = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    const offsetKey = (days) => {
+      const date = new Date();
+      date.setDate(date.getDate() + days);
+      return dayKey(date);
+    };
+    const todayKey = () => dayKey(new Date());
+    const parseDay = (key) => {
+      const [y, m, d] = key.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+
+    // A date in the past is a plan that lapsed; it behaves like no plan at all.
+    const scheduleOf = (todo) => {
+      if (todo.schedule === null) return null;
+      if (todo.schedule === "shelved") return "shelved";
+      return todo.schedule < todayKey() ? null : todo.schedule;
+    };
+    const isToday = (todo) => scheduleOf(todo) === todayKey();
+    const isShelved = (todo) => scheduleOf(todo) === "shelved";
+
+    // Short words for a plan: 今日, 明日, a weekday within the week, else month and day.
+    const whenLabel = (todo) => {
+      const schedule = scheduleOf(todo);
+      if (schedule === null) return "";
+      if (schedule === "shelved") return "搁置";
+      const days = Math.round((parseDay(schedule) - parseDay(todayKey())) / 86_400_000);
+      if (days === 0) return "今日";
+      if (days === 1) return "明日";
+      const date = parseDay(schedule);
+      if (days < 7) return WEEKDAYS[date.getDay()];
+      return `${date.getMonth() + 1}月${date.getDate()}日`;
+    };
+
+    const completedLabel = (stamp) => {
+      const [date, time] = stamp.split("T");
+      return `${date.replaceAll("-", "/")} ${time}`;
+    };
+
+    // ---------- Queries ----------
+
+    const open = (list) => todos.filter((t) => t.list === list && !t.completedAt).sort(byOrder);
+    const completed = (list) =>
+      todos.filter((t) => t.list === list && t.completedAt).sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+    const today = () => todos.filter((t) => !t.completedAt && isToday(t));
+    const byId = (id) => todos.find((t) => t.id === id);
+    const listName = (id) => lists.find((l) => l.id === id).name;
+    const firstKey = (list) => open(list)[0]?.order ?? null;
+    const lastKey = (list) => open(list).at(-1)?.order ?? null;
+
+    // Today's tasks and planning candidates both keep each list's own order.
+    const todayGroups = () =>
+      lists
+        .map((list) => ({ list, items: open(list.id).filter(isToday) }))
+        .filter((g) => g.items.length);
+
+    // What planning offers: open tasks outside the inbox that are not set aside.
+    const planGroups = () =>
+      lists
+        .filter((list) => list.id !== INBOX)
+        .map((list) => ({ list, items: open(list.id).filter((t) => !isShelved(t)) }))
+        .filter((g) => g.items.length);
+
+    // ---------- Rendering ----------
+
+    const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+    const titleHtml = (todo) => {
+      if (ui.editing === todo.id) {
+        return `<input class="title-input" data-rename="${todo.id}" value="${esc(todo.title)}">`;
+      }
+      return todo.link
+        ? `<a class="title" href="${esc(todo.link)}" target="_blank" rel="noreferrer">${esc(todo.title)}</a>`
+        : `<span class="title">${esc(todo.title)}</span>`;
+    };
+
+    const marksHtml = (todo) => {
+      const marks = [];
+      if (todo.link) marks.push("<span>↗</span>");
+      if (todo.draft) marks.push(`<button data-act="draft" data-id="${todo.id}">正文</button>`);
+      return marks.length ? `<span class="marks">${marks.join("")}</span>` : "";
+    };
+
+    /*
+     * One task line. Today rows lead with the done circle; list rows lead
+     * with a dash, show when the task is planned, and can be dragged.
+     */
+    const rowHtml = (todo, context) => {
+      const lead =
+        context === "today"
+          ? `<button class="tick" data-act="tick" data-id="${todo.id}" aria-label="今日已做"></button>`
+          : `<span class="dash">·</span>`;
+      const aside = [];
+      const when = whenLabel(todo);
+      if (context === "list" && when) aside.push(`<span class="when${isToday(todo) ? " today" : ""}">${when}</span>`);
+      aside.push(`<button class="more hover-only" data-act="menu" data-id="${todo.id}" aria-label="更多">···</button>`);
+      const classes = ["row"];
+      if (context === "today" && todo.done) classes.push("done");
+      if (isShelved(todo)) classes.push("shelved");
+      return `<li class="${classes.join(" ")}" data-id="${todo.id}" draggable="${context === "list"}">
+        ${lead}${titleHtml(todo)}${marksHtml(todo)}<span class="aside">${aside.join("")}</span></li>`;
+    };
+
+    const todayHead = () => {
+      const date = new Date();
+      const items = today();
+      const doneCount = items.filter((t) => t.done).length;
+      const facts = [`${date.getMonth() + 1}月${date.getDate()}日`, WEEKDAYS[date.getDay()]];
+      if (items.length) facts.push(`${doneCount} / ${items.length}`);
+      const action = ui.planning
+        ? `<span class="plan-bar">
+             <button class="cancel" data-act="plan-cancel">取消</button>
+             <button class="go" data-act="plan-go">排入今日${ui.picked.size ? `（${ui.picked.size}）` : ""}</button>
+           </span>`
+        : `<span class="head-actions"><button data-act="plan-open">安排</button></span>`;
+      return `<div class="head"><h1>今日</h1>
+        <p class="meta">${facts.map((f) => `<span>${f}</span>`).join("")}</p>${action}</div>`;
+    };
+
+    const todayBody = () => {
+      if (ui.planning) return planBody();
+      const groups = todayGroups();
+      if (!groups.length) return `<p class="empty">今天还没有安排。</p>`;
+      return groups
+        .map((g) => `<div class="group-name">${esc(g.list.name)}</div>
+          <ul class="rows">${g.items.map((t) => rowHtml(t, "today")).join("")}</ul>`)
+        .join("");
+    };
+
+    /*
+     * Planning, drawn where 今日's tasks were: every candidate grouped by list.
+     * Tasks already on a day are shown but cannot be picked, so the whole
+     * picture stays in view; moving them is done from their own menu.
+     */
+    const planBody = () =>
+      planGroups()
+        .map((g) => `<div class="group-name">${esc(g.list.name)}</div>
+          <ul class="rows">${g.items
+            .map((t) => {
+              const taken = scheduleOf(t) !== null;
+              const cls = taken ? " taken" : ui.picked.has(t.id) ? " picked" : "";
+              const aside = taken ? `<span class="when${isToday(t) ? " today" : ""}">${whenLabel(t)}</span>` : "";
+              return `<li class="row plan-row${cls}" data-act="${taken ? "" : "pick"}" data-id="${t.id}">
+                <span class="pick"></span><span class="title">${esc(t.title)}</span>
+                <span class="aside">${aside}</span></li>`;
+            })
+            .join("")}</ul>`)
+        .join("");
+
+    const listBody = (listId) => {
+      const items = open(listId);
+      const done = completed(listId);
+      const add = ui.adding ? `<input class="add" id="add" placeholder="新任务，回车添加">` : "";
+      const rows = items.length
+        ? `<ul class="rows" data-list="${listId}">${items.map((t) => rowHtml(t, "list")).join("")}</ul>`
+        : ui.adding
+          ? ""
+          : `<p class="empty">没有任务。</p>`;
+      let tail = "";
+      if (done.length) {
+        tail = `<div class="completed"><div class="completed-head">
+            <button data-act="toggle-completed">已完成 ${done.length} ${ui.completedOpen ? "▴" : "▾"}</button>
+            ${ui.completedOpen ? `<button class="clear" data-act="clear" data-list="${listId}">清空</button>` : ""}
+          </div>${ui.completedOpen
+            ? `<ul class="rows">${done
+              .map((t) => `<li class="row" data-id="${t.id}"><span class="dash">·</span>${titleHtml(t)}${marksHtml(t)}
+                  <span class="aside">${t.count ? `<span>${t.count} 天</span>` : ""}
+                  <span>${completedLabel(t.completedAt)}</span>
+                  <button class="send hover-only" data-act="restore" data-id="${t.id}">恢复</button>
+                  <button class="send hover-only" data-act="delete" data-id="${t.id}">删除</button></span></li>`)
+              .join("")}</ul>`
+            : ""}</div>`;
+      }
+      return add + rows + tail;
+    };
+
+    // A contents column; the right side shows 今日 or one list.
+    const render = () => {
+      const side = lists
+        .map((l) => {
+          const n = open(l.id).length;
+          const current = ui.view === l.id ? ' aria-current="page"' : "";
+          return `<button data-act="view" data-list="${l.id}"${current}>${esc(l.name)}<small>${n || ""}</small></button>`;
+        })
+        .join("");
+      const todayCurrent = ui.view === "today" ? ' aria-current="page"' : "";
+      const items = today();
+      const main =
+        ui.view === "today"
+          ? todayHead() + todayBody()
+          : `<div class="head"><h1>${esc(listName(ui.view))}</h1></div>${listBody(ui.view)}`;
+      app.innerHTML = `<div class="b-grid">
+        <nav class="b-side" aria-label="集合">
+          <button data-act="view" data-list="today"${todayCurrent}>今日<small>${items.length ? `${items.filter((t) => t.done).length}/${items.length}` : ""}</small></button>
+          <span class="gap"></span>${side}
+          ${ui.newList ? `<input class="new-list" id="new-list" placeholder="集合名">` : `<button data-act="new-list">＋</button>`}
+        </nav>
+        <div>${main}</div></div>`;
+      const focus = app.querySelector("#add, #new-list, .title-input");
+      if (focus) {
+        focus.focus();
+        if (focus.classList.contains("title-input")) focus.select();
+      }
+    };
+
+    // ---------- Mutations ----------
+
+    let undo = null;
+    let toastTimer = 0;
+    const notify = (text, undoFn) => {
+      undo = undoFn;
+      toast.innerHTML = `<span>${esc(text)}</span>${undoFn ? `<button data-act="undo">撤销</button>` : ""}`;
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => (toast.hidden = true), 4000);
+    };
+
+    // Done for today counts a day of practice; undoing gives it back.
+    const tick = (todo) => {
+      todo.done = !todo.done;
+      todo.count += todo.done ? 1 : -1;
+    };
+
+    // Any new plan starts the day fresh, as the legacy UpdateSchedule did.
+    const schedule = (todo, value) => {
+      todo.schedule = value;
+      todo.done = false;
+    };
+
+    const complete = (todo) => {
+      const before = { ...todo };
+      const now = new Date();
+      todo.completedAt = `${todayKey()}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      notify(`已完成「${todo.title}」`, () => Object.assign(todo, before));
+    };
+
+    const remove = (todo) => {
+      const index = todos.indexOf(todo);
+      todos.splice(index, 1);
+      notify(`已删除「${todo.title}」`, () => todos.splice(index, 0, todo));
+    };
+
+    // ---------- Menu ----------
+
+    let menuTarget = null;
+    let menuPos = { x: 0, y: 0 };
+
+    const showMenu = (html, x, y) => {
+      menu.innerHTML = html;
+      menu.hidden = false;
+      const rect = menu.getBoundingClientRect();
+      menu.style.left = `${Math.min(x, innerWidth - rect.width - 8)}px`;
+      menu.style.top = `${Math.min(y, innerHeight - rect.height - 8)}px`;
+      menu.querySelector("input")?.focus();
+    };
+    const hideMenu = () => {
+      menu.hidden = true;
+      menuTarget = null;
+    };
+
+    const item = (act, label, extra = "") => `<button data-menu="${act}"${extra}>${label}</button>`;
+
+    // The legacy task menu minus difficulty, the TimeTagger start and the board.
+    const taskMenu = (todo) => {
+      const parts = [];
+      if (isToday(todo)) parts.push(item("tick", todo.done ? "撤销今日已做" : "今日已做"));
+      parts.push(item("complete", "完成"), item("schedule", "排期…"), "<hr>");
+      parts.push(item("rename", "改名"), item("link", todo.link ? "链接…" : "加链接…"));
+      parts.push(item("draft", todo.draft ? "正文" : "写正文"));
+      parts.push("<hr>", item("top", "置顶"), item("bottom", "置底"), item("move", "移到…"), "<hr>");
+      parts.push(item("delete", "删除", ' class="danger"'));
+      return parts.join("");
+    };
+
+    const scheduleMenu = (todo) => {
+      const current = scheduleOf(todo);
+      const mark = (value) => (current === value ? ' aria-current="true"' : "");
+      const dated = current !== null && current !== "shelved";
+      return [
+        item("back", "‹ 返回", ' class="back"'),
+        item("sch-today", "今日", mark(offsetKey(0))),
+        item("sch-tomorrow", "明日", mark(offsetKey(1))),
+        `<input type="date" data-date value="${dated ? current : ""}" min="${todayKey()}">`,
+        "<hr>",
+        isShelved(todo) ? item("sch-clear", "取消搁置") : item("sch-shelve", "搁置", ' title="安排今日时不再列出"'),
+        dated ? item("sch-clear", "清除排期") : "",
+      ].join("");
+    };
+
+    const moveMenu = (todo) =>
+      [item("back", "‹ 返回", ' class="back"')]
+        .concat(
+          lists.map((l) =>
+            item(`move-${l.id}`, esc(l.name), l.id === todo.list ? ' aria-current="true" disabled' : ""),
+          ),
+        )
+        .join("");
+
+    const linkMenu = (todo) =>
+      [
+        item("back", "‹ 返回", ' class="back"'),
+        `<input data-link placeholder="https://…（留空即移除）" value="${esc(todo.link)}">`,
+      ].join("");
+
+    const listMenu = (list) =>
+      [item("list-rename", "改名"), list.id === INBOX ? "" : item("list-delete", "删除集合", ' class="danger"')].join("");
+
+    const openTaskMenu = (todo, x, y) => {
+      menuTarget = { kind: "task", todo };
+      menuPos = { x, y };
+      showMenu(taskMenu(todo), x, y);
+    };
+    const swapMenu = (html) => showMenu(html, menuPos.x, menuPos.y);
+
+    const runMenu = (act) => {
+      if (menuTarget.kind === "list") {
+        const { list } = menuTarget;
+        hideMenu();
+        if (act === "list-rename") {
+          const name = prompt("集合名", list.name);
+          if (name?.trim()) list.name = name.trim();
+        }
+        if (act === "list-delete" && confirm(`删除「${list.name}」和其中的全部任务？`)) {
+          lists.splice(lists.indexOf(list), 1);
+          for (let i = todos.length - 1; i >= 0; i--) if (todos[i].list === list.id) todos.splice(i, 1);
+          if (ui.view === list.id) ui.view = "today";
+        }
+        render();
+        return;
+      }
+      const { todo } = menuTarget;
+      const submenus = { schedule: scheduleMenu, move: moveMenu, link: linkMenu };
+      if (submenus[act]) return swapMenu(submenus[act](todo));
+      if (act === "back") return swapMenu(taskMenu(todo));
+      hideMenu();
+      if (act === "tick") tick(todo);
+      if (act === "complete") complete(todo);
+      if (act === "sch-today") schedule(todo, offsetKey(0));
+      if (act === "sch-tomorrow") schedule(todo, offsetKey(1));
+      if (act === "sch-shelve") schedule(todo, "shelved");
+      if (act === "sch-clear") schedule(todo, null);
+      if (act === "rename") ui.editing = todo.id;
+      if (act === "draft") return openDraft(todo);
+      if (act === "top") todo.order = keyBetween(null, firstKey(todo.list));
+      if (act === "bottom") todo.order = keyBetween(lastKey(todo.list), null);
+      if (act.startsWith("move-")) {
+        const dst = Number(act.slice(5));
+        todo.order = keyBetween(null, firstKey(dst));
+        todo.list = dst;
+        // The inbox is never planned from, so a task moved there leaves today.
+        if (dst === INBOX && scheduleOf(todo) !== null) schedule(todo, null);
+        notify(`已移到「${listName(dst)}」`);
+      }
+      if (act === "delete") remove(todo);
+      render();
+    };
+
+    // ---------- Panel ----------
+
+    const openDraft = (todo) => {
+      panel.innerHTML = `<div class="panel-head"><h2>${esc(todo.title)}</h2><span>正文</span>
+        <button data-act="close-panel">关闭</button></div>
+        <textarea data-draft="${todo.id}" placeholder="写点什么">${esc(todo.draft)}</textarea>`;
+      panel.hidden = false;
+      panel.querySelector("textarea").focus();
+    };
+
+    const closePanel = () => {
+      panel.hidden = true;
+      render();
+    };
+
+    // ---------- Events ----------
+
+    document.addEventListener("click", (e) => {
+      const menuButton = e.target.closest("[data-menu]");
+      if (menuButton) return runMenu(menuButton.dataset.menu);
+      if (!menu.hidden && !e.target.closest(".menu")) hideMenu();
+
+      const target = e.target.closest("[data-act]");
+      if (!target || !target.dataset.act) return;
+      const act = target.dataset.act;
+      const todo = target.dataset.id ? byId(Number(target.dataset.id)) : null;
+
+      switch (act) {
+        case "tick":
+          tick(todo);
+          break;
+        case "menu": {
+          e.stopPropagation();
+          const rect = target.getBoundingClientRect();
+          return openTaskMenu(todo, rect.right - 148, rect.bottom + 4);
+        }
+        case "draft":
+          return openDraft(todo);
+        case "close-panel":
+          return closePanel();
+        case "plan-open":
+          ui.planning = true;
+          ui.picked = new Set();
+          break;
+        case "plan-cancel":
+          ui.planning = false;
+          break;
+        case "pick":
+          ui.picked.has(todo.id) ? ui.picked.delete(todo.id) : ui.picked.add(todo.id);
+          break;
+        case "plan-go":
+          for (const id of ui.picked) schedule(byId(id), todayKey());
+          ui.planning = false;
+          break;
+        case "view":
+          ui.view = target.dataset.list === "today" ? "today" : Number(target.dataset.list);
+          ui.planning = false;
+          ui.adding = false;
+          break;
+        case "new-list":
+          ui.newList = true;
+          break;
+        case "toggle-completed":
+          ui.completedOpen = !ui.completedOpen;
+          break;
+        case "restore":
+          todo.completedAt = null;
+          todo.order = keyBetween(null, firstKey(todo.list));
+          notify(`已恢复到「${listName(todo.list)}」`);
+          break;
+        case "delete":
+          remove(todo);
+          break;
+        case "clear": {
+          const list = Number(target.dataset.list);
+          const removed = completed(list);
+          if (!confirm(`清空「${listName(list)}」的 ${removed.length} 个已完成任务？`)) return;
+          for (const t of removed) todos.splice(todos.indexOf(t), 1);
+          break;
+        }
+        case "undo":
+          undo?.();
+          undo = null;
+          toast.hidden = true;
+          break;
+        default:
+          return;
+      }
+      render();
+    });
+
+    // Right-click a task for its menu, or a list name for the list's.
+    document.addEventListener("contextmenu", (e) => {
+      const row = e.target.closest(".row[data-id]:not(.plan-row)");
+      if (row && !byId(Number(row.dataset.id)).completedAt) {
+        e.preventDefault();
+        return openTaskMenu(byId(Number(row.dataset.id)), e.clientX, e.clientY);
+      }
+      const listButton = e.target.closest("button[data-list]:not([data-list='today'])");
+      if (listButton) {
+        e.preventDefault();
+        menuTarget = { kind: "list", list: lists.find((l) => l.id === Number(listButton.dataset.list)) };
+        showMenu(listMenu(menuTarget.list), e.clientX, e.clientY);
+      }
+    });
+
+    document.addEventListener("dblclick", (e) => {
+      const row = e.target.closest(".row[data-id]:not(.plan-row)");
+      if (!row || !e.target.closest(".title")) return;
+      e.preventDefault();
+      ui.editing = Number(row.dataset.id);
+      render();
+    });
+
+    // Text inputs: add, rename, new list, link.
+    document.addEventListener("keydown", (e) => {
+      const input = e.target;
+      if (input.matches("input") && e.key === "Enter" && !e.isComposing) {
+        const value = input.value.trim();
+        if (input.id === "add") {
+          if (value) {
+            const list = ui.view;
+            todos.push({
+              id: Math.max(...todos.map((t) => t.id)) + 1, list, title: value, order: keyBetween(null, firstKey(list)),
+              schedule: null, done: false, count: 0, link: "", draft: "", completedAt: null,
+            });
+          }
+          input.value = "";
+          render();
+          return;
+        }
+        if (input.dataset.rename) {
+          if (value) byId(Number(input.dataset.rename)).title = value;
+          ui.editing = null;
+          return render();
+        }
+        if (input.id === "new-list") {
+          if (value) {
+            const id = Math.max(...lists.map((l) => l.id)) + 1;
+            lists.push({ id, name: value });
+            ui.view = id;
+          }
+          ui.newList = false;
+          return render();
+        }
+        if (input.matches("[data-link]")) {
+          menuTarget.todo.link = value;
+          hideMenu();
+          return render();
+        }
+      }
+      if (e.key === "Escape") {
+        if (!menu.hidden) return hideMenu();
+        if (!panel.hidden) return closePanel();
+        if (ui.editing || ui.adding || ui.newList || ui.planning) {
+          Object.assign(ui, { editing: null, adding: false, newList: false, planning: false });
+          return render();
+        }
+      }
+      if (input.closest("input, textarea, [contenteditable]") || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "n") {
+        e.preventDefault();
+        // The add box needs a list on screen; from 今日 a new task lands in the inbox buffer.
+        if (ui.view === "today") ui.view = INBOX;
+        ui.planning = false;
+        ui.adding = true;
+        render();
+      }
+      if (e.key === "p") {
+        ui.view = "today";
+        ui.planning = true;
+        ui.picked = new Set();
+        render();
+      }
+    });
+
+    document.addEventListener("change", (e) => {
+      if (e.target.matches("[data-date]") && e.target.value) {
+        schedule(menuTarget.todo, e.target.value);
+        hideMenu();
+        render();
+      }
+    });
+
+    document.addEventListener("input", (e) => {
+      if (e.target.dataset.draft) byId(Number(e.target.dataset.draft)).draft = e.target.value;
+    });
+
+    // Leaving a rename box keeps what was typed, as Enter does.
+    document.addEventListener("focusout", (e) => {
+      if (e.target.dataset?.rename) {
+        const value = e.target.value.trim();
+        if (value) byId(Number(e.target.dataset.rename)).title = value;
+        ui.editing = null;
+        setTimeout(render);
+      }
+    });
+
+    /*
+     * Dragging within a list. The slot comes from the pointer's height against
+     * the other rows' midlines, wherever the pointer is on the page, so
+     * overshooting above the first row or below the last still lands at that
+     * end. Dropping writes one key between the new neighbours.
+     */
+    let dragged = null;
+    let slot = null;
+
+    const dropSlot = (y) => {
+      const rows = [...app.querySelectorAll(".rows[data-list] > .row")].filter((r) => Number(r.dataset.id) !== dragged.id);
+      const index = rows.filter((r) => {
+        const rect = r.getBoundingClientRect();
+        return rect.top + rect.height / 2 < y;
+      }).length;
+      return { rows, index };
+    };
+
+    document.addEventListener("dragstart", (e) => {
+      const row = e.target.closest(".row[draggable='true']");
+      if (!row) return;
+      dragged = byId(Number(row.dataset.id));
+      row.classList.add("dragging");
+    });
+    document.addEventListener("dragover", (e) => {
+      if (!dragged) return;
+      e.preventDefault();
+      slot = dropSlot(e.clientY);
+      app.querySelectorAll(".drop-above, .drop-below").forEach((r) => r.classList.remove("drop-above", "drop-below"));
+      const { rows, index } = slot;
+      if (index < rows.length) rows[index].classList.add("drop-above");
+      else rows.at(-1)?.classList.add("drop-below");
+    });
+    document.addEventListener("drop", (e) => {
+      if (!dragged || !slot) return;
+      e.preventDefault();
+      const neighbours = slot.rows.map((r) => byId(Number(r.dataset.id)));
+      const before = neighbours[slot.index - 1]?.order ?? null;
+      const after = neighbours[slot.index]?.order ?? null;
+      dragged.order = keyBetween(before, after);
+    });
+    document.addEventListener("dragend", () => {
+      dragged = null;
+      slot = null;
+      render();
+    });
+
+    render();
+  </script>
+</body>
+
+</html>
