@@ -41,7 +41,7 @@ enum Command {
     /// Articles imported together with the local media their Markdown embeds.
     #[command(subcommand)]
     Article(Article),
-    /// Print each distinct frontmatter tag of the Markdown files below a directory, one per line;
+    /// Print each distinct frontmatter tag with its card count, one per line;
     /// needs no PAL_URL or PAL_TOKEN.
     Tags {
         #[arg(value_name = "PATH_TO_DIR")]
@@ -122,8 +122,8 @@ fn run(command: Command) -> Result<(), Failure> {
             println!("{}", client.upload_article(article)?);
         }
         Command::Tags { path } => {
-            for tag in tags::collect(&path)? {
-                println!("{tag}");
+            for tags::TagCount { tag, count } in tags::collect(&path)? {
+                println!("{tag} ({count})");
             }
         }
     }

@@ -84,7 +84,8 @@ pal article upload ./article-directory
   `PAL_TOKEN`，也不发出请求。全部合格时没有输出；否则 stderr 逐行列出每个问题，退出码为 1。可以作为札记
   仓库的 pre-commit hook，见[札记](../features/jottings/README.md)。
 - `pal tags <path-to-dir>` 递归读取目录下（跳过 `.git`）每个 `.md` 文件 frontmatter 的 `tags`，stdout 每行
-  输出一个标签。标签去重、不排序：文件按相对路径顺序读取，标签按首次出现的顺序输出。没有 frontmatter、
+  输出一个标签及其卡片计数，格式为 `标签 (数量)`（例如 `rust (3)`）；同一文件内重复的标签只计一次。
+  标签去重、不排序：文件按相对路径顺序读取，标签按首次出现的顺序输出。没有 frontmatter、
   frontmatter 为空或没有 `tags`（含 `tags:` 空值、空列表）的文件被跳过；`draft: true` 的文件照常读取。
   `tags` 必须是字符串列表，frontmatter 不是合法 YAML 映射或 `tags` 写成其他形式时，stderr 报告文件路径与原因，
   退出码为 1。不需要 `PAL_URL` 和 `PAL_TOKEN`，也不发出请求。

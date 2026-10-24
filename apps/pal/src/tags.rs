@@ -6,7 +6,11 @@ use crate::{
     markdown_tree::{markdown_files, unreadable},
 };
 use palace_domain::split_frontmatter;
-use std::{collections::HashSet, fs, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::Path,
+};
 use yaml_rust2::{Yaml, YamlLoader};
 
 /// Why a file's frontmatter cannot be read for tags.
@@ -22,21 +26,35 @@ pub(crate) enum Error {
     Tags,
 }
 
-/// Every distinct tag below `folder`, in the order it first appears when the files are read in
-/// path order and each file's tags in written order.
-pub(crate) fn collect(folder: &Path) -> Result<Vec<String>, Failure> {
-    let mut seen = HashSet::new();
-    let mut tags = Vec::new();
+/// A tag and the number of Markdown cards using it, counting each card only once.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct TagCount {
+    pub(crate) tag: String,
+    pub(crate) count: usize,
+}
+
+/// Every distinct tag with its card count, in the order it first appears when the files are read
+/// in path order and each file's tags in written order.
+pub(crate) fn collect(folder: &Path) -> Result<Vec<TagCount>, Failure> {
+    let mut positions = HashMap::new();
+    let mut tags: Vec<TagCount> = Vec::new();
     for (_, path) in markdown_files(folder)? {
         let bytes = fs::read(&path).map_err(unreadable(&path))?;
         let file_tags = read(&bytes).map_err(|error| Failure::Tags {
             path: path.clone(),
             error,
         })?;
+        let mut seen_in_card = HashSet::new();
         for tag in file_tags {
-            if seen.insert(tag.clone()) {
-                tags.push(tag);
+            // Repeated frontmatter entries must not inflate the number of cards using a tag.
+            if !seen_in_card.insert(tag.clone()) {
+                continue;
             }
+            let position = *positions.entry(tag.clone()).or_insert_with(|| {
+                tags.push(TagCount { tag, count: 0 });
+                tags.len() - 1
+            });
+            tags[position].count += 1;
         }
     }
     Ok(tags)
@@ -77,13 +95,13 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     /// Tags are read from every level, deduplicated in first-seen order, and files without
-    /// frontmatter or tags are skipped while drafts count.
+    /// frontmatter or tags are skipped while drafts count. Duplicate entries count once per card.
     #[test]
     fn collects_distinct_tags_in_first_seen_order() {
         let folder = tempfile::tempdir().unwrap();
         let root = folder.path();
         for (path, text) in [
-            ("b.md", "---\ntags: [rust, cli]\n---\n"),
+            ("b.md", "---\ntags: [rust, cli, rust]\n---\n"),
             ("a/z.md", "---\ntags:\n  - zeta\n  - rust\n---\nbody"),
             ("a/draft.md", "---\ndraft: true\ntags: [draft-tag]\n---\n"),
             ("a/untagged.md", "---\ntitle: x\n---\n"),
@@ -97,7 +115,14 @@ mod tests {
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, text).unwrap();
         }
-        assert_eq!(collect(root).unwrap(), ["draft-tag", "zeta", "rust", "cli"]);
+        let expected = [("draft-tag", 1), ("zeta", 1), ("rust", 2), ("cli", 1)]
+            .into_iter()
+            .map(|(tag, count)| TagCount {
+                tag: tag.to_owned(),
+                count,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(collect(root).unwrap(), expected);
     }
 
     /// A tags value that is not a list of strings names the file instead of being skipped.
