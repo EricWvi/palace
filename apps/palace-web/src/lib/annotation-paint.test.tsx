@@ -1,6 +1,6 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import {
   MarkdownContent,
   type ImagePolicy,
@@ -9,6 +9,16 @@ import { locate, type Mark, type Painting } from "./annotation-paint";
 import { scopeTexts, selectedText } from "./annotation-dom";
 
 const placeholder: ImagePolicy = { kind: "placeholder" };
+
+// jsdom cannot lay out SVG text, so mermaid draws a fixed diagram with text of its own.
+vi.mock("mermaid", () => ({
+  default: {
+    initialize: () => {},
+    render: async (id: string) => ({
+      svg: `<svg id="${id}" width="100%" viewBox="0 0 10 10"><text>图里的字</text></svg>`,
+    }),
+  },
+}));
 
 // Every structure whose rendered text could drift between the DOM and the syntax tree: inline
 // code, emphasis and links, a highlighted fence with its copy button, an image placeholder, a
@@ -239,4 +249,58 @@ it("folds runs of unmarked blocks", () => {
     </MemoryRouter>,
   );
   expect(scope().querySelectorAll(".fold-gap")).toHaveLength(runs.length - 1);
+});
+
+// A formula or diagram is no text to anchor in, on either side: a quote after one lands on its
+// own occurrence, not on an earlier one the skipped glyphs or source would shift it onto.
+// Core test cases:
+// - `specs/test-cases/web/stars/annotations.md#marks-must-land-on-the-text-that-was-selected`
+// - `specs/test-cases/server/conversation/markdown-content.md#formulas-and-diagrams-must-render-and-stay-out-of-annotations`
+it("leaves formulas and diagrams out of the annotation text", async () => {
+  const content = [
+    "乙 $x^2$ 乙",
+    "",
+    "$$",
+    "\\sum_i i",
+    "$$",
+    "",
+    "甲",
+    "",
+    "```mermaid",
+    "graph TD; A-->B",
+    "```",
+    "",
+    "甲",
+  ].join("\n");
+  const view = (painting?: Painting) => (
+    <MemoryRouter>
+      <MarkdownContent
+        content={content}
+        images={placeholder}
+        scope="article"
+        painting={painting}
+      />
+    </MemoryRouter>
+  );
+  const { rerender } = render(view());
+  await screen.findByRole("button", { name: "放大图表" });
+  const text = scopeTexts(scope())
+    .map((node) => node.data)
+    .join("");
+  expect(text.replace(/\s+/g, " ")).toBe("乙 乙 甲 甲");
+  const second = (quote: string) => {
+    const start = text.lastIndexOf(quote);
+    return select(start, start + quote.length)!;
+  };
+  const yi = second("乙");
+  const jia = second("甲");
+  rerender(view({ marks: [mark(yi, "yi"), mark(jia, "jia")], fold: null }));
+  const paragraphs = scope().querySelectorAll(":scope > p");
+  expect([
+    paragraphs[0].lastElementChild?.matches('mark[data-annotation="yi"]'),
+    paragraphs[paragraphs.length - 1].firstElementChild?.matches(
+      'mark[data-annotation="jia"]',
+    ),
+    scope().querySelector(".katex mark, .mermaid-diagram mark"),
+  ]).toEqual([true, true, null]);
 });

@@ -53,7 +53,7 @@ date: 2026-10-21
 
 一处标注的锚点是 `{ start, end, quote }`。坐标系是范围内的**标注文字**：`MarkdownContent` 渲染出的全部文本节点，按文档顺序首尾相接；文章取去掉开头标题后的正文。
 
-- 表格结构元素（`table`、`thead`、`tbody`、`tfoot`、`tr`）直接包含的纯空白文本节点不计入，因为 React 渲染时会丢掉它们；界面自己附加的文字（代码块的「复制」按钮及其状态、图片占位「[图片：…]」）不计入，它们带有 `data-annotation-skip` 标记。
+- 表格结构元素（`table`、`thead`、`tbody`、`tfoot`、`tr`）直接包含的纯空白文本节点不计入，因为 React 渲染时会丢掉它们；界面自己附加的文字（代码块的「复制」按钮及其状态、图片占位「[图片：…]」）不计入，它们带有 `data-annotation-skip` 标记。排版后的公式和 mermaid 图表同样带这个标记、整体不计入（见 [Markdown 展示](../../server/conversation/20261010-shared-markdown-content-with-code-highlighting.md) D6、D7）；hast 一侧跳过带 `dataAnnotationSkip` 属性的元素，与 DOM 一侧对称。
 - `start`、`end` 以 UTF-16 码元计数，即浏览器字符串下标；`0 ≤ start < end`。
 - `quote` 是 `[start, end)` 这一段文字，非空白，UTF-8 不超过 16 KiB。服务端校验它的 UTF-16 长度等于 `end - start`。
 - 选区两端的空白去掉以后才记下锚点。

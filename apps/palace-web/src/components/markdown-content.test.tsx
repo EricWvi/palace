@@ -4,6 +4,19 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { expect, it, vi } from "vitest";
 import { MarkdownContent, type ImagePolicy } from "./markdown-content";
 
+// jsdom cannot lay out SVG text, so mermaid itself cannot run here; the stub draws a fixed
+// diagram for any source except one that says it does not parse.
+const mermaid = vi.hoisted(() => ({
+  initialize: vi.fn(),
+  render: vi.fn(async (id: string, code: string) => {
+    if (code.includes("broken")) throw new Error("Parse error");
+    return {
+      svg: `<svg id="${id}" width="100%" viewBox="0 0 320 120" style="max-width: 320px;"><text>A</text></svg>`,
+    };
+  }),
+}));
+vi.mock("mermaid", () => ({ default: mermaid }));
+
 const placeholder: ImagePolicy = { kind: "placeholder" };
 // Shows the current path, so an in-app link can be seen to navigate without leaving the page.
 function Where() {
@@ -187,4 +200,66 @@ it("follows in-app paths in place and opens other links in a new window", async 
   expect(screen.getByRole("status", { name: "位置" })).toHaveTextContent(
     "/conversations/tree",
   );
+});
+
+// Core test case: `specs/test-cases/server/conversation/markdown-content.md#formulas-and-diagrams-must-render-and-stay-out-of-annotations`
+it("typesets $ and $$ formulas with KaTeX and keeps them out of the annotation text", () => {
+  const { container } = show(
+    "质能 $E = mc^2$ 相等。\n\n$$\n\\sum_{i=1}^{n} i\n$$\n\n坏的 $\\frac{1}$ 公式。",
+  );
+  const formulas = [
+    ...container.querySelectorAll(
+      ".katex-display, :not(.katex-display) > .katex, .katex-error",
+    ),
+  ];
+  expect(
+    formulas.map((formula) => [
+      formula.className,
+      formula.hasAttribute("data-annotation-skip"),
+      formula.querySelector("annotation")?.textContent,
+    ]),
+  ).toEqual([
+    ["katex", true, "E = mc^2"],
+    ["katex-display", true, "\\sum_{i=1}^{n} i"],
+    ["katex-error", true, undefined],
+  ]);
+  // A formula that does not parse shows its source in KaTeX's error colour instead of failing.
+  expect(container.querySelector(".katex-error")).toHaveTextContent(
+    "\\frac{1}",
+  );
+});
+
+// Core test case: `specs/test-cases/server/conversation/markdown-content.md#formulas-and-diagrams-must-render-and-stay-out-of-annotations`
+it("draws mermaid fences as diagrams that enlarge, and shows the source when one does not parse", async () => {
+  const user = userEvent.setup();
+  const { container } = show(
+    `${fence("mermaid", "graph TD\n  A --> B")}\n\n${fence("mermaid", "broken")}`,
+  );
+  const diagram = await screen.findByRole("button", { name: "放大图表" });
+  expect(diagram).toHaveAttribute("data-annotation-skip");
+  expect(mermaid.render).toHaveBeenCalledWith(
+    expect.any(String),
+    "graph TD\n  A --> B",
+  );
+  expect(mermaid.initialize).toHaveBeenCalledWith(
+    expect.objectContaining({ securityLevel: "strict", theme: "base" }),
+  );
+  const source = await waitFor(() => {
+    const fallback = container.querySelector("pre[data-annotation-skip]");
+    expect(fallback).not.toBeNull();
+    return fallback!;
+  });
+  expect(source.textContent).toBe("broken");
+  // Diagram sources are never highlighted or offered for copying as code.
+  expect(screen.queryByRole("button", { name: "复制代码" })).toBeNull();
+
+  await user.click(diagram);
+  const dialog = await screen.findByRole("dialog", { name: "图表" });
+  const enlarged = dialog.querySelector("svg")!;
+  expect([
+    enlarged.id,
+    enlarged.getAttribute("width"),
+    enlarged.getAttribute("height"),
+    enlarged.getAttribute("style"),
+  ]).toEqual([`${diagram.querySelector("svg")!.id}-full`, "320", "120", ""]);
 });

@@ -5,6 +5,8 @@ date: 2026-10-10
 
 # Markdown 展示抽成全站共用组件：代码块按标注语言高亮、悬停复制，图片按调用方规则加载
 
+> 2026-10-26 增补：D6 公式、D7 mermaid 图表，二者都是不可标注的整体；D1–D5 不变。
+
 > 历史决策：D5 中 `load` 规则的 `resolve` 只返回地址；[文章决策](../../web/stars/20261020-articles-imported-with-media.md) D7 改为返回 `{ kind: "image" | "video", src }`，以便文章嵌入视频。其余规则不变。
 
 阅读页正文里标注了语言的 Markdown 代码块按该语言语法高亮，配色只区分五类语法成分，颜色取自 Palace 的暖色 token，亮暗各一套。没写语言或标注为 `text` 的代码块保持纯文本，不自动猜测语言。每个代码块右上角有“复制”按钮：指针悬停到代码块或键盘焦点进入时出现，平时不显示；没有悬停能力的设备上一直以淡色显示。点击后复制代码原文，按钮文字变为“已复制”，约 1.5 秒后恢复。这套展示由全站共用的 `MarkdownContent` 组件提供，对话、笔记、文章、卡片笔记都用它；各处唯一的差别是图片能否加载，由调用方以图片规则声明（D5）。
@@ -105,6 +107,35 @@ type ImagePolicy =
 
 打包时 `rehype-highlight`、`lowlight`、`highlight.js` 固定分入 `highlight` 组。它们占 Markdown 展示的大部分体积、只随依赖升级而变；单独成包后，阅读页、笔记页各自发版都不会让读者重新下载它，各页共用同一份缓存。页面静态引用它，它与页面代码并行下载，高亮仍在首次渲染时完成。卡片笔记不出现在时刻页，首页不需要它。
 
+## D6：`$` 与 `$$` 公式用 KaTeX 在渲染时同步排版
+
+`remark-math` 识别公式，`rehype-katex` 排版：`$…$` 为行内公式，`$$…$$` 与 ` ```math ` 为独立公式。写错的公式不报错，以 KaTeX 的错误色显示原文。独立公式过宽时自己横向滚动，不撑宽正文栏。
+
+KaTeX 与 highlight.js 一样同步输出 HTML，公式在首次渲染时就位，满足不变量 3 的同一要求；MathJax 需要异步排版，正文会跳变。`rehype-katex` 排在高亮之前，高亮插件看不到它替换掉的 `language-math` 代码。KaTeX 固定分入打包分组 `katex`，理由同 D5 的 `highlight` 分组。
+
+单个 `$` 也作公式分隔符，笔记里的 `$x$` 写法才能显示；代价是正文里同一段中出现两个美元金额（如 `$5 和 $10`）会被当成公式。笔记与模型回答里公式远多于成对的美元金额，接受这一代价。
+
+公式整体带 `data-annotation-skip`，不计入标注文字（见[摘星标注](../../web/stars/20261021-annotations-on-articles-and-messages.md) D3 的坐标规则）：KaTeX 输出的字形文字（MathML 与 HTML 两份）不是读者能选作引文的文字，在它的排版 `span` 中间插入 `mark` 还会弄坏公式。
+
+## D7：` ```mermaid ` 代码块画成图表，点击放大
+
+标注为 `mermaid` 的代码块画成图表，不高亮、没有复制按钮：
+
+| 情形 | 显示 |
+| --- | --- |
+| mermaid 未加载完 | 占位空白 |
+| 解析成功 | 图表按正文栏宽缩放；点击后在对话框中按原始尺寸显示，过大时可滚动 |
+| 解析失败 | 原文，等宽字体，不高亮 |
+
+- mermaid 体积远大于页面其余部分，只在第一次遇到图表时动态加载，不进入任何固定分组；它自带的 KaTeX 副本也留在它自己的包中。图表因此是异步出现的，这是对不变量 3 的有意例外：同步加载会让所有不含图表的页面都下载 mermaid。
+- 以 `securityLevel: "strict"` 绘制：对话是来源导入的第三方内容，`strict` 转义标签文字并禁用点击回调，满足不变量 7。
+- 用 mermaid 的 `base` 主题，颜色和字体在绘制时从页面 token（`--bg`、`--bg-sunken`、`--text`、`--text-3`、`--border`、`--font-ui`）读取；系统亮暗切换时重画。mermaid 自带主题的冷灰与蓝色和暖色页面不协调；节点投影关闭，页面以文字为主，不加装饰。解析失败时关闭 mermaid 自己的错误图（`suppressErrorRendering`），否则它会残留在页面末尾。
+- 图表没有边框和按钮，点击即放大；入口是图表本身，符合少 UI 的原则。
+
+图表与 D6 的公式一样整体带 `data-annotation-skip`，解析失败显示的原文也是；图表文字是 SVG 中的标签，不是正文。
+
+D6、D7 改变了 `MarkdownContent` 的文字输出：此前公式源码、`$` 与 mermaid 源码都计入标注文字。之后的已有锚点会平移，由标注 D3 的 `quote` 兜底重新定位；引文本身含公式源码或 mermaid 源码的旧标注不再绘制。来源导出与笔记中这类标注极少，不另写迁移。
+
 ## 为什么不是这些替代方案
 
 | 替代方案 | 优势 | 取舍 |
@@ -117,6 +148,10 @@ type ImagePolicy =
 | 加语言标签 | 读者知道是什么语言 | 本次不需要；高亮本身已提示语言，且会增加每个代码块的常驻 UI |
 | 每页各自写 Markdown 组件 | 各页可按需定制 | 高亮、复制、安全规则会逐渐分叉，同一段内容在对话与笔记里显示不同（D5） |
 | 图片用布尔开关 `allowImages` | 接口最简单 | 无法表达可加载的地址范围，笔记会连带加载外站图片（D5） |
+| MathJax | 支持的 LaTeX 更全，输出可访问性更好 | 异步排版，正文跳变（D6）；KaTeX 覆盖笔记与模型回答中的常用写法 |
+| 只认 `$$`、不认单个 `$` | 美元金额不会误判 | 笔记里通行的 `$x$` 写法无法显示（D6） |
+| 公式与图表计入标注文字 | 读者可以标注公式 | 字形文字不是可读的引文，`mark` 会弄坏 KaTeX 排版（D6、D7） |
+| mermaid 进入固定分组、同步加载 | 图表不异步出现 | 每个 Markdown 页面都多下载数百 KB，绝大多数页面没有图表（D7） |
 | 高亮库留在各页面代码包中 | 不需要打包配置 | 任何一页发版都让读者重下 54 KB；多页各打一份或共享包随页面代码变化（D5） |
 
 ## 不变量
@@ -131,6 +166,9 @@ type ImagePolicy =
 8. 每处 Markdown 展示都经过 `MarkdownContent`，代码高亮、复制按钮与链接规则在各处一致。
 9. `placeholder` 图片规则下不发起任何图片请求；`load` 规则下只加载 `resolve` 返回的地址，并且懒加载、不带来源信息。
 10. 高亮库只在打包分组 `highlight` 中，首页不加载它，它的文件名只随依赖版本变化。
+11. 公式在首次渲染时排版；KaTeX 只在打包分组 `katex` 中，首页不加载它。
+12. mermaid 只在出现图表时加载，以 `strict` 安全级别绘制；解析失败时显示原文。
+13. 公式与图表整体带 `data-annotation-skip`，标注文字在 hast 与 DOM 两侧都不计入它们。
 
 ## 本决策未解决的问题
 
@@ -143,4 +181,6 @@ type ImagePolicy =
 
 `components/markdown-content.tsx` 提供 `MarkdownContent` 与 `ImagePolicy`：`rehype-highlight` 以 `detect: false` 与 `plainText: ["text", "txt", "plaintext"]` 配置，未注册的语言由插件跳过；`pre` 被替换为带定位容器的代码块，复制按钮在 `pre` 之外，读取 `pre` 的文本并去掉末尾一个换行后写入剪贴板，状态文字经 `role="status"` 告知辅助技术；站内路径用 React Router 的 `Link`。阅读页以模块常量 `{ kind: "placeholder" }` 调用。五个 `--code-*` token 定义在 `design/tokens.css` 的亮色与两处暗色块中；`vite.config.ts` 以 `codeSplitting.groups` 声明 `highlight` 分组。生产构建中首页只加载原有代码包，打开阅读页时 `highlight` 包与阅读页代码包并行加载。
 
-组件测试覆盖高亮范围、文字不变、原始 HTML 不执行、复制原文与两种反馈的恢复、两种图片规则与链接规则；Chromium 测试覆盖亮暗模式下五类颜色取自 token 且对比度达标、悬停与键盘聚焦时显示、横向滚动时按钮不动、触屏环境常显淡色。
+公式与图表（D6、D7）：`rehypePlugins` 依次为 `rehype-katex`、高亮与 `rehypeAtomicBlocks`，后者给 KaTeX 输出（`katex`、`katex-display`、`katex-error`）和 `mermaid` 代码块的 `pre` 打上 `dataAnnotationSkip`；`pre` 遇到 mermaid 时交给 `components/mermaid-diagram.tsx`，放大用共用的 `Dialog`。`vite.config.ts` 的 `katex` 分组排除 mermaid 嵌套的 KaTeX 副本。`lib/annotation-paint.ts` 的 hast 计数跳过带 `dataAnnotationSkip` 的元素。
+
+组件测试覆盖高亮范围、文字不变、原始 HTML 不执行、复制原文与两种反馈的恢复、两种图片规则与链接规则、公式排版与出错显示、图表绘制、放大与解析失败时显示原文；标注测试覆盖公式与图表前后的锚点在两侧计数一致；Chromium 测试覆盖亮暗模式下五类颜色取自 token 且对比度达标、悬停与键盘聚焦时显示、横向滚动时按钮不动、触屏环境常显淡色。

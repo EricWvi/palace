@@ -18,6 +18,13 @@ export default defineConfig({
               name: "highlight",
               test: /node_modules[\\/](highlight\.js|lowlight|rehype-highlight)[\\/]/,
             },
+            // KaTeX typesets synchronously like highlighting, and for the same reason gets a
+            // chunk of its own. Mermaid needs no group: it is imported on the first diagram only,
+            // and the KaTeX copy it nests must stay with it rather than load with every page.
+            {
+              name: "katex",
+              test: /(?<!mermaid[\\/])node_modules[\\/](katex|rehype-katex)[\\/]/,
+            },
           ],
         },
       },

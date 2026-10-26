@@ -1,9 +1,14 @@
+import "katex/dist/katex.min.css";
+import type { Element, ElementContent, Root } from "hast";
 import { memo, useEffect, useRef, useState, type ComponentProps } from "react";
-import Markdown from "react-markdown";
+import Markdown, { type Options as MarkdownOptions } from "react-markdown";
 import { Link } from "react-router-dom";
 import rehypeHighlight, { type Options } from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { rehypeAnnotations, type Painting } from "@/lib/annotation-paint";
+import { MermaidDiagram } from "./mermaid-diagram";
 
 // Where images may be loaded from is the one rule that differs between callers: imported
 // conversations are third-party content and must not make the reader's browser fetch anything,
@@ -23,10 +28,59 @@ const highlight: Options = {
   plainText: ["text", "txt", "plaintext"],
 };
 
-// Shows Markdown the same way everywhere: GFM, no raw HTML, highlighted fenced code with a copy
-// button, external links in a new window and in-app paths through the router. Text this
-// component adds itself (the copy button, image placeholders) carries `data-annotation-skip`, so
-// it is never part of the text annotations are anchored in.
+const katexClasses = new Set(["katex", "katex-display", "katex-error"]);
+
+function classes(element: Element) {
+  const value = element.properties.className;
+  return Array.isArray(value) ? value.map(String) : [];
+}
+
+function codeOf(pre: Element) {
+  return pre.children.find(
+    (child): child is Element =>
+      child.type === "element" && child.tagName === "code",
+  );
+}
+
+function isMermaid(pre: Element) {
+  const code = codeOf(pre);
+  return code !== undefined && classes(code).includes("language-mermaid");
+}
+
+function textOf(node: ElementContent): string {
+  if (node.type === "text") return node.value;
+  return node.type === "element" ? node.children.map(textOf).join("") : "";
+}
+
+// Flags rendered formulas and mermaid blocks `data-annotation-skip`. Each is one picture: its
+// glyphs or diagram source are no text a reader selects a quote in, and painting a mark inside
+// KaTeX's layout spans would break the formula. Both sides of the annotation text skip the flag.
+function rehypeAtomicBlocks() {
+  const walk = (parent: Root | Element) => {
+    for (const child of parent.children) {
+      if (child.type !== "element") continue;
+      const atomic =
+        classes(child).some((name) => katexClasses.has(name)) ||
+        (child.tagName === "pre" && isMermaid(child));
+      if (atomic) child.properties.dataAnnotationSkip = "";
+      else walk(child);
+    }
+  };
+  return walk;
+}
+
+// KaTeX runs first so highlighting never sees the `language-math` code it replaces.
+const rehypePlugins: NonNullable<MarkdownOptions["rehypePlugins"]> = [
+  rehypeKatex,
+  [rehypeHighlight, highlight],
+  rehypeAtomicBlocks,
+];
+
+// Shows Markdown the same way everywhere: GFM, `$` and `$$` formulas, mermaid diagrams, no raw
+// HTML, highlighted fenced code with a copy button, external links in a new window and in-app
+// paths through the router. Text this component adds itself (the copy button, image
+// placeholders) and formulas and diagrams carry `data-annotation-skip`, so they are never part
+// of the text annotations are anchored in.
 export const MarkdownContent = memo(function MarkdownContent({
   content,
   images,
@@ -44,14 +98,11 @@ export const MarkdownContent = memo(function MarkdownContent({
   return (
     <div className="markdown" data-annotation-scope={scope}>
       <Markdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={
           painting
-            ? [
-                [rehypeHighlight, highlight],
-                [rehypeAnnotations, painting],
-              ]
-            : [[rehypeHighlight, highlight]]
+            ? [...rehypePlugins, [rehypeAnnotations, painting]]
+            : rehypePlugins
         }
         skipHtml
         components={{
@@ -95,9 +146,16 @@ export const MarkdownContent = memo(function MarkdownContent({
               </a>
             ),
           // The class carries 只看标注's folding onto the block the reader sees.
-          pre: ({ children, className }) => (
-            <CodeBlock className={className}>{children}</CodeBlock>
-          ),
+          pre: ({ children, className, node }) => {
+            if (node && isMermaid(node))
+              return (
+                <MermaidDiagram
+                  code={textOf(codeOf(node)!).replace(/\n$/, "")}
+                  className={className}
+                />
+              );
+            return <CodeBlock className={className}>{children}</CodeBlock>;
+          },
         }}
       >
         {content}

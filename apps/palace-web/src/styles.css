@@ -751,6 +751,41 @@ ol.messages {
   }
 }
 
+/* A wide display formula scrolls on its own instead of widening the column. */
+.markdown .katex-display {
+  margin: 0 0 12px;
+  padding: 2px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/*
+ * A diagram sits on the page without a frame and fits the column; the enlarged copy in the
+ * dialog keeps its natural size and scrolls. The empty box holds the place while mermaid loads.
+ */
+.markdown .mermaid-diagram {
+  display: block;
+  width: 100%;
+  min-height: 96px;
+  margin: 0 0 12px;
+  padding: 8px 0;
+  cursor: zoom-in;
+}
+
+.markdown .mermaid-diagram svg {
+  display: block;
+  height: auto;
+  margin: 0 auto;
+}
+
+.mermaid-full {
+  width: auto;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  background: var(--bg);
+}
+
 /* Five syntax classes from the code tokens; everything else keeps the body colour. */
 .markdown .hljs-keyword,
 .markdown .hljs-built_in,

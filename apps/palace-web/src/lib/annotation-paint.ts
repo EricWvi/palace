@@ -51,14 +51,19 @@ function counted(node: Text, parent: Parent) {
   );
 }
 
-// Every counted text node in document order, with its parent.
+// Every counted text node in document order, with its parent. An element flagged
+// `data-annotation-skip` is left out whole, as the browser side does: rendered formulas and
+// diagrams are one picture each, and their glyph text is no quote anyone could anchor in.
 function textNodes(tree: Parent): Located[] {
   const found: Located[] = [];
   const walk = (parent: Parent) => {
     for (const child of parent.children) {
       if (child.type === "text") {
         if (counted(child, parent)) found.push({ node: child, parent });
-      } else if (child.type === "element") {
+      } else if (
+        child.type === "element" &&
+        child.properties.dataAnnotationSkip === undefined
+      ) {
         walk(child);
       }
     }

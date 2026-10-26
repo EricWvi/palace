@@ -58,7 +58,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| DOM 计数与 hast 计数一致，绘制和折叠不改变坐标（前端单元测试，jsdom 中的真实 `MarkdownContent`） | Covered | `apps/palace-web/src/lib/annotation-paint.test.tsx` 的 “draws marks where the selection was, in every state”、“lifts wholly marked inline elements into one seamless mark” |
+| DOM 计数与 hast 计数一致，绘制和折叠不改变坐标（前端单元测试，jsdom 中的真实 `MarkdownContent`） | Covered | `apps/palace-web/src/lib/annotation-paint.test.tsx` 的 “draws marks where the selection was, in every state”、“lifts wholly marked inline elements into one seamless mark”、“leaves formulas and diagrams out of the annotation text” |
 | 锚点解析：原位、最近的出现处、找不到时不画（前端单元测试） | Covered | `apps/palace-web/src/lib/annotation-paint.test.tsx` 的 “relocates a quote to its nearest occurrence” |
 | 选区到标注的完整流程：小条、快捷键、保存后显示，跨消息的选区不弹出小条（组件测试，请求经 mock fetch） | Covered | `apps/palace-web/src/pages/annotations.test.tsx` 的 “highlights a selection and removes it from its mark”、“annotates one message at a time and folds the others” |
 
