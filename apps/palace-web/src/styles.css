@@ -796,6 +796,18 @@ ol.messages {
 }
 
 /*
+ * The browser's inset rule glares in the dark theme; a hairline in the border tone matches the
+ * table and quote rules. Equal margins on both sides outweigh the paragraph's bottom margin, so
+ * collapsing leaves the rule centered between its neighbours.
+ */
+.markdown hr {
+  height: 0;
+  margin: 24px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+/*
  * A fork is a sentence, not a control: the options are the titles of the branches, and picking
  * one swaps everything below it.
  */
