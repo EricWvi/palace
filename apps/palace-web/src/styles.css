@@ -622,6 +622,7 @@ ol.messages {
 .markdown h3,
 .markdown h4 {
   margin: 20px 0 6px;
+  color: var(--text-strong);
   font-size: var(--font-size-base);
   font-weight: 600;
 }
@@ -660,7 +661,9 @@ ol.messages {
   margin-top: 0;
 }
 
+/* Emphasis takes the brighter tone too; in the dark theme weight alone barely shows. */
 .markdown strong {
+  color: var(--text-strong);
   font-weight: 600;
 }
 

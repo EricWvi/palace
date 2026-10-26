@@ -53,6 +53,7 @@
   --surface-raised: #fffefb;
   --border: #e4e1d8;
   --text: #2b2a27;
+  --text-strong: #2b2a27;
   --text-2: #5e5b53;
   --text-3: #8a867c;
   --ornament: #857154;
@@ -92,7 +93,13 @@
   --surface: #2b2a27;
   --surface-raised: #35332f;
   --border: #433f3a;
-  --text: #f9f8f4;
+  /*
+   * Near-white body text glares on the dark ground, and bold set in the same color barely stands
+   * out, since light strokes on dark already look heavier. Body text steps down; emphasis keeps
+   * the full brightness, so bold and headings separate by tone as well as weight.
+   */
+  --text: #dcd7cc;
+  --text-strong: #f9f8f4;
   --text-2: #b5b0a5;
   --text-3: #878277;
   --ornament: #beb19f;
@@ -123,7 +130,8 @@
     --surface: #2b2a27;
     --surface-raised: #35332f;
     --border: #433f3a;
-    --text: #f9f8f4;
+    --text: #dcd7cc;
+    --text-strong: #f9f8f4;
     --text-2: #b5b0a5;
     --text-3: #878277;
     --ornament: #beb19f;
