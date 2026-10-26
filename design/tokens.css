@@ -10,7 +10,11 @@
 :root {
   --font-serif: "EB Garamond", "Noto Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif;
   --font-sans: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-  --font-mono: "Hack Nerd Font", ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+  /*
+   * No mono face carries CJK glyphs, and the generic monospace family falls
+   * back to SimSun on Chinese Windows, so name the sans CJK faces first.
+   */
+  --font-mono: "Hack Nerd Font", ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Liberation Mono", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", monospace;
 
   /*
    * Components pick a role, never a family. Songti's hairline strokes break
