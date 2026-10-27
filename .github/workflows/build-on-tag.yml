@@ -87,6 +87,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          provenance: false
           push: true
           cache-from: type=registry,ref=ghcr.io/${{ env.OWNER_LC }}/palace:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ env.OWNER_LC }}/palace:buildcache,mode=max
