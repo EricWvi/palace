@@ -5,6 +5,7 @@ import type { Message, Detail } from "../src/lib/api";
 // - `specs/test-cases/server/conversation/message-tree.md#shared-and-internal-endpoint-paths-must-remain-independently-manageable`
 // - `specs/test-cases/server/conversation/message-tree.md#fork-selection-must-resolve-to-one-real-source-session`
 // - `specs/test-cases/server/import/delta-update.md#the-new-messages-only-switch-must-default-off-in-update-mode-only`
+// - `specs/test-cases/server/import/delta-update.md#written-messages-must-append-as-a-delta-and-reset-on-reopening`
 test("nested forks, internal endpoints, the branch list and its update form", async ({
   page,
 }) => {
@@ -132,8 +133,19 @@ test("nested forks, internal endpoints, the branch list and its update form", as
     update.getByRole("button", { name: "选择对话发生日期" }),
   ).toHaveText("2024 年 03 月 05 日");
   await update.getByLabel("对话发生时间", { exact: true }).fill("10:45");
-  // The switch shares the file row with its label and help mark, and must still fit a phone.
-  const toggle = update.getByRole("switch", { name: "仅上传新增消息" });
+  // Written messages take the field's place and must fit a phone as well as the file does.
+  await update.getByRole("button", { name: "追加消息" }).click();
+  await update.getByRole("button", { name: "添加消息" }).click();
+  await expect(update.getByLabel("第 2 条消息的角色")).toHaveValue("assistant");
+  expect(
+    await update.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({ path: "/tmp/palace-written-delta-mobile.png" });
+  await update.getByRole("button", { name: "对话文件" }).click();
+  // The switch shares the file row with the segments and help mark, and must still fit a phone.
+  const toggle = update.getByRole("switch", { name: "增量导入" });
   await expect(toggle).toHaveAttribute("aria-checked", "false");
   await toggle.click();
   await expect(update).toContainText("会接在当前第 6 条消息之后");

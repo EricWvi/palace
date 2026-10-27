@@ -69,7 +69,7 @@
 
 风险：开关状态被记住，下次上传完整 JSON 时整段历史被重复追加；或开关出现在新建对话、新建分支中。前置：阅读页一个 Path。触发：从标题菜单与分支列表分别打开更新对话框；打开开关提交后再次打开；打开新建对话与新建分支对话框；完整模式前缀不符失败。
 
-必须成立：两个入口的更新对话框都有“仅上传新增消息”，每次打开都关闭；打开后说明文字给出接续位置（当前消息数），请求体为 `delta` 并携带当前末端；切换开关清除上次错误并换用新幂等键；完整模式前缀失败的提示指向该开关；新建对话与新建分支没有该开关。
+必须成立：两个入口的更新对话框都有开关“增量导入”（原名“仅上传新增消息”，见[直接追加消息](../../../decisions/server/import/20261027-write-delta-messages-in-update-dialog.md) D2），每次打开都关闭；打开后说明文字给出接续位置（当前消息数），请求体为 `delta` 并携带当前末端；切换开关清除上次错误并换用新幂等键；完整模式前缀失败的提示指向该开关；新建对话与新建分支没有该开关。
 
 验证义务与证据：
 
@@ -80,3 +80,20 @@
 | 增量更新的请求、窄屏布局与成功落点 | Covered | `e2e/branches.spec.ts`（真实 Chromium，从分支列表打开；标题菜单与列表共用同一表单） |
 
 决策依据：D5，不变量 8。
+
+## Written messages must append as a delta and reset on reopening
+
+风险：写下的消息按完整历史比对或以与文件不同的形态发送；空框被当作消息提交；方式被记住，下次上传完整文件时被当作增量重复追加。前置：阅读页一个 Path。触发：在更新对话框切到“追加消息”，添加、删除、改角色、留空提交、填写 Markdown 后提交；切回“对话文件”；关闭后再次打开；窄屏打开两种方式。
+
+必须成立：切到“追加消息”后不显示开关与文件框，说明给出接续位置；新行默认取上一行的另一角色，角色可任选；有空内容时提示第几条且不发请求；请求体为 `delta`、携带当前末端，`history` 是由各条 `{"role","content"}` 组成的 JSON 字符串，user 内容为原文，assistant 内容只把 `\\(…\\)`、`\\[…\\]` 公式转为美元符号定界、代码不动；切回“对话文件”时开关关闭；每次打开都回到“对话文件”。390px 宽时两种方式都不横向溢出，“对话文件”一行不折行。禁止“追加消息”发出 `full` 请求。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 切换、默认角色、删除、空内容拒绝与请求体 | Covered | `pages/conversation.test.tsx::appends messages written in the dialog as a delta string, and returns to the file on reopening` |
+| assistant 公式转换的规则（两种 ChatGPT 语法、列表与引用前缀、代码保留） | Covered | `lib/math-delimiters.test.ts::turns either ChatGPT formula syntax into dollar delimiters, leaving code alone` |
+| 切回文件时开关关闭，重新打开回到“对话文件” | Covered | `pages/conversation.test.tsx::appends messages written in the dialog as a delta string, and returns to the file on reopening` |
+| 窄屏下两种方式的布局 | Covered | `e2e/branches.spec.ts`（真实 Chromium，390px） |
+
+决策依据：[直接追加消息](../../../decisions/server/import/20261027-write-delta-messages-in-update-dialog.md) D1、D2，不变量 1–5。

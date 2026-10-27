@@ -131,7 +131,7 @@ impl Database {
                     return Err(InputError::new(
                         InputErrorKind::Field,
                         "history",
-                        "只能追加消息，不能修改已有分支的历史节点；来源历史有变化时，可打开“仅上传新增消息”，只上传新增部分",
+                        "只能追加消息，不能修改已有分支的历史节点；来源历史有变化时，可打开“增量导入”，只上传新增部分",
                     )
                     .into());
                 }

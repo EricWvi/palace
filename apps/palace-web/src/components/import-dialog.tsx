@@ -15,6 +15,7 @@ import { DateTimePicker } from "./date-time-picker";
 import { ErrorState } from "./error-state";
 import { FieldHelp } from "./field-help";
 import { FileDrop } from "./file-drop";
+import { MessageDrafts, messageDraft } from "./message-drafts";
 import {
   api,
   apiData,
@@ -25,6 +26,7 @@ import {
   type ConversationPath,
 } from "@/lib/api";
 import { atCurrentTime } from "@/lib/day";
+import { dollarMath } from "@/lib/math-delimiters";
 import { validateFile } from "@/lib/import-file";
 import type { components } from "@/lib/generated/api";
 
@@ -40,6 +42,10 @@ export type ImportMode =
       source: Source;
       path: ConversationPath;
     };
+// How an update supplies what it appends: a full history file, a file of new messages only, or
+// new messages written in the dialog. Written messages always append after the head, so they need
+// no switch of their own.
+export type UpdateInput = "full" | "delta" | "messages";
 // A new conversation needs no explanation beyond its fields; branch and update imports carry a
 // rule about the uploaded history that the reader must know before choosing the file.
 const headings = {
@@ -63,19 +69,22 @@ export function ImportDialog({
   // Receives the submitted occurrence time, which decides the day the reader returns to.
   onImported: (result: ImportResult, occurredAt: number) => void;
 }) {
-  // Whether an update uploads only new messages. It lives here because it changes the description,
-  // and it switches off on every opening: forgetting it on would append a later full history twice.
-  const [delta, setDelta] = useState(false);
+  // How an update supplies its messages. It lives here because it changes the description, and it
+  // returns to a full file on every opening: forgetting a delta on would append a later full
+  // history twice.
+  const [input, setInput] = useState<UpdateInput>("full");
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (open) setDelta(false);
+    if (open) setInput("full");
   }
   const [title, fullDescription] = headings[mode.kind];
   const description =
-    mode.kind === "update" && delta
-      ? `只上传新增消息，会接在当前第 ${mode.path.message_count} 条消息之后。`
-      : fullDescription;
+    mode.kind !== "update" || input === "full"
+      ? fullDescription
+      : input === "delta"
+        ? `只上传新增消息，会接在当前第 ${mode.path.message_count} 条消息之后。`
+        : `追加的消息会接在当前第 ${mode.path.message_count} 条消息之后。`;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -92,8 +101,8 @@ export function ImportDialog({
         {open && (
           <ImportForm
             mode={mode}
-            delta={delta}
-            onDeltaChange={setDelta}
+            input={input}
+            onInputChange={setInput}
             onImported={(result, occurredAt) => {
               onOpenChange(false);
               onImported(result, occurredAt);
@@ -106,13 +115,14 @@ export function ImportDialog({
 }
 function ImportForm({
   mode,
-  delta,
-  onDeltaChange,
+  input,
+  onInputChange,
   onImported,
 }: {
   mode: ImportMode;
-  delta: boolean;
-  onDeltaChange: (delta: boolean) => void;
+  // Only an update offers a choice; every other mode reads a full file.
+  input: UpdateInput;
+  onInputChange: (input: UpdateInput) => void;
   onImported: (result: ImportResult, occurredAt: number) => void;
 }) {
   const [source, setSource] = useState<Source>(
@@ -136,6 +146,7 @@ function ImportForm({
         : new Date(),
   );
   const [file, setFile] = useState<File | null>(null);
+  const [drafts, setDrafts] = useState(() => [messageDraft("user")]);
   const [attempt, setAttempt] = useState<{
     fingerprint: string;
     key: string;
@@ -153,9 +164,24 @@ function ImportForm({
         session === ".."
       )
         throw new Error("请输入 Session ID 本身，而不是网址。");
-      if (!file) throw new Error("请选择 JSON 文件。");
-      await validateFile(file);
-      const history = await file.text();
+      let history: string;
+      if (input === "messages") {
+        const blank = drafts.findIndex((draft) => !draft.content.trim());
+        if (blank !== -1) throw new Error(`第 ${blank + 1} 条消息还没有内容。`);
+        // The same JSON a file would carry, so written and uploaded deltas share one server path.
+        // Replies pasted from ChatGPT carry escaped formula delimiters the reader cannot typeset;
+        // the user's own words are kept as written, as the Automa export does.
+        history = JSON.stringify(
+          drafts.map(({ role, content }) => ({
+            role,
+            content: role === "assistant" ? dollarMath(content) : content,
+          })),
+        );
+      } else {
+        if (!file) throw new Error("请选择 JSON 文件。");
+        await validateFile(file);
+        history = await file.text();
+      }
       // Reuse the key after an ambiguous network failure, but never for edited input.
       const fingerprint = JSON.stringify([
         source,
@@ -166,11 +192,11 @@ function ImportForm({
         mode.kind,
         mode.kind === "conversation" ? null : mode.conversationId,
         mode.kind === "update" ? mode.path.id : null,
-        delta,
+        input,
       ]);
       const key = attempt?.fingerprint === fingerprint ? attempt.key : uuidv7();
       setAttempt({ fingerprint, key });
-      const input = {
+      const fields = {
         title,
         history,
         occurred_at: date.getTime(),
@@ -180,7 +206,7 @@ function ImportForm({
         return apiData(
           api.POST("/api/conversations/{id}/paths", {
             params: { path: { id: mode.conversationId } },
-            body: { ...input, session_id: session },
+            body: { ...fields, session_id: session },
           }),
         );
       }
@@ -191,13 +217,14 @@ function ImportForm({
               path: { id: mode.conversationId, path_id: mode.path.id },
             },
             // A delta names the head it was read against, so the server can refuse it if the path moved.
-            body: delta
-              ? {
-                  ...input,
-                  history_mode: "delta",
-                  base_head_message_id: mode.path.head_message_id,
-                }
-              : { ...input, history_mode: "full" },
+            body:
+              input === "full"
+                ? { ...fields, history_mode: "full" }
+                : {
+                    ...fields,
+                    history_mode: "delta",
+                    base_head_message_id: mode.path.head_message_id,
+                  },
           }),
         );
       }
@@ -209,7 +236,8 @@ function ImportForm({
             session_id: session,
             occurred_at: String(date.getTime()),
             idempotency_key: key,
-            history: file,
+            // Only an update can write messages, so a new conversation always has its file here.
+            history: file!,
           },
           bodySerializer: serializeImport,
         }),
@@ -283,27 +311,65 @@ function ImportForm({
         </div>
         <div>
           <div className="field-label">
-            <Label htmlFor="history">对话文件</Label>
-            <FieldHelp label="对话文件">
-              <p>仅支持 JSON · 最大 8 MiB</p>
-              <p>格式示例：</p>
-              <pre>
-                {
-                  '[{"role":"user","content":"你好"},\n {"role":"assistant","content":"你好！"}]'
-                }
-              </pre>
-            </FieldHelp>
-            {mode.kind === "update" && (
+            {mode.kind === "update" ? (
+              // The segment names the field, so the file input keeps its label for assistive tech only.
+              <>
+                <div className="segmented" role="group" aria-label="更新方式">
+                  {(
+                    [
+                      ["file", "对话文件"],
+                      ["messages", "追加消息"],
+                    ] as const
+                  ).map(([kind, label]) => (
+                    <button
+                      key={kind}
+                      type="button"
+                      aria-pressed={
+                        (input === "messages") === (kind === "messages")
+                      }
+                      onClick={() => {
+                        // Back on the file side the switch starts off again, the safer default.
+                        onInputChange(
+                          kind === "messages" ? "messages" : "full",
+                        );
+                        mutation.reset();
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {input !== "messages" && (
+                  <Label htmlFor="history" className="sr-only">
+                    对话文件
+                  </Label>
+                )}
+              </>
+            ) : (
+              <Label htmlFor="history">对话文件</Label>
+            )}
+            {input !== "messages" && (
+              <FieldHelp label="对话文件">
+                <p>仅支持 JSON · 最大 8 MiB</p>
+                <p>格式示例：</p>
+                <pre>
+                  {
+                    '[{"role":"user","content":"你好"},\n {"role":"assistant","content":"你好！"}]'
+                  }
+                </pre>
+              </FieldHelp>
+            )}
+            {mode.kind === "update" && input !== "messages" && (
               <span className="delta-toggle">
-                <Label htmlFor="delta">仅上传新增消息</Label>
+                <Label htmlFor="delta">增量导入</Label>
                 <button
                   type="button"
                   role="switch"
                   id="delta"
                   className="switch"
-                  aria-checked={delta}
+                  aria-checked={input === "delta"}
                   onClick={() => {
-                    onDeltaChange(!delta);
+                    onInputChange(input === "delta" ? "full" : "delta");
                     mutation.reset();
                   }}
                 >
@@ -312,15 +378,26 @@ function ImportForm({
               </span>
             )}
           </div>
-          <FileDrop
-            id="history"
-            accept=".json,application/json"
-            file={file}
-            onFile={(next) => {
-              setFile(next);
-              mutation.reset();
-            }}
-          />
+          {input === "messages" ? (
+            <MessageDrafts
+              drafts={drafts}
+              assistant={sources[source]}
+              onChange={(next) => {
+                setDrafts(next);
+                mutation.reset();
+              }}
+            />
+          ) : (
+            <FileDrop
+              id="history"
+              accept=".json,application/json"
+              file={file}
+              onFile={(next) => {
+                setFile(next);
+                mutation.reset();
+              }}
+            />
+          )}
         </div>
         {mutation.isError && <ErrorState error={mutation.error} />}
         <Button type="submit" className="submit-import">

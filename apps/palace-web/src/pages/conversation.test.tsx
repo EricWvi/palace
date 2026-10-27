@@ -285,7 +285,7 @@ it("uploads only new messages after the head being read, and forgets the choice 
   await screen.findByRole("heading", { level: 1, name: "第 2 支" });
   await choose(user, "更新分支");
   let form = await screen.findByRole("dialog", { name: "更新分支" });
-  const toggle = within(form).getByRole("switch", { name: "仅上传新增消息" });
+  const toggle = within(form).getByRole("switch", { name: "增量导入" });
   expect(toggle).not.toBeChecked();
   await user.click(toggle);
   expect(form).toHaveAccessibleDescription(
@@ -337,11 +337,90 @@ it("uploads only new messages after the head being read, and forgets the choice 
   await choose(user, "更新分支");
   form = await screen.findByRole("dialog", { name: "更新分支" });
   expect(
-    within(form).getByRole("switch", { name: "仅上传新增消息" }),
+    within(form).getByRole("switch", { name: "增量导入" }),
   ).not.toBeChecked();
   expect(form).toHaveAccessibleDescription(
     "上传完整 JSON，只能在原有消息之后追加。",
   );
+});
+
+// Core test case: `specs/test-cases/server/import/delta-update.md#written-messages-must-append-as-a-delta-and-reset-on-reopening`
+it("appends messages written in the dialog as a delta string, and returns to the file on reopening", async () => {
+  const { fetch, user } = setup("/conversations/tree?path=p2&date=2025-09-30");
+  const fallback = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (url, options) =>
+    testRequest(url).method === "PUT"
+      ? Response.json({ error: "path_head_moved", login: "" }, { status: 409 })
+      : fallback(url, options),
+  );
+  await screen.findByRole("heading", { level: 1, name: "第 2 支" });
+  await choose(user, "更新分支");
+  let form = await screen.findByRole("dialog", { name: "更新分支" });
+  await user.click(within(form).getByRole("button", { name: "追加消息" }));
+  expect(form).toHaveAccessibleDescription(
+    "追加的消息会接在当前第 6 条消息之后。",
+  );
+  // Written messages are always a delta, so the switch and the file go away.
+  expect(within(form).queryByRole("switch")).toBeNull();
+  expect(within(form).queryByLabelText("对话文件")).toBeNull();
+  expect(within(form).getByLabelText("第 1 条消息的角色")).toHaveValue("user");
+  await user.click(within(form).getByRole("button", { name: "添加消息" }));
+  await user.click(within(form).getByRole("button", { name: "添加消息" }));
+  // Each new row starts on the other role from the row before it.
+  expect(
+    [1, 2, 3].map(
+      (n) =>
+        (
+          within(form).getByLabelText(
+            `第 ${n} 条消息的角色`,
+          ) as HTMLSelectElement
+        ).value,
+    ),
+  ).toEqual(["user", "assistant", "user"]);
+  await user.click(
+    within(form).getByRole("button", { name: "删除第 3 条消息" }),
+  );
+  await user.click(within(form).getByLabelText("第 1 条消息"));
+  await user.paste("## 问题\n\n**为什么** \\\\(x\\\\)？");
+  await user.click(within(form).getByRole("button", { name: "保存更新" }));
+  expect(await within(form).findByRole("alert")).toHaveTextContent(
+    "第 2 条消息还没有内容。",
+  );
+  await user.click(within(form).getByLabelText("第 2 条消息"));
+  await user.paste("因为 \\\\(x^2\\\\)");
+  await user.click(within(form).getByRole("button", { name: "保存更新" }));
+  await within(form).findByText(
+    "这条分支在别处有了新的更新，请刷新页面后重试。",
+  );
+  const call = fetch.mock.calls.find(
+    ([url]) => testRequest(url).method === "PUT",
+  )!;
+  expect(await testRequest(call[0]).clone().json()).toEqual({
+    title: "第 2 支",
+    history_mode: "delta",
+    base_head_message_id: "A4",
+    history: JSON.stringify([
+      // Only the reply has its copied formula delimiters turned into dollars.
+      { role: "user", content: "## 问题\n\n**为什么** \\\\(x\\\\)？" },
+      { role: "assistant", content: "因为 $x^2$" },
+    ]),
+    occurred_at: new Date(2025, 9, 2, 9, 30).getTime(),
+    idempotency_key: expect.any(String),
+  });
+  // Back on the file side the switch starts off, so a later full file is never read as a delta.
+  await user.click(within(form).getByRole("button", { name: "对话文件" }));
+  expect(
+    within(form).getByRole("switch", { name: "增量导入" }),
+  ).not.toBeChecked();
+  await user.click(within(form).getByRole("button", { name: "追加消息" }));
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await choose(user, "更新分支");
+  form = await screen.findByRole("dialog", { name: "更新分支" });
+  expect(
+    within(form).getByRole("button", { name: "对话文件", pressed: true }),
+  ).toBeInTheDocument();
+  expect(within(form).getByLabelText("对话文件")).toBeInTheDocument();
 });
 
 // Core test case: `specs/test-cases/server/conversation/reading-page.md#editing-must-update-the-current-path-title-and-the-conversation-source-everywhere`
