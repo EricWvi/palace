@@ -191,6 +191,65 @@ test("a turn exports user then assistant and then reaches the breakpoint", () =>
   );
 });
 
+test("assistant formulas export with dollar delimiters in either ChatGPT syntax", () => {
+  const legacy = ["复杂度为 $O(n^2)$。", "", "$$", "O(n^2)", "$$"].join("\n");
+  const current = [
+    "复杂度为 \\\\(O(n^2)\\\\)。",
+    "",
+    "\\\\[ O(n^2) \\\\]",
+    "",
+    "\\\\[ dp[i]=\\bigvee\\_{0\\le j\\<i}(dp[j]\\land(s[j:i]\\in wordDict)) \\\\]",
+    "",
+    "- 列表里：",
+    "  \\\\[",
+    "  a \\\\\\\\",
+    "  b",
+    "  \\\\]",
+    "> 引用里 \\\\[x\\\\] 行内",
+    "转义括号 \\(x\\) 不是公式",
+    "",
+    "代码 `\\\\(a\\\\)` 不变",
+    "```tex",
+    "\\\\[ y \\\\]",
+    "```",
+  ].join("\n");
+  let store = startTurn(runBackground("jiglnit", {}), "t1");
+  store = append(store, "setuser", "用户写的 \\\\(x\\\\)");
+  store = append(store, "setasst", legacy);
+  store = append(store, "setasst", current);
+  assert.deepEqual(
+    store.conversation.map((message) => message.content),
+    [
+      "用户写的 \\\\(x\\\\)",
+      legacy,
+      [
+        "复杂度为 $O(n^2)$。",
+        "",
+        "$$",
+        "O(n^2)",
+        "$$",
+        "",
+        "$$",
+        "dp[i]=\\bigvee_{0\\le j<i}(dp[j]\\land(s[j:i]\\in wordDict))",
+        "$$",
+        "",
+        "- 列表里：",
+        "  $$",
+        "  a \\\\",
+        "  b",
+        "  $$",
+        "> 引用里 $$x$$ 行内",
+        "转义括号 \\(x\\) 不是公式",
+        "",
+        "代码 `\\\\(a\\\\)` 不变",
+        "```tex",
+        "\\\\[ y \\\\]",
+        "```",
+      ].join("\n"),
+    ],
+  );
+});
+
 test("the clipboard placeholder is rejected instead of being exported", () => {
   const store = startTurn(runBackground("jiglnit", {}), "t1");
   assert.throws(
