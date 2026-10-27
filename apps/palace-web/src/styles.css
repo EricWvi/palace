@@ -622,7 +622,6 @@ ol.messages {
 .markdown h3,
 .markdown h4 {
   margin: 20px 0 6px;
-  color: var(--text-strong);
   font-size: var(--font-size-base);
   font-weight: 600;
 }
@@ -661,10 +660,23 @@ ol.messages {
   margin-top: 0;
 }
 
-/* Emphasis takes the brighter tone too; in the dark theme weight alone barely shows. */
 .markdown strong {
-  color: var(--text-strong);
   font-weight: 600;
+}
+
+/*
+ * Rendered Markdown, in 摘星's notes, articles and conversations and in 回响, takes the softer
+ * reading tones; everything inside that asks for --text follows. Headings and bold take the
+ * stronger tone, since in the dark theme weight alone barely shows; a note's quieter h4 to h6
+ * outrank this and keep --text-2.
+ */
+.markdown {
+  --text: var(--reading-text);
+  color: var(--text);
+}
+
+.markdown :is(h1, h2, h3, h4, strong) {
+  color: var(--reading-text-strong);
 }
 
 /* Embedded images and videos fit the column; a video takes its own line. */

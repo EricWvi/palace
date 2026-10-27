@@ -23,7 +23,7 @@ describe("themeToken", () => {
       ]),
     ).toEqual([
       ["#f5e3a0", themeToken("light", "accent"), themeToken("light", "text")],
-      ["#5a4a18", "#e07a52", "#f9f8f4"],
+      ["#5a4a18", "#e07a52", "#dcd7cc"],
     ]);
   });
 });

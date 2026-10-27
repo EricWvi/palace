@@ -57,9 +57,10 @@
   --surface-raised: #fffefb;
   --border: #e4e1d8;
   --text: #2b2a27;
-  --text-strong: #2b2a27;
   --text-2: #5e5b53;
   --text-3: #8a867c;
+  --reading-text: #2b2a27;
+  --reading-text-strong: #2b2a27;
   --ornament: #857154;
   --accent: #b84a24;
   --accent-hover: #9c3d1c;
@@ -97,15 +98,17 @@
   --surface: #2b2a27;
   --surface-raised: #35332f;
   --border: #433f3a;
-  /*
-   * Near-white body text glares on the dark ground, and bold set in the same color barely stands
-   * out, since light strokes on dark already look heavier. Body text steps down; emphasis keeps
-   * the full brightness, so bold and headings separate by tone as well as weight.
-   */
   --text: #dcd7cc;
-  --text-strong: #f9f8f4;
   --text-2: #b5b0a5;
   --text-3: #878277;
+  /*
+   * Near-white glares on the dark ground, so --text sits near 11.5:1 against --bg. Rendered
+   * Markdown, read at length, steps down once more to about 10.3:1; its bold and headings step up
+   * only to about 12.8:1, so they separate by tone as well as weight without flaring. Page titles
+   * and chrome keep --text.
+   */
+  --reading-text: #d0cbc0;
+  --reading-text-strong: #e8e3d8;
   --ornament: #beb19f;
   --accent: #e07a52;
   --accent-hover: #ea8f6b;
@@ -135,9 +138,10 @@
     --surface-raised: #35332f;
     --border: #433f3a;
     --text: #dcd7cc;
-    --text-strong: #f9f8f4;
     --text-2: #b5b0a5;
     --text-3: #878277;
+    --reading-text: #d0cbc0;
+    --reading-text-strong: #e8e3d8;
     --ornament: #beb19f;
     --accent: #e07a52;
     --accent-hover: #ea8f6b;
