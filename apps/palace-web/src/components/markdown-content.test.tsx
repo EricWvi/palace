@@ -263,3 +263,14 @@ it("draws mermaid fences as diagrams that enlarge, and shows the source when one
     enlarged.getAttribute("style"),
   ]).toEqual([`${diagram.querySelector("svg")!.id}-full`, "320", "120", ""]);
 });
+
+it("closes emphasis and strikethrough after full-width punctuation followed by CJK text", () => {
+  const { container } = show(
+    "用**哨兵（sentinel）**解决，测试末尾**加粗。**有问题，~~删除。~~后文",
+  );
+  expect(
+    [...container.querySelectorAll("strong, del")].map(
+      (node) => `${node.tagName}:${node.textContent}`,
+    ),
+  ).toEqual(["STRONG:哨兵（sentinel）", "STRONG:加粗。", "DEL:删除。"]);
+});

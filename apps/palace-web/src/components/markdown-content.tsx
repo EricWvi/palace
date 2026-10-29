@@ -5,6 +5,8 @@ import Markdown, { type Options as MarkdownOptions } from "react-markdown";
 import { Link } from "react-router-dom";
 import rehypeHighlight, { type Options } from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
+import remarkCjkFriendly from "remark-cjk-friendly";
+import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethrough";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { rehypeAnnotations, type Painting } from "@/lib/annotation-paint";
@@ -69,6 +71,15 @@ function rehypeAtomicBlocks() {
   return walk;
 }
 
+// CommonMark will not close `**加粗。**后文` because the run sits between full-width punctuation
+// and a CJK character; the CJK-friendly extensions relax that rule for emphasis and `~~`.
+const remarkPlugins: NonNullable<MarkdownOptions["remarkPlugins"]> = [
+  remarkGfm,
+  remarkCjkFriendly,
+  remarkCjkFriendlyGfmStrikethrough,
+  remarkMath,
+];
+
 // KaTeX runs first so highlighting never sees the `language-math` code it replaces.
 const rehypePlugins: NonNullable<MarkdownOptions["rehypePlugins"]> = [
   rehypeKatex,
@@ -98,7 +109,7 @@ export const MarkdownContent = memo(function MarkdownContent({
   return (
     <div className="markdown" data-annotation-scope={scope}>
       <Markdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={remarkPlugins}
         rehypePlugins={
           painting
             ? [...rehypePlugins, [rehypeAnnotations, painting]]
