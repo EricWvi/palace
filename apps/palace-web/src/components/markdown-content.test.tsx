@@ -230,6 +230,33 @@ it("typesets $ and $$ formulas with KaTeX and keeps them out of the annotation t
 });
 
 // Core test case: `specs/test-cases/server/conversation/markdown-content.md#formulas-and-diagrams-must-render-and-stay-out-of-annotations`
+it("reads only a tight `$x$` as a formula, leaving lone dollars and amounts as text", () => {
+  const { container } = show(
+    [
+      "单个 $：笔记里 $x$ 的写法，金额 $5 和 $10，区间 $5-$10。",
+      "",
+      "转义 $a \\$ b$ 与 $$y$$，\\$z$ 不是公式。",
+    ].join("\n"),
+  );
+  expect(
+    [...container.querySelectorAll(".katex annotation")].map(
+      (annotation) => annotation.textContent,
+    ),
+  ).toEqual(["x", "a \\$ b", "y"]);
+  expect(
+    [...container.querySelectorAll("p")].map((paragraph) =>
+      [...paragraph.childNodes]
+        .filter((node) => node.nodeType === Node.TEXT_NODE)
+        .map((node) => node.textContent)
+        .join("|"),
+    ),
+  ).toEqual([
+    "单个 $：笔记里 | 的写法，金额 $5 和 $10，区间 $5-$10。",
+    "转义 | 与 |，$z$ 不是公式。",
+  ]);
+});
+
+// Core test case: `specs/test-cases/server/conversation/markdown-content.md#formulas-and-diagrams-must-render-and-stay-out-of-annotations`
 it("draws mermaid fences as diagrams that enlarge, and shows the source when one does not parse", async () => {
   const user = userEvent.setup();
   const { container } = show(

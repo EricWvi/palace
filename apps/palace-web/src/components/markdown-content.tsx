@@ -10,6 +10,7 @@ import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethr
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { rehypeAnnotations, type Painting } from "@/lib/annotation-paint";
+import { remarkDollarMath } from "@/lib/remark-dollar-math";
 import { MermaidDiagram } from "./mermaid-diagram";
 
 // Where images may be loaded from is the one rule that differs between callers: imported
@@ -73,11 +74,14 @@ function rehypeAtomicBlocks() {
 
 // CommonMark will not close `**加粗。**后文` because the run sits between full-width punctuation
 // and a CJK character; the CJK-friendly extensions relax that rule for emphasis and `~~`.
+// remark-math pairs any two single `$`, so prose with a lone `$` or two amounts turns into a
+// formula; single-dollar formulas use the stricter rules of `remarkDollarMath` instead.
 const remarkPlugins: NonNullable<MarkdownOptions["remarkPlugins"]> = [
   remarkGfm,
   remarkCjkFriendly,
   remarkCjkFriendlyGfmStrikethrough,
-  remarkMath,
+  [remarkMath, { singleDollarTextMath: false }],
+  remarkDollarMath,
 ];
 
 // KaTeX runs first so highlighting never sees the `language-math` code it replaces.

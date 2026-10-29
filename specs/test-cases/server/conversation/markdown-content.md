@@ -79,15 +79,16 @@
 
 ## Formulas and diagrams must render and stay out of annotations
 
-风险：公式以 `$` 源码原样显示；写错的公式让整条消息渲染失败；mermaid 代码块只显示源码，或以宽松安全级别绘制第三方内容；解析失败的图表消失；公式或图表的字形文字计入标注坐标，使 hast 与 DOM 两侧计数不一致，后面的标注落到别处，或 `mark` 插进 KaTeX 排版。前置：一段 Markdown 含行内公式、独立公式、写错的公式、一个可解析与一个解析失败的 mermaid 代码块，以及公式、图表前后各有相同文字。触发：展示，点击图表，在公式与图表之后的文字上标注。
+风险：公式以 `$` 源码原样显示；正文里单独的 `$` 或两个金额（`$5 和 $10`）被配成公式，吞掉其后真正的 `$x$`；写错的公式让整条消息渲染失败；mermaid 代码块只显示源码，或以宽松安全级别绘制第三方内容；解析失败的图表消失；公式或图表的字形文字计入标注坐标，使 hast 与 DOM 两侧计数不一致，后面的标注落到别处，或 `mark` 插进 KaTeX 排版。前置：一段 Markdown 含行内公式、独立公式、写错的公式、一个可解析与一个解析失败的 mermaid 代码块，以及公式、图表前后各有相同文字。触发：展示，点击图表，在公式与图表之后的文字上标注。
 
-必须成立：行内公式渲染为 `.katex`、独立公式为 `.katex-display`，写错的公式显示为带原文的 `.katex-error`；可解析的 mermaid 块以 `strict` 安全级别、`base` 主题画成可点击放大的图表，放大后的副本使用独立 id 与原始尺寸；解析失败的块显示原文；图表块没有复制按钮；公式、图表与失败原文都带 `data-annotation-skip`，标注文字中不含它们，其后的标注落在所选的那一处，公式与图表内部没有 `mark`。
+必须成立：行内公式渲染为 `.katex`、独立公式为 `.katex-display`；单个 `$` 只在其后紧跟非空白、且下一个未转义的 `$` 紧跟非空白之后并且后面不是数字时才开始公式，否则作为文字，`\$` 与 `$$x$$` 照旧；写错的公式显示为带原文的 `.katex-error`；可解析的 mermaid 块以 `strict` 安全级别、`base` 主题画成可点击放大的图表，放大后的副本使用独立 id 与原始尺寸；解析失败的块显示原文；图表块没有复制按钮；公式、图表与失败原文都带 `data-annotation-skip`，标注文字中不含它们，其后的标注落在所选的那一处，公式与图表内部没有 `mark`。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 公式排版、出错显示原文、整体带跳过标记 | Covered | `components/markdown-content.test.tsx::typesets $ and $$ formulas with KaTeX and keeps them out of the annotation text`（jsdom 中真实 KaTeX） |
+| 单 `$` 配对：单独的 `$`、金额与区间保持文字，紧贴的 `$x$` 与转义正常 | Covered | `components/markdown-content.test.tsx::reads only a tight \`$x$\` as a formula, leaving lone dollars and amounts as text` |
 | 图表绘制参数、放大副本、解析失败显示原文、无复制按钮 | Covered | `components/markdown-content.test.tsx::draws mermaid fences as diagrams that enlarge, and shows the source when one does not parse`（mermaid 为桩，jsdom 无法排版 SVG） |
 | 真实 mermaid 在亮暗模式下按页面 token 取色、放大、解析失败时不在页面留下错误图 | Covered | `e2e/math-and-diagrams.spec.ts::real mermaid draws in the page's colours in both themes and enlarges on click`（真实 Chromium） |
 | 公式与图表前后 hast 与 DOM 计数一致，标注不落入其中 | Covered | `lib/annotation-paint.test.tsx::leaves formulas and diagrams out of the annotation text`（jsdom 中真实 `MarkdownContent` 与 KaTeX，mermaid 为桩） |
