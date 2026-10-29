@@ -116,3 +116,96 @@ nav a:hover::after {
   margin: 0 8px;
   color: var(--text-3);
 }
+
+/*
+ * The sleep dial pinned above a day's timeline: the night's length in large figures, bedtime
+ * and wake time beside it, and the week's nights as bars. The whole dial leads to the history.
+ */
+.dial {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  min-height: 88px;
+  padding: 18px 26px;
+  background: var(--bg-sunken);
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color .15s;
+}
+
+.dial:hover {
+  background: color-mix(in srgb, var(--bg-sunken) 70%, var(--border));
+}
+
+.dial .big {
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.dial .big small {
+  margin: 0 6px 0 2px;
+  font-size: var(--font-size-base);
+  color: var(--text-2);
+}
+
+.dial dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 14px;
+  color: var(--text-2);
+  font-size: var(--font-size-md);
+}
+
+.dial dt {
+  color: var(--text-3);
+}
+
+.dial dd {
+  margin: 0;
+}
+
+/* Seven nights ending with this one: its length against the week, no axis needed. */
+.week {
+  margin-left: auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 44px;
+}
+
+.week i {
+  width: 7px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text-3) 45%, transparent);
+}
+
+.week i.gap {
+  height: 3px;
+  background: color-mix(in srgb, var(--text-3) 25%, transparent);
+}
+
+.week i.this {
+  background: var(--accent);
+}
+
+@media (max-width: 720px) {
+  .dial {
+    gap: 20px;
+    padding: 16px 18px;
+  }
+
+  .dial .big {
+    font-size: var(--font-size-4xl);
+  }
+
+  .week {
+    display: none;
+  }
+}

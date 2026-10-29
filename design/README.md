@@ -7,8 +7,9 @@
 | 文件 | 内容 |
 | --- | --- |
 | [0-palette.html](0-palette.html) | 色板：浅色与深色主题的 token、对比度和界面样例 |
-| [1-prototype.html](1-prototype.html) | 时间线：按天浏览 Moment，卡片原地展开详情 |
+| [1-prototype.html](1-prototype.html) | 时间线：按天浏览 Moment，卡片原地展开详情；睡眠是日期下置顶的表盘 |
 | [2.1-moment-conversation.html](2.1-moment-conversation.html) | 摘星中的对话阅读页：从时间线的对话标题进入，含分支切换与返回当天 |
+| [2.2-moment-sleep.html](2.2-moment-sleep.html) | 时刻中的睡眠 Moment，只有入睡与醒来时间：18:00–05:00 日期旁 `···` 菜单「开始睡眠」，表盘置顶当天，以秒计时，表盘上的停止按钮结束睡眠（睡眠中菜单里没有睡眠项），6 点前结束先弹对话框确认，默认「继续睡」；一晚归入醒来那天，结束后表盘一直置顶这一晚的时长、入睡醒来时间和近 7 晚的柱；05:00–15:00 这一晚没开始过时菜单换成「记录睡眠」对话框；15:00 仍在计时的作废，下次开始睡眠时删除；点表盘进入历史页：每晚一行画在 20:00–10:00 的夜轴上，按周分隔，点一行修改或删除，点空行补记；状态菜单列出全部锚点 |
 | [3.1-stars.html](3.1-stars.html) | 摘星入口页：左侧笔记、文章、对话三类，右侧按年分组的目录式列表；`/` 搜索，`n` 新建笔记 |
 | [3.2-stars-note.html](3.2-stars-note.html) | 笔记详情页（文章沿用同一布局）：默认阅读，进入编辑后原页面所见即所得，「完成」退出 |
 | [3.3-stars-annotation.html](3.3-stars-annotation.html) | 文章与对话的标注：选中文字后浮出小条，四色高亮、划线、波浪线与批注，快捷键 `1`–`4`/`h`、`u`、`w`、`c`；点标记可改样式、写批注或删除；标注样式压过 Markdown 原有样式；批注与原文悬浮互相点亮；变体 A 页边批注栏：没有批注时页面与其他阅读页同宽居中，第一条批注出现时页面连同页头像回响一样加宽，删掉最后一条再收回（窄于 1180px 退回 B），变体 B 浮层批注；标题旁 `···` 菜单的「只看标注」把没有标注的段落（对话里是消息、列表里是项）按连续段折成一行「省略 N 段」，可单独展开，保留段落淡化、只突出标注，有内容的小节留标题，`a` 一键来回切换，meta 行的「显示全文」或 Esc 也能退出；`?doc=chat` 切到对话 |
@@ -23,7 +24,7 @@
 | --- | --- |
 | [tokens.css](tokens.css) | 颜色、字体、字号、圆角等变量，以及浅色/深色主题 |
 | [base.css](base.css) | reset 和 `body` 默认样式，所有页面都引入 |
-| [components.css](components.css) | 多个原型共用的应用组件：页面容器 `.sheet`、页头、导航、元信息行 `.meta` |
+| [components.css](components.css) | 多个原型共用的应用组件：页面容器 `.sheet`、页头、导航、元信息行 `.meta`、睡眠表盘 `.dial` |
 | [reading-toc.css](reading-toc.css) | 对话与笔记原型共用的右侧阅读目录样式；消息按角色、标题按 H1–H6 区分横线 |
 | [ornament.js](ornament.js) | 原型和 React 共用的装饰 SVG 路径与 viewBox；[ornament.d.ts](ornament.d.ts) 提供 TypeScript 类型 |
 | [shared.js](shared.js) | 共用的 HTML 结构，目前提供 `<palace-header>` |

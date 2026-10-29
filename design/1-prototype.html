@@ -107,34 +107,13 @@
       padding: 18px 22px;
     }
 
-    /* Sleep */
-    .sleep {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 36px;
-      align-items: center;
+    /* The night is pinned above the timeline rather than placed in it; see 2.2-moment-sleep.html. */
+    .dial {
+      margin-top: 28px;
     }
 
-    .sleep svg {
-      width: 100%;
-      height: 60px;
-      display: block;
-    }
-
-    .sleep dl {
-      margin: 0;
-      font-size: var(--font-size-md);
-      color: var(--text-2);
-      line-height: 1.6;
-    }
-
-    .sleep dd {
-      margin: 0;
-    }
-
-    .sleep dd.big {
-      color: var(--text);
-      font-size: var(--font-size-lg);
+    .dial+ol.timeline {
+      margin-top: 36px;
     }
 
     /* Photos: text-first prototype, so frames are tonal placeholders, not images. */
@@ -284,11 +263,6 @@
         font-size: var(--font-size-lg);
       }
 
-      .sleep {
-        grid-template-columns: 1fr;
-        gap: 10px;
-      }
-
       .photos,
       .photos.dim {
         height: 84px;
@@ -314,49 +288,22 @@
       <input id="pick" type="date" tabindex="-1" aria-hidden="true">
     </header>
 
-    <ol class="timeline">
-      <li class="moment">
-        <div>
-          <button class="moment-head"><span class="kind">睡眠</span><span class="title">7 小时 26 分 · 良好</span></button>
-          <p class="summary">Went to bed at 23:46, woke up at 07:12. Sleep quality was good with stable heart rate.</p>
-          <div class="well sleep">
-            <svg viewBox="0 0 400 60" preserveAspectRatio="none" aria-label="Sleep stages">
-              <!-- Stepped hypnogram: higher = lighter sleep. -->
-              <path
-                d="M0 4 V56 M0 14 H8 V56 H8 M8 20 H50 V56 M50 20 H56 V56 M56 20 H90 V56 M90 54 H110 V20 H125 V56 M125 20 H140 V56 M140 20 H150 V54 H170 V30 H174 V54 H230 V40 H234 V54 H300 V20 H310 V54 H330 V34 H340 V56"
-                fill="none" stroke="currentColor" stroke-width="1.2" opacity=".3" />
-              <g fill="currentColor" opacity=".08">
-                <rect x="2" y="14" width="88" height="42" />
-                <rect x="110" y="20" width="40" height="36" />
-                <rect x="300" y="20" width="10" height="36" />
-                <rect x="330" y="34" width="10" height="22" />
-              </g>
-            </svg>
-            <dl>
-              <dd>23:46 – 07:12</dd>
-              <dd class="big">7h 26m</dd>
-              <dd>Sleep score 82</dd>
-            </dl>
-          </div>
-          <div class="detail">
-            <dl>
-              <dt>Deep</dt>
-              <dd>1h 38m</dd>
-              <dt>REM</dt>
-              <dd>1h 52m</dd>
-              <dt>Light</dt>
-              <dd>3h 41m</dd>
-              <dt>Awake</dt>
-              <dd>15m · 2 times</dd>
-              <dt>Heart rate</dt>
-              <dd>54 bpm avg, 48 lowest</dd>
-              <dt>This week</dt>
-              <dd>7h 02m avg · 4 of 6 nights rated Good</dd>
-            </dl>
-          </div>
-        </div>
-      </li>
+    <!-- Bars: the seven nights ending with this one, as fractions of the longest. -->
+    <a class="dial" href="2.2-moment-sleep.html#history" aria-label="睡眠记录">
+      <div class="big">7<small>小时</small>26<small>分</small></div>
+      <dl>
+        <dt>入睡</dt>
+        <dd>23:46</dd>
+        <dt>醒来</dt>
+        <dd>07:12</dd>
+      </dl>
+      <div class="week" aria-label="近 7 晚">
+        <i style="height:88%"></i><i style="height:96%"></i><i style="height:84%"></i><i style="height:100%"></i><i
+          style="height:91%"></i><i style="height:93%"></i><i class="this" style="height:87%"></i>
+      </div>
+    </a>
 
+    <ol class="timeline">
       <li class="moment">
         <div>
           <button class="moment-head"><span class="kind">照片</span><span class="title">公园的早晨</span></button>

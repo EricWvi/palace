@@ -1,0 +1,1153 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Palace · 睡眠</title>
+  <!--
+  The sleep moment in 时刻. Only bedtime and wake time are known, so nothing here shows stages,
+  scores or heart rate.
+
+  - 18:00–05:00 the day's ··· menu offers 开始睡眠. A running sleep pins a stopwatch to the top of
+    the day, and the stopwatch carries its own end button; the menu has no sleep action meanwhile.
+  - A night is filed under the day it ended on, and pinned to the top of that day from then on.
+  - 05:00–15:00, if the night before was never started, the menu offers 记录睡眠 instead.
+  - Ending before 06:00 asks once more, since a tap that early is more likely a slip.
+  - A sleep still running at 15:00 is void: the stopwatch goes, and the next 开始睡眠 deletes it.
+  - The pinned item opens the history page, where every night can be corrected or deleted.
+
+  Every state opens by anchor; the 状态 menu in the corner lists them.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="components.css">
+  <script src="ornament.js"></script>
+  <script src="shared.js"></script>
+  <style>
+    [hidden] {
+      display: none !important;
+    }
+
+    .num {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- Day heading and its ··· menu, as in the app ---------- */
+
+    header.day {
+      position: relative;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin: 64px 0 0;
+    }
+
+    header.day h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: var(--font-size-4xl);
+      letter-spacing: -0.01em;
+    }
+
+    .more {
+      flex: none;
+      color: var(--text-3);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-lg);
+      letter-spacing: 2px;
+      line-height: 1;
+      position: relative;
+      top: -0.3em;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+
+    header.day:hover .more,
+    .more[aria-expanded="true"] {
+      opacity: 1;
+    }
+
+    .more:hover,
+    .more[aria-expanded="true"] {
+      color: var(--text-2);
+    }
+
+    .menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 40;
+      min-width: 128px;
+      margin: 6px 0 0;
+      padding: 6px;
+      list-style: none;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgb(0 0 0 / .08);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .menu button {
+      display: block;
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      color: var(--text-2);
+      text-align: left;
+    }
+
+    .menu button:hover {
+      background: var(--bg-sunken);
+      color: var(--text);
+    }
+
+    /* ---------- Timeline, trimmed to two neighbours for context ---------- */
+
+    ol.timeline {
+      list-style: none;
+      margin: 40px 0 0;
+      padding: 0;
+    }
+
+    .moment {
+      padding-bottom: 44px;
+      font-family: var(--font-display);
+    }
+
+    .moment-head {
+      display: block;
+      font-size: var(--font-size-xl);
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .moment-head .kind {
+      margin-right: 12px;
+      font-size: var(--font-size-base);
+      color: var(--text-2);
+    }
+
+    .moment-head .kind::before {
+      content: "[ ";
+    }
+
+    .moment-head .kind::after {
+      content: " ]";
+    }
+
+    .moment-head:hover .title {
+      text-decoration: underline;
+      text-decoration-color: var(--text-3);
+      text-underline-offset: 4px;
+    }
+
+    blockquote.chat {
+      margin: 18px 0 0;
+      padding: 16px 40px;
+      border-left: 3px solid var(--accent-soft);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      background: var(--bg-sunken);
+      color: var(--text-2);
+    }
+
+    blockquote.chat p {
+      margin: 0;
+    }
+
+    /* ---------- The pinned dial: last night, or the running stopwatch ---------- */
+
+    #pin {
+      margin-top: 28px;
+    }
+
+    #pin+ol.timeline {
+      margin-top: 36px;
+    }
+
+    .dial.running .big {
+      color: var(--accent);
+    }
+
+    /*
+     * The end button is a mark, not a word: a stop square in a ring of the stopwatch's colour. The
+     * ring breathes slowly, so the dial reads as live without the seconds having to shout.
+     */
+    @keyframes breathe {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent);
+      }
+
+      50% {
+        box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 14%, transparent);
+      }
+    }
+
+    .end {
+      flex: none;
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      margin-left: auto;
+      border: 1.5px solid var(--accent);
+      border-radius: var(--radius-round);
+      color: var(--accent);
+      animation: breathe 3.2s ease-in-out infinite;
+      transition: background-color .15s, color .15s;
+    }
+
+    .end::before {
+      content: "";
+      width: 13px;
+      height: 13px;
+      border-radius: 2px;
+      background: currentColor;
+    }
+
+    .end:hover {
+      background: var(--accent);
+      color: var(--on-accent);
+    }
+
+    /* A touch press holds long enough to be seen before the dial turns into the night. */
+    .end:active {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      color: var(--on-accent);
+    }
+
+    /* ---------- History page ---------- */
+
+    .history-head {
+      position: relative;
+      margin: 64px 0 0;
+    }
+
+    .history-head h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: var(--font-size-4xl);
+      letter-spacing: -0.01em;
+    }
+
+    .back {
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      margin-bottom: 8px;
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+      text-decoration: none;
+    }
+
+    .back:hover {
+      color: var(--text-2);
+    }
+
+    .summary {
+      display: flex;
+      gap: 40px;
+      margin: 36px 0 28px;
+      font-family: var(--font-display);
+    }
+
+    .summary div {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .summary small {
+      color: var(--text-3);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-xs);
+    }
+
+    .summary b {
+      font-weight: 400;
+      font-size: var(--font-size-xl);
+    }
+
+    .nights {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .nights li {
+      display: grid;
+      grid-template-columns: 84px 1fr 64px;
+      align-items: center;
+      gap: 14px;
+      height: 26px;
+      padding: 0 6px;
+      margin: 0 -6px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-display);
+      font-size: var(--font-size-md);
+      cursor: pointer;
+    }
+
+    .nights li:hover,
+    .nights li[aria-current="true"] {
+      background: var(--bg-sunken);
+    }
+
+    .nights .when {
+      color: var(--text-2);
+      white-space: nowrap;
+    }
+
+    .nights .h {
+      text-align: right;
+    }
+
+    /* Mondays start a new week; a hairline keeps the stack countable. */
+    .nights li.week-start {
+      position: relative;
+      margin-top: 9px;
+    }
+
+    .nights li.week-start::before {
+      content: "";
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      top: -5px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Night axis: 20:00 of the evening before to 10:00 of the wake day. */
+    .axis {
+      position: relative;
+      height: 8px;
+      border-radius: 4px;
+      background: var(--bg-sunken);
+    }
+
+    .nights li:hover .axis,
+    .nights li[aria-current="true"] .axis {
+      background: color-mix(in srgb, var(--bg-sunken) 55%, var(--border));
+    }
+
+    .axis .bar {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      border-radius: 4px;
+      background: color-mix(in srgb, var(--accent) 55%, var(--bg-sunken));
+    }
+
+    .ticks {
+      position: relative;
+      height: 18px;
+      margin: 8px 0 0 98px;
+      width: calc(100% - 98px - 78px);
+      color: var(--text-3);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-xs);
+    }
+
+    .ticks span {
+      position: absolute;
+      transform: translateX(-50%);
+    }
+
+    .missing {
+      color: var(--text-3);
+      font-style: italic;
+    }
+
+    .empty-history {
+      margin: 48px 0 0;
+      color: var(--text-2);
+      font-family: var(--font-display);
+      font-size: var(--font-size-lg);
+    }
+
+    /* ---------- Dialog: 记录睡眠 and correcting a night share one form ---------- */
+
+    .scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      background: rgb(0 0 0 / .32);
+    }
+
+    .dialog {
+      width: min(360px, calc(100vw - 32px));
+      padding: 22px 24px 20px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 12px 40px rgb(0 0 0 / .18);
+    }
+
+    .dialog h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: var(--font-size-xl);
+      font-weight: 400;
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 20px 0 0;
+    }
+
+    .fields label {
+      display: grid;
+      gap: 6px;
+      color: var(--text-2);
+      font-size: var(--font-size-sm);
+    }
+
+    .fields input {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      font-size: var(--font-size-lg);
+      font-variant-numeric: tabular-nums;
+      outline: none;
+    }
+
+    .fields input:focus {
+      border-color: var(--text-3);
+    }
+
+    .fields input[aria-invalid="true"] {
+      border-color: var(--accent);
+    }
+
+    /* The night's length, worked out as the times are typed; the reason when they don't add up. */
+    .length {
+      margin: 14px 0 0;
+      min-height: 1.5em;
+      color: var(--text-2);
+      font-family: var(--font-display);
+      font-size: var(--font-size-md);
+    }
+
+    .length.invalid {
+      color: var(--accent);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .actions .spacer {
+      flex: 1;
+    }
+
+    .btn {
+      padding: 6px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: var(--font-size-sm);
+    }
+
+    .btn:hover {
+      background: var(--bg-sunken);
+    }
+
+    .btn.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: var(--on-accent);
+    }
+
+    .btn.primary:hover {
+      border-color: var(--accent-hover);
+      background: var(--accent-hover);
+    }
+
+    .btn.primary:disabled {
+      opacity: .45;
+      pointer-events: none;
+    }
+
+    /* Deleting is the one irreversible action, so it sits apart, quiet, and asks once more. */
+    .btn.quiet {
+      border-color: transparent;
+      color: var(--text-3);
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .btn.quiet:hover {
+      background: none;
+      color: var(--accent);
+    }
+
+    .btn.danger {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn.danger:hover {
+      background: var(--accent-soft);
+    }
+
+    /* ---------- PROTOTYPE ONLY: the 状态 menu, inverted to stand apart from the design ---------- */
+
+    .proto {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 60;
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .proto>button,
+    .proto .panel {
+      background: var(--text);
+      color: var(--bg);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgb(0 0 0 / .2);
+    }
+
+    .proto>button {
+      padding: 6px 14px;
+    }
+
+    .proto .panel {
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 8px);
+      width: 220px;
+      max-height: calc(100vh - 100px);
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .proto h3 {
+      margin: 8px 8px 4px;
+      font-size: var(--font-size-xs);
+      font-weight: 400;
+      opacity: .6;
+    }
+
+    .proto h3:first-child {
+      margin-top: 2px;
+    }
+
+    .proto .panel a,
+    .proto .panel button {
+      display: block;
+      width: 100%;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      color: inherit;
+      text-align: left;
+      text-decoration: none;
+    }
+
+    .proto .panel a:hover,
+    .proto .panel button:hover {
+      background: color-mix(in srgb, var(--bg) 15%, transparent);
+    }
+
+    .proto [aria-current="page"],
+    .proto [aria-pressed="true"] {
+      background: color-mix(in srgb, var(--bg) 25%, transparent);
+    }
+
+    .proto hr {
+      margin: 8px;
+      border: 0;
+      border-top: 1px solid color-mix(in srgb, var(--bg) 25%, transparent);
+    }
+
+    /* Screenshots are of the design, not of the prototype's controls. */
+    .automated .proto {
+      display: none;
+    }
+
+    @media (max-width: 720px) {
+
+      header.day,
+      .history-head {
+        margin-top: 36px;
+      }
+
+      header.day h1,
+      .history-head h1 {
+        font-size: var(--font-size-3xl);
+      }
+
+      .summary {
+        gap: 24px;
+      }
+
+      .nights li {
+        grid-template-columns: 40px 1fr 40px;
+        gap: 10px;
+      }
+
+      /* The week's hairlines still show where weeks turn; the weekday gives way to the axis. */
+      .nights .wd {
+        display: none;
+      }
+
+      .ticks {
+        margin-left: 50px;
+        width: calc(100% - 50px - 50px);
+      }
+
+      blockquote.chat {
+        padding: 12px 16px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="sheet">
+    <palace-header active="时刻"></palace-header>
+
+    <section id="day-page">
+      <header class="day">
+        <h1 id="date"></h1>
+        <button class="more" id="more" aria-label="当天操作" aria-haspopup="menu" aria-expanded="false">···</button>
+        <ul class="menu" id="menu" role="menu" hidden></ul>
+      </header>
+
+      <div id="pin"></div>
+
+      <ol class="timeline">
+        <li class="moment">
+          <a class="moment-head" href="#"><span class="kind">对话</span><span class="title">计划周末出行</span></a>
+          <p class="meta"><span>ChatGPT</span><span>20 条消息</span></p>
+          <blockquote class="chat">
+            <p>你：这个周末想出去走走，最好在海边，从旧金山出发不要开太久。</p>
+            <p>ChatGPT：好主意！从旧金山出发，海边有三个不错的选择……</p>
+          </blockquote>
+        </li>
+        <li class="moment">
+          <a class="moment-head" href="#"><span class="kind">笔记</span><span class="title">Palace 的一些想法</span></a>
+          <p class="meta"><span>#palace</span><span>#design</span></p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="history-page" hidden>
+      <header class="history-head">
+        <a class="back" id="back" href="#morning"></a>
+        <h1>睡眠</h1>
+      </header>
+      <div id="hist"></div>
+    </section>
+  </main>
+
+  <div class="scrim" id="scrim" hidden>
+    <form class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" novalidate>
+      <h2 id="dialog-title"></h2>
+      <div class="fields">
+        <label>入睡<input id="bed" inputmode="numeric" autocomplete="off" placeholder="23:30"></label>
+        <label>醒来<input id="wake" inputmode="numeric" autocomplete="off" placeholder="07:00"></label>
+      </div>
+      <p class="length num" id="length" aria-live="polite"></p>
+      <div class="actions" id="actions"></div>
+    </form>
+  </div>
+
+  <div class="scrim" id="confirm" hidden>
+    <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title"
+      aria-describedby="confirm-text">
+      <h2 id="confirm-title">现在就结束睡眠？</h2>
+      <p class="length num" id="confirm-text"></p>
+      <div class="actions">
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-act="confirm-end">结束</button>
+        <button type="button" class="btn primary" data-act="keep-sleeping">继续睡</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="proto" id="proto">
+    <div class="panel" id="panel" hidden></div>
+    <button id="proto-toggle" aria-expanded="false">状态</button>
+  </div>
+
+  <script>
+    if (navigator.webdriver) document.documentElement.classList.add("automated");
+
+    /* ---------- Sample data: only bedtime and wake time are known ---------- */
+
+    const MINUTE = 60_000;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const addDays = (date, n) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + n);
+    const at = (day, h, m) => new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, m);
+    const sameDay = (a, b) => a.getTime() === b.getTime();
+
+    // A fixed seed so every reload shows the same nights. Two nights were never recorded.
+    function sampleNights() {
+      let seed = 7;
+      const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      const list = [];
+      for (let back = 62; back >= 1; back--) {
+        const wake = addDays(today, -back);
+        const late = wake.getDay() === 6 || wake.getDay() === 0 ? 50 : 0;
+        const start = at(addDays(wake, -1), 23, Math.round(-20 + random() * 80 + late));
+        const end = at(wake, 6, Math.round(25 + random() * 60 + late));
+        if (back !== 9 && back !== 23) list.push({ wake, start, end });
+      }
+      list.push({ wake: today, start: at(addDays(today, -1), 23, 46), end: at(today, 7, 12) });
+      return list;
+    }
+
+    /* ---------- Formatting ---------- */
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const clock = (date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    const minutes = (from, to) => Math.round((to - from) / MINUTE);
+    const long = (min) => `${Math.floor(min / 60)} 小时 ${pad(min % 60)} 分`;
+    const short = (min) => `${Math.floor(min / 60)}:${pad(min % 60)}`;
+    const stopwatch = (ms) => {
+      const s = Math.max(0, Math.floor(ms / 1000));
+      return `${Math.floor(s / 3600)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
+    };
+    const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+    const monthDay = (d) => `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
+    const heading = (d) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(d);
+    const average = (values) => Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+    // Bedtimes straddle midnight, so they average as minutes after 18:00 of the evening before.
+    const clockAfter = (base, list, pick) =>
+      clock(new Date(at(today, base, 0).getTime() + average(list.map(pick)) * MINUTE));
+    const bedtimeAverage = (list) => clockAfter(18, list, (n) => minutes(at(addDays(n.wake, -1), 18, 0), n.start));
+    const wakeAverage = (list) => clockAfter(0, list, (n) => minutes(at(n.wake, 0, 0), n.end));
+
+    const AXIS_MIN = 14 * 60;
+    const axisPct = (wake, date) => Math.max(0, Math.min(100, minutes(at(addDays(wake, -1), 20, 0), date) / AXIS_MIN * 100));
+    const ticks = () => [22, 0, 2, 4, 6, 8]
+      .map((h, i) => `<span style="left:${(i * 2 + 2) / 14 * 100}%">${pad(h)}:00</span>`).join("");
+
+    /*
+     * ---------- States ----------
+     * Each state names the simulated time of day, the day shown, what is recorded and what is open.
+     * The prototype's clock then runs on from that time, so a stopwatch ticks.
+     */
+    const STATES = [
+      { group: "时间线", key: "evening", label: "晚上，可开始睡眠", now: [0, 21, 30] },
+      { group: "时间线", key: "evening-menu", label: "晚上，菜单展开", now: [0, 21, 30], open: "menu" },
+      { group: "时间线", key: "sleeping", label: "睡眠中", now: [0, 1, 9], running: [-1, 23, 46] },
+      { group: "时间线", key: "sleeping-menu", label: "睡眠中，菜单无睡眠项", now: [0, 1, 9], running: [-1, 23, 46], open: "menu" },
+      { group: "时间线", key: "overslept", label: "上午仍在计时", now: [0, 11, 40], running: [-1, 23, 46] },
+      { group: "时间线", key: "morning", label: "醒来后，置顶昨晚", now: [0, 7, 30] },
+      { group: "时间线", key: "unrecorded", label: "没开始过，可补记", now: [0, 9, 0], noTonight: true, open: "menu" },
+      { group: "时间线", key: "afternoon", label: "15–18 点，没有睡眠项", now: [0, 16, 0], open: "menu" },
+      { group: "时间线", key: "void", label: "忘记结束，15 点后作废", now: [0, 16, 0], noTonight: true, voidStart: [-1, 23, 46] },
+      { group: "时间线", key: "void-evening", label: "作废后晚上再开始", now: [0, 21, 30], noTonight: true, voidStart: [-1, 23, 46], open: "menu" },
+      { group: "时间线", key: "past", label: "以前某天", now: [0, 21, 30], day: -3 },
+      { group: "时间线", key: "past-empty", label: "以前某天，没有记录", now: [0, 21, 30], day: -9 },
+      { group: "对话框", key: "record", label: "记录睡眠", now: [0, 9, 0], noTonight: true, open: "record" },
+      { group: "对话框", key: "end-early", label: "6 点前结束，再确认", now: [0, 1, 9], running: [-1, 23, 46], open: "confirm" },
+      { group: "对话框", key: "record-invalid", label: "记录睡眠，时间不对", now: [0, 9, 0], noTonight: true, open: "record", typed: ["23:30", "10:30"] },
+      { group: "历史", key: "history", label: "历史", now: [0, 21, 30], page: "history" },
+      { group: "历史", key: "history-edit", label: "修改一晚", now: [0, 21, 30], page: "history", open: "edit", night: -1 },
+      { group: "历史", key: "history-delete", label: "删除一晚，再确认", now: [0, 21, 30], page: "history", open: "edit", night: -1, confirming: true },
+      { group: "历史", key: "history-fill", label: "补记没有记录的一晚", now: [0, 21, 30], page: "history", open: "fill", night: -9 },
+      { group: "历史", key: "history-empty", label: "还没有记录", now: [0, 21, 30], page: "history", none: true },
+    ];
+    const byKey = Object.fromEntries(STATES.map((s) => [s.key, s]));
+    const atOffset = ([days, h, m]) => at(addDays(today, days), h, m);
+
+    let nights = [];
+    let state;
+    let shownDay = today;
+    let base = 0;
+    let loaded = 0;
+    // A start that was never ended; kept until the next 开始睡眠 deletes it.
+    let voidStart = null;
+    let running = null;
+    const simNow = () => new Date(base + (Date.now() - loaded));
+    const nightOf = (day) => nights.find((n) => sameDay(n.wake, day));
+
+    function applyState(key) {
+      state = byKey[key] || byKey.evening;
+      nights = state.none ? [] : sampleNights();
+      if (state.noTonight || state.running) nights = nights.filter((n) => !sameDay(n.wake, today));
+      running = state.running ? { start: atOffset(state.running) } : null;
+      voidStart = state.voidStart ? atOffset(state.voidStart) : null;
+      shownDay = addDays(today, state.day || 0);
+      base = atOffset(state.now).getTime();
+      loaded = Date.now();
+    }
+
+    /* ---------- Sleep rules ---------- */
+
+    // A start still running at 15:00 of the day after its evening no longer counts.
+    function expired(start, now) {
+      const evening = start.getHours() >= 12 ? at(start, 0, 0) : addDays(at(start, 0, 0), -1);
+      return now >= at(addDays(evening, 1), 15, 0);
+    }
+
+    function sleepAction(now) {
+      // Only today has sleep actions, and a running sleep ends from its own dial.
+      if (!sameDay(shownDay, today) || running) return null;
+      const h = now.getHours();
+      if (h >= 18 || h < 5) return { label: "开始睡眠", act: "start" };
+      if (h < 15 && !nightOf(today)) return { label: "记录睡眠", act: "record" };
+      return null;
+    }
+
+    /* ---------- Day page ---------- */
+
+    const pin = document.getElementById("pin");
+    const confirmScrim = document.getElementById("confirm");
+
+    function renderPin() {
+      const now = simNow();
+      if (running && expired(running.start, now)) {
+        voidStart = running.start;
+        running = null;
+      }
+      if (running && sameDay(shownDay, today)) {
+        pin.hidden = false;
+        pin.innerHTML = `<div class="dial running" data-open="history">
+          <div class="big num" aria-label="已睡">${stopwatch(now - running.start)}</div>
+          <dl class="num"><dt>入睡</dt><dd>${clock(running.start)}</dd></dl>
+          <button class="end" data-act="end" aria-label="结束睡眠" title="结束睡眠"></button>
+        </div>`;
+        return;
+      }
+      const night = nightOf(shownDay);
+      pin.hidden = !night;
+      if (!night) return;
+      const min = minutes(night.start, night.end);
+      const week = [...Array(7)].map((_, i) => nightOf(addDays(shownDay, i - 6)));
+      const max = Math.max(...week.filter(Boolean).map((n) => minutes(n.start, n.end)));
+      pin.innerHTML = `<div class="dial" data-open="history">
+        <div class="big num">${Math.floor(min / 60)}<small>小时</small>${pad(min % 60)}<small>分</small></div>
+        <dl class="num"><dt>入睡</dt><dd>${clock(night.start)}</dd><dt>醒来</dt><dd>${clock(night.end)}</dd></dl>
+        <div class="week" aria-label="近 7 晚">${week.map((n) => n
+          ? `<i class="${n === night ? "this" : ""}" style="height:${minutes(n.start, n.end) / max * 100}%"></i>`
+          : `<i class="gap"></i>`).join("")}</div>
+      </div>`;
+    }
+
+    const more = document.getElementById("more");
+    const menu = document.getElementById("menu");
+
+    function openMenu() {
+      const action = sleepAction(simNow());
+      menu.innerHTML = [
+        action && `<li role="none"><button role="menuitem" data-act="${action.act}">${action.label}</button></li>`,
+        `<li role="none"><button role="menuitem">导入对话</button></li>`,
+        `<li role="none"><button role="menuitem">密钥管理</button></li>`,
+      ].filter(Boolean).join("");
+      menu.hidden = false;
+      more.setAttribute("aria-expanded", "true");
+    }
+
+    function closeMenu() {
+      menu.hidden = true;
+      more.setAttribute("aria-expanded", "false");
+    }
+
+    more.addEventListener("mousedown", (e) => e.preventDefault());
+    more.addEventListener("click", () => (menu.hidden ? openMenu() : closeMenu()));
+
+    document.addEventListener("click", (e) => {
+      const act = e.target.closest("[data-act]")?.dataset.act;
+      if (act === "start") {
+        closeMenu();
+        // Starting again is what finally removes a night that was never ended.
+        voidStart = null;
+        running = { start: simNow() };
+        renderPin();
+      } else if (act === "end") {
+        // Before 06:00 the night has hardly begun, so a tap there is more likely a slip than a waking.
+        if (early(simNow())) openConfirm();
+        else endSleep();
+      } else if (act === "confirm-end") {
+        closeConfirm();
+        endSleep();
+      } else if (act === "keep-sleeping") {
+        closeConfirm();
+      } else if (act === "record") {
+        closeMenu();
+        openDialog({ kind: "record", day: today });
+      } else if (e.target.closest("[data-open=history]")) {
+        location.hash = "history";
+      } else if (!e.target.closest("#more, #menu")) {
+        closeMenu();
+      }
+    });
+
+    // Any end before 06:00 of the morning after the evening it started: the evening itself counts.
+    const early = (now) => now.getHours() < 6 || now.getHours() >= 18;
+
+    function openConfirm() {
+      const now = simNow();
+      document.getElementById("confirm-text").textContent =
+        `现在 ${clock(now)}，才睡了 ${long(minutes(running.start, now))}。`;
+      confirmScrim.hidden = false;
+      // Staying asleep is the safe answer, so it takes focus and Enter.
+      if (!navigator.webdriver) confirmScrim.querySelector("[data-act=keep-sleeping]").focus();
+    }
+
+    function closeConfirm() {
+      confirmScrim.hidden = true;
+    }
+
+    // The night is filed under the day it ends on and takes the stopwatch's place.
+    function endSleep() {
+      const end = simNow();
+      const wake = at(end, 0, 0);
+      nights = nights.filter((n) => !sameDay(n.wake, wake));
+      nights.push({ wake, start: running.start, end });
+      nights.sort((a, b) => a.wake - b.wake);
+      running = null;
+      renderPin();
+    }
+
+    /* ---------- History page ---------- */
+
+    let selected = null;
+
+    function renderHistory() {
+      document.getElementById("back").textContent = `← ${monthDay(today)}`;
+      const hist = document.getElementById("hist");
+      if (!nights.length) {
+        hist.innerHTML = `<p class="empty-history">还没有睡眠记录。</p>`;
+        return;
+      }
+      const recent = nights.slice(-30);
+      const oldest = nights[0].wake;
+      const rows = [];
+      for (let day = today; day >= oldest; day = addDays(day, -1)) {
+        const n = nightOf(day);
+        const weekStart = day.getDay() === 0 && !sameDay(day, today) ? "week-start" : "";
+        const current = selected && sameDay(selected, day) ? ` aria-current="true"` : "";
+        const bar = n ? `<div class="bar" style="left:${axisPct(day, n.start)}%;right:${100 - axisPct(day, n.end)}%"></div>` : "";
+        const right = n ? short(minutes(n.start, n.end)) : `<span class="missing">无</span>`;
+        rows.push(`<li class="${weekStart}" data-day="${day.getTime()}"${current} title="${n ? `${clock(n.start)} – ${clock(n.end)}` : "没有记录"}">
+          <span class="when num">${day.getMonth() + 1}/${day.getDate()}<span class="wd"> 周${WEEKDAYS[day.getDay()]}</span></span>
+          <div class="axis">${bar}</div><span class="h num">${right}</span></li>`);
+      }
+      hist.innerHTML = `
+        <div class="summary num">
+          <div><small>近 30 晚平均</small><b>${long(average(recent.map((n) => minutes(n.start, n.end))))}</b></div>
+          <div><small>平均入睡</small><b>${bedtimeAverage(recent)}</b></div>
+          <div><small>平均醒来</small><b>${wakeAverage(recent)}</b></div>
+        </div>
+        <ol class="nights">${rows.join("")}</ol>
+        <div class="ticks">${ticks()}</div>`;
+    }
+
+    // A recorded night opens for correction; an empty one opens to be filled in.
+    document.getElementById("hist").addEventListener("click", (e) => {
+      const row = e.target.closest("[data-day]");
+      if (!row) return;
+      const day = new Date(Number(row.dataset.day));
+      openDialog({ kind: nightOf(day) ? "edit" : "fill", day });
+    });
+
+    /* ---------- Dialog ---------- */
+
+    const scrim = document.getElementById("scrim");
+    const dialog = document.getElementById("dialog");
+    const bed = document.getElementById("bed");
+    const wakeInput = document.getElementById("wake");
+    const length = document.getElementById("length");
+    const actions = document.getElementById("actions");
+    let editing = null;
+
+    const parseClock = (text) => {
+      const match = /^(\d{1,2})[:：.]?(\d{2})$/.exec(text.trim());
+      if (!match) return null;
+      const [h, m] = [Number(match[1]), Number(match[2])];
+      return h < 24 && m < 60 ? [h, m] : null;
+    };
+
+    // A bedtime from noon on belongs to the evening before the wake day; earlier ones to the day itself.
+    function readNight(day) {
+      const b = parseClock(bed.value);
+      const w = parseClock(wakeInput.value);
+      if (!b || !w) return { error: "按 23:30 这样的格式填写", bad: [!b, !w] };
+      const start = b[0] >= 12 ? at(addDays(day, -1), ...b) : at(day, ...b);
+      const end = at(day, ...w);
+      if (end <= start) return { error: "醒来要晚于入睡", bad: [false, true] };
+      if (end > simNow()) return { error: "醒来时间还没到", bad: [false, true] };
+      if (minutes(start, end) > 16 * 60) return { error: "超过 16 小时，检查一下入睡时间", bad: [true, false] };
+      return { start, end };
+    }
+
+    function validate() {
+      const result = readNight(editing.day);
+      const typed = bed.value && wakeInput.value;
+      length.classList.toggle("invalid", Boolean(result.error && typed));
+      length.textContent = result.error ? (typed ? result.error : "") : long(minutes(result.start, result.end));
+      [bed, wakeInput].forEach((input, i) => input.setAttribute("aria-invalid", String(Boolean(typed && result.bad?.[i]))));
+      const save = actions.querySelector("[data-dialog=save]");
+      if (save) save.disabled = Boolean(result.error);
+      return result;
+    }
+
+    function renderActions() {
+      const confirming = editing.confirming;
+      actions.innerHTML = [
+        editing.kind === "edit" && (confirming
+          ? `<button type="button" class="btn danger" data-dialog="delete">确认删除</button>`
+          : `<button type="button" class="btn quiet" data-dialog="ask-delete">删除这一晚</button>`),
+        `<span class="spacer"></span>`,
+        `<button type="button" class="btn" data-dialog="cancel">取消</button>`,
+        `<button type="submit" class="btn primary" data-dialog="save">保存</button>`,
+      ].filter(Boolean).join("");
+    }
+
+    function openDialog({ kind, day, typed, confirming }) {
+      editing = { kind, day, confirming: Boolean(confirming) };
+      selected = kind === "record" ? null : day;
+      const night = nightOf(day);
+      document.getElementById("dialog-title").textContent =
+        kind === "edit" ? `${monthDay(day)} 周${WEEKDAYS[day.getDay()]}` : kind === "fill" ? `补记 ${monthDay(day)}` : "记录睡眠";
+      // A new night starts from the usual times, so most entries only need a nudge.
+      const usual = nights.length ? [bedtimeAverage(nights.slice(-30)), wakeAverage(nights.slice(-30))] : ["23:30", "07:00"];
+      [bed.value, wakeInput.value] = typed || (night ? [clock(night.start), clock(night.end)] : usual);
+      renderActions();
+      validate();
+      scrim.hidden = false;
+      if (!navigator.webdriver) bed.focus();
+      if (!document.getElementById("history-page").hidden) renderHistory();
+    }
+
+    function closeDialog() {
+      scrim.hidden = true;
+      editing = null;
+      selected = null;
+      if (!document.getElementById("history-page").hidden) renderHistory();
+    }
+
+    [bed, wakeInput].forEach((input) => input.addEventListener("input", validate));
+
+    dialog.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const result = validate();
+      if (result.error) return;
+      nights = nights.filter((n) => !sameDay(n.wake, editing.day));
+      nights.push({ wake: editing.day, start: result.start, end: result.end });
+      nights.sort((a, b) => a.wake - b.wake);
+      closeDialog();
+      renderPin();
+    });
+
+    actions.addEventListener("click", (e) => {
+      const act = e.target.closest("[data-dialog]")?.dataset.dialog;
+      if (act === "cancel") closeDialog();
+      if (act === "ask-delete") {
+        editing.confirming = true;
+        renderActions();
+        validate();
+      }
+      if (act === "delete") {
+        nights = nights.filter((n) => !sameDay(n.wake, editing.day));
+        closeDialog();
+      }
+    });
+
+    confirmScrim.addEventListener("mousedown", (e) => {
+      if (e.target === confirmScrim) closeConfirm();
+    });
+    scrim.addEventListener("mousedown", (e) => {
+      if (e.target === scrim) closeDialog();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !scrim.hidden) closeDialog();
+      if (e.key === "Escape") closeConfirm();
+    });
+
+    /* ---------- Rendering a state ---------- */
+
+    function render() {
+      const key = location.hash.slice(1) || "evening";
+      applyState(key);
+      closeMenu();
+      scrim.hidden = true;
+      editing = null;
+      selected = null;
+      const history = state.page === "history";
+      document.getElementById("day-page").hidden = history;
+      document.getElementById("history-page").hidden = !history;
+      document.getElementById("date").textContent = heading(shownDay);
+      if (history) renderHistory();
+      else renderPin();
+      confirmScrim.hidden = true;
+      if (state.open === "menu") openMenu();
+      if (state.open === "confirm") openConfirm();
+      if (state.open === "record") openDialog({ kind: "record", day: today, typed: state.typed });
+      if (state.open === "edit" || state.open === "fill")
+        openDialog({ kind: state.open, day: addDays(today, state.night), confirming: state.confirming });
+      renderProto();
+    }
+
+    // Only the stopwatch moves, once a second.
+    /*
+     * Only the figures change each second. Re-rendering the dial would restart the end button's
+     * breathing on every tick, so the dial is rebuilt only when the sleep itself changes.
+     */
+    setInterval(() => {
+      if (!running || !document.getElementById("history-page").hidden) return;
+      const now = simNow();
+      if (expired(running.start, now)) return renderPin();
+      const figures = pin.querySelector(".dial.running .big");
+      if (figures) figures.textContent = stopwatch(now - running.start);
+    }, 1000);
+
+    /* ---------- PROTOTYPE ONLY: 状态 menu ---------- */
+
+    const panel = document.getElementById("panel");
+    const toggle = document.getElementById("proto-toggle");
+    let dark = false;
+
+    function renderProto() {
+      const groups = [...new Set(STATES.map((s) => s.group))];
+      panel.innerHTML = groups.map((group) => `<h3>${group}</h3>${STATES.filter((s) => s.group === group)
+        .map((s) => `<a href="#${s.key}"${s === state ? ` aria-current="page"` : ""}>${s.label}</a>`).join("")}`).join("")
+        + `<hr><button data-proto="dark" aria-pressed="${dark}">暗色</button>`;
+    }
+
+    toggle.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      toggle.setAttribute("aria-expanded", String(!panel.hidden));
+    });
+    panel.addEventListener("click", (e) => {
+      if (e.target.closest("[data-proto=dark]")) {
+        dark = !dark;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        renderProto();
+      }
+    });
+
+    addEventListener("hashchange", render);
+    render();
+  </script>
+</body>
+
+</html>
