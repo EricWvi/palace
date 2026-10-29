@@ -19,8 +19,9 @@ export function MoreMenu({
 }: {
   label: string;
   actions: MenuAction[];
-  // Runs when a pointer or focus reaches the trigger, before the menu opens, so an action can
-  // start fetching what it needs while the reader is still choosing.
+  // Runs when a pointer, focus or a key reaches the trigger, before the menu opens, so an action
+  // can start fetching what it needs while the reader is still choosing, and actions that depend
+  // on the time are read fresh even when focus never left the trigger.
   onApproach?: () => void;
   children?: ReactNode;
 }) {
@@ -36,7 +37,10 @@ export function MoreMenu({
         onPointerEnter={onApproach}
         onFocus={onApproach}
         onPointerDown={() => (input.current = "pointer")}
-        onKeyDown={() => (input.current = "keyboard")}
+        onKeyDown={() => {
+          input.current = "keyboard";
+          onApproach?.();
+        }}
       >
         ···
       </DropdownMenu.Trigger>

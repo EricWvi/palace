@@ -1,0 +1,434 @@
+/*
+ * 时刻's sleep (design/2.2-moment-sleep.html): the dial pinned under the day's heading, the
+ * running dial's stop button, the night dialog and the history page.
+ */
+
+/* ---------- The dial ---------- */
+
+.dial {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  min-height: 88px;
+  margin-top: 28px;
+  padding: 18px 26px;
+  background: var(--bg-sunken);
+  border-radius: var(--radius-md);
+  color: inherit;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+
+/* The dial takes the timeline's gap above the first card. */
+.dial + ol.timeline {
+  margin-top: 36px;
+}
+
+a.dial:hover,
+.dial.running:has(.dial-link:hover) {
+  background: color-mix(in srgb, var(--bg-sunken) 70%, var(--border));
+}
+
+/* Holds the place of a night still on its way, so the cards below do not jump when it lands. */
+.dial.placeholder {
+  pointer-events: none;
+}
+
+/* The running dial is not one link, since its stop button cannot sit inside one. */
+.dial-link {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.dial .big {
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.dial .big small {
+  margin: 0 6px 0 2px;
+  font-size: var(--font-size-base);
+  color: var(--text-2);
+}
+
+.dial.running .big {
+  color: var(--accent);
+}
+
+.dial dl {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 14px;
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--font-size-md);
+}
+
+.dial dt {
+  color: var(--text-3);
+}
+
+.dial dd {
+  margin: 0;
+}
+
+/* Seven nights ending with this one: its length against the week, no axis needed. */
+.dial .week {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 44px;
+  margin-left: auto;
+}
+
+.dial .week i {
+  width: 7px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text-3) 45%, transparent);
+}
+
+.dial .week i.gap {
+  height: 3px;
+  background: color-mix(in srgb, var(--text-3) 25%, transparent);
+}
+
+.dial .week i.this {
+  background: var(--accent);
+}
+
+/*
+ * The stop button is a mark, not a word: a stop square in a ring of the stopwatch's colour. The
+ * ring breathes slowly, so the dial reads as live without the seconds having to shout.
+ */
+@keyframes sleep-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+}
+
+.dial .end {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: auto;
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius-round);
+  color: var(--accent);
+  cursor: pointer;
+  animation: sleep-breathe 3.2s ease-in-out infinite;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.dial .end::before {
+  content: "";
+  width: 13px;
+  height: 13px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.dial .end:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* A touch press stays visible long enough to be seen before the dial turns into the night. */
+.dial .end:active {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+  color: var(--on-accent);
+}
+
+.dial .end:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dial .end {
+    animation: none;
+  }
+}
+
+/* ---------- The night dialog ---------- */
+
+.sleep-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  min-width: 0;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.sleep-fields [data-slot="label"] {
+  margin-bottom: 8px;
+}
+
+.sleep-fields input {
+  font-size: var(--font-size-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.sleep-fields input[aria-invalid="true"] {
+  border-color: var(--accent);
+}
+
+/* The night's length, worked out as the times are typed; the reason when they do not add up. */
+.sleep-length {
+  min-height: 1.5em;
+  margin: 14px 0 0;
+  color: var(--text-2);
+  font-family: var(--font-display);
+  font-size: var(--font-size-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.sleep-length.invalid {
+  color: var(--accent);
+}
+
+.sleep-actions {
+  align-items: center;
+  margin-top: 18px;
+}
+
+.sleep-actions .spacer {
+  flex: 1;
+}
+
+/* Deleting is the one irreversible action, so it sits apart, quiet, and asks once more. */
+.sleep-actions .sleep-delete {
+  padding-left: 0;
+  padding-right: 0;
+  color: var(--text-3);
+}
+
+.sleep-actions .sleep-delete:hover {
+  background: none;
+  color: var(--accent);
+}
+
+.sleep-actions .sleep-delete.confirming {
+  padding: 0 16px;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sleep-actions .sleep-delete.confirming:hover {
+  background: var(--accent-soft);
+}
+
+/* ---------- The history page ---------- */
+
+/* Where the day's date sits in 时刻, so the title does not jump on the way in. */
+.sleep-head {
+  position: relative;
+  margin: 64px 0 0;
+}
+
+.sleep-head h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--font-size-4xl);
+  letter-spacing: -0.01em;
+}
+
+.sleep-head .back {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 8px;
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+}
+
+.sleep-head .back:hover {
+  color: var(--text-2);
+}
+
+.sleep-empty {
+  margin: 48px 0 0;
+  color: var(--text-2);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+}
+
+.sleep-summary {
+  display: flex;
+  gap: 40px;
+  margin: 36px 0 28px;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.sleep-summary div {
+  display: flex;
+  flex-direction: column;
+}
+
+.sleep-summary small {
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+}
+
+.sleep-summary b {
+  font-weight: 400;
+  font-size: var(--font-size-xl);
+}
+
+ol.nights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Mondays start a new week; a hairline above keeps the stack countable. */
+ol.nights li.week-start {
+  position: relative;
+  margin-top: 9px;
+}
+
+ol.nights li.week-start::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 6px;
+  right: 6px;
+  border-top: 1px solid var(--border);
+}
+
+ol.nights button {
+  display: grid;
+  grid-template-columns: 84px 1fr 64px;
+  align-items: center;
+  gap: 14px;
+  width: calc(100% + 12px);
+  height: 26px;
+  margin: 0 -6px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font-family: var(--font-display);
+  font-size: var(--font-size-md);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+}
+
+ol.nights button:hover,
+ol.nights li[aria-current] button {
+  background: var(--bg-sunken);
+}
+
+ol.nights .when {
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+ol.nights .length {
+  text-align: right;
+}
+
+ol.nights .missing {
+  color: var(--text-3);
+  font-style: italic;
+}
+
+/* Night axis: 20:00 of the evening before to 10:00 of the wake day. */
+ol.nights .axis {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-sunken);
+}
+
+ol.nights button:hover .axis,
+ol.nights li[aria-current] .axis {
+  background: color-mix(in srgb, var(--bg-sunken) 55%, var(--border));
+}
+
+ol.nights .bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 55%, var(--bg-sunken));
+}
+
+.nights + .ticks {
+  position: relative;
+  width: calc(100% - 98px - 78px);
+  height: 18px;
+  margin: 8px 0 0 98px;
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+}
+
+.nights + .ticks span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+@media (max-width: 720px) {
+  .dial {
+    gap: 20px;
+    padding: 16px 18px;
+  }
+
+  .dial .big {
+    font-size: var(--font-size-4xl);
+  }
+
+  .dial .week {
+    display: none;
+  }
+
+  .sleep-head {
+    margin-top: 36px;
+  }
+
+  .sleep-head h1 {
+    font-size: var(--font-size-3xl);
+  }
+
+  .sleep-summary {
+    gap: 24px;
+  }
+
+  ol.nights button {
+    grid-template-columns: 40px 1fr 40px;
+    gap: 10px;
+  }
+
+  /* The week's hairlines still show where weeks turn; the weekday gives way to the axis. */
+  ol.nights .weekday {
+    display: none;
+  }
+
+  .nights + .ticks {
+    width: calc(100% - 50px - 50px);
+    margin-left: 50px;
+  }
+}

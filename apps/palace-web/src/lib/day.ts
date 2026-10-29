@@ -47,9 +47,14 @@ export function dayHeading(day: Date): string {
   }).format(day);
 }
 
+// A day as the reader names it, e.g. "9 月 30 日".
+export function monthDay(day: Date): string {
+  return `${day.getMonth() + 1} 月 ${day.getDate()} 日`;
+}
+
 // The way back to a day, e.g. "← 9 月 30 日".
 export function backLabel(day: Date): string {
-  return `← ${day.getMonth() + 1} 月 ${day.getDate()} 日`;
+  return `← ${monthDay(day)}`;
 }
 
 // A new record defaults to the viewed day at the current local time of day.

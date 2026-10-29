@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { address, mountApp } from "./test-app";
 import type { Detail, Moment } from "./lib/api";
 import { dayHeading, dayRange, parseDay, today } from "./lib/day";
-import { testRequest, requestPath } from "./lib/test-request";
+import { noSleep, testRequest, requestPath } from "./lib/test-request";
 
 const day = parseDay("2025-09-30")!;
 const moments: Moment[] = [
@@ -63,6 +63,8 @@ function mockApi() {
           : listed.map(({ id, kind }) => ({ id, kind })),
       );
     }
+    const sleep = noSleep(path);
+    if (sleep) return sleep;
     if (path === "/api/import/file")
       return Response.json({
         import_id: "import",
@@ -150,7 +152,9 @@ it("marks only 时刻, keeps unbuilt sections out of reach, and links cards to t
   ).toEqual(["你：这个周末想出去走走", "ChatGPT：好主意！"]);
   // A conversation has no fold on the timeline; its only way in is the title link.
   expect(within(card).queryByRole("button")).toBeNull();
-  const request = new URL(testRequest(fetch.mock.calls[0][0]).url);
+  const request = fetch.mock.calls
+    .map(([input]) => new URL(testRequest(input).url))
+    .find((url) => url.pathname === "/api/timeline")!;
   expect(Object.fromEntries(request.searchParams)).toEqual({
     start: String(dayRange(day).start),
     end: String(dayRange(day).end),

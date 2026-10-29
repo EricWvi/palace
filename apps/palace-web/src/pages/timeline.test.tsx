@@ -3,7 +3,7 @@ import { expect, it, vi } from "vitest";
 import { mountApp } from "@/test-app";
 import type { Moment } from "@/lib/api";
 import { dayRange, parseDay } from "@/lib/day";
-import { requestPath, testRequest } from "@/lib/test-request";
+import { noSleep, requestPath, testRequest } from "@/lib/test-request";
 
 const day = parseDay("2025-09-30")!;
 function moment(id: string, title: string): Moment {
@@ -27,6 +27,8 @@ function serveDay() {
   const asked: string[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
     const path = requestPath(url);
+    const sleep = noSleep(path);
+    if (sleep) return Promise.resolve(sleep);
     const start = Number(
       new URL(testRequest(url).url).searchParams.get("start"),
     );

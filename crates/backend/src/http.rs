@@ -20,6 +20,7 @@ mod jottings;
 mod media;
 mod notes;
 mod security;
+mod sleep;
 mod sync;
 #[cfg(test)]
 mod tests;

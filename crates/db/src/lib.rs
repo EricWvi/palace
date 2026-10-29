@@ -35,6 +35,8 @@ pub use media::{Media, MediaForDelete, MediaObject};
 mod owner;
 mod session;
 mod session_crypto;
+mod sleep;
+pub use sleep::SleepNight;
 mod sync;
 mod timeline;
 mod todo;
@@ -49,6 +51,7 @@ pub use session::{
 pub use session_crypto::CredentialKey;
 pub use timeline::{
     ArticleCard, ConversationCard, ExcerptLine, Moment, MomentDetail, MomentKind, MomentOutline,
+    SleepCard,
 };
 pub use web_page::{WebAnnotation, WebPage, WebPageDetail, WebPageSummary};
 

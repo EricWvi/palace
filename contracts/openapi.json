@@ -4681,6 +4681,844 @@
         ]
       }
     },
+    "/api/sleep/nights": {
+      "get": {
+        "tags": [
+          "sleep"
+        ],
+        "summary": "The nights whose wake time falls in the caller's range, earliest first.",
+        "operationId": "sleep_nights",
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "description": "Inclusive start of the wake times, Unix epoch milliseconds in the caller's time zone.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "description": "Exclusive end of the wake times; after start and at most 400 days later.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Nights ordered by wake time, then id",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SleepNight"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "sleep"
+        ],
+        "summary": "Records a night that was never started.",
+        "operationId": "record_sleep_night",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SleepNightInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleepNight"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The night would overlap another",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Input capacity exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/sleep/nights/{id}": {
+      "put": {
+        "tags": [
+          "sleep"
+        ],
+        "summary": "Moves a night to a new span; it keeps its identity and moves to the day of its new wake time.",
+        "operationId": "update_sleep_night",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped night id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SleepNightInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleepNight"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Night unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The night would overlap another",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Input capacity exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "sleep"
+        ],
+        "summary": "Deletes a night together with its moment.",
+        "operationId": "delete_sleep_night",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Owner-scoped night id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; native extractor text",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Night unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/sleep/running": {
+      "get": {
+        "tags": [
+          "sleep"
+        ],
+        "summary": "The running sleep, if any.",
+        "operationId": "sleep_running",
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleepRunning"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "sleep"
+        ],
+        "summary": "Starts sleeping now by the server's clock, replacing any start still on record.",
+        "operationId": "start_sleep",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Started",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleepRunning"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/sleep/running/end": {
+      "post": {
+        "tags": [
+          "sleep"
+        ],
+        "summary": "Ends the start the caller saw, waking now by the server's clock. Repeating the request\nreturns the same night.",
+        "operationId": "end_sleep",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SleepEnd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The night the start became",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleepNight"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input, or the start is more than 24 hours old; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No running start at this time, and no night that began then",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The night would overlap another",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Input capacity exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
     "/api/sync": {
       "get": {
         "tags": [
@@ -9643,6 +10481,27 @@
                 }
               }
             ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SleepMoment"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "sleep"
+                    ]
+                  }
+                }
+              }
+            ]
           }
         ],
         "description": "One timeline entry; `kind` selects the card fields that follow."
@@ -9651,7 +10510,8 @@
         "type": "string",
         "enum": [
           "conversation",
-          "article"
+          "article",
+          "sleep"
         ]
       },
       "MomentOutline": {
@@ -9906,6 +10766,109 @@
           "user",
           "assistant"
         ]
+      },
+      "SleepEnd": {
+        "type": "object",
+        "description": "Ends the start the caller saw.",
+        "required": [
+          "started_at"
+        ],
+        "properties": {
+          "started_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "`started_at` from `GET /api/sleep/running`."
+          }
+        }
+      },
+      "SleepMoment": {
+        "type": "object",
+        "description": "A sleep moment: one finished night, on the day it ended.",
+        "required": [
+          "id",
+          "occurred_at",
+          "started_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Moment id, equal to the night's id."
+          },
+          "occurred_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of waking."
+          },
+          "started_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the bedtime."
+          }
+        }
+      },
+      "SleepNight": {
+        "type": "object",
+        "description": "One finished night, `[started_at, ended_at)`.",
+        "required": [
+          "id",
+          "started_at",
+          "ended_at"
+        ],
+        "properties": {
+          "ended_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of waking, the night's place on the timeline."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Equal to the night's moment id."
+          },
+          "started_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the bedtime."
+          }
+        }
+      },
+      "SleepNightInput": {
+        "type": "object",
+        "description": "A night's span: after the bedtime, at most 24 hours later.",
+        "required": [
+          "started_at",
+          "ended_at"
+        ],
+        "properties": {
+          "ended_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of waking."
+          },
+          "started_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the bedtime."
+          }
+        }
+      },
+      "SleepRunning": {
+        "type": "object",
+        "description": "The running sleep, if any.",
+        "required": [
+          "started_at"
+        ],
+        "properties": {
+          "started_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Unix epoch milliseconds of the start; null when nothing is running. A start the browser\njudges void (still running at 15:00 the next day) is still returned until it is replaced."
+          }
+        }
       },
       "Source": {
         "type": "string",

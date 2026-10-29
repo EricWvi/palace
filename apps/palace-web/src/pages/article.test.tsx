@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { address, mountApp } from "@/test-app";
 import type { Article, ArticleListItem, Moment } from "@/lib/api";
 import { dayRange, parseDay } from "@/lib/day";
-import { requestPath, testRequest } from "@/lib/test-request";
+import { noSleep, requestPath, testRequest } from "@/lib/test-request";
 
 // Local wall-clock times, so years and dates do not depend on the test machine's zone.
 const at = (year: number, month: number, day: number) =>
@@ -68,6 +68,8 @@ function serve({ conflict = false } = {}) {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const request = testRequest(url);
     const path = requestPath(url);
+    const sleep = noSleep(path);
+    if (sleep) return sleep;
     if (path === "/api/articles/a1/annotations")
       return Response.json({ items: [] });
     if (path === "/api/articles")
@@ -317,6 +319,8 @@ it("shows an article on its import day by author or site, and leads back to that
   ];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const path = requestPath(url);
+    const sleep = noSleep(path);
+    if (sleep) return sleep;
     const start = Number(
       new URL(testRequest(url).url).searchParams.get("start"),
     );

@@ -19,6 +19,7 @@ export type ArticleListItem = components["schemas"]["ArticleListItem"];
 export type AccessToken = components["schemas"]["AccessToken"];
 export type ListedJotting = components["schemas"]["ListedJotting"];
 export type JottingOverview = components["schemas"]["JottingOverview"];
+export type SleepNight = components["schemas"]["SleepNight"];
 export const sources: Record<Source, string> = {
   chatgpt: "ChatGPT",
   gemini: "Gemini",
@@ -306,4 +307,33 @@ export function todoBodyOptions(id: string) {
       apiData(api.GET("/api/todos/{id}/body", { params: { path: { id } } })),
     staleTime: 0,
   };
+}
+
+// The running sleep. The page asks for it fresh, since another device may have started or ended
+// one since.
+export function sleepRunningOptions() {
+  return {
+    queryKey: ["sleep", "running"],
+    queryFn: () => apiData(api.GET("/api/sleep/running")),
+    staleTime: 0,
+  };
+}
+// Nights waking in a run of local days; the key names the days so each run caches on its own.
+export function sleepNightsOptions(
+  from: string,
+  to: string,
+  range: { start: number; end: number },
+) {
+  return {
+    queryKey: ["sleep", "nights", from, to],
+    queryFn: () =>
+      apiData(api.GET("/api/sleep/nights", { params: { query: range } })),
+  };
+}
+// A night changed: every run of nights and every day's timeline may hold it.
+export async function refreshSleep(client: QueryClient) {
+  await Promise.all([
+    client.invalidateQueries({ queryKey: ["sleep"] }),
+    client.invalidateQueries({ queryKey: ["timeline"] }),
+  ]);
 }

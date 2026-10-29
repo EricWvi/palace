@@ -18,16 +18,19 @@ const EchoPage = lazy(() =>
 const TodoPage = lazy(() =>
   import("./pages/todo").then((module) => ({ default: module.TodoPage })),
 );
+const SleepPage = lazy(() =>
+  import("./pages/sleep").then((module) => ({ default: module.SleepPage })),
+);
 const ConversationPage = lazy(() =>
   import("./pages/conversation").then((module) => ({
     default: module.ConversationPage,
   })),
 );
 
-// Each page belongs to one section of the top bar; tasks are kept in 行事, notes, articles and
+// Each page belongs to one section of the top bar; a day and its sleep in 时刻, tasks in 行事, notes, articles and
 // conversations are listed and read in 摘星, jottings in 回响.
 function sectionOf(pathname: string): Section | undefined {
-  if (pathname === "/") return "时刻";
+  if (pathname === "/" || pathname === "/sleep") return "时刻";
   if (/^\/todos(\/|$)/.test(pathname)) return "行事";
   if (/^\/(notes|articles|conversations)(\/|$)/.test(pathname)) return "摘星";
   if (pathname === "/jottings") return "回响";
@@ -61,6 +64,7 @@ export function App() {
         <Suspense fallback={null}>
           <Routes>
             <Route path="/" element={<TimelinePage />} />
+            <Route path="/sleep" element={<SleepPage />} />
             <Route path="/notes" element={<StarsPage kind="notes" />} />
             <Route path="/notes/*" element={<NotePage />} />
             <Route path="/articles" element={<StarsPage kind="articles" />} />

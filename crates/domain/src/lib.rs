@@ -9,6 +9,7 @@ mod frontmatter;
 mod import;
 mod jotting;
 mod media;
+mod sleep;
 mod todo;
 mod web_page;
 
@@ -27,6 +28,7 @@ pub use import::{
 };
 pub use jotting::{JOTTING_BODY_MAX_BYTES, Jotting, JottingCensus, JottingError, JottingProblem};
 pub use media::{FALLBACK_CONTENT_TYPE, MediaLimits, MediaMetadata, MediaUpload};
+pub use sleep::{SleepRange, SleepSpan, sleep_instant};
 pub use todo::{
     TodoBody, TodoDay, TodoLink, TodoListName, TodoPlacement, TodoPlan, TodoPlanInput,
     TodoPosition, TodoTitle,

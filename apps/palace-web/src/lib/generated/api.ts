@@ -457,6 +457,80 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/sleep/nights": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The nights whose wake time falls in the caller's range, earliest first. */
+    get: operations["sleep_nights"];
+    put?: never;
+    /** Records a night that was never started. */
+    post: operations["record_sleep_night"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/sleep/nights/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Moves a night to a new span; it keeps its identity and moves to the day of its new wake time. */
+    put: operations["update_sleep_night"];
+    post?: never;
+    /** Deletes a night together with its moment. */
+    delete: operations["delete_sleep_night"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/sleep/running": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The running sleep, if any. */
+    get: operations["sleep_running"];
+    /** Starts sleeping now by the server's clock, replacing any start still on record. */
+    put: operations["start_sleep"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/sleep/running/end": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ends the start the caller saw, waking now by the server's clock. Repeating the request
+     *     returns the same night.
+     */
+    post: operations["end_sleep"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/sync": {
     parameters: {
       query?: never;
@@ -1440,9 +1514,13 @@ export interface components {
       | (components["schemas"]["ArticleMoment"] & {
           /** @enum {string} */
           kind: "article";
+        })
+      | (components["schemas"]["SleepMoment"] & {
+          /** @enum {string} */
+          kind: "sleep";
         });
     /** @enum {string} */
-    MomentKind: "conversation" | "article";
+    MomentKind: "conversation" | "article" | "sleep";
     /** @description One entry of a day's outline, in the same order as the timeline returns its cards. */
     MomentOutline: {
       /**
@@ -1544,6 +1622,72 @@ export interface components {
     };
     /** @enum {string} */
     Role: "user" | "assistant";
+    /** @description Ends the start the caller saw. */
+    SleepEnd: {
+      /**
+       * Format: int64
+       * @description `started_at` from `GET /api/sleep/running`.
+       */
+      started_at: number;
+    };
+    /** @description A sleep moment: one finished night, on the day it ended. */
+    SleepMoment: {
+      /**
+       * Format: uuid
+       * @description Moment id, equal to the night's id.
+       */
+      id: string;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of waking.
+       */
+      occurred_at: number;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the bedtime.
+       */
+      started_at: number;
+    };
+    /** @description One finished night, `[started_at, ended_at)`. */
+    SleepNight: {
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of waking, the night's place on the timeline.
+       */
+      ended_at: number;
+      /**
+       * Format: uuid
+       * @description Equal to the night's moment id.
+       */
+      id: string;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the bedtime.
+       */
+      started_at: number;
+    };
+    /** @description A night's span: after the bedtime, at most 24 hours later. */
+    SleepNightInput: {
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of waking.
+       */
+      ended_at: number;
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the bedtime.
+       */
+      started_at: number;
+    };
+    /** @description The running sleep, if any. */
+    SleepRunning: {
+      /**
+       * Format: int64
+       * @description Unix epoch milliseconds of the start; null when nothing is running. A start the browser
+       *     judges void (still running at 15:00 the next day) is still returned until it is replaced.
+       */
+      started_at: number | null;
+    };
     /** @enum {string} */
     Source: "chatgpt" | "gemini" | "grok";
     SyncPage: {
@@ -4934,6 +5078,559 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  sleep_nights: {
+    parameters: {
+      query: {
+        /** @description Inclusive start of the wake times, Unix epoch milliseconds in the caller's time zone. */
+        start: number;
+        /** @description Exclusive end of the wake times; after start and at most 400 days later. */
+        end: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Nights ordered by wake time, then id */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SleepNight"][];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  record_sleep_night: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SleepNightInput"];
+      };
+    };
+    responses: {
+      /** @description Created */
+      201: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SleepNight"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description The night would overlap another */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  update_sleep_night: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped night id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SleepNightInput"];
+      };
+    };
+    responses: {
+      /** @description Updated */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SleepNight"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Night unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description The night would overlap another */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  delete_sleep_night: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Owner-scoped night id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; native extractor text */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Night unavailable in owner scope */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  sleep_running: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SleepRunning"];
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  start_sleep: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Started */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SleepRunning"];
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  end_sleep: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SleepEnd"];
+      };
+    };
+    responses: {
+      /** @description The night the start became */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SleepNight"];
+        };
+      };
+      /** @description Invalid input, or the start is more than 24 hours old; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description No running start at this time, and no night that began then */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description The night would overlap another */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
         };
       };
       /** @description Internal persistence or response failure */

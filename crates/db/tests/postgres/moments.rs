@@ -16,6 +16,8 @@ use uuid::Uuid;
 /// conversation. Migration tests replay from here to reach the current schema. Article tables
 /// from `0017_articles.sql` hang off `moment` and are dropped first; the replays never reach them.
 pub(super) const BEFORE_MOMENTS: &str = "
+    DROP TABLE sleep_start;
+    DROP TABLE sleep;
     DROP TABLE web_annotation;
     DROP TABLE web_page;
     DROP TABLE annotation;
@@ -121,6 +123,7 @@ fn positions(timeline: Vec<Moment>) -> Vec<(Uuid, i64, String)> {
         .map(|moment| match moment.detail {
             MomentDetail::Conversation(card) => (moment.id, moment.occurred_at, card.title),
             MomentDetail::Article(card) => (moment.id, moment.occurred_at, card.title),
+            MomentDetail::Sleep(_) => (moment.id, moment.occurred_at, "sleep".to_owned()),
         })
         .collect()
 }
@@ -404,6 +407,7 @@ async fn day_outline_lists_the_timelines_moments_in_the_same_order() {
                 kind: match moment.detail {
                     MomentDetail::Conversation(_) => MomentKind::Conversation,
                     MomentDetail::Article(_) => MomentKind::Article,
+                    MomentDetail::Sleep(_) => MomentKind::Sleep,
                 },
             })
             .collect::<Vec<_>>(),

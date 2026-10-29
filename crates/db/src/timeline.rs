@@ -22,6 +22,12 @@ pub struct Moment {
 pub enum MomentDetail {
     Conversation(ConversationCard),
     Article(ArticleCard),
+    Sleep(SleepCard),
+}
+/// A sleep moment is one finished night; it occurred when the sleeper woke.
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct SleepCard {
+    pub started_at: i64,
 }
 /// A conversation moment is one path: its own title and messages, the tree's source.
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -58,6 +64,7 @@ pub struct MomentOutline {
 pub enum MomentKind {
     Conversation,
     Article,
+    Sleep,
 }
 
 impl Database {
@@ -80,14 +87,17 @@ impl Database {
         let moments = day_moments(&mut *tx, owner, start, end).await?;
         let mut conversations = Vec::new();
         let mut articles = Vec::new();
+        let mut nights = Vec::new();
         for (outline, _) in &moments {
             match outline.kind {
                 MomentKind::Conversation => conversations.push(outline.id),
                 MomentKind::Article => articles.push(outline.id),
+                MomentKind::Sleep => nights.push(outline.id),
             }
         }
         let mut cards = conversation_cards(&mut tx, owner, &conversations).await?;
         let mut article_cards = article_cards(&mut tx, owner, &articles).await?;
+        let mut sleep_cards = sleep_cards(&mut tx, owner, &nights).await?;
         tx.commit().await?;
         moments
             .into_iter()
@@ -98,6 +108,9 @@ impl Database {
                     ),
                     MomentKind::Article => MomentDetail::Article(
                         article_cards.remove(&outline.id).ok_or(DbError::Conflict)?,
+                    ),
+                    MomentKind::Sleep => MomentDetail::Sleep(
+                        sleep_cards.remove(&outline.id).ok_or(DbError::Conflict)?,
                     ),
                 };
                 Ok(Moment {
@@ -148,6 +161,7 @@ async fn day_moments<'e>(
             let kind = match row.try_get::<String, _>("kind")?.as_str() {
                 "conversation" => MomentKind::Conversation,
                 "article" => MomentKind::Article,
+                "sleep" => MomentKind::Sleep,
                 // The database check constraint admits no other kind.
                 _ => return Err(DbError::Conflict),
             };
@@ -233,6 +247,32 @@ async fn article_cards(
                     title: row.try_get("title")?,
                     author: row.try_get("author")?,
                     site: article_site(row.try_get("url")?),
+                },
+            ))
+        })
+        .collect()
+}
+
+/// Reads the bedtimes of many sleep moments in one query.
+async fn sleep_cards(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    owner: OwnerScope,
+    ids: &[Uuid],
+) -> Result<HashMap<Uuid, SleepCard>, DbError> {
+    if ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let rows = sqlx::query("SELECT id,(extract(epoch FROM lower(span))*1000)::bigint AS started_at FROM sleep WHERE owner_id=$1 AND id=ANY($2)")
+        .bind(owner.id())
+        .bind(ids)
+        .fetch_all(&mut **tx)
+        .await?;
+    rows.into_iter()
+        .map(|row| {
+            Ok((
+                row.try_get("id")?,
+                SleepCard {
+                    started_at: row.try_get("started_at")?,
                 },
             ))
         })

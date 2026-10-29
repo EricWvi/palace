@@ -1,7 +1,22 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { outlineOptions, timelineOptions } from "@/lib/api";
+import {
+  api,
+  apiData,
+  outlineOptions,
+  sleepNightsOptions,
+  sleepRunningOptions,
+  timelineOptions,
+} from "@/lib/api";
+import { averageClock, expired, nightOn, sleepAction } from "@/lib/sleep";
 import { preloadable } from "@/lib/preloadable";
 import {
   addDays,
@@ -14,7 +29,12 @@ import {
 } from "@/lib/day";
 import { DayMoments } from "@/components/day-moments";
 import { ErrorState } from "@/components/error-state";
-import { MoreMenu } from "@/components/more-menu";
+import { MoreMenu, type MenuAction } from "@/components/more-menu";
+import { SleepPin, weekOf } from "@/components/sleep-pin";
+import {
+  SleepNightDialog,
+  type NightTarget,
+} from "@/components/sleep-night-dialog";
 import {
   useShortcutHelp,
   type ShortcutGroup,
@@ -67,8 +87,56 @@ export function TimelinePage() {
   const [importing, setImporting] = useState(false);
   const [managingKeys, setManagingKeys] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [recording, setRecording] = useState<NightTarget | null>(null);
+  const isToday = date === dayParam(today());
+  // The menu's sleep action follows the clock; it is read when the "···" is approached, so a page
+  // left open from the afternoon into the evening still offers starting.
+  const [menuTime, setMenuTime] = useState(() => new Date());
+  const week = weekOf(day);
+  const nights = useQuery(sleepNightsOptions(week.from, week.to, week.range));
+  const running = useQuery({ ...sleepRunningOptions(), enabled: isToday });
+  const client = useQueryClient();
+  const start = useMutation({
+    mutationFn: () => apiData(api.PUT("/api/sleep/running")),
+    onSuccess: (started) =>
+      client.setQueryData(sleepRunningOptions().queryKey, started),
+  });
+  // Sleep is pinned above the list, so the list and its placeholders leave it out.
+  const cards = useMemo(
+    () => query.data?.filter((moment) => moment.kind !== "sleep"),
+    [query.data],
+  );
+  const shapes = useMemo(
+    () => outline.data?.filter((entry) => entry.kind !== "sleep"),
+    [outline.data],
+  );
+  const expectsNight = Boolean(
+    (query.data ?? outline.data)?.some((entry) => entry.kind === "sleep"),
+  );
   // How the calendar was opened decides where focus goes once it closes, see below.
   const opened = useRef<"pointer" | "keyboard">("keyboard");
+
+  // Sleep is started and recorded only for today; a running sleep ends from its own dial. Until
+  // both the running start and today's nights are known, nothing is offered.
+  const startedAt = running.data?.started_at;
+  const offered =
+    isToday && running.data && nights.data
+      ? sleepAction(menuTime, {
+          running: startedAt != null && !expired(startedAt, menuTime),
+          sleptToday: nightOn(nights.data, day) !== undefined,
+        })
+      : null;
+  const sleepActions: MenuAction[] =
+    offered === "start"
+      ? [{ label: "开始睡眠", onSelect: () => start.mutate() }]
+      : offered === "record"
+        ? [
+            {
+              label: "记录睡眠",
+              onSelect: () => setRecording({ kind: "record", day }),
+            },
+          ]
+        : [];
 
   // Replace, never push: stepping through days is browsing, so back still leaves the timeline.
   function show(next: Date) {
@@ -147,10 +215,12 @@ export function TimelinePage() {
         <MoreMenu
           label="当天操作"
           onApproach={() => {
+            setMenuTime(new Date());
             void importDialog.preload();
             void keyManager.preload();
           }}
           actions={[
+            ...sleepActions,
             { label: "导入对话", onSelect: () => setImporting(true) },
             { label: "密钥管理", onSelect: () => setManagingKeys(true) },
           ]}
@@ -159,14 +229,19 @@ export function TimelinePage() {
       {query.isError ? (
         <ErrorState error={query.error} retry={() => void query.refetch()} />
       ) : (
-        <DayMoments
-          // A new day starts over: no leftover placeholders and no exit animation.
-          key={date}
-          outline={outline.data}
-          moments={query.data}
-          date={date}
-          onSettled={settled}
-        />
+        <>
+          <SleepPin day={day} isToday={isToday} expectsNight={expectsNight} />
+          <DayMoments
+            // A new day starts over: no leftover placeholders and no exit animation.
+            key={date}
+            outline={shapes}
+            moments={cards}
+            date={date}
+            // A day whose only record is its night already shows the night.
+            empty={expectsNight ? "blank" : "illustrated"}
+            onSettled={settled}
+          />
+        </>
       )}
       {importing && (
         <Suspense fallback={null}>
@@ -187,6 +262,16 @@ export function TimelinePage() {
             }}
           />
         </Suspense>
+      )}
+      {recording && (
+        <SleepNightDialog
+          target={recording}
+          usual={[
+            (nights.data && averageClock(nights.data, "started_at")) ?? "23:30",
+            (nights.data && averageClock(nights.data, "ended_at")) ?? "07:00",
+          ]}
+          onClose={() => setRecording(null)}
+        />
       )}
       {managingKeys && (
         <Suspense fallback={null}>

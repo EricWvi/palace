@@ -29,6 +29,10 @@ pub(super) const WEB_ANNOTATION: &str = "/api/web-annotations/{id}";
 pub(super) const ARTICLE_WEB_ANNOTATIONS: &str = "/api/articles/{id}/web-annotations";
 pub(super) const ARTICLE_WEB_ANNOTATION_MIGRATION: &str =
     "/api/articles/{id}/web-annotations/migrate";
+pub(super) const SLEEP_RUNNING: &str = "/api/sleep/running";
+pub(super) const SLEEP_END: &str = "/api/sleep/running/end";
+pub(super) const SLEEP_NIGHTS: &str = "/api/sleep/nights";
+pub(super) const SLEEP_NIGHT: &str = "/api/sleep/nights/{id}";
 pub(super) const TODOS: &str = "/api/todos";
 pub(super) const TODO_PLAN: &str = "/api/todos/plan";
 pub(super) const TODO: &str = "/api/todos/{id}";
@@ -103,6 +107,13 @@ macro_rules! business_routes {
             delete WEB_ANNOTATION => web_pages::delete,
             get ARTICLE_WEB_ANNOTATIONS => web_pages::article_list,
             post ARTICLE_WEB_ANNOTATION_MIGRATION => web_pages::migrate,
+            get SLEEP_RUNNING => sleep::running,
+            put SLEEP_RUNNING => sleep::start,
+            post SLEEP_END => sleep::end,
+            get SLEEP_NIGHTS => sleep::nights,
+            post SLEEP_NIGHTS => sleep::record,
+            put SLEEP_NIGHT => sleep::update,
+            delete SLEEP_NIGHT => sleep::delete,
             get TODOS => todos::board,
             post TODOS => todos::create,
             post TODO_PLAN => todos::plan,

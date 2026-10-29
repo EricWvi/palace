@@ -36,6 +36,8 @@ mod notes;
 
 #[path = "http/paths.rs"]
 mod paths;
+#[path = "http/sleep.rs"]
+mod sleep;
 #[path = "http/todos.rs"]
 mod todos;
 #[path = "http/web_pages.rs"]
@@ -567,6 +569,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     annotations::exercise_annotations(&app, &cookie, &foreign).await;
     web_pages::exercise_web_pages(&app, &cookie, &foreign).await;
     todos::exercise_todos(&app, &cookie, &foreign).await;
+    sleep::exercise_sleep(&app, &cookie, &foreign).await;
     jottings::exercise_jottings(&app, &cookie, &foreign, agent).await;
     jottings::exercise_unconfigured(&without_jottings, &cookie).await;
     inputs::exercise_contract_boundaries(&app, &cookie, &foreign, &pool, &sessions[0].owner).await;

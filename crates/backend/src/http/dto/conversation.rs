@@ -129,6 +129,17 @@ pub(crate) struct PathMetadataResponse {
 pub(crate) enum Moment {
     Conversation(ConversationMoment),
     Article(ArticleMoment),
+    Sleep(SleepMoment),
+}
+/// A sleep moment: one finished night, on the day it ended.
+#[derive(Serialize, ToSchema)]
+pub(crate) struct SleepMoment {
+    /// Moment id, equal to the night's id.
+    pub id: Uuid,
+    /// Unix epoch milliseconds of waking.
+    pub occurred_at: i64,
+    /// Unix epoch milliseconds of the bedtime.
+    pub started_at: i64,
 }
 /// An article moment: the article on the day it was imported.
 #[derive(Serialize, ToSchema)]
@@ -192,6 +203,11 @@ impl From<palace_db::Moment> for Moment {
                 author: card.author,
                 site: card.site,
             }),
+            palace_db::MomentDetail::Sleep(card) => Self::Sleep(SleepMoment {
+                id: value.id,
+                occurred_at: value.occurred_at,
+                started_at: card.started_at,
+            }),
         }
     }
 }
@@ -208,6 +224,7 @@ pub(crate) struct MomentOutline {
 pub(crate) enum MomentKind {
     Conversation,
     Article,
+    Sleep,
 }
 impl From<palace_db::MomentOutline> for MomentOutline {
     /// Keeps the public kind vocabulary exhaustive when the database gains a kind.
@@ -217,6 +234,7 @@ impl From<palace_db::MomentOutline> for MomentOutline {
             kind: match value.kind {
                 palace_db::MomentKind::Conversation => MomentKind::Conversation,
                 palace_db::MomentKind::Article => MomentKind::Article,
+                palace_db::MomentKind::Sleep => MomentKind::Sleep,
             },
         }
     }

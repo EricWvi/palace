@@ -22,6 +22,8 @@ const skeletons: Record<MomentKind, React.ReactNode> = {
     </>
   ),
   article: <span className="bar head" />,
+  // Sleep is pinned above the list by the page and never drawn in it.
+  sleep: null,
 };
 
 // What one list item shows: a placeholder still waiting, a card, or a placeholder whose moment
@@ -69,11 +71,15 @@ export function DayMoments({
   outline,
   moments,
   date,
+  empty,
   onSettled,
 }: {
   outline: MomentOutline[] | undefined;
   moments: Moment[] | undefined;
   date: string;
+  // Whether a day with nothing to list shows the empty-day picture, or nothing at all because
+  // something above the list already speaks for the day.
+  empty: "illustrated" | "blank";
   onSettled: () => void;
 }) {
   const list = useRef<HTMLOListElement>(null);
@@ -167,7 +173,10 @@ export function DayMoments({
   }, [settled, onSettled]);
 
   if (rows.length === 0)
-    return moments !== undefined || outline !== undefined ? <EmptyDay /> : null;
+    return empty === "illustrated" &&
+      (moments !== undefined || outline !== undefined) ? (
+      <EmptyDay />
+    ) : null;
   return (
     <ol ref={list} className="timeline" aria-busy={moments === undefined}>
       {rows.map((row) => (
@@ -289,5 +298,8 @@ function MomentCard({ moment, date }: { moment: Moment; date: string }) {
           <span className="byline">{moment.author ?? moment.site}</span>
         </Link>
       );
+    // Never listed: the page pins the night above the list.
+    case "sleep":
+      return null;
   }
 }

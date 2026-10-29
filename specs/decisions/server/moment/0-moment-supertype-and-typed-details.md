@@ -5,6 +5,8 @@ date: 2026-10-03
 
 # 以 `moment` 表承载时刻身份与时间定位，类型详情各自建表，对话按 Path 成为时刻
 
+> 历史决策：不变量 3“详情表不再保存另一份时间”对睡眠不成立：`sleep` 保存完整时间段，其终点由提交时检查保证等于 `moment.occurred_at`，见[睡眠根决策](../../web/sleep/0-sleep-started-from-the-day-menu-pinned-as-a-dial.md) D3。
+
 `moment` 表统一保存每个 Moment 的身份、类型和时间位置；各类型的详情仍放在各自的表中，详情行与 Moment 共用同一个 `id`。对话按来源 Session 进入时间线：每条 `conversation_path` 都是一个 `kind = 'conversation'` 的 Moment，同一 Conversation 的多条 Path 在时间线上分别出现。时间线按天查询只扫描 `moment`，再按类型批量读取卡片所需的详情字段。
 
 当前为 `implemented`，核心测试用例见[时刻身份与时间线](../../../test-cases/server/moment/moment-timeline.md)。本文件是 `server/moment` 的根决策，没有前序 ADR；它修改[Conversation 承载树，Path 承载来源 Session](../conversation/20260919-conversation-tree-and-session-paths.md)中“Conversation 是主页面的一张卡片”的约定，见 D3。原对话列表接口和会话收藏页已移除，没有保留兼容。
