@@ -1627,7 +1627,7 @@ ol.messages {
   .toc {
     position: fixed;
     top: 50%;
-    right: 20px;
+    right: 0;
     z-index: 30;
     display: block;
     transform: translateY(-50%);
@@ -1640,7 +1640,11 @@ ol.messages {
   align-items: flex-end;
   gap: 9px;
   max-height: 70vh;
-  padding: 8px 0 8px 12px;
+  /*
+   * The padding is the pointer's target: it reaches the window edge, so the gap beside the ticks
+   * counts, and stops short of the sheet, whose margin is only 70px at the 900px breakpoint.
+   */
+  padding: 24px 20px 24px 24px;
   overflow: hidden;
 }
 
@@ -1688,7 +1692,7 @@ ol.messages {
 .toc-panel {
   position: absolute;
   top: 50%;
-  right: 0;
+  right: 20px;
   width: 260px;
   max-height: 70vh;
   margin: 0;
