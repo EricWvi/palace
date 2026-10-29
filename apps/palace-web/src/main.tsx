@@ -8,11 +8,13 @@ import "@fontsource/eb-garamond/400.css";
 import "@fontsource/eb-garamond/500.css";
 import "@fontsource/eb-garamond/400-italic.css";
 import { App } from "./app";
+import { installOverlayScrollbars } from "./lib/overlay-scrollbars";
 import "./styles.css";
 import "./annotations.css";
 const client = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
 });
+installOverlayScrollbars();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={client}>
