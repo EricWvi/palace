@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { address, mountApp } from "@/test-app";
 import type { JottingOverview, ListedJotting } from "@/lib/api";
-import { requestPath, testRequest } from "@/lib/test-request";
+import { bareDay, requestPath, testRequest } from "@/lib/test-request";
 
 const at = (day: number, hour = 9) => new Date(2026, 8, day, hour).getTime();
 const jotting = (
@@ -133,7 +133,10 @@ it("widens the sheet for 回响 only and marks 回响 as the current section", a
     "page",
   );
   expect(screen.getByRole("main")).toHaveClass("sheet", "wide");
-  vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json([]));
+  // 时刻 asks for its day; it has nothing on it.
+  vi.spyOn(globalThis, "fetch").mockImplementation(
+    async (url) => bareDay(requestPath(url)) ?? Response.json([]),
+  );
   await user.click(within(nav).getByRole("link", { name: "时刻" }));
   await waitFor(() => expect(address(router)).toBe("/"));
   expect(screen.getByRole("main")).not.toHaveClass("wide");
@@ -180,7 +183,10 @@ it("lets each read recall card leave the pile until the page is opened again", a
   expect(screen.getByText("今天的回响都已看过")).toBeInTheDocument();
 
   // Reading was never written down: coming back shows the whole pile again.
-  vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json([]));
+  // 时刻 asks for its day; it has nothing on it.
+  vi.spyOn(globalThis, "fetch").mockImplementation(
+    async (url) => bareDay(requestPath(url)) ?? Response.json([]),
+  );
   await act(() => router.navigate("/"));
   serve();
   await act(() => router.navigate("/jottings"));

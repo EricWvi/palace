@@ -14,6 +14,8 @@ use uuid::Uuid;
 
 #[path = "postgres/access_tokens.rs"]
 mod access_tokens;
+#[path = "postgres/activities.rs"]
+mod activities;
 #[path = "postgres/annotations.rs"]
 mod annotations;
 #[path = "postgres/articles.rs"]
@@ -22,6 +24,8 @@ mod articles;
 mod conversation_list;
 #[path = "postgres/delta_updates.rs"]
 mod delta_updates;
+#[path = "postgres/habits.rs"]
+mod habits;
 #[path = "postgres/import_times.rs"]
 mod import_times;
 #[path = "postgres/moments.rs"]

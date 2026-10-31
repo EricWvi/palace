@@ -7,7 +7,7 @@ use axum::{
 };
 use palace_db::TodoEdit;
 use palace_domain::{
-    InputError, InputErrorKind, TodoBody, TodoDay, TodoLink, TodoPlacement, TodoPlanInput,
+    InputError, InputErrorKind, LocalDay, TodoBody, TodoLink, TodoPlacement, TodoPlanInput,
     TodoPosition, TodoTitle,
 };
 use std::sync::Arc;
@@ -98,7 +98,7 @@ pub(super) async fn update(
     let plan = match input.plan {
         dto::TodoPlanInput::Open => TodoPlanInput::Open,
         dto::TodoPlanInput::Shelved => TodoPlanInput::Shelved,
-        dto::TodoPlanInput::Day { day } => TodoPlanInput::Day(TodoDay::parse(&day, "plan.day")?),
+        dto::TodoPlanInput::Day { day } => TodoPlanInput::Day(LocalDay::parse(&day, "plan.day")?),
     };
     let edit = TodoEdit {
         placement: TodoPlacement::parse(input.list_id, plan)?,
@@ -217,10 +217,10 @@ pub(super) async fn done(
     body: Result<Json<dto::TodoDone>, JsonRejection>,
 ) -> Result<Json<dto::Todo>, ApiError> {
     let Json(input) = body.map_err(json_error)?;
-    let day = TodoDay::parse(&input.day, "day")?;
+    let day = LocalDay::parse(&input.day, "day")?;
     let todo = server
         .database
-        .set_todo_done(owner.scope(), id, &day, input.done)
+        .set_todo_done(owner.scope(), id, day, input.done)
         .await?;
     Ok(Json(todo.into()))
 }
@@ -305,7 +305,7 @@ pub(super) async fn plan(
     body: Result<Json<dto::TodoPlanRequest>, JsonRejection>,
 ) -> Result<StatusCode, ApiError> {
     let Json(input) = body.map_err(json_error)?;
-    let day = TodoDay::parse(&input.day, "day")?;
+    let day = LocalDay::parse(&input.day, "day")?;
     if input.ids.len() > PLAN_IDS {
         return Err(
             InputError::new(InputErrorKind::Limit, "ids", "expected at most 1000 ids").into(),
@@ -313,7 +313,7 @@ pub(super) async fn plan(
     }
     server
         .database
-        .plan_todos(owner.scope(), &day, &input.ids)
+        .plan_todos(owner.scope(), day, &input.ids)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }

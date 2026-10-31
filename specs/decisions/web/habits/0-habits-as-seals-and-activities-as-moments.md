@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 date: 2026-10-31
 ---
 
@@ -7,7 +7,7 @@ date: 2026-10-31
 
 时刻页新增两种记录，彼此不关联。**日课**是每天要做的功课（锻炼、读书、喝水），每门可设每天 1 到 10 次；一天只记做了几次，不带时间。它以单字印章排在日期标题同一行的右侧，做完盖满朱色，只做了一部分按比例从底部填色，点一下加一次，满了再点归零，今天和以前的日子都能点。**工夫**是一段花在某件事上的时间：类型由用户自己添加，开始时间和时长手动填写，可带一句备注。它是时间线上的 `[ 工夫 ] 类型` Moment，点开可修改或删除。日期旁 `···` 菜单新增「记录工夫」（快捷键 `g`）、「编排日课」和「日课与工夫」。历史页 `/habits` 用 9 周矩阵展示日课，可逐格补打；工夫每种类型一行，画近 30 天每日时长的圆滑曲线。交互定稿见原型 [`design/2.3-moment-habit.html`](../../../../design/2.3-moment-habit.html)。
 
-当前为 `approved`，核心测试用例见[日课与工夫](../../../test-cases/web/habits/habits.md)。本文件是 `web/habits` 的根决策，没有前序 ADR。它在 [Moment 根决策](../../server/moment/0-moment-supertype-and-typed-details.md)上新增 `activity` 类型；修改 [Web 导航根决策](../navigation/0-text-nav-day-routes-and-moment-opening.md) D4 中只属于当天的 Moment “原地展开”的预设，以及“时间线上暂不显示时间”的未决项，见 D5。涉及 `palace-db` 的新表与迁移、`palace-domain` 的输入校验（`TodoDay` 改为通用的 `LocalDay`）、`palace-backend` 的接口与 OpenAPI、`apps/palace-web` 的时刻页与历史页。不导入设备数据，不做计时器，日课不提醒、不统计连续天数。
+当前为 `implemented`，核心测试用例见[日课与工夫](../../../test-cases/web/habits/habits.md)，接口与用法见[日课与工夫功能文档](../../../../docs/features/habits/README.md)。本文件是 `web/habits` 的根决策，没有前序 ADR。它在 [Moment 根决策](../../server/moment/0-moment-supertype-and-typed-details.md)上新增 `activity` 类型；修改 [Web 导航根决策](../navigation/0-text-nav-day-routes-and-moment-opening.md) D4 中只属于当天的 Moment “原地展开”的预设，以及“时间线上暂不显示时间”的未决项，见 D5。涉及 `palace-db` 的新表与迁移、`palace-domain` 的输入校验、`palace-backend` 的接口与 OpenAPI、`apps/palace-web` 的时刻页与历史页。不导入设备数据，不做计时器，日课不提醒、不统计连续天数。
 
 ## 问题与约束
 
@@ -64,7 +64,7 @@ date: 2026-10-31
 
 - 印章排在日期标题同一行的右侧，按日课的顺序排列，窄屏时换到标题下方。一门只占 26px 见方，十几门也不多占一行。
 - 没做：细边框、淡字；做了一部分：朱色边框，底部按 `count / times_per_day` 填浅朱色；做完：满朱色，字反白。悬停显示全名和 `n/次数`。
-- 点一下打卡：页面先更新缓存里的次数再写入，失败时重新读取这一天。以前的日子同样可以点。
+- 点一下打卡：页面先更新缓存里的次数再写入，失败时重新读取日课。同一时刻只有一个打卡请求在路上，连点时最后一次总是最后写入。以前的日子同样可以点。
 - 「编排日课」对话框：每行一门，可改名称、印章字、每天次数（下拉 1 到 10 次），可停用；底部「新增一门」。印章字默认取名称的第一个字。保存时只提交有改动的行。
 
 ## D5：工夫在时刻页上是时间线卡片
@@ -133,6 +133,6 @@ date: 2026-10-31
 
 ## 落地与验收
 
-迁移 `0023_habits_and_activities.sql` 新建 `habit`、`habit_check`、`activity_type`、`activity`，扩展 `moment.kind`，更新提交时详情检查。`palace-domain` 新增 `LocalDay`（取代 `TodoDay`）与日课、工夫的输入校验；`palace-db` 提供日课、打卡、类型与工夫的读写，时间线返回工夫卡片；`palace-backend` 暴露上表的接口并进入 OpenAPI；`apps/palace-web` 在时刻页实现印章、工夫卡片、两个对话框与 `g` 快捷键，新增 `/habits` 历史页。
+迁移 `0023_habits_and_activities.sql` 新建 `habit`、`habit_check`、`activity_type`、`activity`，扩展 `moment.kind`，并把 `activity` 加入提交时的详情检查。`palace-domain` 的 `LocalDay` 取代了行事专用的 `TodoDay`，供打卡与行事共用；睡眠的时间点与读取区间提为通用的 `epoch_instant` 与 `InstantRange`，供工夫共用。`palace-db` 在 Owner Scope 内读写日课、打卡、类型与工夫，时间线返回工夫卡片；`palace-backend` 暴露上表的接口并写入 OpenAPI；`apps/palace-web` 在时刻页实现印章、工夫卡片、「记录工夫」与「编排日课」对话框和 `g` 快捷键，新增 `/habits` 历史页。
 
-真实 PostgreSQL 测试覆盖不变量 1–7；HTTP 契约测试覆盖接口的响应结构；前端测试覆盖印章的打卡与归零、编排对话框、工夫的记录与修改、历史页的补打与曲线。
+真实 PostgreSQL 测试覆盖不变量 1–7；HTTP 契约测试以真实 Router 覆盖接口的响应结构与跨 Owner 的 404；前端测试覆盖印章的循环与补打、写入失败后的回读、编排对话框、工夫的记录、修改与删除、历史页的补打与曲线。

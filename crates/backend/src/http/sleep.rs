@@ -7,7 +7,7 @@ use axum::{
     extract::{Path, Query, State, rejection::JsonRejection, rejection::QueryRejection},
     http::StatusCode,
 };
-use palace_domain::{InputError, InputErrorKind, SleepRange, SleepSpan, sleep_instant};
+use palace_domain::{InputError, InputErrorKind, InstantRange, SleepSpan, epoch_instant};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -78,7 +78,7 @@ pub(super) async fn end(
     body: Result<Json<dto::SleepEnd>, JsonRejection>,
 ) -> Result<Json<dto::SleepNight>, ApiError> {
     let Json(input) = body.map_err(json_error)?;
-    let started_at = sleep_instant(input.started_at, "started_at")?;
+    let started_at = epoch_instant(input.started_at, "started_at")?;
     let night = server.database.end_sleep(owner.scope(), started_at).await?;
     Ok(Json(night.into()))
 }
@@ -103,7 +103,7 @@ pub(super) async fn nights(
 ) -> Result<Json<Vec<dto::SleepNight>>, ApiError> {
     let Query(range) = range
         .map_err(|error| InputError::new(InputErrorKind::Field, "query", error.body_text()))?;
-    let range = SleepRange::parse(range.start, range.end)?;
+    let range = InstantRange::parse(range.start, range.end)?;
     Ok(Json(
         server
             .database

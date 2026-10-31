@@ -34,6 +34,8 @@ mod media;
 #[path = "http/notes.rs"]
 mod notes;
 
+#[path = "http/habits.rs"]
+mod habits;
 #[path = "http/paths.rs"]
 mod paths;
 #[path = "http/sleep.rs"]
@@ -570,6 +572,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     web_pages::exercise_web_pages(&app, &cookie, &foreign).await;
     todos::exercise_todos(&app, &cookie, &foreign).await;
     sleep::exercise_sleep(&app, &cookie, &foreign).await;
+    habits::exercise_habits(&app, &cookie, &foreign).await;
     jottings::exercise_jottings(&app, &cookie, &foreign, agent).await;
     jottings::exercise_unconfigured(&without_jottings, &cookie).await;
     inputs::exercise_contract_boundaries(&app, &cookie, &foreign, &pool, &sessions[0].owner).await;

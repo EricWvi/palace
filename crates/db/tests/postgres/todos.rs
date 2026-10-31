@@ -3,7 +3,7 @@ use palace_db::{
     CompletedTodo, Database, DbError, OwnerScope, Todo, TodoEdit, TodoList, TodoPlace,
 };
 use palace_domain::{
-    TodoDay, TodoListName, TodoPlacement, TodoPlan, TodoPlanInput, TodoPosition, TodoTitle,
+    LocalDay, TodoListName, TodoPlacement, TodoPlan, TodoPlanInput, TodoPosition, TodoTitle,
 };
 use pretty_assertions::assert_eq;
 use uuid::Uuid;
@@ -27,8 +27,8 @@ fn key(key: &str) -> TodoPosition {
     TodoPosition::parse(key.into()).unwrap()
 }
 
-fn day(text: &str) -> TodoDay {
-    TodoDay::parse(text, "day").unwrap()
+fn day(text: &str) -> LocalDay {
+    LocalDay::parse(text, "day").unwrap()
 }
 
 /// Adds an open task at `position` in `list`, or in the inbox when there is none.
@@ -98,7 +98,7 @@ async fn todos_must_stay_within_the_owner_scope() {
             .map(|_| ()),
         db.set_todo_body(b, todo.id, None).await,
         db.todo_body(b, todo.id).await.map(|_| ()),
-        db.set_todo_done(b, todo.id, &today, true).await.map(|_| ()),
+        db.set_todo_done(b, todo.id, today, true).await.map(|_| ()),
         db.complete_todo(b, todo.id).await,
         db.delete_todo(b, todo.id).await,
         db.update_todo_list(b, work, &name, &key("a5"))
@@ -120,7 +120,7 @@ async fn todos_must_stay_within_the_owner_scope() {
         Err(DbError::NotFound)
     ));
     // Planning B's ids from A, or A's from B, touches nothing.
-    db.plan_todos(b, &today, &[todo.id]).await.unwrap();
+    db.plan_todos(b, today, &[todo.id]).await.unwrap();
     assert_eq!(db.todo_board(a).await.unwrap(), board);
     assert_eq!(db.todo_board(b).await.unwrap().todos, Vec::<Todo>::new());
 }
@@ -162,28 +162,20 @@ async fn a_task_must_keep_one_plan_and_the_inbox_none() {
     }
 
     let on_today = db
-        .update_todo(
-            a,
-            todo.id,
-            &replan(&todo, TodoPlanInput::Day(today.clone())),
-        )
+        .update_todo(a, todo.id, &replan(&todo, TodoPlanInput::Day(today)))
         .await
         .unwrap();
-    let done = db.set_todo_done(a, todo.id, &today, true).await.unwrap();
+    let done = db.set_todo_done(a, todo.id, today, true).await.unwrap();
     assert_eq!(
         planned(&done),
         TodoPlan::Day {
-            day: today.clone(),
+            day: today,
             done: true
         }
     );
     // Rewriting the same day keeps done; any other plan drops it, count untouched.
     let same = db
-        .update_todo(
-            a,
-            todo.id,
-            &replan(&on_today, TodoPlanInput::Day(today.clone())),
-        )
+        .update_todo(a, todo.id, &replan(&on_today, TodoPlanInput::Day(today)))
         .await
         .unwrap();
     assert_eq!(same, done);
@@ -196,13 +188,9 @@ async fn a_task_must_keep_one_plan_and_the_inbox_none() {
         (TodoPlan::Shelved, 1)
     );
 
-    db.update_todo(
-        a,
-        todo.id,
-        &replan(&on_today, TodoPlanInput::Day(today.clone())),
-    )
-    .await
-    .unwrap();
+    db.update_todo(a, todo.id, &replan(&on_today, TodoPlanInput::Day(today)))
+        .await
+        .unwrap();
     db.complete_todo(a, todo.id).await.unwrap();
     let finished: (Option<String>, bool, bool) =
         sqlx::query_as("SELECT planned_on::text,shelved,done FROM todo WHERE id=$1")
@@ -218,7 +206,7 @@ async fn a_task_must_keep_one_plan_and_the_inbox_none() {
         Err(DbError::Conflict)
     ));
     assert!(matches!(
-        db.set_todo_done(a, todo.id, &today, false).await,
+        db.set_todo_done(a, todo.id, today, false).await,
         Err(DbError::Conflict)
     ));
     let restored = db.restore_todo(a, todo.id, &key("Zz")).await.unwrap();
@@ -249,27 +237,23 @@ async fn done_for_the_day_must_count_each_day_once() {
     db.update_todo(
         a,
         lapsed.id,
-        &replan(&lapsed, TodoPlanInput::Day(yesterday.clone())),
+        &replan(&lapsed, TodoPlanInput::Day(yesterday)),
     )
     .await
     .unwrap();
-    db.set_todo_done(a, lapsed.id, &yesterday, true)
+    db.set_todo_done(a, lapsed.id, yesterday, true)
         .await
         .unwrap();
     db.update_todo(a, shelved.id, &replan(&shelved, TodoPlanInput::Shelved))
         .await
         .unwrap();
-    db.update_todo(
-        a,
-        later.id,
-        &replan(&later, TodoPlanInput::Day(tomorrow.clone())),
-    )
-    .await
-    .unwrap();
+    db.update_todo(a, later.id, &replan(&later, TodoPlanInput::Day(tomorrow)))
+        .await
+        .unwrap();
 
     db.plan_todos(
         a,
-        &today,
+        today,
         &[lapsed.id, fresh.id, shelved.id, later.id, inbox.id],
     )
     .await
@@ -282,8 +266,8 @@ async fn done_for_the_day_must_count_each_day_once() {
         .iter()
         .map(|todo| (todo.title.clone(), planned(todo), todo.done_days))
         .collect();
-    let on = |day: &TodoDay| TodoPlan::Day {
-        day: day.clone(),
+    let on = |day: &LocalDay| TodoPlan::Day {
+        day: *day,
         done: false,
     };
     assert_eq!(
@@ -298,22 +282,22 @@ async fn done_for_the_day_must_count_each_day_once() {
     );
 
     for done in [true, true] {
-        db.set_todo_done(a, fresh.id, &today, done).await.unwrap();
+        db.set_todo_done(a, fresh.id, today, done).await.unwrap();
     }
-    let counted = db.set_todo_done(a, fresh.id, &today, true).await.unwrap();
+    let counted = db.set_todo_done(a, fresh.id, today, true).await.unwrap();
     assert_eq!(counted.done_days, 1);
     for done in [false, false] {
-        db.set_todo_done(a, fresh.id, &today, done).await.unwrap();
+        db.set_todo_done(a, fresh.id, today, done).await.unwrap();
     }
-    let undone = db.set_todo_done(a, fresh.id, &today, false).await.unwrap();
+    let undone = db.set_todo_done(a, fresh.id, today, false).await.unwrap();
     assert_eq!(undone.done_days, 0);
     // A page still on yesterday cannot count a task that moved to today.
     assert!(matches!(
-        db.set_todo_done(a, fresh.id, &yesterday, true).await,
+        db.set_todo_done(a, fresh.id, yesterday, true).await,
         Err(DbError::Conflict)
     ));
     assert!(matches!(
-        db.set_todo_done(a, inbox.id, &today, true).await,
+        db.set_todo_done(a, inbox.id, today, true).await,
         Err(DbError::Conflict)
     ));
 }

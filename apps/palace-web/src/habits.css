@@ -1,0 +1,465 @@
+/*
+ * 时刻's 日课 and 工夫 (design/2.3-moment-habit.html): seals on the date's line, the activity
+ * card's button title, the two dialogs and the history page.
+ */
+
+/* ---------- Seals ---------- */
+
+/* On the date's own line, so a dozen habits take no extra row. */
+header.day .seals {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 60%;
+  margin-left: auto;
+  align-self: center;
+}
+
+/*
+ * One character in a square. Done reads like a vermilion seal on paper; a day done some of its
+ * times fills from the bottom, so the square is its own gauge.
+ */
+.seal {
+  --fill: 0%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1.25px solid color-mix(in srgb, var(--text-3) 70%, transparent);
+  border-radius: 3px;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--accent) 30%, var(--bg)) var(--fill),
+    transparent var(--fill)
+  );
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  line-height: 1;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.seal:hover {
+  border-color: var(--text-2);
+  color: var(--text-2);
+}
+
+.seal[data-fill="part"] {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.seal[data-fill="done"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* The full name on hover, without waiting for the browser's slow title tooltip. */
+.seal::after {
+  content: attr(data-name);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  z-index: 30;
+  padding: 3px 8px;
+  transform: translateX(-50%);
+  border-radius: var(--radius-sm);
+  background: var(--text);
+  color: var(--bg);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+
+.seal:hover::after,
+.seal:focus-visible::after {
+  opacity: 1;
+}
+
+/* An activity's title is a button that opens its correction; it reads like any card's title. */
+button.moment-head {
+  font: inherit;
+  font-size: var(--font-size-xl);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* ---------- 编排日课 ---------- */
+
+.habit-rows {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.habit-row {
+  display: grid;
+  grid-template-columns: 1fr 40px auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.habit-row input,
+.habit-row select {
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-size-md);
+  outline: none;
+}
+
+.habit-row select {
+  color: var(--text-2);
+  font-size: var(--font-size-sm);
+}
+
+.habit-row input:hover,
+.habit-row input:focus,
+.habit-row select:hover,
+.habit-row select:focus {
+  border-color: var(--border);
+  background: var(--bg);
+}
+
+.habit-row .habit-mark {
+  text-align: center;
+}
+
+.habit-retire,
+.habit-add {
+  color: var(--text-3);
+  font-size: var(--font-size-sm);
+}
+
+.habit-retire:hover {
+  color: var(--accent);
+}
+
+.habit-add {
+  justify-self: start;
+  margin-top: 6px;
+}
+
+.habit-add:hover {
+  color: var(--text);
+}
+
+.habit-hint {
+  margin: 10px 0 0;
+  color: var(--text-3);
+  font-size: var(--font-size-xs);
+}
+
+/* ---------- 记录工夫 ---------- */
+
+.activity-fields {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.activity-fields [data-slot="label"] {
+  margin-bottom: 8px;
+}
+
+/* Types are words to pick, not a dropdown: there are few, and the last one used comes first. */
+.activity-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.activity-types button,
+.activity-types input {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.activity-types button:hover {
+  border-color: var(--text-3);
+  color: var(--text);
+}
+
+.activity-types button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.activity-types .add {
+  border-style: dashed;
+  color: var(--text-3);
+}
+
+.activity-types input {
+  width: 96px;
+  border-color: var(--text-3);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+
+.activity-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.activity-times input {
+  font-size: var(--font-size-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-fields input[aria-invalid="true"] {
+  border-color: var(--accent);
+}
+
+/* ---------- History: 日课 as a grid ---------- */
+
+.habit-grid-wrap {
+  margin: 32px 0 0;
+  overflow-x: auto;
+}
+
+.habit-grid {
+  display: grid;
+  grid-template-columns: 72px max-content 56px;
+  align-items: center;
+  gap: 7px 14px;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+}
+
+.habit-grid .name {
+  overflow: hidden;
+  color: var(--text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.habit-grid .name[data-retired="true"] {
+  color: var(--text-3);
+}
+
+.habit-grid .rate {
+  color: var(--text-3);
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.habit-months {
+  position: relative;
+  height: 16px;
+  color: var(--text-3);
+  font-size: var(--font-size-xs);
+}
+
+.habit-months span {
+  position: absolute;
+  white-space: nowrap;
+}
+
+.habit-grid .cells {
+  display: flex;
+  gap: 2px;
+}
+
+/* A new week starts with a wider gap, so the weeks stay countable without lines. */
+.habit-grid .cell[data-week="start"] {
+  margin-left: 4px;
+}
+
+.habit-grid .cell {
+  --fill: 0%;
+  width: 6px;
+  height: 14px;
+  border-radius: 1.5px;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--accent) 45%, var(--bg-sunken)) var(--fill),
+    var(--bg-sunken) var(--fill)
+  );
+}
+
+.habit-grid .cell[data-fill="done"] {
+  background: color-mix(in srgb, var(--accent) 80%, var(--bg-sunken));
+}
+
+.habit-grid .cell[data-today] {
+  outline: 1px solid var(--text-3);
+  outline-offset: 1px;
+}
+
+.habit-grid .cell:enabled:hover {
+  outline: 1px solid var(--text-2);
+  outline-offset: 1px;
+}
+
+.habit-grid .cell:disabled {
+  opacity: 0.5;
+}
+
+/* ---------- History: 工夫 as curves ---------- */
+
+.habits-subhead {
+  margin: 56px 0 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-3xl);
+  font-weight: 400;
+}
+
+.activity-curves {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  margin: 28px 0 0;
+}
+
+.activity-row {
+  display: grid;
+  grid-template-columns: 132px max-content;
+  align-items: end;
+  gap: 16px;
+}
+
+.activity-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 2px;
+}
+
+.activity-label b {
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 400;
+}
+
+.activity-label small {
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-chart {
+  position: relative;
+}
+
+.activity-chart svg {
+  display: block;
+  overflow: visible;
+  cursor: crosshair;
+}
+
+.activity-chart .base {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.activity-chart .wash {
+  fill: var(--accent);
+  opacity: 0.1;
+}
+
+.activity-chart .trace {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* Dots wear a ring of the page colour so they stay legible where they sit on the line. */
+.activity-chart circle {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+
+.activity-chart .peak {
+  fill: var(--text-2);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-chart .cross line {
+  stroke: var(--text-3);
+  stroke-width: 1;
+}
+
+.activity-tip {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  z-index: 20;
+  padding: 4px 10px;
+  transform: translateX(-50%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.08);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.activity-axis {
+  position: relative;
+  height: 16px;
+  margin-top: -10px;
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-axis span {
+  position: absolute;
+  white-space: nowrap;
+}
+
+.activity-axis .end {
+  transform: translateX(-100%);
+}
+
+@media (max-width: 720px) {
+  header.day {
+    flex-wrap: wrap;
+  }
+
+  header.day .seals {
+    justify-content: flex-start;
+    max-width: none;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .activity-row {
+    grid-template-columns: 1fr;
+  }
+}

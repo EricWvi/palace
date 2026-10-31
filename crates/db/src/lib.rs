@@ -1,6 +1,8 @@
 //! PostgreSQL transactions enforce owner boundaries independently of HTTP inputs.
 mod access_token;
+mod activity;
 pub use access_token::{AccessToken, IssuedAccessToken};
+pub use activity::{Activity, ActivityType, TypeAdded};
 mod annotation;
 pub use annotation::Annotation;
 mod article;
@@ -18,6 +20,8 @@ pub use conversation_list::{
 };
 mod conversation_tree;
 pub use conversation_tree::{ConversationDetail, ConversationPath};
+mod habit;
+pub use habit::{Habit, HabitBoard, HabitCheck};
 mod import;
 mod jotting;
 pub use jotting::{
@@ -50,8 +54,8 @@ pub use session::{
 };
 pub use session_crypto::CredentialKey;
 pub use timeline::{
-    ArticleCard, ConversationCard, ExcerptLine, Moment, MomentDetail, MomentKind, MomentOutline,
-    SleepCard,
+    ActivityCard, ArticleCard, ConversationCard, ExcerptLine, Moment, MomentDetail, MomentKind,
+    MomentOutline, SleepCard,
 };
 pub use web_page::{WebAnnotation, WebPage, WebPageDetail, WebPageSummary};
 

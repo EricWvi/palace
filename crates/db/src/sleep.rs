@@ -2,7 +2,7 @@
 //! `sleep` moment on the day it ended. Sleep is outside the sync domain, so these writes take no
 //! publication lock; the database itself keeps nights from overlapping.
 use crate::{Database, DbError, OwnerScope};
-use palace_domain::{SleepRange, SleepSpan};
+use palace_domain::{InstantRange, SleepSpan};
 use sqlx::{Row, postgres::PgRow};
 use uuid::Uuid;
 
@@ -152,7 +152,7 @@ impl Database {
     pub async fn sleep_nights(
         &self,
         owner: OwnerScope,
-        range: SleepRange,
+        range: InstantRange,
     ) -> Result<Vec<SleepNight>, DbError> {
         let rows = sqlx::query(&format!(
             "SELECT {NIGHT_COLUMNS} FROM moment m JOIN sleep s ON s.owner_id=m.owner_id AND s.id=m.id WHERE m.owner_id=$1 AND m.kind='sleep' AND m.occurred_at>={} AND m.occurred_at<{} ORDER BY m.occurred_at,m.id",

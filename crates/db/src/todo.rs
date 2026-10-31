@@ -3,7 +3,7 @@
 //! owner's in the same statement that writes it.
 use crate::{Database, DbError, OwnerScope};
 use palace_domain::{
-    TodoBody, TodoDay, TodoLink, TodoPlacement, TodoPlan, TodoPosition, TodoTitle,
+    LocalDay, TodoBody, TodoLink, TodoPlacement, TodoPlan, TodoPosition, TodoTitle,
 };
 use sqlx::{Row, postgres::PgRow};
 use uuid::Uuid;
@@ -56,7 +56,7 @@ impl Database {
         .bind(placement.list())
         .bind(title.as_str())
         .bind(position.as_str())
-        .bind(placement.day().map(TodoDay::as_str))
+        .bind(placement.day().map(LocalDay::text))
         .bind(placement.shelved())
         .fetch_optional(&self.pool)
         .await
@@ -82,7 +82,7 @@ impl Database {
         .bind(edit.title.as_str())
         .bind(edit.link.as_ref().map(TodoLink::as_str))
         .bind(edit.position.as_str())
-        .bind(edit.placement.day().map(TodoDay::as_str))
+        .bind(edit.placement.day().map(LocalDay::text))
         .bind(edit.placement.shelved())
         .fetch_optional(&self.pool)
         .await
@@ -133,7 +133,7 @@ impl Database {
         &self,
         owner: OwnerScope,
         id: Uuid,
-        day: &TodoDay,
+        day: LocalDay,
         done: bool,
     ) -> Result<Todo, DbError> {
         let row = sqlx::query(&format!(
@@ -141,7 +141,7 @@ impl Database {
         ))
         .bind(owner.id())
         .bind(id)
-        .bind(day.as_str())
+        .bind(day.text())
         .bind(done)
         .fetch_optional(&self.pool)
         .await?;
@@ -157,12 +157,12 @@ impl Database {
     pub async fn plan_todos(
         &self,
         owner: OwnerScope,
-        day: &TodoDay,
+        day: LocalDay,
         ids: &[Uuid],
     ) -> Result<(), DbError> {
         sqlx::query("UPDATE todo SET planned_on=$2::date,done=false,updated_at=date_trunc('milliseconds',now()) WHERE owner_id=$1 AND id=ANY($3) AND list_id IS NOT NULL AND completed_at IS NULL AND NOT shelved AND (planned_on IS NULL OR planned_on<$2::date)")
             .bind(owner.id())
-            .bind(day.as_str())
+            .bind(day.text())
             .bind(ids)
             .execute(&self.pool)
             .await?;
@@ -258,7 +258,7 @@ pub(crate) fn todo(row: &PgRow) -> Result<Todo, DbError> {
         (Some(list), Some(day), false) => TodoPlace::List {
             list,
             plan: TodoPlan::Day {
-                day: TodoDay::from_stored(day),
+                day: LocalDay::from_stored(&day)?,
                 done,
             },
         },

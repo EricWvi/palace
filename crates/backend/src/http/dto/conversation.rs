@@ -130,6 +130,21 @@ pub(crate) enum Moment {
     Conversation(ConversationMoment),
     Article(ArticleMoment),
     Sleep(SleepMoment),
+    Activity(ActivityMoment),
+}
+/// An activity moment: time spent on one type of activity, on the day it started.
+#[derive(Serialize, ToSchema)]
+pub(crate) struct ActivityMoment {
+    /// Moment id, equal to the activity's id.
+    pub id: Uuid,
+    /// Unix epoch milliseconds of the start.
+    pub occurred_at: i64,
+    pub type_id: Uuid,
+    pub type_name: String,
+    /// 1 to 720.
+    pub minutes: i32,
+    #[schema(required = true)]
+    pub note: Option<String>,
 }
 /// A sleep moment: one finished night, on the day it ended.
 #[derive(Serialize, ToSchema)]
@@ -208,6 +223,14 @@ impl From<palace_db::Moment> for Moment {
                 occurred_at: value.occurred_at,
                 started_at: card.started_at,
             }),
+            palace_db::MomentDetail::Activity(card) => Self::Activity(ActivityMoment {
+                id: value.id,
+                occurred_at: value.occurred_at,
+                type_id: card.type_id,
+                type_name: card.type_name,
+                minutes: card.minutes,
+                note: card.note,
+            }),
         }
     }
 }
@@ -225,6 +248,7 @@ pub(crate) enum MomentKind {
     Conversation,
     Article,
     Sleep,
+    Activity,
 }
 impl From<palace_db::MomentOutline> for MomentOutline {
     /// Keeps the public kind vocabulary exhaustive when the database gains a kind.
@@ -235,6 +259,7 @@ impl From<palace_db::MomentOutline> for MomentOutline {
                 palace_db::MomentKind::Conversation => MomentKind::Conversation,
                 palace_db::MomentKind::Article => MomentKind::Article,
                 palace_db::MomentKind::Sleep => MomentKind::Sleep,
+                palace_db::MomentKind::Activity => MomentKind::Activity,
             },
         }
     }

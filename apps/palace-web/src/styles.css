@@ -8,6 +8,7 @@
 @import "./todo.css";
 /* 时刻's sleep dial and its history page. */
 @import "./sleep.css";
+@import "./habits.css";
 
 /*
  * Page styles follow the prototypes in design: base.css and components.css first,

@@ -1,3 +1,4 @@
+use crate::activity::activity_cards;
 use crate::{Database, DbError, OwnerScope};
 use palace_domain::{
     EXCERPT_SOURCE_CHARS, InputError, InputErrorKind, Role, Source, article_site, excerpt,
@@ -23,6 +24,15 @@ pub enum MomentDetail {
     Conversation(ConversationCard),
     Article(ArticleCard),
     Sleep(SleepCard),
+    Activity(ActivityCard),
+}
+/// An activity moment is time spent on one type of activity; it occurred when it started.
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct ActivityCard {
+    pub type_id: Uuid,
+    pub type_name: String,
+    pub minutes: i32,
+    pub note: Option<String>,
 }
 /// A sleep moment is one finished night; it occurred when the sleeper woke.
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -65,6 +75,7 @@ pub enum MomentKind {
     Conversation,
     Article,
     Sleep,
+    Activity,
 }
 
 impl Database {
@@ -88,16 +99,19 @@ impl Database {
         let mut conversations = Vec::new();
         let mut articles = Vec::new();
         let mut nights = Vec::new();
+        let mut activities = Vec::new();
         for (outline, _) in &moments {
             match outline.kind {
                 MomentKind::Conversation => conversations.push(outline.id),
                 MomentKind::Article => articles.push(outline.id),
                 MomentKind::Sleep => nights.push(outline.id),
+                MomentKind::Activity => activities.push(outline.id),
             }
         }
         let mut cards = conversation_cards(&mut tx, owner, &conversations).await?;
         let mut article_cards = article_cards(&mut tx, owner, &articles).await?;
         let mut sleep_cards = sleep_cards(&mut tx, owner, &nights).await?;
+        let mut activity_cards = activity_cards(&mut tx, owner, &activities).await?;
         tx.commit().await?;
         moments
             .into_iter()
@@ -111,6 +125,11 @@ impl Database {
                     ),
                     MomentKind::Sleep => MomentDetail::Sleep(
                         sleep_cards.remove(&outline.id).ok_or(DbError::Conflict)?,
+                    ),
+                    MomentKind::Activity => MomentDetail::Activity(
+                        activity_cards
+                            .remove(&outline.id)
+                            .ok_or(DbError::Conflict)?,
                     ),
                 };
                 Ok(Moment {
@@ -162,6 +181,7 @@ async fn day_moments<'e>(
                 "conversation" => MomentKind::Conversation,
                 "article" => MomentKind::Article,
                 "sleep" => MomentKind::Sleep,
+                "activity" => MomentKind::Activity,
                 // The database check constraint admits no other kind.
                 _ => return Err(DbError::Conflict),
             };

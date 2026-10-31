@@ -11,6 +11,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   api,
   apiData,
+  habitBoardOptions,
   outlineOptions,
   sleepNightsOptions,
   sleepRunningOptions,
@@ -27,7 +28,13 @@ import {
   parseDay,
   today,
 } from "@/lib/day";
+import {
+  ActivityDialog,
+  type ActivityTarget,
+} from "@/components/activity-dialog";
 import { DayMoments } from "@/components/day-moments";
+import { HabitArrangeDialog } from "@/components/habit-arrange-dialog";
+import { HabitSeals } from "@/components/habit-seals";
 import { ErrorState } from "@/components/error-state";
 import { MoreMenu, type MenuAction } from "@/components/more-menu";
 import { SleepPin, weekOf } from "@/components/sleep-pin";
@@ -68,6 +75,7 @@ const shortcuts: ShortcutGroup = {
   shortcuts: [
     { keys: ["←"], action: "前一天" },
     { keys: ["→"], action: "后一天" },
+    { keys: ["g"], action: "记录工夫" },
   ],
 };
 
@@ -88,6 +96,9 @@ export function TimelinePage() {
   const [managingKeys, setManagingKeys] = useState(false);
   const [picking, setPicking] = useState(false);
   const [recording, setRecording] = useState<NightTarget | null>(null);
+  const [activity, setActivity] = useState<ActivityTarget | null>(null);
+  const [arranging, setArranging] = useState(false);
+  const habits = useQuery(habitBoardOptions(date, date));
   const isToday = date === dayParam(today());
   // The menu's sleep action follows the clock; it is read when the "···" is approached, so a page
   // left open from the afternoon into the evening still offers starting.
@@ -150,6 +161,11 @@ export function TimelinePage() {
       const target = event.target as HTMLElement;
       if (target.closest("input, textarea, select, [role=dialog], [role=menu]"))
         return;
+      if (event.key === "g") {
+        event.preventDefault();
+        setActivity({ kind: "record", day });
+        return;
+      }
       const amount = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
       if (!amount) return;
       setParams({ date: dayParam(addDays(day, amount)) }, { replace: true });
@@ -221,10 +237,24 @@ export function TimelinePage() {
           }}
           actions={[
             ...sleepActions,
+            {
+              label: "记录工夫",
+              onSelect: () => setActivity({ kind: "record", day }),
+            },
+            {
+              label: "编排日课",
+              onSelect: () => setArranging(true),
+              disabled: !habits.data,
+            },
+            {
+              label: "日课与工夫",
+              onSelect: () => navigate(`/habits?date=${date}`),
+            },
             { label: "导入对话", onSelect: () => setImporting(true) },
             { label: "密钥管理", onSelect: () => setManagingKeys(true) },
           ]}
         />
+        <HabitSeals day={day} />
       </header>
       {query.isError ? (
         <ErrorState error={query.error} retry={() => void query.refetch()} />
@@ -240,6 +270,19 @@ export function TimelinePage() {
             // A day whose only record is its night already shows the night.
             empty={expectsNight ? "blank" : "illustrated"}
             onSettled={settled}
+            onOpenActivity={(moment) =>
+              setActivity({
+                kind: "edit",
+                activity: {
+                  id: moment.id,
+                  type_id: moment.type_id,
+                  type_name: moment.type_name,
+                  started_at: moment.occurred_at,
+                  minutes: moment.minutes,
+                  note: moment.note,
+                },
+              })
+            }
           />
         </>
       )}
@@ -271,6 +314,15 @@ export function TimelinePage() {
             (nights.data && averageClock(nights.data, "ended_at")) ?? "07:00",
           ]}
           onClose={() => setRecording(null)}
+        />
+      )}
+      {activity && (
+        <ActivityDialog target={activity} onClose={() => setActivity(null)} />
+      )}
+      {arranging && habits.data && (
+        <HabitArrangeDialog
+          habits={habits.data.habits.filter((habit) => !habit.retired)}
+          onClose={() => setArranging(false)}
         />
       )}
       {managingKeys && (

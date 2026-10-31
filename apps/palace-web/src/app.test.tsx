@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { address, mountApp } from "./test-app";
 import type { Detail, Moment } from "./lib/api";
 import { dayHeading, dayRange, parseDay, today } from "./lib/day";
-import { noSleep, testRequest, requestPath } from "./lib/test-request";
+import { bareDay, testRequest, requestPath } from "./lib/test-request";
 
 const day = parseDay("2025-09-30")!;
 const moments: Moment[] = [
@@ -63,8 +63,8 @@ function mockApi() {
           : listed.map(({ id, kind }) => ({ id, kind })),
       );
     }
-    const sleep = noSleep(path);
-    if (sleep) return sleep;
+    const bare = bareDay(path);
+    if (bare) return bare;
     if (path === "/api/import/file")
       return Response.json({
         import_id: "import",
@@ -278,7 +278,7 @@ it("opens the day menu from the keyboard and returns focus on Escape", async () 
   expect(trigger).toHaveAttribute("aria-expanded", "true");
   expect(
     screen.getAllByRole("menuitem").map((item) => item.textContent),
-  ).toEqual(["导入对话", "密钥管理"]);
+  ).toEqual(["记录工夫", "编排日课", "日课与工夫", "导入对话", "密钥管理"]);
   await user.keyboard("{Escape}");
   expect(screen.queryByRole("menu")).toBeNull();
   expect(trigger).toHaveFocus();

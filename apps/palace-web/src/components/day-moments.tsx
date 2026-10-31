@@ -1,11 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { clock } from "@/lib/sleep";
 import {
   sources,
   type Moment,
   type MomentKind,
   type MomentOutline,
 } from "@/lib/api";
+
+export type ActivityMoment = Extract<Moment, { kind: "activity" }>;
 
 const MORPH = { duration: 280, easing: "cubic-bezier(0.2, 0, 0, 1)" };
 
@@ -24,6 +27,12 @@ const skeletons: Record<MomentKind, React.ReactNode> = {
   article: <span className="bar head" />,
   // Sleep is pinned above the list by the page and never drawn in it.
   sleep: null,
+  activity: (
+    <>
+      <span className="bar head" />
+      <span className="bar meta" />
+    </>
+  ),
 };
 
 // What one list item shows: a placeholder still waiting, a card, or a placeholder whose moment
@@ -73,6 +82,7 @@ export function DayMoments({
   date,
   empty,
   onSettled,
+  onOpenActivity,
 }: {
   outline: MomentOutline[] | undefined;
   moments: Moment[] | undefined;
@@ -81,6 +91,8 @@ export function DayMoments({
   // something above the list already speaks for the day.
   empty: "illustrated" | "blank";
   onSettled: () => void;
+  // An activity has nothing more to show than its card, so its title opens its correction.
+  onOpenActivity: (activity: ActivityMoment) => void;
 }) {
   const list = useRef<HTMLOListElement>(null);
   // Where each placeholder sat in the last layout, so its card can start from there.
@@ -185,6 +197,7 @@ export function DayMoments({
           row={row}
           date={date}
           morphing={morphing !== null}
+          onOpenActivity={onOpenActivity}
         />
       ))}
     </ol>
@@ -208,10 +221,12 @@ function MomentItem({
   row,
   date,
   morphing,
+  onOpenActivity,
 }: {
   row: Row;
   date: string;
   morphing: boolean;
+  onOpenActivity: (activity: ActivityMoment) => void;
 }) {
   switch (row.kind) {
     case "skeleton":
@@ -243,7 +258,11 @@ function MomentItem({
                 : "entering"
           }
         >
-          <MomentCard moment={moment} date={date} />
+          <MomentCard
+            moment={moment}
+            date={date}
+            onOpenActivity={onOpenActivity}
+          />
           {arriving && (
             <span className="skeleton fading" aria-hidden="true">
               {skeletons[moment.kind]}
@@ -257,7 +276,15 @@ function MomentItem({
 
 // What a card says about its moment. Full texts belong to 摘星, so a card only says what happened
 // and links there, carrying the day so the reading page can lead back to it.
-function MomentCard({ moment, date }: { moment: Moment; date: string }) {
+function MomentCard({
+  moment,
+  date,
+  onOpenActivity,
+}: {
+  moment: Moment;
+  date: string;
+  onOpenActivity: (activity: ActivityMoment) => void;
+}) {
   switch (moment.kind) {
     case "conversation": {
       const source = sources[moment.source];
@@ -301,5 +328,27 @@ function MomentCard({ moment, date }: { moment: Moment; date: string }) {
     // Never listed: the page pins the night above the list.
     case "sleep":
       return null;
+    // Time spent belongs to the day alone; its title opens it for correction.
+    case "activity":
+      return (
+        <>
+          <button
+            type="button"
+            className="moment-head"
+            onClick={() => onOpenActivity(moment)}
+          >
+            <span className="kind">工夫</span>
+            <span className="title">{moment.type_name}</span>
+          </button>
+          <p className="meta">
+            <span>
+              {clock(moment.occurred_at)} –{" "}
+              {clock(moment.occurred_at + moment.minutes * 60_000)}
+            </span>
+            <span>{moment.minutes} 分钟</span>
+            {moment.note && <span>{moment.note}</span>}
+          </p>
+        </>
+      );
   }
 }

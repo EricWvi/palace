@@ -14,8 +14,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 设定幂等、0 删除、超过每天次数被拒绝、改每天次数不改历史（真实 PostgreSQL） | Missing | `crates/db/tests/postgres/habits.rs::a_check_must_be_set_never_accumulated` |
-| 次数与每天次数的范围校验、错误字段名（领域单元测试） | Missing | `crates/domain/src/habit.rs::times_and_counts_stay_within_one_to_ten` |
+| 设定幂等、0 删除、超过每天次数被拒绝、改每天次数不改历史（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/habits.rs::a_check_must_be_set_never_accumulated` |
+| 次数与每天次数的范围校验、错误字段名（领域单元测试） | Covered | `crates/domain/src/habit.rs::times_and_counts_stay_within_one_to_ten` |
 
 决策依据：D2，不变量 1、2、3。
 
@@ -31,7 +31,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 停用保留打卡、拒绝写入、只在有打卡的窗口里出现（真实 PostgreSQL） | Missing | `crates/db/tests/postgres/habits.rs::a_retired_habit_must_keep_its_checks_but_take_no_more` |
+| 停用保留打卡、拒绝写入、只在有打卡的窗口里出现（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/habits.rs::a_retired_habit_must_keep_its_checks_but_take_no_more` |
 
 决策依据：D2，不变量 2。
 
@@ -47,8 +47,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 时间线卡片、修改保持身份、单边删除被拒绝、删除成对（真实 PostgreSQL） | Missing | `crates/db/tests/postgres/activities.rs::an_activity_must_be_one_moment_timed_at_its_start` |
-| 分钟数与备注的校验（领域单元测试） | Missing | `crates/domain/src/activity.rs::an_activity_lasts_one_minute_to_twelve_hours` |
+| 时间线卡片、修改保持身份、单边删除被拒绝、删除成对（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/activities.rs::an_activity_must_be_one_moment_timed_at_its_start` |
+| 分钟数与备注的校验（领域单元测试） | Covered | `crates/domain/src/activity.rs::an_activity_lasts_one_minute_to_twelve_hours` |
 
 决策依据：D3，不变量 4、6。
 
@@ -64,9 +64,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 同名类型复用、跨 Owner 的类型与工夫都不可见（真实 PostgreSQL） | Missing | `crates/db/tests/postgres/activities.rs::activity_types_must_be_unique_and_owned` |
-| 日课与打卡的 Owner 隔离（真实 PostgreSQL） | Missing | `crates/db/tests/postgres/habits.rs::habits_must_stay_in_their_owner_scope` |
-| 接口的状态码与响应结构（真实 Router） | Missing | `crates/backend/tests/http/habits.rs::exercise_habits` |
+| 同名类型复用、跨 Owner 的类型与工夫都不可见（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/activities.rs::activity_types_must_be_unique_and_owned` |
+| 日课与打卡的 Owner 隔离（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/habits.rs::habits_must_stay_in_their_owner_scope` |
+| 接口的状态码与响应结构（真实 Router） | Covered | `crates/backend/tests/http/habits.rs::exercise_habits` |
 
 决策依据：D3，不变量 5、7。
 
@@ -82,8 +82,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 印章的循环、按显示的那天写入、失败回读（jsdom 组件测试） | Missing | `apps/palace-web/src/pages/habits.test.tsx::tapping a seal cycles the day's count` |
-| 下一个次数与填充比例（前端单元测试） | Missing | `apps/palace-web/src/lib/habits.test.ts::next count wraps to zero after the day is full` |
+| 印章的循环、按显示的那天写入、失败回读（jsdom 组件测试） | Covered | `apps/palace-web/src/pages/habits.test.tsx::tapping a seal cycles the day's count`（jsdom 组件测试，假的服务端） |
+| 下一个次数与填充比例（前端单元测试） | Covered | `apps/palace-web/src/lib/habits.test.ts::next count wraps to zero after the day is full` |
 
 决策依据：D4，不变量 3。
 
@@ -99,8 +99,8 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 时间与时长的解析、校验和默认时长（前端单元测试） | Missing | `apps/palace-web/src/lib/activities.test.ts::reads an activity on the day it is filed under` |
-| 对话框记录、修改与删除工夫（jsdom 组件测试） | Missing | `apps/palace-web/src/pages/habits.test.tsx::records an activity from the day menu` |
+| 时间与时长的解析、校验和默认时长（前端单元测试） | Covered | `apps/palace-web/src/lib/activities.test.ts::reads an activity on the day it is filed under` |
+| 对话框记录、修改与删除工夫（jsdom 组件测试） | Covered | `apps/palace-web/src/pages/habits.test.tsx::records an activity from the day menu` |
 
 决策依据：D5。
 
@@ -116,6 +116,6 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 单调插值的控制点范围（前端单元测试） | Missing | `apps/palace-web/src/lib/activities.test.ts::the curve stays between neighbouring days` |
+| 单调插值的控制点范围（前端单元测试） | Covered | `apps/palace-web/src/lib/activities.test.ts::the curve stays between neighbouring days` |
 
 决策依据：D6。

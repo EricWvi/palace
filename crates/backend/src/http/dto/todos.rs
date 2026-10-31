@@ -174,7 +174,7 @@ impl From<palace_db::Todo> for Todo {
                     palace_domain::TodoPlan::Open => TodoPlan::Open,
                     palace_domain::TodoPlan::Shelved => TodoPlan::Shelved,
                     palace_domain::TodoPlan::Day { day, done } => TodoPlan::Day {
-                        day: day.as_str().to_owned(),
+                        day: day.text(),
                         done,
                     },
                 },

@@ -1,4 +1,5 @@
 mod access_tokens;
+mod activities;
 mod annotations;
 mod article_import;
 mod articles;
@@ -14,6 +15,7 @@ mod fixed_user;
 mod path_management;
 #[cfg(feature = "test-server")]
 pub use fixed_user::fixed_user_router;
+mod habits;
 mod handlers;
 mod jotting_reading;
 mod jottings;

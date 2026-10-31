@@ -39,6 +39,8 @@ function serveSleep(state: { running: number | null; nights: Night[] }) {
       writes.push(`${request.method} ${path}${body ? ` ${body}` : ""}`);
     const waking = () =>
       state.nights.filter((n) => n.ended_at >= start && n.ended_at < end);
+    if (path === "/api/habits")
+      return Response.json({ habits: [], checks: [] });
     if (path === "/api/timeline")
       return Response.json(
         waking().map((n) => ({
@@ -80,6 +82,9 @@ function serveSleep(state: { running: number | null; nights: Night[] }) {
   return { writes };
 }
 
+// What the day menu offers besides sleep, always in this order.
+const REST = ["记录工夫", "编排日课", "日课与工夫", "导入对话", "密钥管理"];
+
 // Radix opens menus on real pointer events, which jsdom cannot produce; the keyboard path is the
 // same menu. Focusing the "···" is also what reads the clock for the sleep action.
 async function menuItems(user: ReturnType<typeof mountApp>["user"]) {
@@ -96,7 +101,7 @@ it("starts in the evening and ticks on a pinned dial whose stop button stays put
   vi.setSystemTime(at(29, 21, 30));
   const { writes } = serveSleep({ running: null, nights: [] });
   const { user } = mountApp("/?date=2026-10-29");
-  expect(await menuItems(user)).toEqual(["开始睡眠", "导入对话", "密钥管理"]);
+  expect(await menuItems(user)).toEqual(["开始睡眠", ...REST]);
   await user.click(screen.getByRole("menuitem", { name: "开始睡眠" }));
   const stop = await screen.findByRole("button", { name: "结束睡眠" });
   const figures = screen.getByLabelText("已睡");
@@ -107,7 +112,7 @@ it("starts in the evening and ticks on a pinned dial whose stop button stays put
   // The figures moved; the button is the same element, so its breathing never restarted.
   expect(screen.getByRole("button", { name: "结束睡眠" })).toBe(stop);
   // A running sleep ends from its dial, never from the menu.
-  expect(await menuItems(user)).toEqual(["导入对话", "密钥管理"]);
+  expect(await menuItems(user)).toEqual([...REST]);
   expect(writes).toEqual(["PUT /api/sleep/running"]);
 });
 
@@ -162,7 +167,7 @@ it("records a night never started, refusing times that do not add up", async () 
   vi.setSystemTime(at(29, 9, 0));
   const { writes } = serveSleep({ running: null, nights: [] });
   const { user } = mountApp("/?date=2026-10-29");
-  expect(await menuItems(user)).toEqual(["记录睡眠", "导入对话", "密钥管理"]);
+  expect(await menuItems(user)).toEqual(["记录睡眠", ...REST]);
   await user.click(screen.getByRole("menuitem", { name: "记录睡眠" }));
   const dialog = await screen.findByRole("dialog", { name: "记录睡眠" });
   const wake = within(dialog).getByLabelText("醒来");
@@ -186,7 +191,7 @@ it("records a night never started, refusing times that do not add up", async () 
     `POST /api/sleep/nights {"started_at":${at(28, 23, 30)},"ended_at":${at(29, 7, 10)}}`,
   ]);
   // A night is recorded for today now, so the morning offers nothing more.
-  expect(await menuItems(user)).toEqual(["导入对话", "密钥管理"]);
+  expect(await menuItems(user)).toEqual([...REST]);
 });
 
 // Core test cases:
@@ -196,11 +201,11 @@ it("lets a forgotten start lapse at 15:00 and starts over in the evening", async
   vi.setSystemTime(at(29, 16, 0));
   const { writes } = serveSleep({ running: at(28, 23, 46), nights: [] });
   const { user } = mountApp("/?date=2026-10-29");
-  expect(await menuItems(user)).toEqual(["导入对话", "密钥管理"]);
+  expect(await menuItems(user)).toEqual([...REST]);
   expect(screen.queryByRole("button", { name: "结束睡眠" })).toBeNull();
   await user.keyboard("{Escape}");
   act(() => vi.setSystemTime(at(29, 21, 30)));
-  expect(await menuItems(user)).toEqual(["开始睡眠", "导入对话", "密钥管理"]);
+  expect(await menuItems(user)).toEqual(["开始睡眠", ...REST]);
   await user.click(screen.getByRole("menuitem", { name: "开始睡眠" }));
   await screen.findByRole("button", { name: "结束睡眠" });
   expect(writes).toEqual(["PUT /api/sleep/running"]);
@@ -227,7 +232,7 @@ it("pins an earlier day's night above its cards, offers nothing for it, and lead
   expect(
     [...dial.querySelectorAll(".week i")].map((bar) => bar.className),
   ).toEqual(["gap", "gap", "gap", "gap", "gap", "", "this"]);
-  expect(await menuItems(user)).toEqual(["导入对话", "密钥管理"]);
+  expect(await menuItems(user)).toEqual([...REST]);
   await user.keyboard("{Escape}");
   await user.click(dial);
   expect(address(router)).toBe("/sleep?date=2026-10-27");

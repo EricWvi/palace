@@ -1,6 +1,6 @@
 //! 行事: tasks, the lists they sit in, and the plan that puts a task on a day. A task without a
 //! list sits in the inbox, which is never planned from.
-use crate::{InputError, InputErrorKind, article::validate_web_url};
+use crate::{InputError, InputErrorKind, LocalDay, article::validate_web_url};
 use uuid::Uuid;
 
 mod position;
@@ -12,7 +12,12 @@ const LIST_NAME_BYTES: usize = 256;
 const BODY_BYTES: usize = 256 * 1024;
 
 /// Trims the text and accepts it when it is nonblank and fits `limit` bytes.
-fn nonblank(text: &str, limit: usize, field: &str, what: &str) -> Result<String, InputError> {
+pub(crate) fn nonblank(
+    text: &str,
+    limit: usize,
+    field: &str,
+    what: &str,
+) -> Result<String, InputError> {
     let text = text.trim();
     if text.is_empty() || text.len() > limit {
         return Err(InputError::new(
@@ -89,38 +94,6 @@ impl TodoBody {
     }
 }
 
-/// A calendar day, `YYYY-MM-DD`. The page names its own local day; the server never decides
-/// what "today" is, since the reader and the deployment may sit in different zones.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TodoDay(String);
-
-impl TodoDay {
-    pub fn parse(text: &str, field: &str) -> Result<Self, InputError> {
-        let format = time::macros::format_description!("[year]-[month]-[day]");
-        let day = time::Date::parse(text, format).map_err(|_| {
-            InputError::new(InputErrorKind::Field, field, "expected a YYYY-MM-DD day")
-        })?;
-        // Years past 9999 would format with a sign; the column and the page expect four digits.
-        if !(1..=9999).contains(&day.year()) {
-            return Err(InputError::new(
-                InputErrorKind::Field,
-                field,
-                "expected a YYYY-MM-DD day",
-            ));
-        }
-        Ok(Self(text.to_owned()))
-    }
-
-    /// Rebuilds a day the database formatted itself.
-    pub fn from_stored(text: String) -> Self {
-        Self(text)
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
 /// A task's plan as stored. A day in the past is still `Day`; the page reads it as unscheduled.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TodoPlan {
@@ -129,7 +102,7 @@ pub enum TodoPlan {
     Shelved,
     /// On a day, and whether it was done for that day.
     Day {
-        day: TodoDay,
+        day: LocalDay,
         done: bool,
     },
 }
@@ -140,7 +113,7 @@ pub enum TodoPlan {
 pub enum TodoPlanInput {
     Open,
     Shelved,
-    Day(TodoDay),
+    Day(LocalDay),
 }
 
 /// Where an edit puts a task. The inbox holds no plan, so only a list carries one.
@@ -172,12 +145,12 @@ impl TodoPlacement {
     }
 
     /// The day this placement plans the task on, if any.
-    pub fn day(&self) -> Option<&TodoDay> {
+    pub fn day(&self) -> Option<LocalDay> {
         match self {
             Self::List {
                 plan: TodoPlanInput::Day(day),
                 ..
-            } => Some(day),
+            } => Some(*day),
             Self::Inbox
             | Self::List {
                 plan: TodoPlanInput::Open | TodoPlanInput::Shelved,
@@ -222,17 +195,11 @@ mod tests {
             TodoListName::parse(&"a".repeat(257)).map(|_| ()),
             TodoLink::parse("ftp://example.com".into()).map(|_| ()),
             TodoBody::parse(" \n".into()).map(|_| ()),
-            TodoDay::parse("2026-2-30", "day").map(|_| ()),
-            TodoDay::parse("2026-02-30", "day").map(|_| ()),
         ]
         .map(|result| result.map_err(|error| error.path));
         assert_eq!(
             refused,
-            ["title", "title", "name", "link", "body", "day", "day"].map(|path| Err(path.into()))
-        );
-        assert_eq!(
-            TodoDay::parse("2026-10-23", "day").map(|d| d.0),
-            Ok("2026-10-23".into())
+            ["title", "title", "name", "link", "body"].map(|path| Err(path.into()))
         );
     }
 
@@ -242,16 +209,16 @@ mod tests {
     #[test]
     fn the_inbox_takes_no_plan() {
         let list = Uuid::now_v7();
-        let day = TodoDay::parse("2026-10-23", "day").unwrap();
+        let day = LocalDay::parse("2026-10-23", "day").unwrap();
         assert_eq!(
             TodoPlacement::parse(None, TodoPlanInput::Open),
             Ok(TodoPlacement::Inbox)
         );
         assert_eq!(
-            TodoPlacement::parse(Some(list), TodoPlanInput::Day(day.clone())),
+            TodoPlacement::parse(Some(list), TodoPlanInput::Day(day)),
             Ok(TodoPlacement::List {
                 list,
-                plan: TodoPlanInput::Day(day.clone())
+                plan: TodoPlanInput::Day(day)
             })
         );
         for plan in [TodoPlanInput::Shelved, TodoPlanInput::Day(day)] {

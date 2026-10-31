@@ -162,7 +162,7 @@ date: 2026-10-23
 ## 落地与验收
 
 - 迁移 `0020_todos.sql` 新建 `todo_list` 与 `todo`，包括复合外键、检查约束和部分唯一索引 `todo_open_position`（`NULLS NOT DISTINCT`，让收件箱也参与唯一性）。
-- `palace-domain` 的 `TodoTitle`、`TodoListName`、`TodoLink`、`TodoBody`、`TodoDay`、`TodoPosition` 负责校验，`TodoPlacement::{Inbox, List { list, plan }}` 让收件箱在类型上就没有排期；`palace-db` 在 Owner Scope 内读写，写入任务时在同一条语句里核对集合属于当前 Owner；`palace-backend` 提供 D5 的接口并写入 OpenAPI 合同。
+- `palace-domain` 的 `TodoTitle`、`TodoListName`、`TodoLink`、`TodoBody`、`TodoPosition`（日期用通用的 `LocalDay`） 负责校验，`TodoPlacement::{Inbox, List { list, plan }}` 让收件箱在类型上就没有排期；`palace-db` 在 Owner Scope 内读写，写入任务时在同一条语句里核对集合属于当前 Owner；`palace-backend` 提供 D5 的接口并写入 OpenAPI 合同。
 - `apps/palace-web`：`lib/todo.ts` 是按今日读取看板、分组与生成键的纯函数，`components/todo/use-todo-actions.ts` 负责全部修改，`components/todo/` 下是左列、今日、集合、任务行、菜单、正文侧栏与撤销提示，样式在 `todo.css`；依赖 `fractional-indexing` 4.x 与 `@dnd-kit/core`、`@dnd-kit/sortable`、`@dnd-kit/utilities`。
 
 证据见核心测试用例：领域单元测试覆盖字段与排序键校验；真实 PostgreSQL 覆盖 Owner 隔离、检查约束、唯一键、今日已做的计数和级联删除；真实 Router 覆盖接口形状与 OpenAPI 合同；组件测试覆盖今日、安排、菜单和撤销；真实 Chromium 覆盖指针与键盘拖动。

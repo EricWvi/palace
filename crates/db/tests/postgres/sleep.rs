@@ -1,6 +1,6 @@
 use super::database;
 use palace_db::{Database, DbError, MomentDetail, OwnerScope, SleepCard, SleepNight};
-use palace_domain::{SleepRange, SleepSpan};
+use palace_domain::{InstantRange, SleepSpan};
 use pretty_assertions::assert_eq;
 use sqlx::PgPool;
 
@@ -23,7 +23,7 @@ fn span(started_at: i64, ended_at: i64) -> SleepSpan {
 async fn nights(db: &Database, owner: OwnerScope, at: i64) -> Vec<SleepNight> {
     db.sleep_nights(
         owner,
-        SleepRange::parse(at - 100 * HOUR, at + 100 * HOUR).unwrap(),
+        InstantRange::parse(at - 100 * HOUR, at + 100 * HOUR).unwrap(),
     )
     .await
     .unwrap()

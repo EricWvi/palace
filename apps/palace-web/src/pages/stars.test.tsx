@@ -7,7 +7,7 @@ import type {
   Detail,
   NoteListItem,
 } from "@/lib/api";
-import { noSleep, requestPath, testRequest } from "@/lib/test-request";
+import { bareDay, requestPath, testRequest } from "@/lib/test-request";
 
 // Local wall-clock times, so years and `MM.DD` do not depend on the test machine's zone.
 const at = (year: number, month: number, day: number) =>
@@ -85,8 +85,8 @@ function serve() {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const request = testRequest(url);
     const path = requestPath(url);
-    const sleep = noSleep(path);
-    if (sleep) return sleep;
+    const bare = bareDay(path);
+    if (bare) return bare;
     if (path === "/api/notes")
       return Response.json({ items: notes, next_cursor: null, total: 2 });
     if (path === "/api/articles")

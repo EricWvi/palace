@@ -20,6 +20,7 @@ export type AccessToken = components["schemas"]["AccessToken"];
 export type ListedJotting = components["schemas"]["ListedJotting"];
 export type JottingOverview = components["schemas"]["JottingOverview"];
 export type SleepNight = components["schemas"]["SleepNight"];
+export type HabitBoard = components["schemas"]["HabitBoard"];
 export const sources: Record<Source, string> = {
   chatgpt: "ChatGPT",
   gemini: "Gemini",
@@ -334,6 +335,42 @@ export function sleepNightsOptions(
 export async function refreshSleep(client: QueryClient) {
   await Promise.all([
     client.invalidateQueries({ queryKey: ["sleep"] }),
+    client.invalidateQueries({ queryKey: ["timeline"] }),
+  ]);
+}
+
+// 日课 over a run of local days, `YYYY-MM-DD` both ends included. A tap writes the cached run in
+// place first, so the seal answers at once; a failed write refetches it.
+export function habitBoardOptions(from: string, to: string) {
+  return {
+    queryKey: ["habits", from, to],
+    queryFn: () =>
+      apiData(api.GET("/api/habits", { params: { query: { from, to } } })),
+  };
+}
+// 工夫's types, in the order they were added.
+export function activityTypesOptions() {
+  return {
+    queryKey: ["activities", "types"],
+    queryFn: () => apiData(api.GET("/api/activity-types")),
+  };
+}
+// 工夫 starting in a run of local days; the key names the days so each run caches on its own.
+export function activitiesOptions(
+  from: string,
+  to: string,
+  range: { start: number; end: number },
+) {
+  return {
+    queryKey: ["activities", "list", from, to],
+    queryFn: () =>
+      apiData(api.GET("/api/activities", { params: { query: range } })),
+  };
+}
+// An activity changed: every run of activities and every day's timeline may hold it.
+export async function refreshActivities(client: QueryClient) {
+  await Promise.all([
+    client.invalidateQueries({ queryKey: ["activities"] }),
     client.invalidateQueries({ queryKey: ["timeline"] }),
   ]);
 }
