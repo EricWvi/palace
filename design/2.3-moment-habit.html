@@ -1,0 +1,1572 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Palace · 日课与工夫</title>
+  <!--
+  日课 (habits) and 工夫 (time spent on an activity) in 时刻.
+
+  - A 日课 is a daily practice with a number of times per day. Ticking it carries no time: a day
+    only knows how many times each 日课 was done. Any day can be ticked, today or before.
+  - A 工夫 is a Moment: a type the owner adds as needed, a start, a length typed by hand, an
+    optional note. It sits on the timeline like any other Moment and opens for correction there.
+  - The ··· menu holds 记录工夫 (also `g`), 编排日课 and the history page.
+
+  日课 sit as one-character seals on the date's own line, so even a dozen take no extra row. A seal
+  fills vermilion when done; one done some of its times a day fills from the bottom in proportion.
+  The history page lays 日课 out as a matrix of nine weeks and each type of 工夫 as a line of its
+  daily minutes over the last 30 days.
+
+  Every state opens by anchor; the 状态 menu in the corner lists them.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="components.css">
+  <script src="ornament.js"></script>
+  <script src="shared.js"></script>
+  <style>
+    [hidden] {
+      display: none !important;
+    }
+
+    .num {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- Day heading and its ··· menu, as in the app ---------- */
+
+    header.day {
+      position: relative;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin: 64px 0 0;
+    }
+
+    header.day h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: var(--font-size-4xl);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+
+    .more {
+      flex: none;
+      color: var(--text-3);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-lg);
+      letter-spacing: 2px;
+      line-height: 1;
+      position: relative;
+      top: -0.3em;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+
+    header.day:hover .more,
+    .more[aria-expanded="true"] {
+      opacity: 1;
+    }
+
+    .more:hover,
+    .more[aria-expanded="true"] {
+      color: var(--text-2);
+    }
+
+    .menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 40;
+      min-width: 140px;
+      margin: 6px 0 0;
+      padding: 6px;
+      list-style: none;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgb(0 0 0 / .08);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .menu button {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      color: var(--text-2);
+      text-align: left;
+    }
+
+    .menu button:hover {
+      background: var(--bg-sunken);
+      color: var(--text);
+    }
+
+    .menu kbd {
+      color: var(--text-3);
+      font: inherit;
+    }
+
+    .menu hr {
+      margin: 4px 6px;
+      border: 0;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ---------- Pinned sleep dial, only for neighbourly density ---------- */
+
+    #pin {
+      margin-top: 28px;
+    }
+
+    ol.timeline {
+      list-style: none;
+      margin: 40px 0 0;
+      padding: 0;
+    }
+
+    .moment {
+      padding-bottom: 40px;
+      font-family: var(--font-display);
+    }
+
+    .moment-head {
+      display: block;
+      font-size: var(--font-size-xl);
+      color: inherit;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .moment-head .kind {
+      margin-right: 12px;
+      font-size: var(--font-size-base);
+      color: var(--text-2);
+    }
+
+    .moment-head .kind::before {
+      content: "[ ";
+    }
+
+    .moment-head .kind::after {
+      content: " ]";
+    }
+
+    .moment-head:hover .title {
+      text-decoration: underline;
+      text-decoration-color: var(--text-3);
+      text-underline-offset: 4px;
+    }
+
+    .empty-day {
+      margin: 40px 0 0;
+      color: var(--text-3);
+      font-family: var(--font-display);
+    }
+
+    /* ---------- 日课 as seals on the date's own line ---------- */
+
+    .seals {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-left: auto;
+      max-width: 60%;
+      align-self: center;
+    }
+
+    /*
+     * A seal is one character in a square. Done reads like a vermilion seal on paper; a 日课 done
+     * once of twice fills from the bottom, so the square doubles as its own gauge.
+     */
+    .seal {
+      --fill: 0%;
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      border: 1.25px solid color-mix(in srgb, var(--text-3) 70%, transparent);
+      border-radius: 3px;
+      color: var(--text-3);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-xs);
+      background: linear-gradient(to top, color-mix(in srgb, var(--accent) 30%, var(--bg)) var(--fill), transparent var(--fill));
+      transition: background-color .15s, color .15s;
+    }
+
+    .seal:hover {
+      border-color: var(--text-2);
+      color: var(--text-2);
+    }
+
+    .seal.part {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .seal.done {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: var(--on-accent);
+    }
+
+    /* The full name on hover, without waiting for the browser's slow title tooltip. */
+    .seal::after {
+      content: attr(data-name);
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 50%;
+      z-index: 30;
+      padding: 3px 8px;
+      transform: translateX(-50%);
+      border-radius: var(--radius-sm);
+      background: var(--text);
+      color: var(--bg);
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .1s;
+    }
+
+    .seal:hover::after {
+      opacity: 1;
+    }
+
+    /* ---------- History page ---------- */
+
+    .history-head {
+      position: relative;
+      margin: 64px 0 0;
+    }
+
+    .history-head h1,
+    .history h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: var(--font-size-4xl);
+      letter-spacing: -0.01em;
+    }
+
+    .history h2 {
+      margin-top: 56px;
+      font-size: var(--font-size-3xl);
+    }
+
+    .back {
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      margin-bottom: 8px;
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+      text-decoration: none;
+    }
+
+    .back:hover {
+      color: var(--text-2);
+    }
+
+    .matrix-wrap {
+      margin: 32px 0 0;
+      overflow-x: auto;
+    }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: 72px max-content 56px;
+      align-items: center;
+      gap: 7px 14px;
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .matrix .name {
+      overflow: hidden;
+      color: var(--text-2);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .matrix .rate {
+      color: var(--text-3);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .row-cells {
+      display: flex;
+      gap: 2px;
+    }
+
+    /* A new week starts with a wider gap, so the weeks stay countable without lines. */
+    .row-cells .mon {
+      margin-left: 4px;
+    }
+
+    .row-cells .mon:first-child {
+      margin-left: 0;
+    }
+
+    .cell {
+      --fill: 0%;
+      width: 6px;
+      height: 14px;
+      border-radius: 1.5px;
+      background: linear-gradient(to top, color-mix(in srgb, var(--accent) 45%, var(--bg-sunken)) var(--fill), var(--bg-sunken) var(--fill));
+    }
+
+    .cell.done {
+      background: color-mix(in srgb, var(--accent) 80%, var(--bg-sunken));
+    }
+
+    .cell.today {
+      outline: 1px solid var(--text-3);
+      outline-offset: 1px;
+    }
+
+    .cell:hover {
+      outline: 1px solid var(--text-2);
+      outline-offset: 1px;
+    }
+
+    .months {
+      position: relative;
+      height: 16px;
+      color: var(--text-3);
+      font-size: var(--font-size-xs);
+    }
+
+    .months span {
+      position: absolute;
+      white-space: nowrap;
+    }
+
+    .empty-history {
+      margin: 24px 0 0;
+      color: var(--text-3);
+      font-family: var(--font-display);
+    }
+
+    #lines {
+      position: relative;
+      margin: 28px 0 0;
+    }
+
+    .lines {
+      display: grid;
+      grid-template-columns: var(--label) max-content;
+      align-items: end;
+      gap: 18px 16px;
+    }
+
+    .line-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-bottom: 2px;
+    }
+
+    .line-label b {
+      font-family: var(--font-display);
+      font-size: var(--font-size-lg);
+      font-weight: 400;
+    }
+
+    .line-label small {
+      color: var(--text-3);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-xs);
+    }
+
+    .line-chart {
+      display: block;
+      overflow: visible;
+    }
+
+    .line-chart .base {
+      stroke: var(--border);
+      stroke-width: 1;
+    }
+
+    .line-chart .wash {
+      fill: var(--accent);
+      opacity: .1;
+    }
+
+    .line-chart .trace {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 2;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+
+    /* Dots wear a ring of the page colour so they stay legible where they sit on the line. */
+    .line-chart circle {
+      fill: var(--accent);
+      stroke: var(--bg);
+      stroke-width: 2;
+    }
+
+    .line-chart .peak-label {
+      fill: var(--text-2);
+      font-family: var(--font-ui);
+      font-size: 12px;
+    }
+
+    .line-chart .cross line {
+      stroke: var(--text-3);
+      stroke-width: 1;
+    }
+
+    .line-chart .hit {
+      fill: transparent;
+      cursor: crosshair;
+    }
+
+    .x-axis {
+      position: relative;
+      height: 16px;
+      margin-top: -10px;
+      color: var(--text-3);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-xs);
+    }
+
+    .x-axis span {
+      position: absolute;
+      white-space: nowrap;
+    }
+
+    .tip {
+      position: absolute;
+      z-index: 20;
+      padding: 4px 10px;
+      transform: translate(-50%, -100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-raised);
+      box-shadow: 0 4px 14px rgb(0 0 0 / .08);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-xs);
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* ---------- Dialogs ---------- */
+
+    .scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      background: rgb(0 0 0 / .32);
+    }
+
+    .dialog {
+      width: min(400px, calc(100vw - 32px));
+      padding: 22px 24px 20px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 12px 40px rgb(0 0 0 / .18);
+      font-family: var(--font-ui);
+    }
+
+    .dialog h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: var(--font-size-xl);
+      font-weight: 400;
+    }
+
+    .field-label {
+      display: block;
+      margin: 18px 0 6px;
+      color: var(--text-2);
+      font-size: var(--font-size-sm);
+    }
+
+    /* Types are words to pick, not a dropdown: there are few, and the last one used comes first. */
+    .kinds {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .kinds button,
+    .kinds input {
+      padding: 4px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text-2);
+      font: inherit;
+      font-size: var(--font-size-sm);
+    }
+
+    .kinds button:hover {
+      color: var(--text);
+      border-color: var(--text-3);
+    }
+
+    .kinds button[aria-pressed="true"] {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--text);
+    }
+
+    .kinds .add {
+      border-style: dashed;
+      color: var(--text-3);
+    }
+
+    .kinds input {
+      width: 96px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+      border-color: var(--text-3);
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .fields label {
+      display: grid;
+      gap: 6px;
+      margin-top: 18px;
+      color: var(--text-2);
+      font-size: var(--font-size-sm);
+    }
+
+    .fields label.wide {
+      grid-column: 1 / -1;
+      margin-top: 0;
+    }
+
+    .dialog input.text {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      font-size: var(--font-size-lg);
+      font-variant-numeric: tabular-nums;
+      outline: none;
+    }
+
+    .dialog input.text.note {
+      font-size: var(--font-size-md);
+    }
+
+    .dialog input.text:focus {
+      border-color: var(--text-3);
+    }
+
+    .dialog input[aria-invalid="true"] {
+      border-color: var(--accent);
+    }
+
+    .length {
+      margin: 14px 0 0;
+      min-height: 1.5em;
+      color: var(--text-2);
+      font-family: var(--font-display);
+      font-size: var(--font-size-md);
+    }
+
+    .length.invalid {
+      color: var(--accent);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .actions .spacer {
+      flex: 1;
+    }
+
+    .btn {
+      padding: 6px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: var(--font-size-sm);
+    }
+
+    .btn:hover {
+      background: var(--bg-sunken);
+    }
+
+    .btn.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: var(--on-accent);
+    }
+
+    .btn.primary:hover {
+      border-color: var(--accent-hover);
+      background: var(--accent-hover);
+    }
+
+    .btn.primary:disabled {
+      opacity: .45;
+      pointer-events: none;
+    }
+
+    .btn.quiet {
+      border-color: transparent;
+      color: var(--text-3);
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .btn.quiet:hover {
+      background: none;
+      color: var(--accent);
+    }
+
+    .btn.danger {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn.danger:hover {
+      background: var(--accent-soft);
+    }
+
+    /* 编排日课: one row per 日课, in the order the day page shows them. */
+    .arrange {
+      list-style: none;
+      margin: 18px 0 0;
+      padding: 0;
+    }
+
+    .arrange li {
+      display: grid;
+      grid-template-columns: 1fr 40px auto auto;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 0;
+    }
+
+    .arrange input {
+      width: 100%;
+      padding: 5px 8px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      background: none;
+      color: var(--text);
+      font: inherit;
+      font-size: var(--font-size-md);
+      outline: none;
+    }
+
+    .arrange input:hover,
+    .arrange input:focus {
+      border-color: var(--border);
+      background: var(--bg);
+    }
+
+    .arrange input.short {
+      text-align: center;
+    }
+
+    .arrange .times {
+      padding: 4px 6px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      background: none;
+      color: var(--text-2);
+      font: inherit;
+      font-size: var(--font-size-sm);
+    }
+
+    .arrange .times:hover,
+    .arrange .times:focus {
+      border-color: var(--border);
+      color: var(--text);
+      outline: none;
+    }
+
+    .arrange .drop {
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    .arrange .drop:hover {
+      color: var(--accent);
+    }
+
+    .arrange-add {
+      margin-top: 8px;
+      color: var(--text-3);
+      font-size: var(--font-size-sm);
+    }
+
+    .arrange-add:hover {
+      color: var(--text);
+    }
+
+    .hint {
+      margin: 10px 0 0;
+      color: var(--text-3);
+      font-size: var(--font-size-xs);
+    }
+
+    /* ---------- PROTOTYPE ONLY: the 状态 menu, inverted to stand apart from the design ---------- */
+
+    .proto {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 60;
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .proto>button,
+    .proto .panel {
+      background: var(--text);
+      color: var(--bg);
+      border-radius: var(--radius-md);
+      box-shadow: 0 6px 20px rgb(0 0 0 / .2);
+    }
+
+    .proto>button {
+      padding: 6px 14px;
+    }
+
+    .proto .panel {
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 8px);
+      width: 220px;
+      max-height: calc(100vh - 100px);
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .proto h3 {
+      margin: 8px 8px 4px;
+      font-size: var(--font-size-xs);
+      font-weight: 400;
+      opacity: .6;
+    }
+
+    .proto h3:first-child {
+      margin-top: 2px;
+    }
+
+    .proto .panel a,
+    .proto .panel button {
+      display: block;
+      width: 100%;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      color: inherit;
+      text-align: left;
+      text-decoration: none;
+    }
+
+    .proto .panel a:hover,
+    .proto .panel button:hover {
+      background: color-mix(in srgb, var(--bg) 15%, transparent);
+    }
+
+    .proto [aria-current="page"],
+    .proto [aria-pressed="true"] {
+      background: color-mix(in srgb, var(--bg) 25%, transparent);
+    }
+
+    .proto hr {
+      margin: 8px;
+      border: 0;
+      border-top: 1px solid color-mix(in srgb, var(--bg) 25%, transparent);
+    }
+
+    .automated .proto {
+      display: none;
+    }
+
+    @media (max-width: 720px) {
+
+      header.day,
+      .history-head {
+        margin-top: 36px;
+      }
+
+      header.day h1,
+      .history-head h1 {
+        font-size: var(--font-size-3xl);
+      }
+
+      header.day {
+        flex-wrap: wrap;
+      }
+
+      .seals {
+        max-width: none;
+        justify-content: flex-start;
+        margin-left: 0;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="sheet">
+    <palace-header active="时刻"></palace-header>
+
+    <section id="day-page">
+      <header class="day" id="day-head">
+        <h1 id="date"></h1>
+        <button class="more" id="more" aria-label="当天操作" aria-haspopup="menu" aria-expanded="false">···</button>
+        <ul class="menu" id="menu" role="menu" hidden></ul>
+        <div class="seals" id="seals"></div>
+      </header>
+
+      <div id="pin"></div>
+
+      <ol class="timeline" id="timeline"></ol>
+    </section>
+
+    <section id="history-page" class="history" hidden>
+      <header class="history-head">
+        <a class="back" id="back" href="#today"></a>
+        <h1>日课</h1>
+      </header>
+      <div id="hist"></div>
+    </section>
+  </main>
+
+  <!-- 记录工夫 and correcting one share a form. -->
+  <div class="scrim" id="work-scrim" hidden>
+    <form class="dialog" id="work-dialog" role="dialog" aria-modal="true" aria-labelledby="work-title" novalidate>
+      <h2 id="work-title"></h2>
+      <span class="field-label">类型</span>
+      <div class="kinds" id="kinds"></div>
+      <div class="fields">
+        <label>开始<input class="text" id="w-start" inputmode="numeric" autocomplete="off" placeholder="07:00"></label>
+        <label>时长（分钟）<input class="text" id="w-min" inputmode="numeric" autocomplete="off" placeholder="30"></label>
+      </div>
+      <div class="fields" style="margin-top:14px">
+        <label class="wide">备注<input class="text note" id="w-note" autocomplete="off"></label>
+      </div>
+      <p class="length num" id="w-length" aria-live="polite"></p>
+      <div class="actions" id="w-actions"></div>
+    </form>
+  </div>
+
+  <div class="scrim" id="arrange-scrim" hidden>
+    <form class="dialog" id="arrange-dialog" role="dialog" aria-modal="true" aria-labelledby="arrange-title" novalidate>
+      <h2 id="arrange-title">编排日课</h2>
+      <ol class="arrange" id="arrange"></ol>
+      <button type="button" class="arrange-add" data-arr="add">＋ 新增一门</button>
+      <p class="hint">停用的日课不再出现在每天的页面上，记录留在历史里。</p>
+      <div class="actions">
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-arr="cancel">取消</button>
+        <button type="submit" class="btn primary">保存</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="proto" id="proto">
+    <div class="panel" id="panel" hidden></div>
+    <button id="proto-toggle" aria-expanded="false">状态</button>
+  </div>
+
+  <script>
+    if (navigator.webdriver) document.documentElement.classList.add("automated");
+
+    /* ---------- Calendar helpers ---------- */
+
+    const MINUTE = 60_000;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const addDays = (date, n) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + n);
+    const at = (day, h, m) => new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, m);
+    const sameDay = (a, b) => a.getTime() === b.getTime();
+    const dayOf = (date) => at(date, 0, 0);
+    const pad = (n) => String(n).padStart(2, "0");
+    const clock = (date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    const hm = (min) => `${Math.floor(min / 60)}:${pad(min % 60)}`;
+    const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+    const monthDay = (d) => `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
+    const heading = (d) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(d);
+    // The prototype's clock stands still at 21:30 today, late enough for a full day of entries.
+    const NOW = at(today, 21, 30);
+
+    /* ---------- Sample data ---------- */
+
+    const BASE_HABITS = [
+      { id: "h1", name: "锻炼", short: "锻", target: 2 },
+      { id: "h2", name: "读书", short: "读", target: 1 },
+      { id: "h3", name: "冥想", short: "冥", target: 1 },
+      { id: "h4", name: "背单词", short: "词", target: 1 },
+      { id: "h5", name: "维生素", short: "维", target: 1 },
+      { id: "h6", name: "不喝甜饮", short: "糖", target: 1 },
+      { id: "h7", name: "拉伸", short: "伸", target: 1 },
+    ];
+    const MORE_HABITS = [
+      { id: "h8", name: "写日记", short: "记", target: 1 },
+      { id: "h9", name: "喝水", short: "水", target: 8 },
+      { id: "h10", name: "练字", short: "字", target: 1 },
+      { id: "h11", name: "早睡", short: "睡", target: 1 },
+      { id: "h12", name: "整理桌面", short: "整", target: 1 },
+    ];
+
+    let habits = [];
+    // `${dayTime}|${habitId}` → times done that day. A tick has no time of its own.
+    let checks = new Map();
+    let kinds = [];
+    let works = [];
+    let nextId = 1;
+
+    function seed(many) {
+      let s = 11;
+      const random = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+      habits = (many ? [...BASE_HABITS, ...MORE_HABITS] : BASE_HABITS).map((h) => ({ ...h }));
+      checks = new Map();
+      for (let back = 70; back >= 1; back--) {
+        const day = addDays(today, -back);
+        habits.forEach((h, i) => {
+          const p = 0.9 - i * 0.06;
+          const n = [...Array(h.target)].filter(() => random() < p).length;
+          if (n) checks.set(`${day.getTime()}|${h.id}`, n);
+        });
+      }
+      // Today, evening: some done, the second 锻炼 still to come.
+      [["h1", 1], ["h2", 1], ["h5", 1], ["h6", 1], ["h9", 5]].forEach(([id, n]) => {
+        if (habits.some((h) => h.id === id)) checks.set(`${today.getTime()}|${id}`, n);
+      });
+
+      kinds = ["跑步", "力量", "瑜伽", "散步", "骑车"];
+      works = [];
+      for (let back = 70; back >= 1; back--) {
+        const day = addDays(today, -back);
+        const weekend = day.getDay() === 0 || day.getDay() === 6;
+        if (random() < 0.6) works.push(work(day, "跑步", 6, 50 + Math.round(random() * 40), 25 + Math.round(random() * 20)));
+        if (random() < 0.4) works.push(work(day, "力量", 20, Math.round(random() * 40), 40 + Math.round(random() * 20)));
+        if (weekend && random() < 0.5) works.push(work(day, "骑车", 15, 0, 80 + Math.round(random() * 40), "环湖"));
+      }
+      works.push(work(today, "跑步", 7, 5, 35, "晨跑 5 公里"));
+      works.push(work(today, "散步", 12, 40, 25));
+    }
+
+    function work(day, kind, h, m, minutes, note = "") {
+      return { id: `w${nextId++}`, start: at(day, h, m), minutes, kind, note };
+    }
+
+    const key = (day, h) => `${day.getTime()}|${h.id}`;
+    const count = (day, h) => checks.get(key(day, h)) || 0;
+    // A tick walks 0 → target and back to 0, so a slip is undone by tapping on.
+    function tick(day, h) {
+      const n = (count(day, h) + 1) % (h.target + 1);
+      if (n) checks.set(key(day, h), n);
+      else checks.delete(key(day, h));
+    }
+    const doneCount = (day) => habits.filter((h) => count(day, h) >= h.target).length;
+
+    /*
+     * ---------- States ----------
+     * Each state names the day shown, what is open, and whether the 日课 list is a long one.
+     */
+    const STATES = [
+      { group: "时刻", key: "today", label: "今天晚上" },
+      { group: "时刻", key: "today-menu", label: "··· 菜单展开", open: "menu" },
+      { group: "时刻", key: "many", label: "日课很多（12 门）", many: true },
+      { group: "时刻", key: "past", label: "以前某天，补打日课", day: -3 },
+      { group: "时刻", key: "past-empty", label: "以前某天，什么都没做", day: -71 },
+      { group: "对话框", key: "record", label: "记录工夫", open: "record" },
+      { group: "对话框", key: "record-kind", label: "记录工夫，新加类型", open: "record", newKind: true },
+      { group: "对话框", key: "record-past", label: "给以前某天补工夫", day: -3, open: "record" },
+      { group: "对话框", key: "edit", label: "修改一条工夫", open: "edit" },
+      { group: "对话框", key: "arrange", label: "编排日课", open: "arrange" },
+      { group: "历史", key: "history", label: "日课与工夫" },
+      { group: "历史", key: "history-many", label: "日课很多", many: true },
+    ];
+    STATES.find((s) => s.key === "history").page = "history";
+    STATES.find((s) => s.key === "history-many").page = "history";
+    const byKey = Object.fromEntries(STATES.map((s) => [s.key, s]));
+
+    let state;
+    let shownDay = today;
+
+    /* ---------- Day page ---------- */
+
+    function renderHabits() {
+      document.getElementById("seals").innerHTML = habits.map((h) => {
+        const n = count(shownDay, h);
+        const cls = n >= h.target ? "done" : n ? "part" : "";
+        const fill = n && n < h.target ? `style="--fill:${n / h.target * 100}%"` : "";
+        return `<button class="seal ${cls}" ${fill} data-tick="${h.id}" data-name="${h.name}${h.target > 1 ? ` ${n}/${h.target}` : ""}"
+          aria-label="${h.name}">${h.short}</button>`;
+      }).join("");
+    }
+
+    function renderPin() {
+      // Only to keep the real neighbour above the 日课: last night's sleep dial, simplified.
+      document.getElementById("pin").innerHTML = shownDay >= addDays(today, -60) ? `<div class="dial">
+        <div class="big num">7<small>小时</small>${pad(12 + (shownDay.getDate() % 30))}<small>分</small></div>
+        <dl class="num"><dt>入睡</dt><dd>23:46</dd><dt>醒来</dt><dd>07:0${shownDay.getDate() % 10}</dd></dl>
+      </div>` : "";
+    }
+
+    function renderTimeline() {
+      const list = works.filter((w) => sameDay(dayOf(w.start), shownDay)).sort((a, b) => a.start - b.start);
+      const items = list.map((w) => ({
+        time: w.start,
+        html: `<li class="moment">
+          <a class="moment-head" data-work="${w.id}"><span class="kind">工夫</span><span class="title">${w.kind}</span></a>
+          <p class="meta num"><span>${clock(w.start)} – ${clock(new Date(w.start.getTime() + w.minutes * MINUTE))}</span>
+            <span>${w.minutes} 分钟</span>${w.note ? `<span>${w.note}</span>` : ""}</p></li>`,
+      }));
+      if (sameDay(shownDay, today)) items.push({
+        time: at(today, 10, 20),
+        html: `<li class="moment"><a class="moment-head"><span class="kind">对话</span><span class="title">计划周末出行</span></a>
+          <p class="meta"><span>ChatGPT</span><span>20 条消息</span></p></li>`,
+      });
+      items.sort((a, b) => a.time - b.time);
+      document.getElementById("timeline").innerHTML = items.length
+        ? items.map((i) => i.html).join("") : `<li class="empty-day">这一天没有记录。</li>`;
+    }
+
+    function renderDay() {
+      document.getElementById("date").textContent = heading(shownDay);
+      renderPin();
+      renderHabits();
+      renderTimeline();
+    }
+
+    /* ---------- ··· menu ---------- */
+
+    const more = document.getElementById("more");
+    const menu = document.getElementById("menu");
+
+    function openMenu() {
+      menu.innerHTML = `
+        <li role="none"><button role="menuitem" data-act="record">记录工夫<kbd>G</kbd></button></li>
+        <li role="none"><button role="menuitem" data-act="arrange">编排日课</button></li>
+        <li role="none"><button role="menuitem" data-go="history">日课与工夫</button></li>
+        <li role="none"><hr></li>
+        <li role="none"><button role="menuitem">导入对话</button></li>
+        <li role="none"><button role="menuitem">密钥管理</button></li>`;
+      menu.hidden = false;
+      more.setAttribute("aria-expanded", "true");
+    }
+
+    function closeMenu() {
+      menu.hidden = true;
+      more.setAttribute("aria-expanded", "false");
+    }
+
+    more.addEventListener("mousedown", (e) => e.preventDefault());
+    more.addEventListener("click", () => (menu.hidden ? openMenu() : closeMenu()));
+
+    document.addEventListener("click", (e) => {
+      const tickBtn = e.target.closest("[data-tick]");
+      if (tickBtn) {
+        const day = tickBtn.dataset.day ? new Date(Number(tickBtn.dataset.day)) : shownDay;
+        tick(day, habits.find((h) => h.id === tickBtn.dataset.tick));
+        return document.getElementById("history-page").hidden ? renderHabits() : renderHistory();
+      }
+      if (e.target.closest("[data-go=history]")) {
+        closeMenu();
+        location.hash = state.many ? "history-many" : "history";
+        return;
+      }
+      const workHead = e.target.closest("[data-work]");
+      if (workHead) return openWork(works.find((w) => w.id === workHead.dataset.work));
+      const act = e.target.closest("[data-act]")?.dataset.act;
+      if (act === "record") {
+        closeMenu();
+        return openWork(null);
+      }
+      if (act === "arrange") {
+        closeMenu();
+        return openArrange();
+      }
+      if (!e.target.closest("#more, #menu")) closeMenu();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      const typing = e.target.closest("input, textarea, [contenteditable]");
+      if (e.key === "Escape") return closeDialogs();
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      const dialogOpen = !workScrim.hidden || !arrangeScrim.hidden;
+      if (e.key === "g" && !dialogOpen && document.getElementById("history-page").hidden) {
+        e.preventDefault();
+        openWork(null);
+      }
+    });
+
+    /* ---------- 工夫 dialog ---------- */
+
+    const workScrim = document.getElementById("work-scrim");
+    const kindsBox = document.getElementById("kinds");
+    const wStart = document.getElementById("w-start");
+    const wMin = document.getElementById("w-min");
+    const wNote = document.getElementById("w-note");
+    const wLength = document.getElementById("w-length");
+    const wActions = document.getElementById("w-actions");
+    let editingWork = null;
+
+    const parseClock = (text) => {
+      const match = /^(\d{1,2})[:：.]?(\d{2})$/.exec(text.trim());
+      if (!match) return null;
+      const [h, m] = [Number(match[1]), Number(match[2])];
+      return h < 24 && m < 60 ? [h, m] : null;
+    };
+    // Minutes, or h:mm for the long ones.
+    const parseLength = (text) => {
+      const t = text.trim();
+      if (/^\d+$/.test(t)) return Number(t);
+      const c = /^(\d+)[:：](\d{2})$/.exec(t);
+      return c ? Number(c[1]) * 60 + Number(c[2]) : null;
+    };
+    // A new entry starts from how long this type usually takes, so most need no typing.
+    const usualLength = (kind) => {
+      const recent = works.filter((w) => w.kind === kind).slice(-10);
+      return recent.length ? Math.round(recent.reduce((a, w) => a + w.minutes, 0) / recent.length / 5) * 5 : 30;
+    };
+
+    function renderKinds(adding) {
+      // Recently used types first, so the usual one is under the pointer.
+      const used = [...new Set(works.slice().sort((a, b) => b.start - a.start).map((w) => w.kind))];
+      const ordered = [...used.filter((k) => kinds.includes(k)), ...kinds.filter((k) => !used.includes(k))];
+      kindsBox.innerHTML = ordered.map((k) =>
+        `<button type="button" data-kind="${k}" aria-pressed="${editingWork.kind === k}">${k}</button>`).join("")
+        + (adding ? `<input id="new-kind" placeholder="新类型" autocomplete="off">`
+          : `<button type="button" class="add" data-kind-add>＋</button>`);
+      if (adding && !navigator.webdriver) document.getElementById("new-kind").focus();
+    }
+
+    function readWork() {
+      const s = parseClock(wStart.value);
+      const m = parseLength(wMin.value);
+      if (!editingWork.kind) return { error: "选一个类型" };
+      if (!s) return { error: "开始按 07:30 这样的格式填写", bad: [true, false] };
+      if (!m || m > 12 * 60) return { error: "时长填分钟数，或 1:30 这样的格式", bad: [false, true] };
+      const start = at(editingWork.day, ...s);
+      const end = new Date(start.getTime() + m * MINUTE);
+      if (end > NOW) return { error: "还没结束，结束后再记", bad: [true, true] };
+      return { start, end, minutes: m };
+    }
+
+    function validateWork() {
+      const r = readWork();
+      const typed = wStart.value && wMin.value;
+      wLength.classList.toggle("invalid", Boolean(r.error && typed));
+      wLength.textContent = r.error ? (typed ? r.error : "") : `${clock(r.start)} – ${clock(r.end)} · ${hm(r.minutes)}`;
+      [wStart, wMin].forEach((input, i) => input.setAttribute("aria-invalid", String(Boolean(typed && r.bad?.[i]))));
+      const save = wActions.querySelector("[type=submit]");
+      if (save) save.disabled = Boolean(r.error);
+      return r;
+    }
+
+    function renderWorkActions() {
+      const editing = editingWork.id;
+      wActions.innerHTML = [
+        editing && (editingWork.confirming
+          ? `<button type="button" class="btn danger" data-w="delete">确认删除</button>`
+          : `<button type="button" class="btn quiet" data-w="ask-delete">删除</button>`),
+        `<span class="spacer"></span>`,
+        `<button type="button" class="btn" data-w="cancel">取消</button>`,
+        `<button type="submit" class="btn primary">保存</button>`,
+      ].filter(Boolean).join("");
+    }
+
+    function openWork(existing, { adding } = {}) {
+      const day = existing ? dayOf(existing.start) : shownDay;
+      const recentKind = works.slice().sort((a, b) => b.start - a.start)[0]?.kind || kinds[0];
+      editingWork = existing ? { ...existing, day } : { day, kind: recentKind };
+      document.getElementById("work-title").textContent = existing
+        ? `${monthDay(day)} 周${WEEKDAYS[day.getDay()]} · 工夫`
+        : sameDay(day, today) ? "记录工夫" : `补记 ${monthDay(day)} 的工夫`;
+      if (existing) {
+        wStart.value = clock(existing.start);
+        wMin.value = String(existing.minutes);
+        wNote.value = existing.note;
+      } else {
+        // Today it defaults to just finished; on a past day, to the morning.
+        const len = usualLength(editingWork.kind);
+        const start = sameDay(day, today) ? new Date(NOW.getTime() - len * MINUTE) : at(day, 7, 0);
+        start.setMinutes(Math.floor(start.getMinutes() / 5) * 5);
+        wStart.value = clock(start);
+        wMin.value = String(len);
+        wNote.value = "";
+      }
+      editingWork.lengthTouched = Boolean(existing);
+      renderKinds(adding);
+      renderWorkActions();
+      validateWork();
+      workScrim.hidden = false;
+      if (!navigator.webdriver && !adding) wMin.focus();
+    }
+
+    kindsBox.addEventListener("click", (e) => {
+      const k = e.target.closest("[data-kind]")?.dataset.kind;
+      if (k) {
+        editingWork.kind = k;
+        if (!editingWork.lengthTouched) wMin.value = String(usualLength(k));
+        renderKinds();
+        validateWork();
+      }
+      if (e.target.closest("[data-kind-add]")) renderKinds(true);
+    });
+
+    // Enter in the new-type field adds the type and picks it, without submitting the form.
+    kindsBox.addEventListener("keydown", (e) => {
+      if (e.target.id !== "new-kind") return;
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const name = e.target.value.trim();
+        if (name && !kinds.includes(name)) kinds.push(name);
+        if (name) editingWork.kind = name;
+        renderKinds();
+        validateWork();
+      }
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        renderKinds();
+      }
+    });
+
+    wMin.addEventListener("input", () => {
+      editingWork.lengthTouched = true;
+    });
+    [wStart, wMin].forEach((input) => input.addEventListener("input", validateWork));
+
+    document.getElementById("work-dialog").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const r = validateWork();
+      if (r.error) return;
+      const entry = { id: editingWork.id || `w${nextId++}`, start: r.start, minutes: r.minutes, kind: editingWork.kind, note: wNote.value.trim() };
+      works = works.filter((w) => w.id !== entry.id).concat(entry);
+      closeDialogs();
+      renderDay();
+    });
+
+    wActions.addEventListener("click", (e) => {
+      const act = e.target.closest("[data-w]")?.dataset.w;
+      if (act === "cancel") closeDialogs();
+      if (act === "ask-delete") {
+        editingWork.confirming = true;
+        renderWorkActions();
+        validateWork();
+      }
+      if (act === "delete") {
+        works = works.filter((w) => w.id !== editingWork.id);
+        closeDialogs();
+        renderDay();
+      }
+    });
+
+    /* ---------- 编排日课 ---------- */
+
+    const arrangeScrim = document.getElementById("arrange-scrim");
+    const arrangeList = document.getElementById("arrange");
+    let draft = [];
+
+    function renderArrange() {
+      // Up to ten times a day: enough for water by the glass, few enough for a seal to show as fill.
+      const options = (n) => [...Array(10)].map((_, i) =>
+        `<option value="${i + 1}"${i + 1 === n ? " selected" : ""}>每天 ${i + 1} 次</option>`).join("");
+      arrangeList.innerHTML = draft.map((h, i) => `<li data-i="${i}">
+        <input class="nm" value="${h.name}" placeholder="名称" aria-label="名称">
+        <input class="short" maxlength="1" value="${h.short}" placeholder="字" aria-label="印章字">
+        <select class="times" aria-label="每天次数">${options(h.target)}</select>
+        <button type="button" class="drop" data-arr="drop">停用</button></li>`).join("");
+    }
+
+    function syncDraft() {
+      arrangeList.querySelectorAll("li").forEach((li) => {
+        const h = draft[Number(li.dataset.i)];
+        h.name = li.querySelector(".nm").value;
+        h.target = Number(li.querySelector(".times").value);
+        const short = li.querySelector(".short");
+        h.short = short ? short.value || h.name.slice(0, 1) : h.short || h.name.slice(0, 1);
+      });
+    }
+
+    function openArrange() {
+      draft = habits.map((h) => ({ ...h }));
+      renderArrange();
+      arrangeScrim.hidden = false;
+    }
+
+    document.getElementById("arrange-dialog").addEventListener("click", (e) => {
+      const act = e.target.closest("[data-arr]")?.dataset.arr;
+      if (!act) return;
+      syncDraft();
+      const i = Number(e.target.closest("li")?.dataset.i);
+      if (act === "drop") draft.splice(i, 1);
+      if (act === "add") draft.push({ id: `h${nextId++}`, name: "", short: "", target: 1 });
+      if (act === "cancel") return closeDialogs();
+      renderArrange();
+      if (act === "add" && !navigator.webdriver) arrangeList.querySelector("li:last-child .nm").focus();
+    });
+
+    document.getElementById("arrange-dialog").addEventListener("submit", (e) => {
+      e.preventDefault();
+      syncDraft();
+      habits = draft.filter((h) => h.name.trim());
+      closeDialogs();
+      renderDay();
+    });
+
+    function closeDialogs() {
+      workScrim.hidden = true;
+      arrangeScrim.hidden = true;
+      closeMenu();
+    }
+
+    [workScrim, arrangeScrim].forEach((s) => s.addEventListener("mousedown", (e) => {
+      if (e.target === s) closeDialogs();
+    }));
+
+    /* ---------- History: 日课 as a matrix, 工夫 as lines ---------- */
+
+    function renderHistory() {
+      document.getElementById("back").textContent = `← ${monthDay(today)}`;
+      // Nine weeks, Monday to Sunday, ending with this week.
+      const monday = addDays(today, -((today.getDay() + 6) % 7));
+      const first = addDays(monday, -56);
+      const days = [];
+      for (let d = first; d <= today; d = addDays(d, 1)) days.push(d);
+
+      // Each day is a 6px cell and a 2px gap; Mondays add 4px. The first column only names its
+      // month when the next month is more than a week away, so two labels never collide.
+      const cellWidth = 8;
+      let offset = 0;
+      const monthMarks = [];
+      days.forEach((d, i) => {
+        if (i && d.getDay() === 1) offset += 4;
+        const firstColumn = i === 0 && !days.slice(1, 10).some((x) => x.getDate() === 1);
+        if (firstColumn || (i && d.getDate() === 1)) monthMarks.push(`<span style="left:${offset + i * cellWidth}px">${d.getMonth() + 1} 月</span>`);
+      });
+
+      const rows = habits.map((h) => {
+        const cells = days.map((d) => {
+          const n = count(d, h);
+          const cls = [d.getDay() === 1 ? "mon" : "", n >= h.target ? "done" : "", sameDay(d, today) ? "today" : ""].join(" ");
+          const fill = n && n < h.target ? ` style="--fill:${n / h.target * 100}%"` : "";
+          return `<button class="cell ${cls}"${fill} data-tick="${h.id}" data-day="${d.getTime()}"
+            title="${d.getMonth() + 1}/${d.getDate()} 周${WEEKDAYS[d.getDay()]} · ${h.name}${h.target > 1 ? ` ${n}/${h.target}` : n ? " 已做" : ""}"></button>`;
+        }).join("");
+        const last30 = [...Array(30)].map((_, i) => Math.min(count(addDays(today, -i), h), h.target) / h.target);
+        const rate = Math.round(last30.reduce((a, b) => a + b, 0) / 30 * 100);
+        return `<span class="name" title="${h.name}">${h.name}</span><div class="row-cells">${cells}</div><span class="rate num">${rate}%</span>`;
+      }).join("");
+
+      document.getElementById("hist").innerHTML = `
+        <div class="matrix-wrap"><div class="matrix">
+          <span></span><div class="months">${monthMarks.join("")}</div><span class="rate">近 30 天</span>
+          ${rows}
+        </div></div>
+        <h2>工夫</h2>
+        <div id="lines"></div>`;
+      renderLines();
+    }
+
+    /*
+     * 工夫 as small multiples: one row per type, each a line of its daily minutes over the last
+     * 30 days. Every row shares the same x (so a crosshair lines the days up across rows) and the
+     * same y (so a long ride and a short run keep their real proportions). A day without that type
+     * is 0, so the line touches the baseline instead of bridging a gap that never had a value.
+     */
+    const LINE_DAYS = 30;
+    const LABEL_W = 132;
+    const CHART_H = 60;
+    const PAD_TOP = 18;
+
+    function renderLines() {
+      const box = document.getElementById("lines");
+      const days = [...Array(LINE_DAYS)].map((_, i) => addDays(today, i - LINE_DAYS + 1));
+      const first = days[0];
+      const recent = works.filter((w) => w.start >= first && w.start < addDays(today, 1));
+      const series = {};
+      recent.forEach((w) => {
+        series[w.kind] ||= Array(LINE_DAYS).fill(0);
+        series[w.kind][Math.round((dayOf(w.start) - first) / 86_400_000)] += w.minutes;
+      });
+      const kindsShown = Object.keys(series).sort((a, b) => sum(series[b]) - sum(series[a]));
+      if (!kindsShown.length) {
+        box.innerHTML = `<p class="empty-history">近 30 天没有工夫。</p>`;
+        return;
+      }
+
+      const width = Math.max(320, box.clientWidth - LABEL_W - 16);
+      const x = (i) => 4 + i * (width - 8) / (LINE_DAYS - 1);
+      const peaks = Object.fromEntries(kindsShown.map((k) => [k, Math.max(...series[k])]));
+      const y = (m, kind) => PAD_TOP + (CHART_H - PAD_TOP - 1) * (1 - m / peaks[kind]);
+
+      const rows = kindsShown.map((kind) => {
+        const values = series[kind];
+        const curve = smooth(values.map((m, i) => [x(i), y(m, kind)]));
+        const peak = values.indexOf(Math.max(...values));
+        const anchor = peak < 3 ? "start" : peak > LINE_DAYS - 4 ? "end" : "middle";
+        const times = recent.filter((w) => w.kind === kind).length;
+        return `<div class="line-label"><b>${kind}</b><small class="num">${times} 次 · 共 ${hm(sum(values))}</small></div>
+          <svg class="line-chart" data-kind="${kind}" width="${width}" height="${CHART_H}" viewBox="0 0 ${width} ${CHART_H}">
+            <line class="base" x1="0" x2="${width}" y1="${CHART_H - 0.5}" y2="${CHART_H - 0.5}"></line>
+            <path class="wash" d="${curve} L${x(LINE_DAYS - 1)},${CHART_H} L${x(0)},${CHART_H} Z"></path>
+            <path class="trace" d="${curve}"></path>
+            <circle class="peak" cx="${x(peak)}" cy="${y(values[peak], kind)}" r="4"></circle>
+            <text class="peak-label num" x="${x(peak)}" y="${y(values[peak], kind) - 9}" text-anchor="${anchor}">${hm(values[peak])}</text>
+            <g class="cross" hidden><line></line><circle r="4"></circle></g>
+            <rect class="hit" width="${width}" height="${CHART_H}"></rect>
+          </svg>`;
+      }).join("");
+
+      // Day labels on Mondays, under the last row only, with today at the end.
+      const axis = days.map((d, i) => {
+        if (i === LINE_DAYS - 1) return `<span style="left:${x(i)}px;transform:translateX(-100%)">今天</span>`;
+        return d.getDay() === 1 && i < LINE_DAYS - 3 ? `<span style="left:${x(i)}px">${d.getMonth() + 1}/${d.getDate()}</span>` : "";
+      }).join("");
+
+      box.innerHTML = `<div class="lines" style="--label:${LABEL_W}px">${rows}
+          <span></span><div class="x-axis num" style="width:${width}px">${axis}</div>
+        </div><div class="tip num" id="tip" hidden></div>`;
+
+      // One crosshair across every row, so the same day can be read off all types at once.
+      const tip = document.getElementById("tip");
+      box.querySelectorAll(".hit").forEach((hit) => {
+        hit.addEventListener("mousemove", (e) => {
+          const r = hit.getBoundingClientRect();
+          const i = Math.max(0, Math.min(LINE_DAYS - 1, Math.round((e.clientX - r.left - 4) / (width - 8) * (LINE_DAYS - 1))));
+          box.querySelectorAll(".line-chart").forEach((svg) => {
+            const m = series[svg.dataset.kind][i];
+            const g = svg.querySelector(".cross");
+            g.removeAttribute("hidden");
+            g.querySelector("line").setAttribute("x1", x(i));
+            g.querySelector("line").setAttribute("x2", x(i));
+            g.querySelector("line").setAttribute("y1", 2);
+            g.querySelector("line").setAttribute("y2", CHART_H);
+            g.querySelector("circle").setAttribute("cx", x(i));
+            g.querySelector("circle").setAttribute("cy", y(m, svg.dataset.kind));
+          });
+          const kind = hit.closest("svg").dataset.kind;
+          const m = series[kind][i];
+          const d = days[i];
+          tip.textContent = `${d.getMonth() + 1}/${d.getDate()} 周${WEEKDAYS[d.getDay()]} · ${m ? `${kind} ${m} 分钟` : `没有${kind}`}`;
+          tip.hidden = false;
+          const host = box.getBoundingClientRect();
+          tip.style.left = `${r.left - host.left + x(i)}px`;
+          tip.style.top = `${r.top - host.top - 8}px`;
+        });
+        hit.addEventListener("mouseleave", () => {
+          tip.hidden = true;
+          box.querySelectorAll(".cross").forEach((g) => g.setAttribute("hidden", ""));
+        });
+      });
+    }
+
+    const sum = (list) => list.reduce((a, b) => a + b, 0);
+
+    /*
+     * A rounded line through every day's point, as d3's curveMonotoneX draws it. Monotone cubic
+     * interpolation never overshoots between two points, so a dip to an empty day stays on the
+     * baseline instead of swinging below it, and no curve rises above the labelled peak.
+     */
+    function smooth(points) {
+      const n = points.length;
+      const slope = (a, b) => (b[1] - a[1]) / (b[0] - a[0]);
+      const secants = points.slice(1).map((p, i) => slope(points[i], p));
+      // A turning point gets a flat tangent; elsewhere the tangent is capped so the curve stays monotone.
+      const tangents = points.map((_, i) => {
+        if (i === 0) return secants[0];
+        if (i === n - 1) return secants[n - 2];
+        const [s0, s1] = [secants[i - 1], secants[i]];
+        if (s0 * s1 <= 0) return 0;
+        return Math.sign(s0) * Math.min(2 * Math.abs(s0), 2 * Math.abs(s1), Math.abs(s0 + s1) / 2);
+      });
+      const f = (v) => v.toFixed(1);
+      return points.reduce((d, [x1, y1], i) => {
+        if (!i) return `M${f(x1)},${f(y1)}`;
+        const [x0, y0] = points[i - 1];
+        const h = (x1 - x0) / 3;
+        return `${d} C${f(x0 + h)},${f(y0 + tangents[i - 1] * h)} ${f(x1 - h)},${f(y1 - tangents[i] * h)} ${f(x1)},${f(y1)}`;
+      }, "");
+    }
+
+    /* ---------- Rendering a state ---------- */
+
+    function render() {
+      const k = location.hash.slice(1) || "today";
+      state = byKey[k] || byKey.today;
+      seed(state.many);
+      shownDay = addDays(today, state.day || 0);
+      closeDialogs();
+      const history = state.page === "history";
+      document.getElementById("day-page").hidden = history;
+      document.getElementById("history-page").hidden = !history;
+      if (history) renderHistory();
+      else renderDay();
+      if (state.open === "menu") openMenu();
+      if (state.open === "record") openWork(null, { adding: state.newKind });
+      if (state.open === "edit") openWork(works.find((w) => sameDay(dayOf(w.start), today)));
+      if (state.open === "arrange") openArrange();
+      renderProto();
+    }
+
+    /* ---------- PROTOTYPE ONLY: 状态 menu ---------- */
+
+    const panel = document.getElementById("panel");
+    const toggle = document.getElementById("proto-toggle");
+    let dark = false;
+
+    function renderProto() {
+      const groups = [...new Set(STATES.map((s) => s.group))];
+      panel.innerHTML = groups.map((group) => `<h3>${group}</h3>${STATES.filter((s) => s.group === group)
+        .map((s) => `<a href="#${s.key}"${s === state ? ` aria-current="page"` : ""}>${s.label}</a>`).join("")}`).join("")
+        + `<hr><button data-proto="dark" aria-pressed="${dark}">暗色</button>`;
+    }
+
+    toggle.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      toggle.setAttribute("aria-expanded", String(!panel.hidden));
+    });
+    panel.addEventListener("click", (e) => {
+      if (e.target.closest("[data-proto=dark]")) {
+        dark = !dark;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        renderProto();
+      }
+    });
+
+    addEventListener("hashchange", render);
+    render();
+  </script>
+</body>
+
+</html>
