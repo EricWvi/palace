@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { address, mountApp } from "@/test-app";
 import { dayParam } from "@/lib/day";
-import type { Todo, TodoBoard } from "@/lib/todo";
+import type { Todo, TodoBoard, TodoList } from "@/lib/todo";
 import { requestPath, testRequest } from "@/lib/test-request";
 
 const today = dayParam(new Date());
@@ -29,13 +29,16 @@ const task = (
   done_days: 2,
 });
 
-// Serves the board and records every write, answering each as the server would.
-function serve() {
+const lists: TodoList[] = [
+  { id: "work", name: "工作" },
+  { id: "life", name: "个人" },
+];
+
+// Serves the board and records every write, answering each as the server would. Tasks of a list
+// left out of `shown` are left out with it.
+function serve(shown: TodoList[] = lists) {
   const board: TodoBoard = {
-    lists: [
-      { id: "work", name: "工作" },
-      { id: "life", name: "个人" },
-    ],
+    lists: shown,
     todos: [
       task("读书", "life", "a0", { kind: "day", day: today, done: false }),
       task("跑步", "life", "a1", { kind: "day", day: today, done: true }),
@@ -43,7 +46,10 @@ function serve() {
       task("明天的", "work", "a0", { kind: "day", day: tomorrow, done: false }),
       task("没排的", "work", "a1"),
       task("先收下", null, "a0"),
-    ],
+    ].filter(
+      (todo) =>
+        todo.list_id === null || shown.some((list) => list.id === todo.list_id),
+    ),
   };
   const writes: { method: string; path: string; body: unknown }[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
@@ -181,6 +187,37 @@ it("keeps the inbox a buffer: no plan, no finishing, and `n` from today lands th
     "置底",
     "移到",
     "删除",
+  ]);
+  // With no plan entries, the menu opens on 改名 rather than on a lone rule.
+  expect(menu.firstElementChild).toHaveAttribute("role", "menuitem");
+});
+
+it("leaves 移到 out of an inbox task's menu while there is no list to move it to", async () => {
+  serve([]);
+  const { user } = mountApp("/todos/inbox");
+  await screen.findByText("先收下");
+  const menu = await menuOf("先收下", user);
+  const labels = within(menu)
+    .getAllByRole("menuitem")
+    .map((item) => item.textContent);
+  expect(labels).toEqual(["改名", "加链接…", "写正文", "置顶", "置底", "删除"]);
+});
+
+it("adds tasks one after another and closes the field on Enter once it is empty", async () => {
+  const writes = serve();
+  const { user } = mountApp("/todos/lists/work");
+  await screen.findByText("没排的");
+  await user.keyboard("n");
+  const field = await screen.findByRole("textbox", { name: "新任务" });
+  await user.type(field, "第一条{Enter}");
+  expect(await screen.findByText("第一条")).toBeInTheDocument();
+  expect(field).toHaveValue("");
+  await user.keyboard("{Enter}");
+  await waitFor(() =>
+    expect(screen.queryByRole("textbox", { name: "新任务" })).toBeNull(),
+  );
+  expect(writes.map(({ method, path }) => ({ method, path }))).toEqual([
+    { method: "POST", path: "/api/todos" },
   ]);
 });
 

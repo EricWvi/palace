@@ -226,7 +226,8 @@ export function ListView({
             if (event.key === "Enter" && draft.trim()) {
               void actions.create(place, draft.trim());
               setDraft("");
-            } else if (event.key === "Escape") {
+            } else if (event.key === "Escape" || event.key === "Enter") {
+              // Enter on an empty field ends a run of additions, as Escape does.
               setDraft("");
               onAdded();
             }

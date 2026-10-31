@@ -100,9 +100,10 @@ function taskEntries(todo: Todo, page: TodoPage): MenuEntry[] {
       place: { kind: "list", id: list.id } as Place,
       name: list.name,
     })),
-  ];
+  ].filter(({ place }) => !samePlace(place, here));
+  // An inbox task has no day or plan entries above, so nothing needs setting apart from them.
+  if (entries.length > 0) entries.push({ kind: "separator" });
   entries.push(
-    { kind: "separator" },
     item("改名", () => page.setEditing({ id: todo.id, field: "title" })),
     item(todo.link ? "链接…" : "加链接…", () =>
       page.setEditing({ id: todo.id, field: "link" }),
@@ -117,15 +118,18 @@ function taskEntries(todo: Todo, page: TodoPage): MenuEntry[] {
       "置底",
       () => void actions.update(todo, { position: bottomKey(siblings) }),
     ),
-    {
-      kind: "sub",
-      label: "移到",
-      entries: places
-        .filter(({ place }) => !samePlace(place, here))
-        .map(({ place, name }) =>
-          item(name, () => void actions.move(todo, place)),
-        ),
-    },
+    // With no list yet, an inbox task has nowhere to go, and an empty submenu would open blank.
+    ...(places.length > 0
+      ? [
+          {
+            kind: "sub" as const,
+            label: "移到",
+            entries: places.map(({ place, name }) =>
+              item(name, () => void actions.move(todo, place)),
+            ),
+          },
+        ]
+      : []),
     { kind: "separator" },
     item("删除", () => page.remove(todo), { danger: true }),
   );

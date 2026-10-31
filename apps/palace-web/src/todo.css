@@ -36,6 +36,8 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  /* Wrapped into one line on narrow screens, a name and its count would otherwise touch. */
+  gap: 4px;
   color: var(--text-3);
   text-align: left;
   text-decoration: none;
@@ -248,6 +250,14 @@ a.todo-title:hover {
 
 .todo-aside .when.today {
   color: var(--accent);
+}
+
+/*
+ * The shared `···` is lifted to sit beside a heading. Among the aside's small words it keeps its
+ * size but stays on their baseline, or it floats above the row's line.
+ */
+.todo-aside .more {
+  top: 0;
 }
 
 /* Row actions show on hover only; the row stays text when the pointer is elsewhere. */
