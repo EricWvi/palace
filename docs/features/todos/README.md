@@ -1,6 +1,6 @@
 # 行事
 
-任务（Todo）的管理页：今日安排、收件箱和各个集合。决策见[行事 ADR](../../../specs/decisions/web/todo/0-today-and-lists-with-fractional-order.md)，交互原型见 [`design/5.1-todo.html`](../../../design/5.1-todo.html)。旧 Dashboard 的行为整理见 [Todo 旧版文档](../../legacy/dashboard/todo/README.md)；难易程度、看板、Journey 自动添加和 TimeTagger 计时都没有移植，旧数据也没有迁移。
+任务（Todo）的管理页：今日安排、收件箱和各个集合。决策见[行事 ADR](../../../specs/decisions/web/todo/0-today-and-lists-with-fractional-order.md) 与[集合排序 ADR](../../../specs/decisions/web/todo/20261031-lists-in-dragged-order.md)，交互原型见 [`design/5.1-todo.html`](../../../design/5.1-todo.html)。旧 Dashboard 的行为整理见 [Todo 旧版文档](../../legacy/dashboard/todo/README.md)；难易程度、看板、Journey 自动添加和 TimeTagger 计时都没有移植，旧数据也没有迁移。
 
 ## 一条任务
 
@@ -9,7 +9,7 @@
 - **今日已做**：只对排在今天的任务。勾上时做过的天数加一，取消时减一；改排期会清掉它，天数不变。
 - **完成**：任务进入集合底部的「已完成」，排期清除，天数保留；恢复后回到集合顶部，未排期。
 - **链接与正文**：链接让标题可点击；正文是 Markdown 纯文本，在侧栏里编辑。
-- **顺序**：每个位置内按 `position` 的字节序排列。`position` 是 [`fractional-indexing`](https://github.com/rocicorp/fractional-indexing) 的键，只由页面生成；同一位置的未完成任务键不重复。
+- **顺序**：每个位置内按 `position` 的字节序排列。`position` 是 [`fractional-indexing`](https://github.com/rocicorp/fractional-indexing) 的键，只由页面生成；同一位置的未完成任务键不重复。集合本身也按同样的键排列，同一 Owner 的集合键不重复。
 
 「今天」是浏览器的本地日期。服务端只保存日期，不判断哪天是今天；今日已做的请求带上页面的日期，与排期不符时返回 409。
 
@@ -17,7 +17,7 @@
 
 | 方法与路径 | 作用 |
 | --- | --- |
-| `GET /api/todos` | `{ lists, todos }`：全部集合（按创建顺序）与全部未完成任务 |
+| `GET /api/todos` | `{ lists, todos }`：全部集合（按 `position`）与全部未完成任务 |
 | `POST /api/todos` | `{ list_id, title, position }`，`list_id` 为 `null` 是收件箱；返回 201 |
 | `PUT /api/todos/{id}` | `{ list_id, title, link, position, plan }` 一起替换 |
 | `DELETE /api/todos/{id}` | 删除，返回 204 |
@@ -26,7 +26,7 @@
 | `POST /api/todos/{id}/complete` | 完成，返回 204 |
 | `POST /api/todos/{id}/restore` | `{ position }`，恢复 |
 | `POST /api/todos/plan` | `{ day, ids }`，把其中未排期的任务排到这一天，最多 1000 个 |
-| `POST /api/todo-lists`、`PUT /api/todo-lists/{id}` | `{ name }`，新建、改名 |
+| `POST /api/todo-lists`、`PUT /api/todo-lists/{id}` | `{ name, position }`，新建、改名或移动；键被占用返回 409 |
 | `DELETE /api/todo-lists/{id}` | 连同其中全部任务删除 |
 | `GET`/`DELETE /api/todo-lists/{id}/completed` | 已完成列表（最近完成的在前）、清空 |
 
@@ -35,7 +35,7 @@
 ## 页面
 
 - 地址：`/todos` 今日，`/todos/inbox` 收件箱，`/todos/lists/{id}` 集合。页面宽 920px。
-- 左列：今日（已做 / 总数）、收件箱、集合（未完成数），末尾「＋」原地新建集合；右键集合可以改名或删除。
+- 左列：今日（已做 / 总数）、收件箱、集合（未完成数），末尾「＋」原地新建集合，新集合排在最后；右键集合可以改名或删除。集合可以拖动排序（键盘：`Space` 拿起，方向键移动，`Space` 放下）；收件箱固定在集合之前，不能拖动。
 - 今日：按集合分组列出排在今天的任务，点圆圈切换今日已做。「安排」或 `p` 原地列出可安排的任务，勾选后「排入今日」。
 - 集合：拖动排序（也可以用键盘：`Space` 拿起，方向键移动，`Space` 放下），越过首行或末行时落在那一端。`n` 在顶部打开新建输入框，回车添加后可以接着输入下一条，输入框为空时回车或 `Esc` 关闭；在今日按 `n` 时转到收件箱新建。
 - 任务菜单（右键或悬停出现的 `···`）：今日已做、完成、排期（今日、明日、选日期、搁置或取消搁置、清除排期）、改名、链接、正文、置顶、置底、移到、删除。
@@ -44,6 +44,6 @@
 
 ## 工程入口
 
-- 数据库：`crates/db/migrations/0020_todos.sql`、`crates/db/src/todo.rs`、`crates/db/src/todo_list.rs`；校验：`crates/domain/src/todo.rs`、`crates/domain/src/todo/position.rs`。
+- 数据库：`crates/db/migrations/0020_todos.sql`、`crates/db/migrations/0022_todo_list_position.sql`、`crates/db/src/todo.rs`、`crates/db/src/todo_list.rs`；校验：`crates/domain/src/todo.rs`、`crates/domain/src/todo/position.rs`。
 - 接口：`crates/backend/src/http/todos.rs`、`crates/backend/src/http/todo_lists.rs`。
 - 前端：`apps/palace-web/src/pages/todo.tsx`、`lib/todo.ts`、`components/todo/`、`todo.css`。

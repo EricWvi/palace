@@ -1,15 +1,15 @@
-//! 行事 lists: create, rename and delete, and each list's finished tasks.
+//! 行事 lists: create, rename, move and delete, and each list's finished tasks.
 use super::{ApiError, BusinessServer, dto, path_management::json_error, routes};
 use axum::{
     Json,
     extract::{Path, State, rejection::JsonRejection},
     http::StatusCode,
 };
-use palace_domain::TodoListName;
+use palace_domain::{TodoListName, TodoPosition};
 use std::sync::Arc;
 use uuid::Uuid;
 
-/// Adds a list after the existing ones.
+/// Adds a list at the key the page chose.
 #[utoipa::path(
     post, path = routes::TODO_LISTS, operation_id = "create_todo_list",
     request_body = dto::TodoListInput,
@@ -20,6 +20,7 @@ use uuid::Uuid;
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
         (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 403, description = "Origin rejected", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 409, description = "Another list holds the position", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 413, description = "Input capacity exceeded", body = dto::InputErrorResponse, content_type = "application/json"),
         (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 503, description = "Identity provider temporarily unavailable", body = dto::ErrorResponse, content_type = "application/json"),
@@ -32,31 +33,33 @@ pub(super) async fn create(
 ) -> Result<(StatusCode, Json<dto::TodoList>), ApiError> {
     let Json(input) = body.map_err(json_error)?;
     let name = TodoListName::parse(&input.name)?;
+    let position = TodoPosition::parse(input.position)?;
     let list = server
         .database
-        .insert_todo_list(owner.scope(), &name)
+        .insert_todo_list(owner.scope(), &name, &position)
         .await?;
     Ok((StatusCode::CREATED, Json(list.into())))
 }
 
-/// Renames a list.
+/// Replaces a list's name and position: renaming keeps the key, moving keeps the name.
 #[utoipa::path(
-    put, path = routes::TODO_LIST, operation_id = "rename_todo_list",
+    put, path = routes::TODO_LIST, operation_id = "update_todo_list",
     request_body = dto::TodoListInput,
     params(("id" = Uuid, Path, description = "Owner-scoped list id"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
     security(("session" = []), ("access_token" = [])),
     responses(
-        (status = 200, description = "Renamed", body = dto::TodoList, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
+        (status = 200, description = "Updated", body = dto::TodoList, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
         (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 403, description = "Origin rejected", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 404, description = "Resource unavailable in owner scope", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 409, description = "Another list holds the position", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 413, description = "Input capacity exceeded", body = dto::InputErrorResponse, content_type = "application/json"),
         (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 503, description = "Identity provider temporarily unavailable", body = dto::ErrorResponse, content_type = "application/json"),
     )
 )]
-pub(super) async fn rename(
+pub(super) async fn update(
     State(server): State<Arc<BusinessServer>>,
     axum::Extension(owner): axum::Extension<palace_db::Owner>,
     Path(id): Path<Uuid>,
@@ -64,9 +67,10 @@ pub(super) async fn rename(
 ) -> Result<Json<dto::TodoList>, ApiError> {
     let Json(input) = body.map_err(json_error)?;
     let name = TodoListName::parse(&input.name)?;
+    let position = TodoPosition::parse(input.position)?;
     let list = server
         .database
-        .rename_todo_list(owner.scope(), id, &name)
+        .update_todo_list(owner.scope(), id, &name, &position)
         .await?;
     Ok(Json(list.into()))
 }

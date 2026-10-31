@@ -5,6 +5,8 @@ date: 2026-10-23
 
 # 行事页是「今日」加集合的目录式页面，任务按 fractional-indexing 键排序，今日已做与完成分开，搁置是独立的排期状态
 
+> 历史决策：D1 中「集合按创建顺序排列，不能拖动」、D5 中集合接口只带 `{ name }`，以及「本决策未解决的问题」中的「集合的排序」，已由[集合按拖动的顺序排列](20261031-lists-in-dragged-order.md)修改。
+
 「行事」导航变为可点击，进入任务（Todo）的管理页。页面宽约 920px，比默认的 760px 宽、比回响的 1200px 窄。左列是「今日」、收件箱和各个集合，右侧显示选中的那一个。今日按集合分组列出排在当天的任务，任务前的圆圈表示「今日已做」，累计做过的天数加一，任务本身仍然开着；「完成」才把任务归入集合底部的「已完成」。「安排」或 `p` 在原地列出收件箱以外、没有搁置的任务，勾选后排入今日。集合内拖动排序，顺序由前端用 `fractional-indexing` 生成的字符串键决定，拖动只写被拖动的那一条。搁置是排期的第三种状态，不再用旧版 2096 年的哨兵日期。交互定稿见原型 [`design/5.1-todo.html`](../../../../design/5.1-todo.html)。
 
 当前为 `implemented`，核心测试用例见[行事](../../../test-cases/web/todo/todos.md)，接口与用法见[行事功能文档](../../../../docs/features/todos/README.md)。本文件是 `web/todo` 的根决策，没有前序 ADR。它修改 [Web 导航根决策](../navigation/0-text-nav-day-routes-and-moment-opening.md) D1 中「行事不可点击」的约定。涉及 `palace-db` 的新表与迁移、`palace-domain` 的任务校验、`palace-backend` 的任务接口与 OpenAPI、`apps/palace-web` 的行事页。旧 Dashboard 的数据迁移、看板、难易程度、Journey 自动添加任务、TimeTagger 计时都不在范围内。旧版的行为整理见 [Todo 旧版文档](../../../../docs/legacy/dashboard/todo/README.md)。

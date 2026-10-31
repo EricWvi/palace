@@ -74,7 +74,7 @@ use utoipa::{
         todos::complete,
         todos::restore,
         todo_lists::create,
-        todo_lists::rename,
+        todo_lists::update,
         todo_lists::delete,
         todo_lists::completed,
         todo_lists::clear_completed,

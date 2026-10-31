@@ -6,6 +6,7 @@ import { addDays, dayParam, parseDay } from "./day";
 // See specs/decisions/web/todo/0-today-and-lists-with-fractional-order.md.
 export type Todo = components["schemas"]["Todo"];
 export type TodoList = components["schemas"]["TodoList"];
+export type TodoListInput = components["schemas"]["TodoListInput"];
 export type TodoBoard = components["schemas"]["TodoBoard"];
 export type TodoPlanInput = components["schemas"]["TodoPlanInput"];
 export type CompletedTodo = components["schemas"]["CompletedTodo"];
@@ -105,20 +106,24 @@ export function canPick(todo: Todo, today: string): boolean {
   return scheduleOf(todo, today).kind === "open";
 }
 
-// A key above every task in the place: new, restored and moved tasks arrive on top.
-export function topKey(tasks: Todo[]): string {
-  return generateKeyBetween(null, tasks[0]?.position ?? null);
+// Tasks in one place and the lists themselves are both ordered by these keys.
+type Ordered = { id: string; position: string };
+
+// A key above every item: new, restored and moved tasks arrive on top.
+export function topKey(items: Ordered[]): string {
+  return generateKeyBetween(null, items[0]?.position ?? null);
 }
 
-export function bottomKey(tasks: Todo[]): string {
-  return generateKeyBetween(tasks.at(-1)?.position ?? null, null);
+// A key below every item: tasks sent to the bottom and new lists land there.
+export function bottomKey(items: Ordered[]): string {
+  return generateKeyBetween(items.at(-1)?.position ?? null, null);
 }
 
-// The key that puts `moved` at `index` among the other tasks: between its new neighbours, so
-// only the moved task is written. A drop on the row at index `i` of `tasks` lands at `i` among the
+// The key that puts `moved` at `index` among the other items: between its new neighbours, so
+// only the moved item is written. A drop on the row at index `i` of `items` lands at `i` among the
 // others whichever way it moved, as `arrayMove` would place it.
-export function keyAt(tasks: Todo[], moved: string, index: number): string {
-  const others = tasks.filter((todo) => todo.id !== moved);
+export function keyAt(items: Ordered[], moved: string, index: number): string {
+  const others = items.filter((item) => item.id !== moved);
   const before = others[index - 1]?.position ?? null;
   const after = others[index]?.position ?? null;
   return generateKeyBetween(before, after);

@@ -1,7 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   isDoneToday,
+  keyAt,
   tasksIn,
   todayGroups,
   type Place,
@@ -16,7 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { RightClickMenu } from "./todo-menu";
+import { RightClickMenu, type MenuEntry } from "./todo-menu";
 import { useTodoPage } from "./todo-context";
 
 // What the left column points at: 今日, or a place.
@@ -65,10 +82,61 @@ function NameField({
   );
 }
 
+function cancelClick(event: MouseEvent) {
+  event.preventDefault();
+}
+
+// One list's link, moving with the pointer or the keyboard while it is dragged. The link itself
+// is the menu's trigger, so the menu can hand it its handlers and ref.
+function SortableLink({
+  list,
+  current,
+  entries,
+  children,
+}: {
+  list: TodoList;
+  current: "page" | undefined;
+  entries: MenuEntry[];
+  children: ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: list.id });
+  return (
+    <RightClickMenu entries={entries}>
+      <Link
+        ref={setNodeRef}
+        className={isDragging ? "dragging" : undefined}
+        to={viewPath({ kind: "list", id: list.id })}
+        aria-current={current}
+        // Lists only ever move up and down.
+        style={{
+          transform: CSS.Translate.toString(
+            transform && { ...transform, x: 0 },
+          ),
+          transition,
+        }}
+        {...attributes}
+        {...listeners}
+        // It stays a link; dnd-kit's own role would make it a button.
+        role={undefined}
+      >
+        {children}
+      </Link>
+    </RightClickMenu>
+  );
+}
+
 /*
- * The left column: 今日 with how much of it is done, then the inbox and the lists in creation
- * order with their open counts, and a ＋ that names a new list in place. Right-clicking a list
- * renames or deletes it; deleting asks first, since its tasks go with it.
+ * The left column: 今日 with how much of it is done, then the inbox and the lists in their
+ * dragged order with their open counts, and a ＋ that names a new list in place. The inbox stays
+ * on top and does not move. Right-clicking a list renames or deletes it; deleting asks first,
+ * since its tasks go with it.
  */
 export function TodoSide({
   view,
@@ -96,6 +164,42 @@ export function TodoSide({
       ? "page"
       : undefined;
   const count = (place: Place) => tasksIn(board, place).length || "";
+  const sensors = useSensors(
+    // A few pixels of travel before a drag starts, so a click still opens the list.
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    // Space alone picks a list up: Enter on a link must keep opening it.
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+      keyboardCodes: {
+        start: ["Space"],
+        cancel: ["Escape"],
+        end: ["Space", "Enter"],
+      },
+    }),
+  );
+  // Releasing a dragged link still clicks it. dnd-kit stops that click's propagation from the
+  // start of a drag until 50ms after its end, so React never sees it, but the browser would still
+  // follow the href and reload the page. Over the same window its default is cancelled too.
+  const holdClicks = () =>
+    document.addEventListener("click", cancelClick, true);
+  const releaseClicks = () =>
+    window.setTimeout(
+      () => document.removeEventListener("click", cancelClick, true),
+      50,
+    );
+  useEffect(
+    () => () => document.removeEventListener("click", cancelClick, true),
+    [],
+  );
+  function drop({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return;
+    const moved = board.lists.find((list) => list.id === active.id);
+    const index = board.lists.findIndex((list) => list.id === over.id);
+    if (!moved || index < 0) return;
+    void actions.updateList(moved, {
+      position: keyAt(board.lists, moved.id, index),
+    });
+  }
 
   return (
     <nav className="todo-side" aria-label="集合">
@@ -109,45 +213,58 @@ export function TodoSide({
       <Link to="/todos/inbox" aria-current={current({ kind: "inbox" })}>
         收件箱<small>{count({ kind: "inbox" })}</small>
       </Link>
-      {board.lists.map((list) =>
-        renaming === list.id ? (
-          <NameField
-            key={list.id}
-            initial={list.name}
-            label="集合名"
-            onDone={(name) => {
-              setRenaming(null);
-              if (name && name !== list.name)
-                void actions.renameList(list.id, name);
-            }}
-          />
-        ) : (
-          <RightClickMenu
-            key={list.id}
-            entries={[
-              {
-                kind: "item",
-                label: "改名",
-                onSelect: () => setRenaming(list.id),
-              },
-              {
-                kind: "item",
-                label: "删除集合",
-                danger: true,
-                onSelect: () => setDeleting(list),
-              },
-            ]}
-          >
-            <Link
-              to={viewPath({ kind: "list", id: list.id })}
-              aria-current={current({ kind: "list", id: list.id })}
-            >
-              {list.name}
-              <small>{count({ kind: "list", id: list.id })}</small>
-            </Link>
-          </RightClickMenu>
-        ),
-      )}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={holdClicks}
+        onDragEnd={(event) => {
+          releaseClicks();
+          drop(event);
+        }}
+        onDragCancel={releaseClicks}
+      >
+        <SortableContext
+          items={board.lists.map((list) => list.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {board.lists.map((list) =>
+            renaming === list.id ? (
+              <NameField
+                key={list.id}
+                initial={list.name}
+                label="集合名"
+                onDone={(name) => {
+                  setRenaming(null);
+                  if (name && name !== list.name)
+                    void actions.updateList(list, { name });
+                }}
+              />
+            ) : (
+              <SortableLink
+                key={list.id}
+                list={list}
+                current={current({ kind: "list", id: list.id })}
+                entries={[
+                  {
+                    kind: "item",
+                    label: "改名",
+                    onSelect: () => setRenaming(list.id),
+                  },
+                  {
+                    kind: "item",
+                    label: "删除集合",
+                    danger: true,
+                    onSelect: () => setDeleting(list),
+                  },
+                ]}
+              >
+                {list.name}
+                <small>{count({ kind: "list", id: list.id })}</small>
+              </SortableLink>
+            ),
+          )}
+        </SortableContext>
+      </DndContext>
       {newList ? (
         <NameField
           initial=""

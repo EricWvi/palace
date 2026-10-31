@@ -1,10 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { Todo, TodoBoard } from "../src/lib/todo";
 
-// One list of five tasks; every edit is applied to the board and recorded, as the server would.
+// Three lists, the middle one of five tasks; every edit of a task or a list is applied to the
+// board and recorded, as the server would.
 function serve(page: Page) {
   const board: TodoBoard = {
-    lists: [{ id: "life", name: "个人" }],
+    lists: [
+      { id: "work", name: "工作", position: "a0" },
+      { id: "life", name: "个人", position: "a1" },
+      { id: "study", name: "学习", position: "a2" },
+    ],
     todos: ["a0", "a1", "a2", "a3", "a4"].map((position, i): Todo => ({
       id: `t${i}`,
       list_id: "life",
@@ -24,6 +29,17 @@ function serve(page: Page) {
     if (path.endsWith("/completed"))
       return route.fulfill({ json: { items: [] } });
     const id = path.split("/")[3];
+    const list = board.lists.find((l) => l.id === id);
+    if (
+      request.method() === "PUT" &&
+      path.startsWith("/api/todo-lists/") &&
+      list
+    ) {
+      const body = request.postDataJSON() as { name: string; position: string };
+      edits.push({ id, position: body.position });
+      Object.assign(list, body);
+      return route.fulfill({ json: list });
+    }
     const todo = board.todos.find((t) => t.id === id);
     if (request.method() === "PUT" && todo) {
       const body = request.postDataJSON() as { position: string };
@@ -95,4 +111,53 @@ test("the keyboard carries a row and writes a key between its new neighbours", a
     .toEqual(["任务 0", "任务 2", "任务 1", "任务 3", "任务 4"]);
   expect(edits.map((edit) => edit.id)).toEqual(["t1"]);
   expect("a2" < edits[0].position && edits[0].position < "a3").toBe(true);
+});
+
+const sideNames = (page: Page) =>
+  page
+    .getByRole("navigation", { name: "集合" })
+    .getByRole("link")
+    .evaluateAll((links) => links.map((link) => link.firstChild?.textContent));
+
+// specs/test-cases/web/todo/todos.md#list-order-must-come-from-unique-well-formed-keys
+test("lists drag below the fixed inbox, and a drop neither opens the list nor writes another", async ({
+  page,
+}) => {
+  const edits = serve(page);
+  await page.goto("/todos/lists/life");
+  await expect(page.getByText("任务 4")).toBeVisible();
+
+  // Far above the first list: it lands first, still under the inbox.
+  await drag(page, "学习", 0);
+  await expect
+    .poll(() => sideNames(page))
+    .toEqual(["今日", "收件箱", "学习", "工作", "个人"]);
+  await expect(page).toHaveURL(/\/todos\/lists\/life$/);
+  expect(edits.map((edit) => edit.id)).toEqual(["study"]);
+  expect(edits[0].position < "a0").toBe(true);
+
+  // The keyboard: Space picks 个人 up, one step up, Space drops it between 学习 and 工作.
+  const life = page.getByRole("link", { name: /^个人/ });
+  await life.focus();
+  await page.keyboard.press("Space");
+  await expect(life).toHaveClass(/dragging/);
+  // dnd-kit listens for the arrow keys from a timer it sets on pick-up; a timer set now runs after
+  // it, so the next key is heard.
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve)));
+  await page.keyboard.press("ArrowUp");
+  await expect(
+    page.getByText(/was moved over droppable area work/),
+  ).toBeAttached();
+  await page.keyboard.press("Space");
+  await expect
+    .poll(() => sideNames(page))
+    .toEqual(["今日", "收件箱", "学习", "个人", "工作"]);
+  expect(edits.map((edit) => edit.id)).toEqual(["study", "life"]);
+  expect(edits[0].position < edits[1].position).toBe(true);
+  expect(edits[1].position < "a0").toBe(true);
+
+  // Enter still opens a list.
+  await page.getByRole("link", { name: /^工作/ }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/todos\/lists\/work$/);
 });

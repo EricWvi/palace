@@ -15,8 +15,9 @@ async fn owner(db: &Database, subject: &str) -> OwnerScope {
         .scope()
 }
 
-async fn list(db: &Database, owner: OwnerScope, name: &str) -> Uuid {
-    db.insert_todo_list(owner, &TodoListName::parse(name).unwrap())
+/// Adds a list at `position` among the owner's lists.
+async fn list(db: &Database, owner: OwnerScope, name: &str, position: &str) -> Uuid {
+    db.insert_todo_list(owner, &TodoListName::parse(name).unwrap(), &key(position))
         .await
         .unwrap()
         .id
@@ -80,7 +81,7 @@ async fn todos_must_stay_within_the_owner_scope() {
     let (_container, db, _pool) = database().await;
     let a = owner(&db, "a").await;
     let b = owner(&db, "b").await;
-    let work = list(&db, a, "工作").await;
+    let work = list(&db, a, "工作", "a0").await;
     let todo = task(&db, a, Some(work), "ai infra", "a0").await;
     let board = db.todo_board(a).await.unwrap();
 
@@ -100,7 +101,9 @@ async fn todos_must_stay_within_the_owner_scope() {
         db.set_todo_done(b, todo.id, &today, true).await.map(|_| ()),
         db.complete_todo(b, todo.id).await,
         db.delete_todo(b, todo.id).await,
-        db.rename_todo_list(b, work, &name).await.map(|_| ()),
+        db.update_todo_list(b, work, &name, &key("a5"))
+            .await
+            .map(|_| ()),
         db.completed_todos(b, work).await.map(|_| ()),
         db.clear_completed_todos(b, work).await,
         db.delete_todo_list(b, work).await,
@@ -109,7 +112,7 @@ async fn todos_must_stay_within_the_owner_scope() {
         assert!(matches!(result, Err(DbError::NotFound)), "{result:?}");
     }
     // A's own task cannot be moved into B's list either.
-    let theirs = list(&db, b, "别人的").await;
+    let theirs = list(&db, b, "别人的", "a0").await;
     let mut edit = replan(&todo, TodoPlanInput::Open);
     edit.placement = TodoPlacement::parse(Some(theirs), TodoPlanInput::Open).unwrap();
     assert!(matches!(
@@ -131,7 +134,7 @@ async fn todos_must_stay_within_the_owner_scope() {
 async fn a_task_must_keep_one_plan_and_the_inbox_none() {
     let (_container, db, pool) = database().await;
     let a = owner(&db, "a").await;
-    let work = list(&db, a, "工作").await;
+    let work = list(&db, a, "工作", "a0").await;
     let inbox = task(&db, a, None, "先收下", "a0").await;
     let todo = task(&db, a, Some(work), "读书", "a0").await;
     let today = day("2026-10-23");
@@ -234,7 +237,7 @@ async fn a_task_must_keep_one_plan_and_the_inbox_none() {
 async fn done_for_the_day_must_count_each_day_once() {
     let (_container, db, _pool) = database().await;
     let a = owner(&db, "a").await;
-    let work = list(&db, a, "工作").await;
+    let work = list(&db, a, "工作", "a0").await;
     let yesterday = day("2026-10-22");
     let today = day("2026-10-23");
     let tomorrow = day("2026-10-24");
@@ -324,8 +327,8 @@ async fn open_tasks_in_one_place_must_not_share_a_key() {
     let (_container, db, pool) = database().await;
     let a = owner(&db, "a").await;
     let b = owner(&db, "b").await;
-    let work = list(&db, a, "工作").await;
-    let life = list(&db, a, "个人").await;
+    let work = list(&db, a, "工作", "a0").await;
+    let life = list(&db, a, "个人", "a1").await;
     let first = task(&db, a, Some(work), "第一", "a0").await;
     task(&db, a, Some(life), "别的集合", "a0").await;
     task(&db, a, None, "收件箱", "a0").await;
@@ -374,6 +377,70 @@ async fn open_tasks_in_one_place_must_not_share_a_key() {
     assert_eq!((collation, reused.position), ("C".to_owned(), key("a0")));
 }
 
+/// Lists sort by their keys as bytes, an owner's lists never share one, and moving or renaming
+/// rewrites only the list itself.
+/// Core test case:
+/// - `specs/test-cases/web/todo/todos.md#list-order-must-come-from-unique-well-formed-keys`
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
+async fn lists_must_not_share_a_key() {
+    let (_container, db, pool) = database().await;
+    let a = owner(&db, "a").await;
+    let b = owner(&db, "b").await;
+    let work = list(&db, a, "工作", "a0").await;
+    let life = list(&db, a, "个人", "a1").await;
+    let study = list(&db, a, "学习", "a2").await;
+    // Another owner may hold the same key.
+    list(&db, b, "别人的", "a0").await;
+    let name = |text: &str| TodoListName::parse(text).unwrap();
+    assert!(matches!(
+        db.insert_todo_list(a, &name("撞键"), &key("a1")).await,
+        Err(DbError::Conflict)
+    ));
+    assert!(matches!(
+        db.update_todo_list(a, study, &name("学习"), &key("a0"))
+            .await,
+        Err(DbError::Conflict)
+    ));
+
+    // Moving 学习 above everything, "Zz" before "a0" as bytes, then renaming 工作 in place.
+    db.update_todo_list(a, study, &name("学习"), &key("Zz"))
+        .await
+        .unwrap();
+    db.update_todo_list(a, work, &name("职业"), &key("a0"))
+        .await
+        .unwrap();
+    let lists = db.todo_board(a).await.unwrap().lists;
+    let collation: String =
+        sqlx::query_scalar("SELECT collation_name FROM information_schema.columns WHERE table_name='todo_list' AND column_name='position'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(
+        (lists, collation),
+        (
+            vec![
+                TodoList {
+                    id: study,
+                    name: "学习".into(),
+                    position: key("Zz"),
+                },
+                TodoList {
+                    id: work,
+                    name: "职业".into(),
+                    position: key("a0"),
+                },
+                TodoList {
+                    id: life,
+                    name: "个人".into(),
+                    position: key("a1"),
+                },
+            ],
+            "C".to_owned()
+        )
+    );
+}
+
 /// Deleting a list deletes its open and finished tasks; clearing deletes only the finished ones.
 /// Core test case:
 /// - `specs/test-cases/web/todo/todos.md#a-list-must-take-its-tasks-with-it`
@@ -382,8 +449,8 @@ async fn open_tasks_in_one_place_must_not_share_a_key() {
 async fn a_list_must_take_its_tasks_with_it() {
     let (_container, db, pool) = database().await;
     let a = owner(&db, "a").await;
-    let work = list(&db, a, "工作").await;
-    let life = list(&db, a, "个人").await;
+    let work = list(&db, a, "工作", "a0").await;
+    let life = list(&db, a, "个人", "a1").await;
     let open = task(&db, a, Some(work), "开着", "a0").await;
     let finished = task(&db, a, Some(work), "做完", "a1").await;
     let elsewhere = task(&db, a, Some(life), "别处", "a0").await;
@@ -423,7 +490,8 @@ async fn a_list_must_take_its_tasks_with_it() {
             0,
             vec![TodoList {
                 id: life,
-                name: "个人".into()
+                name: "个人".into(),
+                position: key("a1"),
             }],
             vec![elsewhere]
         )

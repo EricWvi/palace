@@ -277,8 +277,8 @@ pub(crate) fn todo(row: &PgRow) -> Result<Todo, DbError> {
     })
 }
 
-/// Two tasks taking one key in the same place is a conflict the page resolves by reloading; a
-/// list deleted between the check and the write is the same as never having existed.
+/// Two tasks in one place, or two lists, taking one key is a conflict the page resolves by
+/// reloading; a list deleted between the check and the write is the same as never having existed.
 pub(crate) fn write_error(error: sqlx::Error) -> DbError {
     match error
         .as_database_error()

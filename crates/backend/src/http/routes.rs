@@ -125,7 +125,7 @@ macro_rules! business_routes {
             post TODO_COMPLETE => todos::complete,
             post TODO_RESTORE => todos::restore,
             post TODO_LISTS => todo_lists::create,
-            put TODO_LIST => todo_lists::rename,
+            put TODO_LIST => todo_lists::update,
             delete TODO_LIST => todo_lists::delete,
             get TODO_LIST_COMPLETED => todo_lists::completed,
             delete TODO_LIST_COMPLETED => todo_lists::clear_completed,

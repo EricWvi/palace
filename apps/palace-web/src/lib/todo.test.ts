@@ -79,9 +79,9 @@ it("reads a lapsed day as no plan and names the rest in short words", () => {
 it("groups today and planning by list order, each list in key order", () => {
   const board: TodoBoard = {
     lists: [
-      { id: "work", name: "工作" },
-      { id: "life", name: "个人" },
-      { id: "empty", name: "空" },
+      { id: "work", name: "工作", position: "a0" },
+      { id: "life", name: "个人", position: "a1" },
+      { id: "empty", name: "空", position: "a2" },
     ],
     todos: [
       task("late", "a1", on(today), "life"),

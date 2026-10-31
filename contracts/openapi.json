@@ -6062,7 +6062,7 @@
         "tags": [
           "todo_lists"
         ],
-        "summary": "Adds a list after the existing ones.",
+        "summary": "Adds a list at the key the page chose.",
         "operationId": "create_todo_list",
         "parameters": [
           {
@@ -6145,6 +6145,16 @@
               }
             }
           },
+          "409": {
+            "description": "Another list holds the position",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "413": {
             "description": "Input capacity exceeded",
             "content": {
@@ -6191,8 +6201,8 @@
         "tags": [
           "todo_lists"
         ],
-        "summary": "Renames a list.",
-        "operationId": "rename_todo_list",
+        "summary": "Replaces a list's name and position: renaming keeps the key, moving keeps the name.",
+        "operationId": "update_todo_list",
         "parameters": [
           {
             "name": "id",
@@ -6226,7 +6236,7 @@
         },
         "responses": {
           "200": {
-            "description": "Renamed",
+            "description": "Updated",
             "headers": {
               "Cache-Control": {
                 "schema": {
@@ -6286,6 +6296,16 @@
           },
           "404": {
             "description": "Resource unavailable in owner scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another list holds the position",
             "content": {
               "application/json": {
                 "schema": {
@@ -11008,7 +11028,7 @@
       },
       "TodoBoard": {
         "type": "object",
-        "description": "Every list in creation order and every open task, in key order within each place.",
+        "description": "Every list in key order and every open task, in key order within each place.",
         "required": [
           "lists",
           "todos"
@@ -11094,7 +11114,8 @@
         "description": "A list of 行事.",
         "required": [
           "id",
-          "name"
+          "name",
+          "position"
         ],
         "properties": {
           "id": {
@@ -11103,18 +11124,28 @@
           },
           "name": {
             "type": "string"
+          },
+          "position": {
+            "type": "string",
+            "description": "fractional-indexing key; lists sort by it as bytes, smallest first."
           }
         }
       },
       "TodoListInput": {
         "type": "object",
-        "description": "A list's name: trimmed, nonblank, at most 256 bytes.",
+        "description": "Everything a list holds, written together on creation and on every edit.",
         "required": [
-          "name"
+          "name",
+          "position"
         ],
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Trimmed; nonblank, at most 256 bytes."
+          },
+          "position": {
+            "type": "string",
+            "description": "fractional-indexing key, at most 1024 bytes, not taken by another of the owner's lists."
           }
         },
         "additionalProperties": false

@@ -595,7 +595,7 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Adds a list after the existing ones. */
+    /** Adds a list at the key the page chose. */
     post: operations["create_todo_list"];
     delete?: never;
     options?: never;
@@ -611,8 +611,8 @@ export interface paths {
       cookie?: never;
     };
     get?: never;
-    /** Renames a list. */
-    put: operations["rename_todo_list"];
+    /** Replaces a list's name and position: renaming keeps the key, moving keeps the name. */
+    put: operations["update_todo_list"];
     post?: never;
     /** Deletes a list together with all its tasks. */
     delete: operations["delete_todo_list"];
@@ -1741,7 +1741,7 @@ export interface components {
       position: string;
       title: string;
     };
-    /** @description Every list in creation order and every open task, in key order within each place. */
+    /** @description Every list in key order and every open task, in key order within each place. */
     TodoBoard: {
       lists: components["schemas"]["TodoList"][];
       todos: components["schemas"]["Todo"][];
@@ -1773,10 +1773,15 @@ export interface components {
       /** Format: uuid */
       id: string;
       name: string;
+      /** @description fractional-indexing key; lists sort by it as bytes, smallest first. */
+      position: string;
     };
-    /** @description A list's name: trimmed, nonblank, at most 256 bytes. */
+    /** @description Everything a list holds, written together on creation and on every edit. */
     TodoListInput: {
+      /** @description Trimmed; nonblank, at most 256 bytes. */
       name: string;
+      /** @description fractional-indexing key, at most 1024 bytes, not taken by another of the owner's lists. */
+      position: string;
     };
     /**
      * @description A task's plan. A `day` before the reader's today means the plan lapsed; the page reads it as
@@ -6049,6 +6054,15 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
+      /** @description Another list holds the position */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
       /** @description Input capacity exceeded */
       413: {
         headers: {
@@ -6078,7 +6092,7 @@ export interface operations {
       };
     };
   };
-  rename_todo_list: {
+  update_todo_list: {
     parameters: {
       query?: never;
       header?: never;
@@ -6094,7 +6108,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Renamed */
+      /** @description Updated */
       200: {
         headers: {
           /** @description no-store */
@@ -6137,6 +6151,15 @@ export interface operations {
       };
       /** @description Resource unavailable in owner scope */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Another list holds the position */
+      409: {
         headers: {
           [name: string]: unknown;
         };

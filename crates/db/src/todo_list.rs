@@ -1,7 +1,7 @@
 //! Owner-scoped lists of 行事, the whole board the page loads, and each list's finished tasks.
-use crate::todo::{COLUMNS, Todo, todo};
+use crate::todo::{COLUMNS, Todo, todo, write_error};
 use crate::{Database, DbError, OwnerScope};
-use palace_domain::TodoListName;
+use palace_domain::{TodoListName, TodoPosition};
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -10,9 +10,10 @@ use uuid::Uuid;
 pub struct TodoList {
     pub id: Uuid,
     pub name: String,
+    pub position: TodoPosition,
 }
 
-/// Every list in creation order, and every open task in the inbox and the lists.
+/// Every list in key order, and every open task in the inbox and the lists.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TodoBoard {
     pub lists: Vec<TodoList>,
@@ -39,18 +40,21 @@ impl Database {
         sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             .execute(&mut *tx)
             .await?;
-        let lists = sqlx::query("SELECT id,name FROM todo_list WHERE owner_id=$1 ORDER BY id")
-            .bind(owner.id())
-            .fetch_all(&mut *tx)
-            .await?
-            .iter()
-            .map(|row| {
-                Ok(TodoList {
-                    id: row.try_get("id")?,
-                    name: row.try_get("name")?,
-                })
+        let lists = sqlx::query(
+            "SELECT id,name,position FROM todo_list WHERE owner_id=$1 ORDER BY position,id",
+        )
+        .bind(owner.id())
+        .fetch_all(&mut *tx)
+        .await?
+        .iter()
+        .map(|row| {
+            Ok(TodoList {
+                id: row.try_get("id")?,
+                name: row.try_get("name")?,
+                position: TodoPosition::from_stored(row.try_get("position")?),
             })
-            .collect::<Result<_, DbError>>()?;
+        })
+        .collect::<Result<_, DbError>>()?;
         let todos = sqlx::query(&format!(
             "SELECT {COLUMNS} FROM todo WHERE owner_id=$1 AND completed_at IS NULL ORDER BY position,id"
         ))
@@ -64,42 +68,52 @@ impl Database {
         Ok(TodoBoard { lists, todos })
     }
 
+    /// Adds a list at `position`; a key another of the owner's lists holds is a conflict.
     pub async fn insert_todo_list(
         &self,
         owner: OwnerScope,
         name: &TodoListName,
+        position: &TodoPosition,
     ) -> Result<TodoList, DbError> {
         let id = Uuid::now_v7();
-        sqlx::query("INSERT INTO todo_list(id,owner_id,name) VALUES($1,$2,$3)")
+        sqlx::query("INSERT INTO todo_list(id,owner_id,name,position) VALUES($1,$2,$3,$4)")
             .bind(id)
             .bind(owner.id())
             .bind(name.as_str())
+            .bind(position.as_str())
             .execute(&self.pool)
-            .await?;
+            .await
+            .map_err(write_error)?;
         Ok(TodoList {
             id,
             name: name.as_str().to_owned(),
+            position: position.clone(),
         })
     }
 
-    pub async fn rename_todo_list(
+    /// Replaces a list's name and position together; moving writes only the moved list.
+    pub async fn update_todo_list(
         &self,
         owner: OwnerScope,
         id: Uuid,
         name: &TodoListName,
+        position: &TodoPosition,
     ) -> Result<TodoList, DbError> {
-        let updated = sqlx::query("UPDATE todo_list SET name=$3,updated_at=date_trunc('milliseconds',now()) WHERE owner_id=$1 AND id=$2")
+        let updated = sqlx::query("UPDATE todo_list SET name=$3,position=$4,updated_at=date_trunc('milliseconds',now()) WHERE owner_id=$1 AND id=$2")
             .bind(owner.id())
             .bind(id)
             .bind(name.as_str())
+            .bind(position.as_str())
             .execute(&self.pool)
-            .await?;
+            .await
+            .map_err(write_error)?;
         if updated.rows_affected() == 0 {
             return Err(DbError::NotFound);
         }
         Ok(TodoList {
             id,
             name: name.as_str().to_owned(),
+            position: position.clone(),
         })
     }
 

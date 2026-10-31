@@ -52,6 +52,13 @@
   color: var(--text);
 }
 
+/* A list being dragged fades as a dragged task row does. */
+.todo-side > a.dragging {
+  position: relative;
+  z-index: 1;
+  opacity: 0.6;
+}
+
 .todo-side small {
   font-family: var(--font-ui);
   font-size: var(--font-size-xs);

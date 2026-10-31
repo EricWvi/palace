@@ -1,11 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { api, apiData, todoBoardOptions } from "@/lib/api";
 import {
+  bottomKey,
   tasksIn,
   topKey,
   type Place,
   type Todo,
   type TodoBoard,
+  type TodoList,
+  type TodoListInput,
   type TodoPlanInput,
 } from "@/lib/todo";
 
@@ -249,24 +252,32 @@ export function useTodoActions(onError: (message: string) => void) {
       completedChanged(list);
     },
 
+    // A new list goes after the others.
     async createList(name: string) {
+      const current = board();
+      if (!current) return undefined;
+      const body = { name, position: bottomKey(current.lists) };
       const list = await send(() =>
-        apiData(api.POST("/api/todo-lists", { body: { name } })),
+        apiData(api.POST("/api/todo-lists", { body })),
       );
       if (list) write((b) => ({ ...b, lists: [...b.lists, list] }));
       return list;
     },
 
-    async renameList(id: string, name: string) {
+    // Renaming keeps the key and moving keeps the name; either writes the list whole.
+    async updateList(list: TodoList, changes: Partial<TodoListInput>) {
+      const body = { name: list.name, position: list.position, ...changes };
       write((b) => ({
         ...b,
-        lists: b.lists.map((l) => (l.id === id ? { ...l, name } : l)),
+        lists: b.lists
+          .map((l) => (l.id === list.id ? { ...l, ...body } : l))
+          .sort((x, y) => (x.position < y.position ? -1 : 1)),
       }));
       await send(() =>
         apiData(
           api.PUT("/api/todo-lists/{id}", {
-            params: { path: { id } },
-            body: { name },
+            params: { path: { id: list.id } },
+            body,
           }),
         ),
       );

@@ -8,6 +8,8 @@ use uuid::Uuid;
 pub(crate) struct TodoList {
     pub id: Uuid,
     pub name: String,
+    /// fractional-indexing key; lists sort by it as bytes, smallest first.
+    pub position: String,
 }
 
 /// A task's plan. A `day` before the reader's today means the plan lapsed; the page reads it as
@@ -57,7 +59,7 @@ pub(crate) struct Todo {
     pub done_days: i32,
 }
 
-/// Every list in creation order and every open task, in key order within each place.
+/// Every list in key order and every open task, in key order within each place.
 #[derive(Serialize, ToSchema)]
 pub(crate) struct TodoBoard {
     pub lists: Vec<TodoList>,
@@ -123,11 +125,14 @@ pub(crate) struct TodoPlanRequest {
     pub ids: Vec<Uuid>,
 }
 
-/// A list's name: trimmed, nonblank, at most 256 bytes.
+/// Everything a list holds, written together on creation and on every edit.
 #[derive(Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct TodoListInput {
+    /// Trimmed; nonblank, at most 256 bytes.
     pub name: String,
+    /// fractional-indexing key, at most 1024 bytes, not taken by another of the owner's lists.
+    pub position: String,
 }
 
 /// A finished task.
@@ -154,6 +159,7 @@ impl From<palace_db::TodoList> for TodoList {
         Self {
             id: value.id,
             name: value.name,
+            position: value.position.as_str().to_owned(),
         }
     }
 }

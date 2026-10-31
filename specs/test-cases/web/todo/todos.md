@@ -1,6 +1,6 @@
 # 行事核心测试用例
 
-当前决策：[行事页是「今日」加集合的目录式页面](../../../decisions/web/todo/0-today-and-lists-with-fractional-order.md)。数据库约束、唯一索引与级联只能以真实 PostgreSQL 为直接证据；拖动排序以真实 Chromium 为直接证据。
+当前决策：[行事页是「今日」加集合的目录式页面](../../../decisions/web/todo/0-today-and-lists-with-fractional-order.md)、[集合按拖动的顺序排列](../../../decisions/web/todo/20261031-lists-in-dragged-order.md)。数据库约束、唯一索引与级联只能以真实 PostgreSQL 为直接证据；拖动排序以真实 Chromium 为直接证据。
 
 ## Tasks and lists must stay within the owner scope
 
@@ -75,6 +75,26 @@
 | 指针越界落在两端、键盘拖动，每次只写一条（真实 Chromium，接口经 route mock） | Covered | `apps/palace-web/e2e/todo.spec.ts` 的 “dragging past either end lands there and writes only the moved task's key”、“the keyboard carries a row and writes a key between its new neighbours” |
 
 决策依据：D4、D7，不变量 5。
+
+## List order must come from unique well-formed keys
+
+风险：集合的键不合法或重复，之后无法插到它们之间；一次移动或改名改写了其他集合；改名时丢了键，集合跳到别处；新建的集合不在末尾；收件箱被拖动或被集合越过；放下被拖动的集合时浏览器跟随链接整页刷新，打开了被拖动的集合；`Enter` 不再能打开集合；迁移打乱了已有集合的顺序。前置：真实 PostgreSQL、真实 Router、组件测试、真实 Chromium。触发：用已占用和不合法的键新建、移动集合；另一个 Owner 使用同一个键；把集合移到最上方、在原位改名；用「＋」新建并改名；用指针把末尾的集合拖到收件箱之上很远处；用键盘拿起一个集合上移一格；在集合链接上按 `Enter`。
+
+必须成立：同一 Owner 的集合键冲突返回 409，不同 Owner 不冲突，格式不合法返回 400 并指出 `position`；看板按键的字节序排列集合；新建的键在最后一个集合之后，改名带回原来的键；拖动只写被拖动的集合，键落在新邻居之间或两端之外；收件箱始终在所有集合之前；放下后地址不变；`Enter` 打开集合。
+
+禁止结果：一次移动改写其他集合；放下后整页刷新或打开被拖动的集合；页面顺序与服务端顺序不一致。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 集合键在同一 Owner 内唯一、跨 Owner 不冲突，`C` 排序规则，移动与改名只改写一行（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/todos.rs::lists_must_not_share_a_key` |
+| 接口带上 `position`，冲突 409、格式错误 400（真实 Router，OpenAPI 校验） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `tests/http/todos.rs::exercise_todos`） |
+| 新建取末尾之后的键，改名带回原键（组件测试） | Covered | `apps/palace-web/src/pages/todo.test.tsx` 的 “adds a list after the others and renames it in place, keeping its key” |
+| 指针越界落在收件箱之下、键盘拖动、只写一条、放下不跳转、`Enter` 打开（真实 Chromium，接口经 route mock） | Covered | `apps/palace-web/e2e/todo.spec.ts` 的 “lists drag below the fixed inbox, and a drop neither opens the list nor writes another” |
+| 迁移按创建顺序回填键 | Missing | 只在本地 PostgreSQL 上手工核对过，没有自动化测试 |
+
+决策依据：[集合按拖动的顺序排列](../../../decisions/web/todo/20261031-lists-in-dragged-order.md) D1、D2，不变量 1–4。
 
 ## A list must take its tasks with it
 

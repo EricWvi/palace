@@ -11,12 +11,25 @@ pub(super) async fn exercise_todos(app: &Router, cookie: &str, foreign: &str) {
         "POST",
         "/api/todo-lists",
         cookie,
-        json!({"name":" 工作 "}),
+        json!({"name":" 工作 ","position":"a0"}),
     )
     .await;
     assert_eq!(status, StatusCode::CREATED);
     let list = work["id"].as_str().unwrap().to_owned();
-    assert_eq!(work, json!({"id":list,"name":"工作"}));
+    assert_eq!(work, json!({"id":list,"name":"工作","position":"a0"}));
+    // A second list on the same key is refused.
+    assert_eq!(
+        call(
+            app,
+            "POST",
+            "/api/todo-lists",
+            cookie,
+            json!({"name":"撞键","position":"a0"}),
+        )
+        .await
+        .0,
+        StatusCode::CONFLICT
+    );
 
     let (status, created) = call(
         app,
@@ -173,8 +186,14 @@ pub(super) async fn exercise_todos(app: &Router, cookie: &str, foreign: &str) {
         (
             "POST",
             "/api/todo-lists".to_owned(),
-            json!({"name":"  "}),
+            json!({"name":"  ","position":"a1"}),
             "name",
+        ),
+        (
+            "PUT",
+            format!("/api/todo-lists/{list}"),
+            json!({"name":"工作","position":"a10"}),
+            "position",
         ),
         (
             "POST",
@@ -258,7 +277,7 @@ pub(super) async fn exercise_todos(app: &Router, cookie: &str, foreign: &str) {
         (
             "PUT",
             format!("/api/todo-lists/{list}"),
-            json!({"name":"x"}),
+            json!({"name":"x","position":"a0"}),
         ),
         ("GET", completed.clone(), Value::Null),
         ("DELETE", completed.clone(), Value::Null),
@@ -281,12 +300,15 @@ pub(super) async fn exercise_todos(app: &Router, cookie: &str, foreign: &str) {
         "PUT",
         &format!("/api/todo-lists/{list}"),
         cookie,
-        json!({"name":"职业"}),
+        json!({"name":"职业","position":"Zz"}),
     )
     .await;
     assert_eq!(
         (status, renamed),
-        (StatusCode::OK, json!({"id":list,"name":"职业"}))
+        (
+            StatusCode::OK,
+            json!({"id":list,"name":"职业","position":"Zz"})
+        )
     );
     assert_eq!(
         call(app, "DELETE", &completed, cookie, Value::Null).await.0,

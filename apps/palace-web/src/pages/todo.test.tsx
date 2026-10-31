@@ -30,8 +30,8 @@ const task = (
 });
 
 const lists: TodoList[] = [
-  { id: "work", name: "工作" },
-  { id: "life", name: "个人" },
+  { id: "work", name: "工作", position: "a0" },
+  { id: "life", name: "个人", position: "a1" },
 ];
 
 // Serves the board and records every write, answering each as the server would. Tasks of a list
@@ -85,6 +85,10 @@ function serve(shown: TodoList[] = lists) {
         { ...task(body.title, body.list_id, body.position) },
         { status: 201 },
       );
+    if (request.method === "POST" && path === "/api/todo-lists")
+      return Response.json({ id: "study", ...body }, { status: 201 });
+    if (request.method === "PUT" && path.startsWith("/api/todo-lists/"))
+      return Response.json({ id, ...body });
     return new Response(null, { status: 204 });
   });
   return writes;
@@ -201,6 +205,49 @@ it("leaves 移到 out of an inbox task's menu while there is no list to move it 
     .getAllByRole("menuitem")
     .map((item) => item.textContent);
   expect(labels).toEqual(["改名", "加链接…", "写正文", "置顶", "置底", "删除"]);
+});
+
+// specs/test-cases/web/todo/todos.md#list-order-must-come-from-unique-well-formed-keys
+it("adds a list after the others and renames it in place, keeping its key", async () => {
+  const writes = serve();
+  const { router, user } = mountApp("/todos");
+  await screen.findByText("读书");
+  await user.click(screen.getByRole("button", { name: "新建集合" }));
+  await user.type(
+    screen.getByRole("textbox", { name: "新集合" }),
+    "学习{Enter}",
+  );
+  await waitFor(() => expect(address(router)).toBe("/todos/lists/study"));
+  const side = screen.getByRole("navigation", { name: "集合" });
+  await user.pointer({
+    keys: "[MouseRight]",
+    target: within(side).getByRole("link", { name: /^学习/ }),
+  });
+  await user.click(await screen.findByRole("menuitem", { name: "改名" }));
+  await user.type(
+    screen.getByRole("textbox", { name: "集合名" }),
+    "{Control>}a{/Control}读书会{Enter}",
+  );
+  await waitFor(() => expect(writes).toHaveLength(2));
+  const created = writes[0].body as { position: string };
+  expect(created.position > "a1").toBe(true);
+  expect(writes).toEqual([
+    {
+      method: "POST",
+      path: "/api/todo-lists",
+      body: { name: "学习", position: created.position },
+    },
+    {
+      method: "PUT",
+      path: "/api/todo-lists/study",
+      body: { name: "读书会", position: created.position },
+    },
+  ]);
+  expect(
+    within(side)
+      .getAllByRole("link")
+      .map((link) => link.firstChild?.textContent),
+  ).toEqual(["今日", "收件箱", "工作", "个人", "读书会"]);
 });
 
 it("adds tasks one after another and closes the field on Enter once it is empty", async () => {
