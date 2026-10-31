@@ -171,6 +171,17 @@ it("leaves focus off 时刻 when it is clicked, so stepping days rings nothing",
   expect(screen.getByRole("link", { name: "时刻" })).not.toHaveFocus();
 });
 
+it("names the tab after the section it is in, and plain Palace elsewhere", async () => {
+  mockApi();
+  const { router, user } = mountApp("/?date=2025-09-30");
+  await screen.findByText("计划周末出行");
+  expect(document.title).toBe("Palace · 时刻");
+  await user.click(screen.getByRole("link", { name: "回响" }));
+  await waitFor(() => expect(document.title).toBe("Palace · 回响"));
+  await act(() => router.navigate("/nowhere"));
+  expect(document.title).toBe("Palace");
+});
+
 // Core test case: `specs/test-cases/web/navigation/text-nav-and-day-routes.md#day-timeline-address-must-restore-the-viewed-day`
 it("restores the day from the address, falls back to today, and steps days in place", async () => {
   mockApi();
@@ -211,6 +222,17 @@ it("scrolls to the moment named in the address without focusing it, then drops t
   expect(scrolled).toHaveBeenCalledWith({ block: "center" });
   expect(scrolled.mock.contexts[0]).toBe(document.getElementById("moment-p1"));
   expect(document.activeElement).toBe(document.body);
+});
+
+it("names the tab after the section it is in, and plain Palace elsewhere", async () => {
+  mockApi();
+  const { router, user } = mountApp("/?date=2025-09-30");
+  await screen.findByText("计划周末出行");
+  expect(document.title).toBe("Palace · 时刻");
+  await user.click(screen.getByRole("link", { name: "回响" }));
+  await waitFor(() => expect(document.title).toBe("Palace · 回响"));
+  await act(() => router.navigate("/nowhere"));
+  expect(document.title).toBe("Palace");
 });
 
 // Core test case: `specs/test-cases/web/navigation/text-nav-and-day-routes.md#day-timeline-address-must-restore-the-viewed-day`

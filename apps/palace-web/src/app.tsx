@@ -48,11 +48,12 @@ const sheetClass: Record<Section, string> = {
 export function App() {
   const { pathname } = useLocation();
   const section = sectionOf(pathname);
-  // A reading page names the tab after what it shows; every other page is just Palace.
+  // A reading page names the tab after what it shows; every other page names its section, so
+  // tabs open on different sections tell apart.
   useEffect(() => {
     if (!/^\/(notes|articles|conversations)\//.test(pathname))
-      document.title = "Palace";
-  }, [pathname]);
+      document.title = section ? `Palace · ${section}` : "Palace";
+  }, [pathname, section]);
   return (
     <ShortcutHelp>
       {/*
