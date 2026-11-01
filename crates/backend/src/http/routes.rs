@@ -16,6 +16,8 @@ pub(super) const JOTTINGS: &str = "/api/jottings";
 pub(super) const JOTTING_CHANGES: &str = "/api/jottings/changes";
 pub(super) const JOTTING_OVERVIEW: &str = "/api/jottings/overview";
 pub(super) const JOTTING_RECALL: &str = "/api/jottings/recall";
+pub(super) const JOTTING_RECALL_DONE: &str = "/api/jottings/recall/{date}/{id}/done";
+pub(super) const JOTTING_RECALL_STATE: &str = "/api/jottings/{id}/recall";
 pub(super) const ARTICLES: &str = "/api/articles";
 pub(super) const ARTICLE: &str = "/api/articles/{id}";
 pub(super) const ARTICLE_ANNOTATIONS: &str = "/api/articles/{id}/annotations";
@@ -96,6 +98,8 @@ macro_rules! business_routes {
             get JOTTINGS => jotting_reading::list,
             get JOTTING_OVERVIEW => jotting_reading::overview,
             get JOTTING_RECALL => jotting_reading::recall,
+            post JOTTING_RECALL_DONE => jotting_recall::done,
+            put JOTTING_RECALL_STATE => jotting_recall::set,
             get ARTICLES => articles::list,
             get ARTICLE => articles::article,
             put ARTICLE => articles::update,

@@ -74,11 +74,11 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 次数少的先抽，同层按日期摘要排序（真实 PostgreSQL，注入时钟） | Missing | |
-| 并发的首次请求只抽出一组（真实 PostgreSQL，barrier） | Missing | |
-| 当天卡片组不变：完成、删除、新建与修改张数后重开服务都不改变它；次日按新张数抽取 | Missing | |
-| 今天新建、不再回顾、已删除的札记不被抽中 | Missing | |
-| `PALACE_JOTTING_RECALL_SIZE` 默认 5，超出 1–18 或不是整数时启动失败 | Missing | |
+| 次数少的先抽，同层按日期摘要排序（真实 PostgreSQL，注入时钟） | Covered | `crates/jottings/tests/jottings/recall.rs::recall_draws_least_completed_once_a_day`（测试独立计算次数与 SHA-256 的排序作为期望） |
+| 并发的首次请求只抽出一组（真实 PostgreSQL，barrier） | Covered | `crates/jottings/tests/jottings/recall.rs::concurrent_first_requests_draw_one_pile`（另一个事务停在已占住这一天、写下卡片之后，等请求被锁住再提交） |
+| 当天卡片组不变：完成、删除、新建与修改张数后重开服务都不改变它；次日按新张数抽取 | Covered | `crates/jottings/tests/jottings/recall.rs::recall_draws_least_completed_once_a_day`（真实 Git 中新建与删除，换成 3 张重新打开） |
+| 今天新建、不再回顾、已删除的札记不被抽中 | Covered | `crates/jottings/tests/jottings/recall.rs::recall_draws_least_completed_once_a_day`（上海零点后半小时创建的札记算今天） |
+| `PALACE_JOTTING_RECALL_SIZE` 默认 5，超出 1–18 或不是整数时启动失败 | Partial | `crates/jottings/src/library/reading.rs::recall_sizes_stay_within_three_rows_of_six`（解析规则）；启动时把解析错误转为失败由 `apps/palace-server/src/jottings.rs` 完成，没有启动级测试 |
 
 决策依据：20261101 回顾决策 D1、D3、D4，不变量 1、2、3、5、8。
 
@@ -92,7 +92,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 跳过最近一组中未完成的札记，只跳过一次（真实 PostgreSQL，注入时钟） | Missing | |
+| 跳过最近一组中未完成的札记，只跳过一次（真实 PostgreSQL，注入时钟） | Covered | `crates/jottings/tests/jottings/recall.rs::unfinished_cards_skip_the_next_pile_only`（中间隔一天没有卡片组） |
 
 决策依据：20261101 回顾决策 D1，不变量 4。
 
@@ -106,9 +106,9 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 并发与重复完成只计数一次（真实 PostgreSQL，barrier） | Missing | |
-| `retire` 在重复完成时仍设置不再回顾 | Missing | |
-| 跨零点完成上一组有效；不在卡片组中返回 404（真实 Router） | Missing | |
+| 并发与重复完成只计数一次（真实 PostgreSQL，barrier） | Covered | `crates/jottings/tests/jottings/recall.rs::completing_a_card_counts_once`（另一个事务停在标记完成之后，等请求被锁住再计数提交） |
+| `retire` 在重复完成时仍设置不再回顾 | Covered | `crates/jottings/tests/jottings/recall.rs::completing_a_card_counts_once`、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 Router，经 `tests/http/jottings.rs::exercise_reading`） |
+| 跨零点完成上一组有效；不在卡片组中返回 404（真实 Router） | Covered | `crates/jottings/tests/jottings/recall.rs::completing_a_card_counts_once`（跨零点）、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 Router 的 404 与未配置时的 503） |
 
 决策依据：20261101 回顾决策 D5、D7，不变量 6。
 
@@ -116,15 +116,15 @@
 
 风险：新札记以 0 次进入，在大家都回顾过几次之后连续多天霸占卡片组；复活的札记带着删除前的次数或“不再回顾”；恢复回顾的札记保留被排除前的低次数；对账或上传因为维护回顾状态而改变行为。前置：真实 PostgreSQL；所有参与回顾的札记都已完成若干次，最少为 2；一张札记被设为不再回顾；一张完成过的札记被 Agent 删除。触发：Agent 新建札记并 commit；删除的札记被重新 commit；恢复被排除的札记；把一张从未完成过的札记完成一次。
 
-必须成立：三者都处于次数为 2 的那一层，与次数为 2 的其他札记一起按日期摘要排序；复活的札记参与回顾；从未完成的札记完成后次数为“当前最小值 + 1”；回顾状态的写入不改变任何札记的 `server_version`。
+必须成立：三者的次数都是 2，与次数为 2 的其他札记处于同一层；复活的札记参与回顾，次数不是删除前的值；已经参与回顾的札记再设为参与回顾时次数不变；回顾状态的写入不改变任何札记的 `server_version`。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 新建、复活、恢复回顾都落在最少的一层（真实 Git 与 PostgreSQL） | Missing | |
-| 写成 tombstone 时删除回顾状态，复活后参与回顾 | Missing | |
-| 回顾状态变化不发布版本，`changes` 不变（真实 PostgreSQL） | Missing | |
+| 新建、复活、恢复回顾都落在最少的一层（真实 Git 与 PostgreSQL） | Covered | `crates/jottings/tests/jottings/recall.rs::appearing_jottings_start_at_the_least_count` |
+| 写成 tombstone 时删除回顾状态，复活后参与回顾 | Covered | `crates/jottings/tests/jottings/recall.rs::appearing_jottings_start_at_the_least_count`（复活前次数为 7，复活后为最小值 2） |
+| 回顾状态变化不发布版本，`changes` 不变（真实 PostgreSQL） | Partial | `crates/jottings/tests/jottings/recall.rs::appearing_jottings_start_at_the_least_count`（设为不再回顾前后 `changes` 相同）；完成卡片对 `changes` 的影响没有单独断言 |
 
 决策依据：20261101 回顾决策 D2，不变量 7、10。
 
@@ -138,6 +138,6 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 抽卡后只保留最近两组（真实 PostgreSQL） | Missing | |
+| 抽卡后只保留最近两组（真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings/recall.rs::unfinished_cards_skip_the_next_pile_only` |
 
 决策依据：20261101 回顾决策 D8，不变量 9。

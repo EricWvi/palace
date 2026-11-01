@@ -31,8 +31,10 @@ pub use jotting::{
 mod jotting_read;
 pub use jotting_read::{
     DayCount, JottingCursor, JottingListRequest, JottingOverview, JottingPage, ListedJotting,
-    RECALL_SIZE, TagCount,
+    TagCount,
 };
+mod jotting_recall;
+pub use jotting_recall::{RecallCard, RecallNext, RecallState};
 mod login;
 mod media;
 pub use media::{Media, MediaForDelete, MediaObject};

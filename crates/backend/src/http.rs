@@ -18,6 +18,7 @@ pub use fixed_user::fixed_user_router;
 mod habits;
 mod handlers;
 mod jotting_reading;
+mod jotting_recall;
 mod jottings;
 mod media;
 mod notes;

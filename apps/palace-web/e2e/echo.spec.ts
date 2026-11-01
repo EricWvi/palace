@@ -14,6 +14,7 @@ function serve(page: Page) {
       () => `第 ${i} 张札记的一段话。`,
     ).join("\n\n"),
     pending: false,
+    recall: "included",
   }));
   return page.route("**/api/**", async (route) => {
     const request = route.request();
@@ -111,20 +112,21 @@ test("puts a new jotting on top of the first column and moves no other card", as
     expect([id, after[id]]).toEqual([id, column]);
 });
 
-// Core test case: `specs/test-cases/web/echo/echo-page.md#only-completing-a-recall-card-may-take-it-out-of-the-pile`
-test("a closed recall card fades out at its slot and never flashes back at full size", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.route("**/api/**", (route) => {
+// Serves a recall pile of `count` cards and an empty wall; completions succeed.
+function servePile(page: Page, count: number) {
+  return page.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    const jottings = Array.from({ length: 5 }, (_, i) => ({
+    if (/\/done$/.test(path))
+      return route.fulfill({ json: { recall: "included" } });
+    const jottings = Array.from({ length: count }, (_, i) => ({
       id: `r${i}`,
       created_at: new Date(2026, 8, i + 1).getTime(),
       title: null,
       tags: [],
       body: `回响第${i}张`,
       pending: false,
+      recall: "included",
+      done: false,
     }));
     if (path === "/api/jottings/recall")
       return route.fulfill({ json: { date: "2026-10-20", jottings } });
@@ -136,6 +138,14 @@ test("a closed recall card fades out at its slot and never flashes back at full 
       json: { jottings: [], total: 0, next_cursor: null },
     });
   });
+}
+
+// Core test case: `specs/test-cases/web/echo/echo-page.md#only-completing-a-recall-card-may-take-it-out-of-the-pile`
+test("a completed recall card fades out at its slot and never flashes back at full size", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await servePile(page, 5);
   await page.goto("/jottings");
   const cards = page
     .getByRole("region", { name: "今日回响" })
@@ -143,15 +153,16 @@ test("a closed recall card fades out at its slot and never flashes back at full 
   await cards.first().click();
   await cards.nth(1).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await page.waitForTimeout(400);
+  const done = page.getByRole("button", { name: "回顾完成" });
+  await expect(done).toBeVisible();
 
-  // Watch every frame from the click that closes the card until the card is gone.
+  // Watch every frame from the click that completes the card until the card is gone.
   const frames = page.evaluate(
     () =>
       new Promise<number[]>((resolve) => {
         const seen: number[] = [];
         const watch = () => {
-          const zoom = document.querySelector(".zoom");
+          const zoom = document.querySelector(".zoom-frame");
           if (!zoom) return resolve(seen);
           seen.push(Number(getComputedStyle(zoom).opacity));
           requestAnimationFrame(watch);
@@ -159,11 +170,89 @@ test("a closed recall card fades out at its slot and never flashes back at full 
         requestAnimationFrame(watch);
       }),
   );
-  await page.mouse.click(1200, 850);
+  await done.click();
   const opacities = await frames;
   expect(opacities.length).toBeGreaterThan(3);
   expect(opacities.at(-1)).toBeLessThan(0.05);
   await expect(cards).toHaveCount(4);
+});
+
+// Each spread card's cell, as row and column from its place on screen.
+async function cells(page: Page) {
+  return page.locator(".recall .rc").evaluateAll((cards) => {
+    const boxes = cards.map((card) => card.getBoundingClientRect());
+    const left = Math.min(...boxes.map((box) => box.left));
+    const top = Math.min(...boxes.map((box) => box.top));
+    return cards.map((card, i) => ({
+      id: (card as HTMLElement).dataset.id,
+      column: Math.round((boxes[i].left - left) / (boxes[i].width + 12)),
+      row: Math.round((boxes[i].top - top) / (boxes[i].height + 12)),
+      right: boxes[i].right,
+    }));
+  });
+}
+
+// Core test case: `specs/test-cases/web/echo/echo-page.md#the-spread-pile-must-lay-out-up-to-three-rows-of-six`
+test("a pile of eighteen spreads into three rows of six and closes ranks as cards leave", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await servePile(page, 18);
+  await page.goto("/jottings");
+  const pile = page.getByRole("region", { name: "今日回响" });
+  await pile.getByRole("button").first().click();
+  await expect(pile).toHaveClass(/settled/);
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll(".rc")].every(
+      (card) => card.getAnimations().length === 0,
+    ),
+  );
+  const spread = await cells(page);
+  expect(spread.map(({ id, column, row }) => ({ id, column, row }))).toEqual(
+    Array.from({ length: 18 }, (_, i) => ({
+      id: `r${i}`,
+      column: i % 6,
+      row: Math.floor(i / 6),
+    })),
+  );
+  expect(Math.max(...spread.map((cell) => cell.right))).toBeLessThanOrEqual(
+    1280,
+  );
+
+  // Reading the second card moves every later card up one cell, across rows too.
+  await pile.getByRole("button").nth(1).click();
+  await page.getByRole("button", { name: "回顾完成" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".recall .rc")).toHaveCount(17);
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll(".rc")].every(
+      (card) => card.getAnimations().length === 0,
+    ),
+  );
+  const closed = await cells(page);
+  expect(closed.map(({ id, column, row }) => ({ id, column, row }))).toEqual(
+    Array.from({ length: 17 }, (_, i) => ({
+      id: `r${i < 1 ? i : i + 1}`,
+      column: i % 6,
+      row: Math.floor(i / 6),
+    })),
+  );
+
+  // Narrower, the rows hold as many cards as fit beside the pile.
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 900, height: 900 });
+  await pile.getByRole("button").first().click();
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll(".rc")].every(
+      (card) => card.getAnimations().length === 0,
+    ),
+  );
+  const narrow = await cells(page);
+  const columns = Math.max(...narrow.map((cell) => cell.column)) + 1;
+  expect(columns).toBeLessThan(6);
+  expect(Math.max(...narrow.map((cell) => cell.right))).toBeLessThanOrEqual(
+    900,
+  );
 });
 
 // Core test case: `specs/test-cases/web/echo/echo-page.md#only-a-jotting-read-in-full-may-load-pictures-and-only-palace-media`
@@ -212,7 +301,7 @@ test("a jotting read in full grows evenly for a late tall picture and caps its h
   await expect(card).toContainText("[图片：硬币]");
   await card.getByRole("button", { name: "放大" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toHaveClass(/settled/);
+  await expect(page.locator(".zoom-frame")).toHaveClass(/settled/);
   const before = (await dialog.boundingBox())!;
 
   release();

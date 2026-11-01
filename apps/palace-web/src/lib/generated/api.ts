@@ -478,9 +478,49 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Today's recall pile, fixed for the day. */
+    /** Today's recall pile, drawn on the day's first request and kept as drawn all day. */
     get: operations["jotting_recall"];
     put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/jottings/recall/{date}/{id}/done": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Completes a card of a stored pile, today's or the one before. Only the first completion of a
+     *     card counts; `retire` also takes the jotting out of recall, even when the card was done.
+     */
+    post: operations["complete_jotting_recall"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/jottings/{id}/recall": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Takes a jotting out of recall, or back in. Back in, it starts at the least count of the
+     *     moment; a jotting already in keeps its count.
+     */
+    put: operations["set_jotting_recall"];
     post?: never;
     delete?: never;
     options?: never;
@@ -1642,12 +1682,16 @@ export interface components {
        */
       total: number;
     };
-    /** @description Today's recall pile: the same jottings in the same order all day while they are unchanged. */
+    /** @description Today's recall pile, drawn on the day's first request and kept as drawn all day. */
     JottingRecall: {
-      /** @description The deployment's local day, `YYYY-MM-DD`. */
+      /** @description The deployment's local day, `YYYY-MM-DD`; the day completions name. */
       date: string;
-      /** @description At most five jottings created before today. */
-      jottings: components["schemas"]["ListedJotting"][];
+      /** @description Up to 18 cards in the day's order; deleted jottings are left out. */
+      jottings: components["schemas"]["RecallCard"][];
+    };
+    /** @description Whether a jotting takes part in recall, as set or as it now stands. */
+    JottingRecallState: {
+      recall: components["schemas"]["RecallState"];
     };
     /**
      * @description A jotting created offline. The client generates the id and keeps it across retries; the
@@ -1683,6 +1727,8 @@ export interface components {
       id: string;
       /** @description The file sits under `inbox/`, waiting for the agent to sort it. */
       pending: boolean;
+      /** @description Whether the jotting is drawn into recall piles. */
+      recall: components["schemas"]["RecallState"];
       tags: string[];
       title: string | null;
     };
@@ -1875,6 +1921,25 @@ export interface components {
       record: components["schemas"]["Record"];
       serverVersion: components["schemas"]["Cursor"];
     };
+    /** @description A card of the day's pile: the jotting and whether the card was completed. */
+    RecallCard: components["schemas"]["ListedJotting"] & {
+      /** @description Completed on its day; the page shows only the cards not done. */
+      done: boolean;
+    };
+    /** @description Completing a recall card, and what the jotting does after. */
+    RecallDone: {
+      next: components["schemas"]["RecallNext"];
+    };
+    /**
+     * @description `keep`: the jotting stays in recall (回顾完成). `retire`: it is not drawn again (不再回顾).
+     * @enum {string}
+     */
+    RecallNext: "keep" | "retire";
+    /**
+     * @description Whether a jotting takes part in recall; how often it was completed is never sent.
+     * @enum {string}
+     */
+    RecallState: "included" | "excluded";
     /** @description Independent opaque records; this protocol cannot modify imported conversation trees. */
     Record: {
       /** @description Required but accepts any JSON value, including null; no domain object shape is imposed. */
@@ -5780,7 +5845,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description At most five jottings created before today, in the day's order */
+      /** @description Up to `PALACE_JOTTING_RECALL_SIZE` jottings created before today, in the day's order, each saying whether its card was completed */
       200: {
         headers: {
           /** @description no-store */
@@ -5795,6 +5860,180 @@ export interface operations {
       };
       /** @description Authentication required */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider unavailable, or no jottings folder configured */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  complete_jotting_recall: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The pile's local day, `YYYY-MM-DD`, as the recall read gave it */
+        date: string;
+        /** @description Jotting id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RecallDone"];
+      };
+    };
+    responses: {
+      /** @description Completed; whether the jotting is still in recall */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JottingRecallState"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description No stored pile of that day holds the jotting, or the jotting is deleted */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider unavailable, or no jottings folder configured */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  set_jotting_recall: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Jotting id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["JottingRecallState"];
+      };
+    };
+    responses: {
+      /** @description Set */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JottingRecallState"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description No live jotting has this id */
+      404: {
         headers: {
           [name: string]: unknown;
         };

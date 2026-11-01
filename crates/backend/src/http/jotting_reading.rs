@@ -1,7 +1,8 @@
 //! Live reads of 札记 for the web 回响 page. Unlike the offline sync feed, these answer each view
 //! directly: a filtered list, the left column's counts and the day's recall pile. Jottings
 //! belong to the deployment, so these handlers take no owner scope.
-//! See `specs/decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md` D8.
+//! See `specs/decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md` D8; the recall pile
+//! follows `specs/decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md`.
 use super::{ApiError, BusinessServer, dto, routes};
 use axum::{
     Json,
@@ -83,12 +84,12 @@ pub(super) async fn overview(
     Ok(Json(overview.into()))
 }
 
-/// Today's recall pile, fixed for the day.
+/// Today's recall pile, drawn on the day's first request and kept as drawn all day.
 #[utoipa::path(
     get, path = routes::JOTTING_RECALL, operation_id = "jotting_recall",
     security(("session" = []), ("access_token" = [])),
     responses(
-        (status = 200, description = "At most five jottings created before today, in the day's order", body = dto::JottingRecall, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
+        (status = 200, description = "Up to `PALACE_JOTTING_RECALL_SIZE` jottings created before today, in the day's order, each saying whether its card was completed", body = dto::JottingRecall, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
         (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 503, description = "Identity provider unavailable, or no jottings folder configured", body = dto::ErrorResponse, content_type = "application/json"),
@@ -104,7 +105,7 @@ pub(super) async fn recall(
 }
 
 /// The configured jottings; without a folder there is nothing to read.
-fn configured(server: &BusinessServer) -> Result<&Jottings, ApiError> {
+pub(super) fn configured(server: &BusinessServer) -> Result<&Jottings, ApiError> {
     match &server.jottings {
         JottingService::Configured(jottings) => Ok(jottings),
         JottingService::Unconfigured => Err(ApiError::JottingsUnavailable),

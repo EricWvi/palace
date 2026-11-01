@@ -1,16 +1,13 @@
-//! Live reads of the jotting index for the web 回响 page: a filtered list, an overview and the
-//! day's recall pile. Tombstones never appear. The web reads here instead of the offline sync
+//! Live reads of the jotting index for the web 回响 page: a filtered list and an overview; the
+//! recall pile is in `jotting_recall`. Tombstones never appear. The web reads here instead of the offline sync
 //! feed, so the list can say which jottings still sit in `inbox/`.
 //! See `specs/decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md` D8.
-use crate::{Database, DbError, SearchTerm};
+use crate::{Database, DbError, RecallState, SearchTerm};
 use palace_domain::{InputError, InputErrorKind, Jotting};
 use sqlx::{Postgres, Row, Transaction, postgres::PgRow};
 use std::{fmt, str::FromStr};
 use time::Date;
 use uuid::Uuid;
-
-/// Size of the recall pile.
-pub const RECALL_SIZE: i64 = 5;
 
 /// A live jotting as the web shows it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -18,6 +15,7 @@ pub struct ListedJotting {
     pub jotting: Jotting,
     /// The file sits under `inbox/`: uploaded or committed, the agent has not sorted it yet.
     pub pending: bool,
+    pub recall: RecallState,
 }
 
 /// The position after the last jotting of a page. The list order is `(created_at, id)`
@@ -95,7 +93,8 @@ pub struct DayCount {
     pub count: i64,
 }
 
-const LIVE: &str = "id,(extract(epoch FROM created_at)*1000)::bigint AS created_at,title,tags,body,starts_with(path,'inbox/') AS pending";
+// Selects from a table named `jotting`, so the recall state can be looked up beside it.
+pub(crate) const LIVE: &str = "jotting.id,(extract(epoch FROM jotting.created_at)*1000)::bigint AS created_at,jotting.title,jotting.tags,jotting.body,starts_with(jotting.path,'inbox/') AS pending,EXISTS(SELECT 1 FROM jotting_recall r WHERE r.jotting_id=jotting.id AND r.completions IS NULL) AS excluded";
 
 // `$1` tag, `$2` ILIKE pattern; a null parameter disables its filter.
 const FILTER: &str = "state<>'deleted' AND ($1::text IS NULL OR $1=ANY(tags)) AND ($2::text IS NULL OR title ILIKE $2 OR body ILIKE $2 OR EXISTS(SELECT 1 FROM unnest(tags) t WHERE t ILIKE $2))";
@@ -198,25 +197,6 @@ impl Database {
             daily,
         })
     }
-
-    /// The recall pile of `today`: jottings created before `day_start` (epoch milliseconds of
-    /// the local midnight), ordered by `SHA-256("YYYY-MM-DD" ‖ id)`. Nothing is stored, yet the
-    /// same day and the same candidates always give the same pile in the same order.
-    pub async fn jotting_recall(
-        &self,
-        today: Date,
-        day_start: i64,
-    ) -> Result<Vec<ListedJotting>, DbError> {
-        let rows = sqlx::query(&format!(
-            "SELECT {LIVE} FROM jotting WHERE state<>'deleted' AND created_at<timestamptz 'epoch'+$2::bigint*interval '1 millisecond' ORDER BY sha256(convert_to($1||id::text,'UTF8')) LIMIT $3"
-        ))
-        .bind(today.to_string())
-        .bind(day_start)
-        .bind(RECALL_SIZE)
-        .fetch_all(&self.pool)
-        .await?;
-        rows.iter().map(decode).collect()
-    }
 }
 
 /// Opens a read-only snapshot, so a count and the rows it describes see the same moment.
@@ -229,7 +209,8 @@ async fn read_only(pool: &sqlx::PgPool) -> Result<Transaction<'_, Postgres>, DbE
 }
 
 /// Reads a row selected with [`LIVE`].
-fn decode(row: &PgRow) -> Result<ListedJotting, DbError> {
+pub(crate) fn decode(row: &PgRow) -> Result<ListedJotting, DbError> {
+    let excluded: bool = row.try_get("excluded")?;
     Ok(ListedJotting {
         jotting: Jotting {
             id: row.try_get("id")?,
@@ -239,6 +220,11 @@ fn decode(row: &PgRow) -> Result<ListedJotting, DbError> {
             body: row.try_get("body")?,
         },
         pending: row.try_get("pending")?,
+        recall: if excluded {
+            RecallState::Excluded
+        } else {
+            RecallState::Included
+        },
     })
 }
 

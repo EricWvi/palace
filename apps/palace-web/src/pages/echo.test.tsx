@@ -25,6 +25,7 @@ const jotting = (
   tags,
   body,
   pending: false,
+  recall: "included",
   ...extra,
 });
 const wall = [
@@ -58,15 +59,47 @@ const overview: JottingOverview = {
   daily: [],
 };
 
-// Serves the 回响 reads and records every list query and upload, so tests can tell what reached
-// the server and when. An upload joins the wall.
-function serve(initial: ListedJotting[] = wall) {
+// What the server keeps between visits: which recall cards were completed.
+type Kept = { done: Set<string> };
+
+// Serves the 回响 reads and records every list query, upload and recall write, so tests can
+// tell what reached the server and when. An upload joins the wall; a completed card stays done
+// across visits when the same `kept` is passed again. `fail` makes the next completion fail.
+function serve(
+  initial: ListedJotting[] = wall,
+  kept: Kept = { done: new Set() },
+) {
   let listed = [...initial];
   const queries: Record<string, string>[] = [];
   const uploads: Record<string, unknown>[] = [];
+  const recalls: { path: string; body: unknown }[] = [];
+  const control = { fail: false };
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const request = testRequest(url);
     const path = requestPath(url);
+    const completion = /^\/api\/jottings\/recall\/[\d-]+\/([^/]+)\/done$/.exec(
+      path,
+    );
+    if (completion && request.method === "POST") {
+      const body = (await request.json()) as { next: string };
+      recalls.push({ path, body });
+      if (control.fail) {
+        control.fail = false;
+        return Response.json({ error: "internal", login: "" }, { status: 500 });
+      }
+      kept.done.add(completion[1]);
+      return Response.json({
+        recall: body.next === "retire" ? "excluded" : "included",
+      });
+    }
+    if (
+      /^\/api\/jottings\/[^/]+\/recall$/.test(path) &&
+      request.method === "PUT"
+    ) {
+      const body = (await request.json()) as { recall: string };
+      recalls.push({ path, body });
+      return Response.json(body);
+    }
     if (path === "/api/jottings" && request.method === "POST") {
       const body = (await request.json()) as Record<string, unknown>;
       uploads.push(body);
@@ -100,10 +133,16 @@ function serve(initial: ListedJotting[] = wall) {
     }
     if (path === "/api/jottings/overview") return Response.json(overview);
     if (path === "/api/jottings/recall")
-      return Response.json({ date: "2026-10-20", jottings: pile });
+      return Response.json({
+        date: "2026-10-20",
+        jottings: pile.map((card) => ({
+          ...card,
+          done: kept.done.has(card.id),
+        })),
+      });
     throw new Error(`unexpected request ${path}`);
   });
-  return { queries, uploads };
+  return { queries, uploads, recalls, control, kept };
 }
 
 beforeEach(() => {
@@ -144,57 +183,25 @@ it("widens the sheet for 回响 only and marks 回响 as the current section", a
 });
 
 // specs/test-cases/web/echo/echo-page.md#only-completing-a-recall-card-may-take-it-out-of-the-pile
-it("lets each read recall card leave the pile until the page is opened again", async () => {
-  serve();
+// specs/test-cases/web/echo/echo-page.md#a-zoomed-jotting-must-say-whether-it-takes-part-in-recall
+it("takes a recall card out of the pile only when it is completed, and remembers it", async () => {
+  const { recalls, control, kept } = serve();
   const stored = vi.spyOn(Storage.prototype, "setItem");
   const { router, user } = mountApp("/jottings");
   await screen.findByText("回响第1张");
   expect(recallCards()).toEqual(["r1", "r2", "r3", "r4", "r5"]);
+  const card = (id: string) =>
+    within(recall())
+      .getAllByRole("button")
+      .find((element) => element.dataset.id === id)!;
+  const dialog = () => screen.getByRole("dialog").parentElement!;
 
   // The click that puts the spread pile away does not also filter by the tag under it.
-  await user.click(within(recall()).getAllByRole("button")[0]);
+  await user.click(card("r1"));
   expect(recall()).toHaveClass("spread");
   await user.click(screen.getByRole("button", { name: "#rust" }));
   expect(recall()).not.toHaveClass("spread");
   expect(address(router)).toBe("/jottings");
-
-  // Spread, read one, and Escape steps back a layer at a time.
-  await user.click(within(recall()).getAllByRole("button")[0]);
-  await user.click(within(recall()).getAllByRole("button")[1]);
-  expect(
-    within(screen.getByRole("dialog")).getByText("回响第2张"),
-  ).toBeInTheDocument();
-  await user.keyboard("{Escape}");
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  expect(recallCards()).toEqual(["r1", "r3", "r4", "r5"]);
-  expect(recall()).toHaveClass("spread");
-  await user.keyboard("{Escape}");
-  expect(recall()).not.toHaveClass("spread");
-
-  // Reading the rest by clicking the backdrop leaves one quiet line.
-  for (const id of ["r1", "r3", "r4", "r5"]) {
-    const card = within(recall())
-      .getAllByRole("button")
-      .find((element) => element.dataset.id === id)!;
-    if (!recall().classList.contains("spread")) await user.click(card);
-    await user.click(card);
-    await user.click(document.querySelector(".zoom-backdrop")!);
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  }
-  expect(screen.getByText("今天的回响都已看过")).toBeInTheDocument();
-
-  // Reading was never written down: coming back shows the whole pile again.
-  // 时刻 asks for its day; it has nothing on it.
-  vi.spyOn(globalThis, "fetch").mockImplementation(
-    async (url) => bareDay(requestPath(url)) ?? Response.json([]),
-  );
-  await act(() => router.navigate("/"));
-  serve();
-  await act(() => router.navigate("/jottings"));
-  await waitFor(() =>
-    expect(recallCards()).toEqual(["r1", "r2", "r3", "r4", "r5"]),
-  );
-  expect(stored).not.toHaveBeenCalled();
 
   // A filter or a search puts the pile away; clearing brings it back as it was.
   const drawer = () => recall().closest(".drawer");
@@ -208,7 +215,77 @@ it("lets each read recall card leave the pile until the page is opened again", a
   await user.keyboard("Aqua{Enter}");
   await waitFor(() => expect(address(router)).toBe("/jottings?q=Aqua"));
   expect(drawer()).toHaveAttribute("inert");
+  await user.click(screen.getByRole("button", { name: "清除" }));
+  await waitFor(() => expect(address(router)).toBe("/jottings"));
+  expect(drawer()).not.toHaveAttribute("inert");
+
+  // Closing a card any other way puts it back, and tells the server nothing.
+  await user.click(card("r1"));
+  await user.click(card("r2"));
+  expect(
+    within(dialog())
+      .getAllByRole("button")
+      .map((button) => button.textContent),
+  ).toEqual(["回顾完成", "不再回顾"]);
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await user.click(card("r2"));
+  await user.click(document.querySelector(".zoom-backdrop")!);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(recallCards()).toEqual(["r1", "r2", "r3", "r4", "r5"]);
+  expect(recalls).toEqual([]);
+  await user.keyboard("{Escape}");
+  expect(recall()).not.toHaveClass("spread");
+
+  // 回顾完成 and 不再回顾 each take their card out.
+  await user.click(card("r1"));
+  await user.click(card("r2"));
+  await user.click(within(dialog()).getByRole("button", { name: "回顾完成" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(recallCards()).toEqual(["r1", "r3", "r4", "r5"]);
+  await user.click(card("r4"));
+  await user.click(within(dialog()).getByRole("button", { name: "不再回顾" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(recallCards()).toEqual(["r1", "r3", "r5"]);
+  expect(recalls).toEqual([
+    { path: "/api/jottings/recall/2026-10-20/r2/done", body: { next: "keep" } },
+    {
+      path: "/api/jottings/recall/2026-10-20/r4/done",
+      body: { next: "retire" },
+    },
+  ]);
+
+  // A completion that fails leaves the card open, ready to try again.
+  control.fail = true;
+  await user.click(card("r1"));
+  await user.click(within(dialog()).getByRole("button", { name: "回顾完成" }));
+  await waitFor(() =>
+    expect(
+      within(dialog()).getByRole("button", { name: "回顾完成" }),
+    ).toBeEnabled(),
+  );
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  await user.click(within(dialog()).getByRole("button", { name: "回顾完成" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  for (const id of ["r3", "r5"]) {
+    await user.click(card(id));
+    await user.click(
+      within(dialog()).getByRole("button", { name: "回顾完成" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  }
+  expect(screen.getByText("今天的回响都已看过")).toBeInTheDocument();
+
+  // The server keeps what was completed: coming back shows no card again.
+  // 时刻 asks for its day; it has nothing on it.
+  vi.spyOn(globalThis, "fetch").mockImplementation(
+    async (url) => bareDay(requestPath(url)) ?? Response.json([]),
+  );
+  await act(() => router.navigate("/"));
+  serve(wall, kept);
+  await act(() => router.navigate("/jottings"));
+  expect(await screen.findByText("今天的回响都已看过")).toBeInTheDocument();
+  expect(stored).not.toHaveBeenCalled();
 });
 
 // specs/test-cases/web/echo/echo-page.md#a-wall-jotting-must-open-in-full-by-its-time-and-come-back-as-it-was
@@ -216,7 +293,7 @@ it("lets each read recall card leave the pile until the page is opened again", a
 it("reads a wall jotting in full from its time, with its Palace pictures, and hands it back", async () => {
   const recent = Date.now() - 3 * 3_600_000;
   const media = "/api/media/01a169c8-2109-774d-a490-e8537c284595";
-  serve([
+  const { recalls } = serve([
     jotting(
       "p1",
       `硬币动画\n\n![硬币](${media})\n\n![外站](https://example.com/a.png)`,
@@ -245,6 +322,20 @@ it("reads a wall jotting in full from its time, with its Palace pictures, and ha
   expect(within(dialog).getByText("[图片：外站]")).toBeInTheDocument();
   expect(within(dialog).getByText(absoluteTime(recent))).toBeInTheDocument();
   expect(card).toHaveStyle({ visibility: "hidden" });
+
+  // A wall card only says whether it takes part in recall, and stays open when that changes.
+  await user.click(
+    within(dialog.parentElement!).getByRole("button", { name: "不再回顾" }),
+  );
+  expect(
+    await within(dialog.parentElement!).findByRole("button", {
+      name: "恢复回顾",
+    }),
+  ).toBeInTheDocument();
+  expect(recalls).toEqual([
+    { path: "/api/jottings/p1/recall", body: { recall: "excluded" } },
+  ]);
+  expect(screen.getByRole("dialog")).toBe(dialog);
 
   // Escape closes the card and nothing else: the filter stays, the card is back.
   await user.keyboard("{Escape}");

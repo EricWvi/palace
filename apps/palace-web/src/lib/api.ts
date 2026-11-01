@@ -1,4 +1,8 @@
-import { infiniteQueryOptions, type QueryClient } from "@tanstack/react-query";
+import {
+  infiniteQueryOptions,
+  type InfiniteData,
+  type QueryClient,
+} from "@tanstack/react-query";
 import createClient from "openapi-fetch";
 import type { components, paths } from "./generated/api";
 
@@ -19,6 +23,10 @@ export type ArticleListItem = components["schemas"]["ArticleListItem"];
 export type AccessToken = components["schemas"]["AccessToken"];
 export type ListedJotting = components["schemas"]["ListedJotting"];
 export type JottingOverview = components["schemas"]["JottingOverview"];
+export type JottingRecall = components["schemas"]["JottingRecall"];
+export type JottingPage = components["schemas"]["JottingPage"];
+export type RecallState = components["schemas"]["RecallState"];
+export type RecallNext = components["schemas"]["RecallNext"];
 export type SleepNight = components["schemas"]["SleepNight"];
 export type HabitBoard = components["schemas"]["HabitBoard"];
 export const sources: Record<Source, string> = {
@@ -265,14 +273,63 @@ export function jottingOverviewOptions(from: string) {
       ),
   };
 }
-// Today's recall pile. It holds all day, so it is not refetched while the page stays open:
-// which cards were read lives in the page, keyed by the pile it was given.
+// Today's recall pile. The server keeps it as drawn all day, so it is not refetched while the
+// page stays open; completing a card marks it done in this copy.
 export function jottingRecallOptions() {
   return {
     queryKey: ["jottings", "recall"],
     queryFn: () => apiData(api.GET("/api/jottings/recall")),
     staleTime: Infinity,
   };
+}
+// Completes a card of the pile of `date`: 回顾完成 keeps the jotting in recall, 不再回顾 retires it.
+export function completeRecall(date: string, id: string, next: RecallNext) {
+  return apiData(
+    api.POST("/api/jottings/recall/{date}/{id}/done", {
+      params: { path: { date, id } },
+      body: { next },
+    }),
+  );
+}
+// Takes a jotting out of recall, or back in.
+export function setJottingRecall(id: string, recall: RecallState) {
+  return apiData(
+    api.PUT("/api/jottings/{id}/recall", {
+      params: { path: { id } },
+      body: { recall },
+    }),
+  );
+}
+// Writes a jotting's recall state, and whether its card is done, into every cached copy, so
+// the wall, the pile and an open card agree without refetching.
+export function patchRecall(
+  client: QueryClient,
+  id: string,
+  change: { recall: RecallState; done?: true },
+) {
+  client.setQueriesData<InfiniteData<JottingPage>>(
+    { queryKey: ["jottings", "list"] },
+    (data) =>
+      data && {
+        ...data,
+        pages: data.pages.map((page) => ({
+          ...page,
+          jottings: page.jottings.map((jotting) =>
+            jotting.id === id ? { ...jotting, recall: change.recall } : jotting,
+          ),
+        })),
+      },
+  );
+  client.setQueryData<JottingRecall>(
+    ["jottings", "recall"],
+    (data) =>
+      data && {
+        ...data,
+        jottings: data.jottings.map((card) =>
+          card.id === id ? { ...card, ...change } : card,
+        ),
+      },
+  );
 }
 // A new jotting changes the wall and the counts; today's recall pile never includes it.
 export function refreshJottings(client: QueryClient) {

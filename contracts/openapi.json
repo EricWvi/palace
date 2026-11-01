@@ -5350,11 +5350,11 @@
         "tags": [
           "jotting_reading"
         ],
-        "summary": "Today's recall pile, fixed for the day.",
+        "summary": "Today's recall pile, drawn on the day's first request and kept as drawn all day.",
         "operationId": "jotting_recall",
         "responses": {
           "200": {
-            "description": "At most five jottings created before today, in the day's order",
+            "description": "Up to `PALACE_JOTTING_RECALL_SIZE` jottings created before today, in the day's order, each saying whether its card was completed",
             "headers": {
               "Cache-Control": {
                 "schema": {
@@ -5379,6 +5379,293 @@
           },
           "401": {
             "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider unavailable, or no jottings folder configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/jottings/recall/{date}/{id}/done": {
+      "post": {
+        "tags": [
+          "jotting_recall"
+        ],
+        "summary": "Completes a card of a stored pile, today's or the one before. Only the first completion of a\ncard counts; `retire` also takes the jotting out of recall, even when the card was done.",
+        "operationId": "complete_jotting_recall",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "description": "The pile's local day, `YYYY-MM-DD`, as the recall read gave it",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Jotting id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecallDone"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Completed; whether the jotting is still in recall",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JottingRecallState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No stored pile of that day holds the jotting, or the jotting is deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or response failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider unavailable, or no jottings folder configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
+    "/api/jottings/{id}/recall": {
+      "put": {
+        "tags": [
+          "jotting_recall"
+        ],
+        "summary": "Takes a jotting out of recall, or back in. Back in, it starts at the least count of the\nmoment; a jotting already in keeps its count.",
+        "operationId": "set_jotting_recall",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Jotting id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JottingRecallState"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JottingRecallState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No live jotting has this id",
             "content": {
               "application/json": {
                 "schema": {
@@ -11872,7 +12159,7 @@
       },
       "JottingRecall": {
         "type": "object",
-        "description": "Today's recall pile: the same jottings in the same order all day while they are unchanged.",
+        "description": "Today's recall pile, drawn on the day's first request and kept as drawn all day.",
         "required": [
           "date",
           "jottings"
@@ -11880,16 +12167,29 @@
         "properties": {
           "date": {
             "type": "string",
-            "description": "The deployment's local day, `YYYY-MM-DD`."
+            "description": "The deployment's local day, `YYYY-MM-DD`; the day completions name."
           },
           "jottings": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ListedJotting"
+              "$ref": "#/components/schemas/RecallCard"
             },
-            "description": "At most five jottings created before today."
+            "description": "Up to 18 cards in the day's order; deleted jottings are left out."
           }
         }
+      },
+      "JottingRecallState": {
+        "type": "object",
+        "description": "Whether a jotting takes part in recall, as set or as it now stands.",
+        "required": [
+          "recall"
+        ],
+        "properties": {
+          "recall": {
+            "$ref": "#/components/schemas/RecallState"
+          }
+        },
+        "additionalProperties": false
       },
       "JottingUpload": {
         "type": "object",
@@ -11940,7 +12240,8 @@
           "title",
           "tags",
           "body",
-          "pending"
+          "pending",
+          "recall"
         ],
         "properties": {
           "body": {
@@ -11958,6 +12259,10 @@
           "pending": {
             "type": "boolean",
             "description": "The file sits under `inbox/`, waiting for the agent to sort it."
+          },
+          "recall": {
+            "$ref": "#/components/schemas/RecallState",
+            "description": "Whether the jotting is drawn into recall piles."
           },
           "tags": {
             "type": "array",
@@ -12466,6 +12771,55 @@
             "$ref": "#/components/schemas/Cursor"
           }
         }
+      },
+      "RecallCard": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ListedJotting"
+          },
+          {
+            "type": "object",
+            "required": [
+              "done"
+            ],
+            "properties": {
+              "done": {
+                "type": "boolean",
+                "description": "Completed on its day; the page shows only the cards not done."
+              }
+            }
+          }
+        ],
+        "description": "A card of the day's pile: the jotting and whether the card was completed."
+      },
+      "RecallDone": {
+        "type": "object",
+        "description": "Completing a recall card, and what the jotting does after.",
+        "required": [
+          "next"
+        ],
+        "properties": {
+          "next": {
+            "$ref": "#/components/schemas/RecallNext"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecallNext": {
+        "type": "string",
+        "description": "`keep`: the jotting stays in recall (回顾完成). `retire`: it is not drawn again (不再回顾).",
+        "enum": [
+          "keep",
+          "retire"
+        ]
+      },
+      "RecallState": {
+        "type": "string",
+        "description": "Whether a jotting takes part in recall; how often it was completed is never sent.",
+        "enum": [
+          "included",
+          "excluded"
+        ]
       },
       "Record": {
         "type": "object",

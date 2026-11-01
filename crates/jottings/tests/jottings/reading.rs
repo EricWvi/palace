@@ -1,25 +1,30 @@
 //! Live reads for the web 回响 page against real Git and real PostgreSQL.
 use super::{Repository, SHANGHAI, database, indexed, run};
 use palace_db::{
-    DayCount, JottingListRequest, JottingOverview, ListedJotting, SearchTerm, TagCount,
+    DayCount, JottingListRequest, JottingOverview, ListedJotting, RecallState, SearchTerm, TagCount,
 };
 use palace_domain::{InputError, InputErrorKind, Jotting};
-use palace_jottings::{Jottings, JottingsError, Recall};
+use palace_jottings::{Jottings, JottingsError};
 use pretty_assertions::assert_eq;
-use sha2::{Digest, Sha256};
 use testcontainers::{ContainerAsync, GenericImage};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339, macros::date};
 use uuid::Uuid;
 
 /// One jotting as both its file and what the reads return for it.
-struct Fixture {
-    path: String,
-    text: String,
-    listed: ListedJotting,
+pub(crate) struct Fixture {
+    pub(crate) path: String,
+    pub(crate) text: String,
+    pub(crate) listed: ListedJotting,
 }
 
 /// A jotting file at `path` with the given frontmatter, and its expected listing.
-fn fixture(path: &str, created: &str, title: Option<&str>, tags: &[&str], body: &str) -> Fixture {
+pub(crate) fn fixture(
+    path: &str,
+    created: &str,
+    title: Option<&str>,
+    tags: &[&str],
+    body: &str,
+) -> Fixture {
     let id = Uuid::now_v7();
     let mut text = format!("---\nid: {id}\ncreated: {created}\n");
     if let Some(title) = title {
@@ -41,6 +46,7 @@ fn fixture(path: &str, created: &str, title: Option<&str>, tags: &[&str], body: 
                 body: body.to_owned(),
             },
             pending: path.starts_with("inbox/"),
+            recall: RecallState::Included,
         },
     }
 }
@@ -89,7 +95,7 @@ async fn every_page(
 }
 
 /// Epoch milliseconds of an RFC 3339 time.
-fn millis(time: &str) -> i64 {
+pub(crate) fn millis(time: &str) -> i64 {
     i64::try_from(
         OffsetDateTime::parse(time, &Rfc3339)
             .unwrap()
@@ -100,7 +106,7 @@ fn millis(time: &str) -> i64 {
 }
 
 /// A jotting uploaded from a client, as the list shows it once written to the inbox.
-fn uploaded(created: &str, body: &str) -> ListedJotting {
+pub(crate) fn uploaded(created: &str, body: &str) -> ListedJotting {
     ListedJotting {
         jotting: Jotting {
             id: Uuid::now_v7(),
@@ -110,6 +116,7 @@ fn uploaded(created: &str, body: &str) -> ListedJotting {
             body: body.into(),
         },
         pending: true,
+        recall: RecallState::Included,
     }
 }
 
@@ -333,97 +340,5 @@ fn overview_buckets_by_the_local_day() {
                 )
             ));
         }
-    });
-}
-
-/// The pile is the first five candidates by SHA-256 of the local day and id; it holds all day,
-/// ignores jottings created today, and moves on at local midnight.
-/// Core test case:
-/// - `specs/test-cases/web/echo/jotting-reading.md#recall-must-draw-the-least-completed-jottings-once-a-day-and-keep-the-pile`
-#[test]
-#[ignore = "requires local postgres:17-alpine and git"]
-fn recall_holds_for_the_day_and_skips_today() {
-    run(async {
-        let repository = Repository::new();
-        let candidates: Vec<Fixture> = (0..8)
-            .map(|n| {
-                fixture(
-                    &format!("{n}.md"),
-                    &format!("2026-10-{:02}T09:00:00+08:00", n + 1),
-                    None,
-                    &[],
-                    "old",
-                )
-            })
-            .collect();
-        // Created at 00:30 Shanghai on the 20th, still the 19th in UTC.
-        let today = fixture("today.md", "2026-10-20T00:30:00+08:00", None, &[], "new");
-        let mut fixtures: Vec<&Fixture> = candidates.iter().collect();
-        fixtures.push(&today);
-        let (_container, jottings) = indexed_jottings(&repository, &fixtures).await;
-
-        let pile = |day: &str, pool: &[ListedJotting]| -> Vec<ListedJotting> {
-            let mut pool = pool.to_vec();
-            pool.sort_by_key(|listed| {
-                Sha256::digest(format!("{day}{}", listed.jotting.id)).to_vec()
-            });
-            pool.truncate(5);
-            pool
-        };
-        let mut pool: Vec<ListedJotting> = candidates.iter().map(|f| f.listed.clone()).collect();
-        let morning = jottings
-            .recall(millis("2026-10-20T00:45:00+08:00"))
-            .await
-            .unwrap();
-        assert_eq!(
-            morning,
-            Recall {
-                date: date!(2026 - 10 - 20),
-                jottings: pile("2026-10-20", &pool),
-            }
-        );
-        let another = uploaded("2026-10-20T10:00:00+08:00", "another");
-        jottings.upload(another.jotting.clone()).await.unwrap();
-        let evening = jottings
-            .recall(millis("2026-10-20T23:59:00+08:00"))
-            .await
-            .unwrap();
-        assert_eq!(evening, morning);
-
-        pool.extend([today.listed.clone(), another]);
-        assert_eq!(
-            jottings
-                .recall(millis("2026-10-21T00:00:00+08:00"))
-                .await
-                .unwrap(),
-            Recall {
-                date: date!(2026 - 10 - 21),
-                jottings: pile("2026-10-21", &pool),
-            }
-        );
-
-        // Deleted jottings drop out, and fewer than five candidates all show.
-        for n in 0..7 {
-            repository.remove(&format!("{n}.md"));
-        }
-        // The upload is committed along with the deletions.
-        repository.commit("delete most");
-        indexed(8)(jottings.refresh().await.unwrap());
-        let gone: Vec<&ListedJotting> = candidates[..7].iter().map(|f| &f.listed).collect();
-        let kept: Vec<ListedJotting> = pool
-            .into_iter()
-            .filter(|listed| !gone.contains(&listed))
-            .collect();
-        assert_eq!(kept.len(), 3);
-        assert_eq!(
-            jottings
-                .recall(millis("2026-10-21T08:00:00+08:00"))
-                .await
-                .unwrap(),
-            Recall {
-                date: date!(2026 - 10 - 21),
-                jottings: pile("2026-10-21", &kept),
-            }
-        );
     });
 }

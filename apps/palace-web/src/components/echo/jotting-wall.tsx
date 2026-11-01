@@ -1,7 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { jottingListOptions, type ListedJotting } from "@/lib/api";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import {
+  jottingListOptions,
+  patchRecall,
+  setJottingRecall,
+  type ListedJotting,
+  type RecallState,
+} from "@/lib/api";
 import { ErrorState } from "@/components/error-state";
 import { JottingCard } from "./jotting-card";
 import { ZoomedJotting, type Zoom } from "./zoomed-jotting";
@@ -99,6 +109,14 @@ export function JottingWall({
   // A card read in full stays on the wall: closing hands it back, folded or open as it was.
   const [zoom, setZoom] = useState<Zoom | null>(null);
   const zoomed = zoom && byId.get(zoom.id);
+  const client = useQueryClient();
+  // 不再回顾 and 恢复回顾 only; completing a recall card happens in the pile.
+  const recall = useMutation({
+    mutationFn: ({ id, state }: { id: string; state: RecallState }) =>
+      setJottingRecall(id, state),
+    onSuccess: ({ recall: state }, { id }) =>
+      patchRecall(client, id, { recall: state }),
+  });
 
   if (list.isPending)
     return (
@@ -167,6 +185,21 @@ export function JottingWall({
             jotting={zoomed}
             zoom={zoom}
             landing="card"
+            actions={
+              <button
+                type="button"
+                disabled={recall.isPending}
+                onClick={() =>
+                  recall.mutate({
+                    id: zoomed.id,
+                    state:
+                      zoomed.recall === "included" ? "excluded" : "included",
+                  })
+                }
+              >
+                {zoomed.recall === "included" ? "不再回顾" : "恢复回顾"}
+              </button>
+            }
             slot={() =>
               wall
                 ?.querySelector(`[data-id="${zoom.id}"]`)

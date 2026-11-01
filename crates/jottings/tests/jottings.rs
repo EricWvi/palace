@@ -26,6 +26,8 @@ use uuid::Uuid;
 
 #[path = "jottings/reading.rs"]
 mod reading;
+#[path = "jottings/recall.rs"]
+mod recall;
 
 const SHANGHAI: chrono_tz::Tz = chrono_tz::Asia::Shanghai;
 // 2026-10-19 08:30 in Shanghai.

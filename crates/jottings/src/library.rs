@@ -17,7 +17,7 @@ use std::{
 use time::UtcOffset;
 
 mod reading;
-pub use reading::Recall;
+pub use reading::{Recall, RecallSize, RecallSizeError};
 
 /// The folder below the jottings folder where uploads are written for the agent to sort.
 pub const INBOX: &str = "inbox";
@@ -34,6 +34,7 @@ pub struct Jottings {
     repo: Arc<Repo>,
     database: Database,
     timezone: Tz,
+    recall_size: RecallSize,
     // Held for a whole reconciliation, so two triggers never reconcile at once.
     progress: tokio::sync::Mutex<Progress>,
     // Counts reconciliations that looked at a new HEAD, so a watcher's effect can be awaited
@@ -95,9 +96,16 @@ impl Jottings {
             repo: Arc::new(Repo::open(folder)?),
             database,
             timezone,
+            recall_size: RecallSize::default(),
             progress: tokio::sync::Mutex::default(),
             generation: tokio::sync::watch::Sender::new(0),
         })
+    }
+
+    /// Draws `size` cards into each new recall pile instead of the default five.
+    pub fn with_recall_size(mut self, size: RecallSize) -> Self {
+        self.recall_size = size;
+        self
     }
 
     /// The jottings folder, canonicalized.

@@ -150,11 +150,17 @@ pub(crate) struct ListedJotting {
     pub body: String,
     /// The file sits under `inbox/`, waiting for the agent to sort it.
     pub pending: bool,
+    /// Whether the jotting is drawn into recall piles.
+    pub recall: RecallState,
 }
 impl From<palace_db::ListedJotting> for ListedJotting {
     /// Lists every wire field so a new domain field cannot leak by accident.
     fn from(value: palace_db::ListedJotting) -> Self {
-        let palace_db::ListedJotting { jotting, pending } = value;
+        let palace_db::ListedJotting {
+            jotting,
+            pending,
+            recall,
+        } = value;
         Self {
             id: jotting.id,
             created_at: jotting.created_at,
@@ -162,6 +168,31 @@ impl From<palace_db::ListedJotting> for ListedJotting {
             tags: jotting.tags,
             body: jotting.body,
             pending,
+            recall: recall.into(),
+        }
+    }
+}
+
+/// Whether a jotting takes part in recall; how often it was completed is never sent.
+#[derive(Clone, Copy, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum RecallState {
+    Included,
+    Excluded,
+}
+impl From<palace_db::RecallState> for RecallState {
+    fn from(value: palace_db::RecallState) -> Self {
+        match value {
+            palace_db::RecallState::Included => Self::Included,
+            palace_db::RecallState::Excluded => Self::Excluded,
+        }
+    }
+}
+impl From<RecallState> for palace_db::RecallState {
+    fn from(value: RecallState) -> Self {
+        match value {
+            RecallState::Included => Self::Included,
+            RecallState::Excluded => Self::Excluded,
         }
     }
 }
@@ -244,19 +275,66 @@ pub(crate) struct DayCount {
     pub count: i64,
 }
 
-/// Today's recall pile: the same jottings in the same order all day while they are unchanged.
+/// Today's recall pile, drawn on the day's first request and kept as drawn all day.
 #[derive(Serialize, ToSchema)]
 pub(crate) struct JottingRecall {
-    /// The deployment's local day, `YYYY-MM-DD`.
+    /// The deployment's local day, `YYYY-MM-DD`; the day completions name.
     pub date: String,
-    /// At most five jottings created before today.
-    pub jottings: Vec<ListedJotting>,
+    /// Up to 18 cards in the day's order; deleted jottings are left out.
+    pub jottings: Vec<RecallCard>,
 }
 impl From<palace_jottings::Recall> for JottingRecall {
     fn from(value: palace_jottings::Recall) -> Self {
         Self {
             date: value.date.to_string(),
-            jottings: value.jottings.into_iter().map(Into::into).collect(),
+            jottings: value.cards.into_iter().map(Into::into).collect(),
         }
     }
+}
+
+/// A card of the day's pile: the jotting and whether the card was completed.
+#[derive(Serialize, ToSchema)]
+pub(crate) struct RecallCard {
+    #[serde(flatten)]
+    pub listed: ListedJotting,
+    /// Completed on its day; the page shows only the cards not done.
+    pub done: bool,
+}
+impl From<palace_db::RecallCard> for RecallCard {
+    fn from(value: palace_db::RecallCard) -> Self {
+        Self {
+            listed: value.listed.into(),
+            done: value.done,
+        }
+    }
+}
+
+/// Completing a recall card, and what the jotting does after.
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RecallDone {
+    pub next: RecallNext,
+}
+
+/// `keep`: the jotting stays in recall (回顾完成). `retire`: it is not drawn again (不再回顾).
+#[derive(Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum RecallNext {
+    Keep,
+    Retire,
+}
+impl From<RecallNext> for palace_db::RecallNext {
+    fn from(value: RecallNext) -> Self {
+        match value {
+            RecallNext::Keep => Self::Keep,
+            RecallNext::Retire => Self::Retire,
+        }
+    }
+}
+
+/// Whether a jotting takes part in recall, as set or as it now stands.
+#[derive(Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct JottingRecallState {
+    pub recall: RecallState,
 }

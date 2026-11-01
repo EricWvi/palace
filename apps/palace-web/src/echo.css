@@ -333,22 +333,34 @@
   height: 190px;
   display: flex;
   flex-direction: column;
-  z-index: calc(5 - var(--i));
+  z-index: calc(var(--n) - var(--i));
   box-shadow: 0 2px 6px color-mix(in srgb, var(--text) 8%, transparent);
-  transform: translate(calc(var(--i) * 4px), calc(var(--i) * 4px))
+  /* Past the top five, cards lie exactly under the fifth, so a big pile looks like a small one. */
+  transform: translate(calc(var(--under) * 4px), calc(var(--under) * 4px))
     rotate(var(--r));
-  /* Collapsing, the far cards leave first so the pile closes from the outside in. */
+  /* Collapsing, the farthest cards leave first so the pile closes from the outside in. */
   transition:
-    transform 300ms ease-out calc((var(--n) - 1 - var(--i)) * 40ms),
+    transform 300ms ease-out calc((var(--far) - var(--wave)) * 40ms),
     box-shadow 300ms ease-out;
   cursor: pointer;
 }
 
-/* Spread, the cards float over the wall, so they lift with a deeper shadow. */
+/*
+ * Spread, the cards float over the wall in rows of up to six, with a deeper shadow. They fan out
+ * in a wave from the pile: the nearer a cell, row and column together, the sooner its card moves.
+ */
 .echo .recall.spread .rc {
-  transform: translateX(calc(var(--i) * (100% + var(--gap))));
-  transition-delay: calc(var(--i) * 40ms);
+  transform: translate(
+    calc(var(--x) * (100% + var(--gap))),
+    calc(var(--y) * (100% + var(--gap)))
+  );
+  transition-delay: calc(var(--wave) * 40ms);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+/* Spread and still: a card moving up into a gap left by a read one moves at once. */
+.echo .recall.spread.settled .rc {
+  transition-delay: 0ms;
 }
 
 /* A uniform card cuts long text with the same fade the wall uses for its fold. */
@@ -393,15 +405,76 @@
   background: color-mix(in srgb, var(--bg) 75%, transparent);
 }
 
-.echo-card.zoom {
+.zoom-frame {
   position: fixed;
   z-index: 21;
+}
+
+/* While it moves, the card fills the frame the animation sizes; once grown, it sizes the frame. */
+.echo-card.zoom {
+  height: 100%;
   overflow: hidden;
   box-shadow: 0 12px 40px color-mix(in srgb, var(--text) 14%, transparent);
 }
 
-.echo-card.zoom.settled {
+.zoom-frame.settled .echo-card.zoom {
+  height: auto;
+  max-height: 80vh;
   overflow: auto;
+}
+
+/*
+ * Actions are written down the card's right edge like a note in a book's margin: plain words,
+ * set vertically, quiet until pointed at. They appear once the card has grown and leave the
+ * moment it starts back, so they never fly with it.
+ */
+.zoom-actions {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease-out;
+}
+
+.zoom-frame.settled .zoom-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transition-duration: 200ms;
+}
+
+.zoom-actions button {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+}
+
+.zoom-actions button:hover {
+  color: var(--text-2);
+}
+
+.zoom-actions button:disabled {
+  cursor: default;
+  color: var(--text-3);
+}
+
+/* No room beside the card: the actions become one line under it. */
+@media (max-width: 680px) {
+  .zoom-actions {
+    top: calc(100% + 12px);
+    left: 0;
+    flex-direction: row;
+  }
+
+  .zoom-actions button {
+    writing-mode: horizontal-tb;
+    letter-spacing: normal;
+  }
 }
 
 /* A phone screenshot at full width would be taller than the screen and push the words away. */

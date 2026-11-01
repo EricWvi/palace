@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { ListedJotting } from "@/lib/api";
 import {
   MarkdownContent,
@@ -36,12 +42,15 @@ export type Landing = "empty" | "card";
 
 // One jotting read in full, shared by the recall pile and the wall: it grows from its card to
 // the middle of the screen, and on closing shrinks back to where the card is now and fades out,
-// as `landing` says. What closing means for the card is the caller's. Escape and a click on the backdrop
-// ask to close. See specs/decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md.
+// as `landing` says. What closing means for the card is the caller's, and so are the `actions`
+// written down its right side. Escape and a click on the backdrop ask to close.
+// See specs/decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md
+// and specs/decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md.
 export function ZoomedJotting({
   jotting,
   zoom,
   landing,
+  actions,
   slot,
   onClose,
   onClosed,
@@ -49,10 +58,14 @@ export function ZoomedJotting({
   jotting: ListedJotting;
   zoom: Zoom;
   landing: Landing;
+  actions: ReactNode;
   slot: () => DOMRect;
   onClose: () => void;
   onClosed: () => void;
 }) {
+  // The frame carries the geometry; the card inside it scrolls, and the actions hang outside
+  // its right edge, where the scrolling card would clip them.
+  const frame = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLElement>(null);
   const page = useRef<HTMLDivElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
@@ -61,13 +74,16 @@ export function ZoomedJotting({
   const closing = useRef(false);
 
   useLayoutEffect(() => {
-    const element = card.current;
+    const element = frame.current;
     // Measured once: a second run would measure the card mid-growth.
-    if (!element || opened.current) return;
+    if (!element || !card.current || opened.current) return;
     opened.current = true;
     const width = Math.min(560, window.innerWidth - 32);
     element.style.width = `${width}px`;
-    const height = Math.min(element.offsetHeight, window.innerHeight * 0.8);
+    const height = Math.min(
+      card.current.offsetHeight,
+      window.innerHeight * 0.8,
+    );
     const to = {
       left: (window.innerWidth - width) / 2,
       top: (window.innerHeight - height) / 2,
@@ -85,7 +101,6 @@ export function ZoomedJotting({
       Object.assign(element.style, {
         top: "50%",
         height: "auto",
-        maxHeight: "80vh",
         transform: "translateY(-50%)",
       });
       setSettled(true);
@@ -95,18 +110,14 @@ export function ZoomedJotting({
   }, []);
 
   useEffect(() => {
-    const element = card.current;
-    if (!zoom.closing || !element) return;
+    const element = frame.current;
+    if (!zoom.closing || !element || !card.current) return;
     closing.current = true;
     // Shrinks from the size the card has now, which images may have changed since it opened.
     const from = element.getBoundingClientRect();
     // A card scrolled down would shrink showing its middle; the card it lands on shows the top.
-    element.scrollTop = 0;
-    Object.assign(element.style, {
-      ...px(from),
-      maxHeight: "none",
-      transform: "none",
-    });
+    card.current.scrollTop = 0;
+    Object.assign(element.style, { ...px(from), transform: "none" });
     setSettled(false);
     const to = px(slot());
     animate(backdrop.current, [{ opacity: 1 }, { opacity: 0 }]);
@@ -123,12 +134,17 @@ export function ZoomedJotting({
         { opacity: 0, offset: 0.6 },
         { opacity: 0 },
       ]);
-      // The wall card casts no shadow; the sheet loses its own as it lands.
-      const shadow = getComputedStyle(element).boxShadow;
+      // The card it lands on casts no shadow; the sheet loses its own as it lands.
+      const shadow = getComputedStyle(card.current).boxShadow;
+      animate(card.current, [
+        { boxShadow: shadow },
+        { boxShadow: "none", offset: 0.7 },
+        { boxShadow: "none" },
+      ]);
       frames = [
-        { ...px(from), opacity: 1, boxShadow: shadow },
-        { ...to, opacity: 1, boxShadow: "none", offset: 0.7 },
-        { ...to, opacity: 0, boxShadow: "none" },
+        { ...px(from), opacity: 1 },
+        { ...to, opacity: 1, offset: 0.7 },
+        { ...to, opacity: 0 },
       ];
     }
     void animate(element, frames).then(onClosed);
@@ -153,27 +169,34 @@ export function ZoomedJotting({
   return (
     <>
       <div ref={backdrop} className="zoom-backdrop" onClick={onClose} />
-      <article
-        ref={card}
-        className={settled ? "echo-card zoom settled" : "echo-card zoom"}
-        role="dialog"
-        aria-label={jotting.title ?? "札记"}
+      <div
+        ref={frame}
+        className={settled ? "zoom-frame settled" : "zoom-frame"}
       >
-        {/* The words, apart from the sheet, so they can fade before it on the way back. */}
-        <div ref={page}>
-          {jotting.pending && <PendingDot />}
-          {jotting.title && <h3>{jotting.title}</h3>}
-          <div className="jot-body">
-            <MarkdownContent content={jotting.body} images={ownMedia} />
+        <article
+          ref={card}
+          className="echo-card zoom"
+          role="dialog"
+          aria-label={jotting.title ?? "札记"}
+        >
+          {/* The words, apart from the sheet, so they can fade before it on the way back. */}
+          <div ref={page}>
+            {jotting.pending && <PendingDot />}
+            {jotting.title && <h3>{jotting.title}</h3>}
+            <div className="jot-body">
+              <MarkdownContent content={jotting.body} images={ownMedia} />
+            </div>
+            <footer className="jot-foot">
+              <JottingTime createdAt={jotting.created_at} form="full" />
+              {jotting.tags.map((tag) => (
+                <span key={tag}>#{tag}</span>
+              ))}
+            </footer>
           </div>
-          <footer className="jot-foot">
-            <JottingTime createdAt={jotting.created_at} form="full" />
-            {jotting.tags.map((tag) => (
-              <span key={tag}>#{tag}</span>
-            ))}
-          </footer>
-        </div>
-      </article>
+        </article>
+        {/* Shown once the card has grown, gone the moment it starts back: they never fly. */}
+        <div className="zoom-actions">{actions}</div>
+      </div>
     </>
   );
 }

@@ -27,12 +27,12 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 直接关闭不离开、不请求；完成和不再回顾发出对应请求后离开 | Missing | |
-| 完成失败时卡片保持放大 | Missing | |
-| 全部完成显示提示，刷新后完成的不回来 | Missing | |
-| 收起卡片组的点击被拦截，不触发瀑布流操作 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again` |
-| 筛选与搜索时卡片组收起，清除后恢复 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again`（标签筛选与搜索使卡片组所在抽屉变为 inert，清除后恢复） |
-| 完成的卡片缩回原位并淡出，被移除前不会回到屏幕中央闪现（真实 Chromium） | Covered | `e2e/echo.spec.ts::a closed recall card fades out at its slot and never flashes back at full size`（逐帧记录不透明度） |
+| 直接关闭不离开、不请求；完成和不再回顾发出对应请求后离开 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it` |
+| 完成失败时卡片保持放大 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it` |
+| 全部完成显示提示，刷新后完成的不回来 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`（服务端替身在两次访问之间保留完成状态） |
+| 收起卡片组的点击被拦截，不触发瀑布流操作 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it` |
+| 筛选与搜索时卡片组收起，清除后恢复 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`（标签筛选与搜索使卡片组所在抽屉变为 inert，清除后恢复） |
+| 完成的卡片缩回原位并淡出，被移除前不会回到屏幕中央闪现（真实 Chromium） | Covered | `e2e/echo.spec.ts::a completed recall card fades out at its slot and never flashes back at full size`（逐帧记录不透明度） |
 
 决策依据：根决策 D3，20261101 回顾决策 D5、D7，根决策不变量 8。
 
@@ -46,7 +46,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 两种放大卡片的操作与请求 | Missing | |
+| 两种放大卡片的操作与请求 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`（回顾卡片的两个操作）、`pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back`（瀑布流的不再回顾与恢复回顾）；操作在关闭开始时淡出由 CSS 决定，jsdom 不计算 |
 
 决策依据：20261101 回顾决策 D5、D6。
 
@@ -60,7 +60,7 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 多行平铺的位置与换行（真实 Chromium） | Missing | |
+| 多行平铺的位置与换行（真实 Chromium） | Covered | `e2e/echo.spec.ts::a pile of eighteen spreads into three rows of six and closes ranks as cards leave`（18 张排成 3×6，完成一张后按序前移，900px 宽时少于 6 列） |
 
 决策依据：20261101 回顾决策 D6。
 
@@ -77,7 +77,7 @@
 | 只有时间是放大入口，放大卡片显示完整时间，瀑布流时间没有提示 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
 | Escape 只关闭放大卡片，原卡片回到墙上 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
 | 40 行以内原地展开，超过 40 行展开即放大 | Partial | `pages/echo.test.tsx::opens a body in place up to forty lines and reads a longer one in full`（jsdom 没有布局，正文高度与行高由测试替换） |
-| 回顾卡片直接关闭时留在卡片组，完成后才离开 | Missing | 见 [Only completing a recall card may take it out of the pile](#only-completing-a-recall-card-may-take-it-out-of-the-pile) |
+| 回顾卡片直接关闭时留在卡片组，完成后才离开 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`，见 [Only completing a recall card may take it out of the pile](#only-completing-a-recall-card-may-take-it-out-of-the-pile) |
 
 决策依据：20261101 决策 D1–D3、D5，不变量 1–3、7。
 
@@ -108,7 +108,7 @@
 | --- | --- | --- |
 | 当前筛选标签始终出现在侧栏，筛选行显示条件与总数 | Covered | `pages/echo.test.tsx::keeps the active tag visible, searches only on Enter and steps back one layer per Escape` |
 | 只有 Enter 触发搜索请求，组字过程不发请求 | Covered | `pages/echo.test.tsx::keeps the active tag visible, searches only on Enter and steps back one layer per Escape`（`isComposing` 的 Enter） |
-| Escape 每次只退出一层，顺序固定 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again`（放大的卡片 → 平铺的卡片组）、`pages/echo.test.tsx::keeps the active tag visible, searches only on Enter and steps back one layer per Escape`（全部标签 → 标签筛选；搜索框内先清空再收起） |
+| Escape 每次只退出一层，顺序固定 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`（放大的卡片 → 平铺的卡片组）、`pages/echo.test.tsx::keeps the active tag visible, searches only on Enter and steps back one layer per Escape`（全部标签 → 标签筛选；搜索框内先清空再收起） |
 
 决策依据：D5、D7，不变量 7。
 

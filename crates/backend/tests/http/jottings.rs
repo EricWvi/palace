@@ -196,8 +196,8 @@ pub(super) async fn exercise_jottings(app: &Router, cookie: &str, foreign: &str,
 /// - `specs/test-cases/web/echo/jotting-reading.md#overview-must-bucket-jottings-by-the-deployments-local-day`
 async fn exercise_reading(app: &Router, cookie: &str, agent: Uuid, upload: Uuid) {
     let get = |path: String| async move { send(app, "GET", &path, cookie, Value::Null).await };
-    let uploaded = json!({"id": upload, "created_at": CREATED, "title": null, "tags": ["phone"], "body": "离线写的", "pending": true});
-    let committed = json!({"id": agent, "created_at": CREATED, "title": "读书", "tags": [], "body": "正文\n", "pending": false});
+    let uploaded = json!({"id": upload, "created_at": CREATED, "title": null, "tags": ["phone"], "body": "离线写的", "pending": true, "recall": "included"});
+    let committed = json!({"id": agent, "created_at": CREATED, "title": "读书", "tags": [], "body": "正文\n", "pending": false, "recall": "included"});
     // Equal times fall back to the id, and the upload's v7 id is the later one.
     let (status, first) = get("/api/jottings?limit=1".into()).await;
     assert_eq!(status, StatusCode::OK);
@@ -249,6 +249,75 @@ async fn exercise_reading(app: &Router, cookie: &str, agent: Uuid, upload: Uuid)
             Some(today.as_str()),
             expected.iter().map(String::as_str).collect()
         )
+    );
+
+    // Completing a card counts it once and marks it done; retiring takes it out of recall,
+    // which the list then shows. Nothing outside the pile can be completed.
+    let today = today.as_str();
+    let done = |id: Uuid, next: &'static str| async move {
+        send(
+            app,
+            "POST",
+            &format!("/api/jottings/recall/{today}/{id}/done"),
+            cookie,
+            json!({ "next": next }),
+        )
+        .await
+    };
+    assert_eq!(
+        done(agent, "keep").await,
+        (StatusCode::OK, json!({"recall": "included"}))
+    );
+    assert_eq!(
+        done(agent, "retire").await,
+        (StatusCode::OK, json!({"recall": "excluded"}))
+    );
+    let (_, again) = get("/api/jottings/recall".into()).await;
+    let card = again["jottings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|card| card["id"] == json!(agent))
+        .unwrap();
+    assert_eq!(
+        (&card["done"], &card["recall"]),
+        (&json!(true), &json!("excluded"))
+    );
+    let not_found = (
+        StatusCode::NOT_FOUND,
+        json!({"error": "not_found", "login": ""}),
+    );
+    assert_eq!(done(Uuid::now_v7(), "keep").await, not_found);
+    assert_eq!(
+        send(
+            app,
+            "POST",
+            &format!("/api/jottings/recall/2020-01-01/{agent}/done"),
+            cookie,
+            json!({"next": "keep"})
+        )
+        .await,
+        not_found
+    );
+    let set = |id: Uuid, recall: &'static str| async move {
+        send(
+            app,
+            "PUT",
+            &format!("/api/jottings/{id}/recall"),
+            cookie,
+            json!({ "recall": recall }),
+        )
+        .await
+    };
+    assert_eq!(
+        set(agent, "included").await,
+        (StatusCode::OK, json!({"recall": "included"}))
+    );
+    assert_eq!(set(Uuid::now_v7(), "excluded").await, not_found);
+    let (status, list) = get("/api/jottings".into()).await;
+    assert_eq!(
+        (status, list["jottings"][1]["recall"].clone()),
+        (StatusCode::OK, json!("included"))
     );
 
     for (path, field, message) in [
@@ -319,6 +388,28 @@ pub(super) async fn exercise_unconfigured(app: &Router, cookie: &str) {
     ] {
         assert_eq!(
             send(app, "GET", path, cookie, Value::Null).await,
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                json!({"error": "jottings_unavailable", "login": ""})
+            ),
+            "{path}"
+        );
+    }
+    let id = Uuid::now_v7();
+    for (method, path, body) in [
+        (
+            "POST",
+            format!("/api/jottings/recall/2026-10-19/{id}/done"),
+            json!({"next": "keep"}),
+        ),
+        (
+            "PUT",
+            format!("/api/jottings/{id}/recall"),
+            json!({"recall": "excluded"}),
+        ),
+    ] {
+        assert_eq!(
+            send(app, method, &path, cookie, body).await,
             (
                 StatusCode::SERVICE_UNAVAILABLE,
                 json!({"error": "jottings_unavailable", "login": ""})
