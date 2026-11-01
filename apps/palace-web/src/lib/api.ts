@@ -425,12 +425,14 @@ export function refreshJottings(client: QueryClient) {
   void client.invalidateQueries({ queryKey: ["jottings", "overview"] });
 }
 
-// 行事's lists and open tasks. Every change writes the cached board in place first, so the page
-// answers at once; a failed change refetches it.
-export function todoBoardOptions() {
+// 行事's lists, open tasks and the tasks finished on `day`, the reader's today. Every change
+// writes the cached board in place first, so the page answers at once; a failed change refetches
+// it.
+export function todoBoardOptions(day: string) {
   return {
-    queryKey: ["todos", "board"],
-    queryFn: () => apiData(api.GET("/api/todos")),
+    queryKey: ["todos", "board", day],
+    queryFn: () =>
+      apiData(api.GET("/api/todos", { params: { query: { day } } })),
   };
 }
 // One list's finished tasks, fetched when the list is open.

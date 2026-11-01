@@ -83,7 +83,7 @@ async fn todos_must_stay_within_the_owner_scope() {
     let b = owner(&db, "b").await;
     let work = list(&db, a, "工作", "a0").await;
     let todo = task(&db, a, Some(work), "ai infra", "a0").await;
-    let board = db.todo_board(a).await.unwrap();
+    let board = db.todo_board(a, day("2026-10-23")).await.unwrap();
 
     let placement = TodoPlacement::parse(Some(work), TodoPlanInput::Open).unwrap();
     let title = TodoTitle::parse("偷放").unwrap();
@@ -99,7 +99,7 @@ async fn todos_must_stay_within_the_owner_scope() {
         db.set_todo_body(b, todo.id, None).await,
         db.todo_body(b, todo.id).await.map(|_| ()),
         db.set_todo_done(b, todo.id, today, true).await.map(|_| ()),
-        db.complete_todo(b, todo.id).await,
+        db.complete_todo(b, todo.id, day("2026-10-23")).await,
         db.delete_todo(b, todo.id).await,
         db.update_todo_list(b, work, &name, &key("a5"))
             .await
@@ -121,14 +121,19 @@ async fn todos_must_stay_within_the_owner_scope() {
     ));
     // Planning B's ids from A, or A's from B, touches nothing.
     db.plan_todos(b, today, &[todo.id]).await.unwrap();
-    assert_eq!(db.todo_board(a).await.unwrap(), board);
-    assert_eq!(db.todo_board(b).await.unwrap().todos, Vec::<Todo>::new());
+    assert_eq!(db.todo_board(a, day("2026-10-23")).await.unwrap(), board);
+    assert_eq!(
+        db.todo_board(b, day("2026-10-23")).await.unwrap().todos,
+        Vec::<Todo>::new()
+    );
 }
 
 /// The inbox holds no plan and nothing finished; shelved and a day exclude each other; done
-/// lives only on a planned day and goes with any change of plan; finishing drops the plan.
+/// lives only on a planned day and goes with any change of plan; finishing keeps only the
+/// reader's today, done, and drops any other plan.
 /// Core test case:
 /// - `specs/test-cases/web/todo/todos.md#a-task-must-keep-one-plan-and-the-inbox-none`
+/// - `specs/test-cases/web/todo/todos.md#finishing-a-task-of-today-must-keep-it-in-today-struck-through`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image and Docker/Podman socket"]
 async fn a_task_must_keep_one_plan_and_the_inbox_none() {
@@ -140,7 +145,7 @@ async fn a_task_must_keep_one_plan_and_the_inbox_none() {
     let today = day("2026-10-23");
 
     assert!(matches!(
-        db.complete_todo(a, inbox.id).await,
+        db.complete_todo(a, inbox.id, day("2026-10-23")).await,
         Err(DbError::Conflict)
     ));
     for statement in [
@@ -149,6 +154,7 @@ async fn a_task_must_keep_one_plan_and_the_inbox_none() {
         "UPDATE todo SET shelved=true,planned_on='2026-10-23' WHERE list_id IS NOT NULL",
         "UPDATE todo SET done=true WHERE list_id IS NOT NULL",
         "UPDATE todo SET completed_at=date_trunc('milliseconds',now()),planned_on='2026-10-23' WHERE list_id IS NOT NULL",
+        "UPDATE todo SET completed_at=date_trunc('milliseconds',now()),shelved=true WHERE list_id IS NOT NULL",
     ] {
         let error = sqlx::query(statement).execute(&pool).await.unwrap_err();
         assert_eq!(
@@ -188,18 +194,31 @@ async fn a_task_must_keep_one_plan_and_the_inbox_none() {
         (TodoPlan::Shelved, 1)
     );
 
+    // Finished on its day, a task keeps the day, done and counted, and 今日 of that day lists it.
     db.update_todo(a, todo.id, &replan(&on_today, TodoPlanInput::Day(today)))
         .await
         .unwrap();
-    db.complete_todo(a, todo.id).await.unwrap();
-    let finished: (Option<String>, bool, bool) =
-        sqlx::query_as("SELECT planned_on::text,shelved,done FROM todo WHERE id=$1")
-            .bind(todo.id)
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    assert_eq!(finished, (None, false, false));
-    // A finished task takes no edits and no done; it comes back unscheduled.
+    db.complete_todo(a, todo.id, today).await.unwrap();
+    let on_its_day = Todo {
+        place: TodoPlace::List {
+            list: work,
+            plan: TodoPlan::Day {
+                day: today,
+                done: true,
+            },
+        },
+        done_days: 2,
+        ..todo.clone()
+    };
+    assert_eq!(
+        db.todo_board(a, today).await.unwrap().finished,
+        std::slice::from_ref(&on_its_day)
+    );
+    assert_eq!(
+        db.todo_board(a, day("2026-10-24")).await.unwrap().finished,
+        []
+    );
+    // A finished task takes no edits and no done; it comes back with the plan it kept.
     assert!(matches!(
         db.update_todo(a, todo.id, &replan(&on_today, TodoPlanInput::Open))
             .await,
@@ -209,11 +228,41 @@ async fn a_task_must_keep_one_plan_and_the_inbox_none() {
         db.set_todo_done(a, todo.id, today, false).await,
         Err(DbError::Conflict)
     ));
-    let restored = db.restore_todo(a, todo.id, &key("Zz")).await.unwrap();
     assert_eq!(
-        (planned(&restored), restored.position, restored.done_days),
-        (TodoPlan::Open, key("Zz"), 1)
+        db.restore_todo(a, todo.id, &todo.position).await.unwrap(),
+        on_its_day
     );
+    // Finished on any day but the one it is planned on, it leaves its plan behind and keeps its
+    // count: a day already past, a day still ahead, or shelved.
+    let finishing_on = day("2026-10-24");
+    for plan in [
+        TodoPlanInput::Day(today),
+        TodoPlanInput::Day(day("2026-10-25")),
+        TodoPlanInput::Shelved,
+    ] {
+        db.update_todo(a, todo.id, &replan(&todo, plan.clone()))
+            .await
+            .unwrap();
+        db.complete_todo(a, todo.id, finishing_on).await.unwrap();
+        let finished: (Option<String>, bool, bool) =
+            sqlx::query_as("SELECT planned_on::text,shelved,done FROM todo WHERE id=$1")
+                .bind(todo.id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(finished, (None, false, false), "{plan:?}");
+        assert_eq!(
+            db.todo_board(a, finishing_on).await.unwrap().finished,
+            [],
+            "{plan:?}"
+        );
+        let open = db.restore_todo(a, todo.id, &todo.position).await.unwrap();
+        assert_eq!(
+            (planned(&open), open.done_days),
+            (TodoPlan::Open, 2),
+            "{plan:?}"
+        );
+    }
 }
 
 /// Done counts a day once whatever the repeats, only on the planned day; planning a day takes
@@ -259,7 +308,7 @@ async fn done_for_the_day_must_count_each_day_once() {
     .await
     .unwrap();
     let plans: Vec<(String, TodoPlan, i32)> = db
-        .todo_board(a)
+        .todo_board(a, day("2026-10-23"))
         .await
         .unwrap()
         .todos
@@ -335,7 +384,9 @@ async fn open_tasks_in_one_place_must_not_share_a_key() {
         Err(DbError::Conflict)
     ));
 
-    db.complete_todo(a, first.id).await.unwrap();
+    db.complete_todo(a, first.id, day("2026-10-23"))
+        .await
+        .unwrap();
     let reused = task(&db, a, Some(work), "接手", "a0").await;
     assert!(matches!(
         db.restore_todo(a, first.id, &key("a0")).await,
@@ -343,7 +394,7 @@ async fn open_tasks_in_one_place_must_not_share_a_key() {
     ));
     db.restore_todo(a, first.id, &key("Zz")).await.unwrap();
     let order: Vec<String> = db
-        .todo_board(a)
+        .todo_board(a, day("2026-10-23"))
         .await
         .unwrap()
         .todos
@@ -394,7 +445,7 @@ async fn lists_must_not_share_a_key() {
     db.update_todo_list(a, work, &name("职业"), &key("a0"))
         .await
         .unwrap();
-    let lists = db.todo_board(a).await.unwrap().lists;
+    let lists = db.todo_board(a, day("2026-10-23")).await.unwrap().lists;
     let collation: String =
         sqlx::query_scalar("SELECT collation_name FROM information_schema.columns WHERE table_name='todo_list' AND column_name='position'")
             .fetch_one(&pool)
@@ -438,7 +489,9 @@ async fn a_list_must_take_its_tasks_with_it() {
     let open = task(&db, a, Some(work), "开着", "a0").await;
     let finished = task(&db, a, Some(work), "做完", "a1").await;
     let elsewhere = task(&db, a, Some(life), "别处", "a0").await;
-    db.complete_todo(a, finished.id).await.unwrap();
+    db.complete_todo(a, finished.id, day("2026-10-23"))
+        .await
+        .unwrap();
     let completed = db.completed_todos(a, work).await.unwrap();
     assert_eq!(
         completed,
@@ -455,11 +508,13 @@ async fn a_list_must_take_its_tasks_with_it() {
     db.clear_completed_todos(a, work).await.unwrap();
     assert_eq!(db.completed_todos(a, work).await.unwrap(), []);
     assert_eq!(
-        db.todo_board(a).await.unwrap().todos,
+        db.todo_board(a, day("2026-10-23")).await.unwrap().todos,
         [open.clone(), elsewhere.clone()]
     );
 
-    db.complete_todo(a, open.id).await.unwrap();
+    db.complete_todo(a, open.id, day("2026-10-23"))
+        .await
+        .unwrap();
     task(&db, a, Some(work), "又一条", "a0").await;
     db.delete_todo_list(a, work).await.unwrap();
     let left: i64 = sqlx::query_scalar("SELECT count(*) FROM todo WHERE list_id=$1")
@@ -467,7 +522,7 @@ async fn a_list_must_take_its_tasks_with_it() {
         .fetch_one(&pool)
         .await
         .unwrap();
-    let board = db.todo_board(a).await.unwrap();
+    let board = db.todo_board(a, day("2026-10-23")).await.unwrap();
     assert_eq!(
         (left, board.lists, board.todos),
         (

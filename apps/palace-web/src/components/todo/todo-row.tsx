@@ -8,6 +8,7 @@ import {
   bottomKey,
   inbox,
   isDoneToday,
+  isFinished,
   isToday,
   placeOf,
   samePlace,
@@ -31,9 +32,25 @@ export type DragBinding = {
 };
 
 // The task menu: the legacy one without difficulty, the TimeTagger start and the board. The
-// inbox is a buffer, so its tasks are neither planned nor finished.
+// inbox is a buffer, so its tasks are neither planned nor finished. A task finished today takes
+// no edits, so it can only come back or go.
 function taskEntries(todo: Todo, page: TodoPage): MenuEntry[] {
   const { today, board, actions } = page;
+  if (isFinished(board, todo))
+    return [
+      {
+        kind: "item",
+        label: "恢复",
+        onSelect: () => void actions.reopen(todo),
+      },
+      { kind: "separator" },
+      {
+        kind: "item",
+        label: "删除",
+        onSelect: () => page.remove(todo),
+        danger: true,
+      },
+    ];
   const schedule = scheduleOf(todo, today);
   const here = placeOf(todo);
   const item = (
@@ -195,6 +212,7 @@ export function TodoRow({
   const page = useTodoPage();
   const { today, actions, editing, setEditing } = page;
   const done = context === "today" && isDoneToday(todo, today);
+  const finished = isFinished(page.board, todo);
   const shelved = scheduleOf(todo, today).kind === "shelved";
   const when = context === "list" ? whenLabel(todo, today) : "";
   const editingTitle = editing?.id === todo.id && editing.field === "title";
@@ -244,6 +262,7 @@ export function TodoRow({
     "todo-row",
     "reveals-more",
     done && "done",
+    finished && "finished",
     shelved && "shelved",
     drag?.dragging && "dragging",
   ]
@@ -259,7 +278,7 @@ export function TodoRow({
         className={className}
         data-id={todo.id}
         onDoubleClick={(event) => {
-          if ((event.target as HTMLElement).closest(".todo-title"))
+          if (!finished && (event.target as HTMLElement).closest(".todo-title"))
             setEditing({ id: todo.id, field: "title" });
         }}
       >
@@ -269,9 +288,15 @@ export function TodoRow({
             className="tick"
             role="checkbox"
             aria-checked={done}
-            aria-label={`今日已做：${todo.title}`}
+            aria-label={
+              finished ? `已完成：${todo.title}` : `今日已做：${todo.title}`
+            }
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => void actions.setDone(todo, today, !done)}
+            onClick={() =>
+              void (finished
+                ? actions.reopen(todo)
+                : actions.setDone(todo, today, !done))
+            }
           />
         ) : (
           <span className="dash" aria-hidden="true">

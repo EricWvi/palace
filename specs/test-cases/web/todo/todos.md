@@ -1,6 +1,6 @@
 # 行事核心测试用例
 
-当前决策：[行事页是「今日」加集合的目录式页面](../../../decisions/web/todo/0-today-and-lists-with-fractional-order.md)、[集合按拖动的顺序排列](../../../decisions/web/todo/20261031-lists-in-dragged-order.md)。数据库约束、唯一索引与级联只能以真实 PostgreSQL 为直接证据；拖动排序以真实 Chromium 为直接证据。
+当前决策：[行事页是「今日」加集合的目录式页面](../../../decisions/web/todo/0-today-and-lists-with-fractional-order.md)、[集合按拖动的顺序排列](../../../decisions/web/todo/20261031-lists-in-dragged-order.md)、[完成时留在今日](../../../decisions/web/todo/20261101-finish-on-its-day-and-stay-in-today.md)。数据库约束、唯一索引与级联只能以真实 PostgreSQL 为直接证据；拖动排序以真实 Chromium 为直接证据。
 
 ## Tasks and lists must stay within the owner scope
 
@@ -21,9 +21,9 @@
 
 ## A task must keep one plan and the inbox none
 
-风险：搁置与某一天同时存在，页面不知道该显示哪个；收件箱里的任务被排期或完成，绕过了「先整理再安排」；改了排期却保留着今日已做，昨天的勾带到了今天；已完成的任务仍挂着排期，恢复后突然出现在今日；过去的日子被当成真实计划，任务永远离不开某一天。前置：领域单元测试、真实 PostgreSQL、组件测试。触发：给收件箱任务提交搁置或某一天；完成收件箱任务；直接在数据库里写出上述非法组合；排在今天并勾上今日已做后，分别改成同一天、搁置、另一天；完成后再编辑、再勾今日已做，然后恢复；页面读取排在昨天的任务；从菜单搁置一个任务。
+风险：搁置与某一天同时存在，页面不知道该显示哪个；收件箱里的任务被排期或完成，绕过了「先整理再安排」；改了排期却保留着今日已做，昨天的勾带到了今天；已完成的任务挂着今天以外的排期，或挂着排期却没有今日已做；过去的日子被当成真实计划，任务永远离不开某一天。前置：领域单元测试、真实 PostgreSQL、组件测试。触发：给收件箱任务提交搁置或某一天；完成收件箱任务；直接在数据库里写出上述非法组合；排在今天并勾上今日已做后，分别改成同一天、搁置、另一天；在今天完成后再编辑、再勾今日已做，然后恢复；分别排在过去的日子、以后的日子和搁置后完成，再恢复；页面读取排在昨天的任务；从菜单搁置一个任务。
 
-必须成立：收件箱的排期请求返回 400 并指出 `plan`，完成返回 409；数据库拒绝每一种非法组合；同一天保留今日已做，换成别的排期就清掉，做过的天数不变；完成清除排期，已完成任务的编辑和今日已做返回 409，恢复后为未排期；页面把过去的日子显示为未排期、可以再安排；搁置后标题变淡并写出「搁置」。
+必须成立：收件箱的排期请求返回 400 并指出 `plan`，完成返回 409；数据库拒绝每一种非法组合；同一天保留今日已做，换成别的排期就清掉，做过的天数不变；排在今天的任务在今天完成时保留这一天并今日已做；排在过去或以后的日子、搁置的任务完成时清除排期和搁置，天数不变，不出现在完成当天的今日里；已完成任务的编辑和今日已做返回 409；恢复保留完成时留下的排期；页面把过去的日子显示为未排期、可以再安排；搁置后标题变淡并写出「搁置」。
 
 禁止结果：一个任务同时有两种排期；收件箱任务出现在安排今日的候选里。
 
@@ -32,12 +32,12 @@
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 收件箱不接受排期，字段校验与错误字段名（领域单元测试） | Covered | `crates/domain/src/todo.rs::the_inbox_takes_no_plan`、`crates/domain/src/todo.rs::texts_are_trimmed_and_bounded` |
-| 检查约束、换排期清掉今日已做、完成清除排期、已完成拒绝编辑（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/todos.rs::a_task_must_keep_one_plan_and_the_inbox_none` |
+| 检查约束、换排期清掉今日已做、完成只保留今天、已完成拒绝编辑、恢复保留排期（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/todos.rs::a_task_must_keep_one_plan_and_the_inbox_none` |
 | 接口上的 400 与 409（真实 Router） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `exercise_todos`） |
 | 过去的日子读作未排期，排期的简短说法（前端单元测试） | Covered | `apps/palace-web/src/lib/todo.test.ts` 的 “reads a lapsed day as no plan and names the rest in short words” |
 | 安排今日不列出收件箱和搁置的任务，菜单搁置后变淡（组件测试，请求经 mock fetch） | Covered | `apps/palace-web/src/pages/todo.test.tsx` 的 “plans the day in place from every list but the inbox”、“shelves a task from its menu and shows it faded with its word” |
 
-决策依据：D2、D3、D6，不变量 2、3。
+决策依据：D2、D3、D6，不变量 2、3；完成时留在今日决策 D1、D3，不变量 1。
 
 ## Done for the day must count each day once
 
@@ -112,9 +112,9 @@
 
 ## Undoing must leave the server as if nothing happened
 
-风险：删除后点了「撤销」，请求其实已经发出，任务再也回不来；或者撤销后过一会儿删除仍然发出；新的提示替换旧提示时，被替换的删除永远没有发出。前置：组件测试，请求经 mock fetch。触发：删除一条任务后点「撤销」；再删除一条，接着完成另一条。
+风险：删除后点了「撤销」，请求其实已经发出，任务再也回不来；或者撤销后过一会儿删除仍然发出；新的提示替换旧提示时，被替换的删除永远没有发出；撤销完成后，完成时顺带记下的今日已做或清掉的排期没有还原。前置：组件测试，请求经 mock fetch。触发：删除一条任务后点「撤销」；再删除一条，接着完成另一条；完成一条排在今天、没勾今日已做的任务后撤销；完成一条排在明天的任务后撤销。
 
-必须成立：撤销之前没有任何请求，撤销后任务原样回到列表；被新提示取代的删除在新提示出现时发出。
+必须成立：撤销之前没有任何请求，撤销后任务原样回到列表；被新提示取代的删除在新提示出现时发出；撤销完成后，任务的位置、排期和今日已做与完成前相同。
 
 禁止结果：撤销的删除到达服务端；页面上消失的任务在服务端仍然存在且永远不会被删除。
 
@@ -123,9 +123,30 @@
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 撤销不发请求，被取代的删除随之发出（组件测试） | Covered | `apps/palace-web/src/pages/todo.test.tsx` 的 “sends a deletion only once its notice is gone, and never after 撤销” |
+| 撤销完成还原位置、排期与今日已做（组件测试，请求经 mock fetch） | Covered | `apps/palace-web/src/pages/todo.test.tsx` 的 “keeps a task finished today in 今日, struck through, and 撤销 puts it back as it was”、“gives a task finished off today its plan back on 撤销” |
 | 提示消失后才发出删除（真实计时器） | Missing | 组件测试只覆盖被取代的路径；4 秒计时的路径只在手动浏览器验证中走过 |
 
-决策依据：D7。
+决策依据：D7；完成时留在今日决策 D3，不变量 4。
+
+## Finishing a task of today must keep it in today struck through
+
+风险：在今天完成的任务从今日消失，今天做完的事不留在今天；完成前没勾今日已做，今天不计入做过的天数，或勾过的又被重复计入；别的日子完成的任务混进今天的今日；划线的任务还能编辑或改排期。前置：真实 PostgreSQL、真实 Router、组件测试。触发：完成一条排在今天、没勾今日已做的任务；完成一条已勾今日已做的任务；读取另一天的今日；点划线任务的圆圈；打开它的菜单。
+
+必须成立：两条任务都留在今日原来的位置，标题划线、圆圈实心，计入「已做 / 总数」；前者做过的天数加一，后者不变；另一天的读取不含它们；点圆圈恢复为未完成，仍排在今天、今日已做；菜单只有「恢复」和「删除」。
+
+禁止结果：已完成的任务出现在集合的未完成列表里；完成后今天被计入两次。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 在今天完成保留这一天、今日已做并计入一次，只在这一天读出（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/todos.rs::a_task_must_keep_one_plan_and_the_inbox_none` |
+| 完成请求带 `day`，读取按 `day` 返回 `finished`（真实 Router） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `exercise_todos`） |
+| 今日按键排列未完成与已完成的任务（前端单元测试） | Covered | `apps/palace-web/src/lib/todo.test.ts` 的 “groups today and planning by list order, each list in key order” |
+| 划线、计数、圆圈恢复与只剩恢复和删除的菜单（组件测试，请求经 mock fetch） | Covered | `apps/palace-web/src/pages/todo.test.tsx` 的 “keeps a task finished today in 今日, struck through, and 撤销 puts it back as it was” |
+| 划线的样式（真实浏览器） | Partial | 组件测试只断言 `finished` 类；划线由已有的 `.todo-row.finished` 样式决定，没有真实浏览器断言 |
+
+决策依据：完成时留在今日决策 D1、D2，不变量 1、2、3。
 
 ## Todo navigation must open the roomy todo page
 

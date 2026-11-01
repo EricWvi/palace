@@ -827,7 +827,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Every list and every open task. */
+    /** Every list, every open task, and the tasks finished on the reader's today. */
     get: operations["todo_board"];
     put?: never;
     /** Adds an unscheduled task to a list or the inbox. */
@@ -900,7 +900,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Finishes a task in a list; it leaves its plan and keeps its count. */
+    /**
+     * Finishes a task in a list on the reader's today. A task planned on it stays on it, done for
+     *     it; any other leaves its plan. The count is kept.
+     */
     post: operations["complete_todo"];
     delete?: never;
     options?: never;
@@ -934,7 +937,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Brings a finished task back to its list, unscheduled. */
+    /**
+     * Brings a finished task back to its list with the plan it kept: on the day it was finished on,
+     *     done, or unscheduled.
+     */
     post: operations["restore_todo"];
     delete?: never;
     options?: never;
@@ -1971,7 +1977,7 @@ export interface components {
       next: components["schemas"]["RecallNext"];
     };
     /**
-     * @description `keep`: the jotting stays in recall (回顾完成). `retire`: it is not drawn again (不再回顾).
+     * @description `keep`: the jotting stays in recall (温故). `retire`: it is not drawn again (束阁).
      * @enum {string}
      */
     RecallNext: "keep" | "retire";
@@ -2116,12 +2122,19 @@ export interface components {
     };
     /** @description Every list in key order and every open task, in key order within each place. */
     TodoBoard: {
+      /** @description Tasks finished on the requested day, each planned on it and done; in key order. */
+      finished: components["schemas"]["Todo"][];
       lists: components["schemas"]["TodoList"][];
       todos: components["schemas"]["Todo"][];
     };
     /** @description A task's body: Markdown, nonblank, at most 256 KiB; null when there is none. */
     TodoBodyContent: {
       body: string | null;
+    };
+    /** @description The day a task is finished on. */
+    TodoComplete: {
+      /** @description The reader's today, `YYYY-MM-DD`. A task planned on it stays on it, done. */
+      day: string;
     };
     /** @description A new task, unscheduled. */
     TodoCreate: {
@@ -8071,7 +8084,10 @@ export interface operations {
   };
   todo_board: {
     parameters: {
-      query?: never;
+      query: {
+        /** @description The reader's today, `YYYY-MM-DD`. */
+        day: string;
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -8089,6 +8105,16 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["TodoBoard"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
         };
       };
       /** @description Authentication required */
@@ -8660,7 +8686,11 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TodoComplete"];
+      };
+    };
     responses: {
       /** @description Finished */
       204: {
@@ -8673,12 +8703,13 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Invalid input; native extractor text */
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
       400: {
         headers: {
           [name: string]: unknown;
         };
         content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
           "text/plain": string;
         };
       };
@@ -8716,6 +8747,15 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
         };
       };
       /** @description Internal persistence or response failure */

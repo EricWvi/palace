@@ -15,7 +15,7 @@ pub enum TodoPlace {
     List { list: Uuid, plan: TodoPlan },
 }
 
-/// An open task as it may leave the server.
+/// A task as it may leave the server: an open one, or one finished on the day it was planned on.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Todo {
     pub id: Uuid,
@@ -169,12 +169,21 @@ impl Database {
         Ok(())
     }
 
-    /// Finishes a task in a list: it leaves its plan behind and keeps its count. Inbox tasks are
-    /// sorted into a list first, so finishing one is a conflict.
-    pub async fn complete_todo(&self, owner: OwnerScope, id: Uuid) -> Result<(), DbError> {
-        let updated = sqlx::query("UPDATE todo SET completed_at=date_trunc('milliseconds',now()),planned_on=NULL,shelved=false,done=false,updated_at=date_trunc('milliseconds',now()) WHERE owner_id=$1 AND id=$2 AND completed_at IS NULL AND list_id IS NOT NULL")
+    /// Finishes a task in a list on the reader's `day`. A task planned on that day was done that
+    /// day: it keeps the day, done, counting the day if it was not done yet, so 今日 still lists
+    /// it. Any other task leaves its plan behind and keeps its count. Inbox tasks are sorted into
+    /// a list first, so finishing one is a conflict.
+    pub async fn complete_todo(
+        &self,
+        owner: OwnerScope,
+        id: Uuid,
+        day: LocalDay,
+    ) -> Result<(), DbError> {
+        // Every right-hand side reads the row as it was before this statement.
+        let updated = sqlx::query("UPDATE todo SET completed_at=date_trunc('milliseconds',now()),done_days=done_days+CASE WHEN planned_on=$3::date AND NOT done THEN 1 ELSE 0 END,done=COALESCE(planned_on=$3::date,false),planned_on=CASE WHEN planned_on=$3::date THEN planned_on END,shelved=false,updated_at=date_trunc('milliseconds',now()) WHERE owner_id=$1 AND id=$2 AND completed_at IS NULL AND list_id IS NOT NULL")
             .bind(owner.id())
             .bind(id)
+            .bind(day.text())
             .execute(&self.pool)
             .await?;
         if updated.rows_affected() == 0 {
@@ -183,7 +192,8 @@ impl Database {
         Ok(())
     }
 
-    /// Brings a finished task back to its list at `position`, unscheduled.
+    /// Brings a finished task back to its list at `position` with the plan it kept: a task
+    /// finished on its day comes back on that day, done; any other comes back unscheduled.
     pub async fn restore_todo(
         &self,
         owner: OwnerScope,

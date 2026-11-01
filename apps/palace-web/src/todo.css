@@ -157,7 +157,7 @@ section:first-of-type > .todo-group {
 
 /*
  * Done for today: a filled circle and faded words, but no strike-through. The task is still open;
- * only finishing it strikes it out.
+ * only finishing it strikes it out, and a task finished today stays in 今日 struck through.
  */
 .tick {
   flex: none;

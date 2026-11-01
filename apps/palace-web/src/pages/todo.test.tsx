@@ -50,8 +50,11 @@ function serve(shown: TodoList[] = lists) {
       (todo) =>
         todo.list_id === null || shown.some((list) => list.id === todo.list_id),
     ),
+    finished: [],
   };
   const writes: { method: string; path: string; body: unknown }[] = [];
+  // Finished off their day: no plan left, and not on the board.
+  let completed: Todo[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const request = testRequest(input);
     const path = requestPath(input);
@@ -72,6 +75,26 @@ function serve(shown: TodoList[] = lists) {
           todo.plan = { kind: "day", day: body.day, done: false };
     const id = decodeURIComponent(path.split("/")[3] ?? "");
     const todo = board.todos.find((t) => t.id === id);
+    // Finishing on its day keeps a task on it, done; restoring brings it back as it was kept.
+    if (path.endsWith("/complete") && todo) {
+      board.todos = board.todos.filter((t) => t !== todo);
+      if (todo.plan.kind === "day" && todo.plan.day === body.day)
+        board.finished.push({
+          ...todo,
+          plan: { ...todo.plan, done: true },
+          done_days: todo.done_days + (todo.plan.done ? 0 : 1),
+        });
+      else completed.push({ ...todo, plan: { kind: "open" } });
+      return new Response(null, { status: 204 });
+    }
+    const kept = [...board.finished, ...completed].find((t) => t.id === id);
+    if (path.endsWith("/restore") && kept) {
+      board.finished = board.finished.filter((t) => t !== kept);
+      completed = completed.filter((t) => t !== kept);
+      const back = { ...kept, position: body.position };
+      board.todos.push(back);
+      return Response.json(back);
+    }
     if (path.endsWith("/done") && todo && todo.plan.kind === "day")
       return Response.json({
         ...todo,
@@ -323,9 +346,121 @@ it("sends a deletion only once its notice is gone, and never after 撤销", asyn
   );
   await waitFor(() =>
     expect(writes).toEqual([
-      { method: "POST", path: "/api/todos/明天的/complete", body: null },
+      {
+        method: "POST",
+        path: "/api/todos/明天的/complete",
+        body: { day: today },
+      },
       { method: "DELETE", path: "/api/todos/没排的", body: null },
     ]),
   );
   expect(await screen.findByText("已完成「明天的」")).toBeInTheDocument();
+});
+
+// specs/test-cases/web/todo/todos.md#finishing-a-task-of-today-must-keep-it-in-today-struck-through
+// specs/test-cases/web/todo/todos.md#undoing-must-leave-the-server-as-if-nothing-happened
+it("keeps a task finished today in 今日, struck through, and 撤销 puts it back as it was", async () => {
+  const writes = serve();
+  const { user } = mountApp("/todos");
+  await screen.findByText("读书");
+
+  // Finishing a task of today does it today: it stays in place, struck through, and counts.
+  await user.click(
+    within(await menuOf("读书", user)).getByRole("menuitem", { name: "完成" }),
+  );
+  expect(
+    await screen.findByRole("checkbox", {
+      name: "已完成：读书",
+      checked: true,
+    }),
+  ).toBeInTheDocument();
+  expect(row("读书")).toHaveClass("finished");
+  expect(screen.getByRole("link", { name: /今日/ })).toHaveTextContent("2/2");
+  await waitFor(() =>
+    expect(writes).toEqual([
+      {
+        method: "POST",
+        path: "/api/todos/读书/complete",
+        body: { day: today },
+      },
+    ]),
+  );
+
+  // 撤销 takes back the done it added along with the finish.
+  await user.click(await screen.findByRole("button", { name: "撤销" }));
+  expect(
+    await screen.findByRole("checkbox", {
+      name: "今日已做：读书",
+      checked: false,
+    }),
+  ).toBeInTheDocument();
+  expect(writes.slice(1)).toEqual([
+    {
+      method: "POST",
+      path: "/api/todos/读书/restore",
+      body: { position: "a0" },
+    },
+    {
+      method: "PUT",
+      path: "/api/todos/读书/done",
+      body: { day: today, done: false },
+    },
+  ]);
+
+  // A finished row offers only 恢复 and 删除; its circle brings it back, still done today.
+  await user.click(
+    within(await menuOf("跑步", user)).getByRole("menuitem", { name: "完成" }),
+  );
+  const menu = await menuOf("跑步", user);
+  expect(
+    within(menu)
+      .getAllByRole("menuitem")
+      .map((item) => item.textContent),
+  ).toEqual(["恢复", "删除"]);
+  await user.keyboard("{Escape}");
+  await user.click(screen.getByRole("checkbox", { name: "已完成：跑步" }));
+  expect(
+    await screen.findByRole("checkbox", {
+      name: "今日已做：跑步",
+      checked: true,
+    }),
+  ).toBeInTheDocument();
+  expect(row("跑步")).not.toHaveClass("finished");
+  expect(writes.slice(3)).toEqual([
+    {
+      method: "POST",
+      path: "/api/todos/跑步/complete",
+      body: { day: today },
+    },
+    {
+      method: "POST",
+      path: "/api/todos/跑步/restore",
+      body: { position: "a1" },
+    },
+  ]);
+});
+
+// specs/test-cases/web/todo/todos.md#undoing-must-leave-the-server-as-if-nothing-happened
+it("gives a task finished off today its plan back on 撤销", async () => {
+  const writes = serve();
+  const { user } = mountApp("/todos/lists/work");
+  await screen.findByText("明天的");
+  await user.click(
+    within(await menuOf("明天的", user)).getByRole("menuitem", {
+      name: "完成",
+    }),
+  );
+  await waitFor(() => expect(screen.queryByText("明天的")).toBeNull());
+  await user.click(await screen.findByRole("button", { name: "撤销" }));
+  expect(
+    await within(await waitFor(() => row("明天的"))).findByText("明日"),
+  ).toBeInTheDocument();
+  expect(writes.slice(1).map(({ method, path }) => [method, path])).toEqual([
+    ["POST", "/api/todos/明天的/restore"],
+    ["PUT", "/api/todos/明天的"],
+  ]);
+  expect(writes[2].body).toMatchObject({
+    position: "a0",
+    plan: { kind: "day", day: tomorrow },
+  });
 });

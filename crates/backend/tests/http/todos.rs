@@ -107,7 +107,7 @@ pub(super) async fn exercise_todos(app: &Router, cookie: &str, foreign: &str) {
         call(app, "GET", &body, cookie, Value::Null).await,
         (StatusCode::OK, json!({"body":"第一章"}))
     );
-    let (_, board) = call(app, "GET", "/api/todos", cookie, Value::Null).await;
+    let (_, board) = call(app, "GET", "/api/todos?day=2026-10-23", cookie, Value::Null).await;
     assert_eq!(board["lists"], json!([work]));
     assert_eq!(
         board["todos"]
@@ -140,7 +140,7 @@ pub(super) async fn exercise_todos(app: &Router, cookie: &str, foreign: &str) {
             "POST",
             &format!("/api/todos/{inbox}/complete"),
             cookie,
-            Value::Null
+            json!({"day":"2026-10-23"})
         )
         .await
         .0,
@@ -152,11 +152,20 @@ pub(super) async fn exercise_todos(app: &Router, cookie: &str, foreign: &str) {
             "POST",
             &format!("/api/todos/{id}/complete"),
             cookie,
-            Value::Null
+            json!({"day":"2026-10-23"})
         )
         .await
         .0,
         StatusCode::NO_CONTENT
+    );
+    // Finished on the day it was planned on and already done there, it stays in that day's 今日.
+    let (_, board) = call(app, "GET", "/api/todos?day=2026-10-23", cookie, Value::Null).await;
+    assert_eq!(
+        (&board["finished"][0]["id"], &board["finished"][0]["plan"]),
+        (
+            &json!(id),
+            &json!({"kind":"day","day":"2026-10-23","done":true})
+        )
     );
     let completed = format!("/api/todo-lists/{list}/completed");
     let (status, finished) = call(app, "GET", &completed, cookie, Value::Null).await;
@@ -178,7 +187,11 @@ pub(super) async fn exercise_todos(app: &Router, cookie: &str, foreign: &str) {
     .await;
     assert_eq!(
         (status, &restored["plan"], &restored["position"]),
-        (StatusCode::OK, &json!({"kind":"open"}), &json!("Zz"))
+        (
+            StatusCode::OK,
+            &json!({"kind":"day","day":"2026-10-23","done":true}),
+            &json!("Zz")
+        )
     );
 
     // Invalid parts are named; nothing is written.
@@ -267,7 +280,11 @@ pub(super) async fn exercise_todos(app: &Router, cookie: &str, foreign: &str) {
             done.clone(),
             json!({"day":"2026-10-23","done":false}),
         ),
-        ("POST", format!("/api/todos/{id}/complete"), Value::Null),
+        (
+            "POST",
+            format!("/api/todos/{id}/complete"),
+            json!({"day":"2026-10-23"}),
+        ),
         ("DELETE", format!("/api/todos/{id}"), Value::Null),
         (
             "POST",
@@ -291,8 +308,15 @@ pub(super) async fn exercise_todos(app: &Router, cookie: &str, foreign: &str) {
         );
     }
     assert_eq!(
-        call(app, "GET", "/api/todos", foreign, Value::Null).await,
-        (StatusCode::OK, json!({"lists":[],"todos":[]}))
+        call(
+            app,
+            "GET",
+            "/api/todos?day=2026-10-23",
+            foreign,
+            Value::Null
+        )
+        .await,
+        (StatusCode::OK, json!({"lists":[],"todos":[],"finished":[]}))
     );
 
     let (status, renamed) = call(
@@ -339,7 +363,7 @@ pub(super) async fn exercise_todos(app: &Router, cookie: &str, foreign: &str) {
         StatusCode::NO_CONTENT
     );
     assert_eq!(
-        call(app, "GET", "/api/todos", cookie, Value::Null).await,
-        (StatusCode::OK, json!({"lists":[],"todos":[]}))
+        call(app, "GET", "/api/todos?day=2026-10-23", cookie, Value::Null).await,
+        (StatusCode::OK, json!({"lists":[],"todos":[],"finished":[]}))
     );
 }

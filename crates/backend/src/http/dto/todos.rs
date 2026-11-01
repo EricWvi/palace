@@ -1,6 +1,6 @@
 use palace_db::TodoPlace;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 /// A list of 行事.
@@ -64,6 +64,16 @@ pub(crate) struct Todo {
 pub(crate) struct TodoBoard {
     pub lists: Vec<TodoList>,
     pub todos: Vec<Todo>,
+    /// Tasks finished on the requested day, each planned on it and done; in key order.
+    pub finished: Vec<Todo>,
+}
+
+/// The day the board is read for.
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(crate) struct TodoBoardQuery {
+    /// The reader's today, `YYYY-MM-DD`.
+    pub day: String,
 }
 
 /// A new task, unscheduled.
@@ -106,6 +116,14 @@ pub(crate) struct TodoDone {
     /// The reader's today, `YYYY-MM-DD`; it must be the task's planned day.
     pub day: String,
     pub done: bool,
+}
+
+/// The day a task is finished on.
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct TodoComplete {
+    /// The reader's today, `YYYY-MM-DD`. A task planned on it stays on it, done.
+    pub day: String,
 }
 
 /// Where a finished task returns in its list.
@@ -198,6 +216,7 @@ impl From<palace_db::TodoBoard> for TodoBoard {
         Self {
             lists: value.lists.into_iter().map(TodoList::from).collect(),
             todos: value.todos.into_iter().map(Todo::from).collect(),
+            finished: value.finished.into_iter().map(Todo::from).collect(),
         }
     }
 }

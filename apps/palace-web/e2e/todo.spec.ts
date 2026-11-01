@@ -20,6 +20,7 @@ function serve(page: Page) {
       plan: { kind: "open" },
       done_days: 0,
     })),
+    finished: [],
   };
   const edits: { id: string; position: string }[] = [];
   void page.route("**/api/**", async (route) => {

@@ -76,6 +76,7 @@ it("reads a lapsed day as no plan and names the rest in short words", () => {
   ]);
 });
 
+// specs/test-cases/web/todo/todos.md#finishing-a-task-of-today-must-keep-it-in-today-struck-through
 it("groups today and planning by list order, each list in key order", () => {
   const board: TodoBoard = {
     lists: [
@@ -90,11 +91,15 @@ it("groups today and planning by list order, each list in key order", () => {
       task("next", "a2", on("2026-10-24"), "work"),
       task("inbox", "a0", { kind: "open" }, null),
     ],
+    // Finished today, it keeps its key among the open tasks of its list.
+    finished: [
+      task("struck", "a0", { kind: "day", day: today, done: true }, "life"),
+    ],
   };
   const names = (groups: ReturnType<typeof todayGroups>) =>
     groups.map((g) => [g.list.name, g.todos.map((t) => t.id)]);
   expect(names(todayGroups(board, today))).toEqual([
-    ["个人", ["early", "late"]],
+    ["个人", ["early", "struck", "late"]],
   ]);
   expect(names(planGroups(board, today))).toEqual([
     ["工作", ["next"]],

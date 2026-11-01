@@ -129,6 +129,7 @@ fn request(
 /// - `specs/test-cases/web/todo/todos.md#tasks-and-lists-must-stay-within-the-owner-scope`
 /// - `specs/test-cases/web/todo/todos.md#a-task-must-keep-one-plan-and-the-inbox-none`
 /// - `specs/test-cases/web/todo/todos.md#done-for-the-day-must-count-each-day-once`
+/// - `specs/test-cases/web/todo/todos.md#finishing-a-task-of-today-must-keep-it-in-today-struck-through`
 #[tokio::test]
 #[ignore = "requires the existing postgres:17-alpine image, git and Docker/Podman socket"]
 async fn authenticated_http_imports_preserve_scope_and_file_parity() {

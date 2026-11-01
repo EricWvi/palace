@@ -2,6 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api, apiData, todoBoardOptions } from "@/lib/api";
 import {
   bottomKey,
+  isDoneToday,
+  isToday,
+  scheduleOf,
   tasksIn,
   topKey,
   type Place,
@@ -11,8 +14,6 @@ import {
   type TodoListInput,
   type TodoPlanInput,
 } from "@/lib/todo";
-
-const boardKey = todoBoardOptions().queryKey;
 
 // The parts of a task an edit replaces together; see `PUT /api/todos/{id}`.
 export type TodoChanges = Partial<{
@@ -37,12 +38,16 @@ function planInput(todo: Todo): TodoPlanInput {
     : todo.plan;
 }
 
-// Every change to 行事 goes through here. Each one writes the cached board first, so the page
-// answers at once, then sends the request; the server's answer replaces the guess. A failure
-// refetches the board, so the page never keeps a change the server refused, and is reported
-// through `onError`.
-export function useTodoActions(onError: (message: string) => void) {
+// Every change to 行事 goes through here. Each one writes the cached board of `today` first, so
+// the page answers at once, then sends the request; the server's answer replaces the guess. A
+// failure refetches the board, so the page never keeps a change the server refused, and is
+// reported through `onError`.
+export function useTodoActions(
+  today: string,
+  onError: (message: string) => void,
+) {
   const client = useQueryClient();
+  const boardKey = todoBoardOptions(today).queryKey;
   const board = () => client.getQueryData<TodoBoard>(boardKey);
   const write = (change: (board: TodoBoard) => TodoBoard) =>
     client.setQueryData<TodoBoard>(boardKey, (old) =>
@@ -52,14 +57,21 @@ export function useTodoActions(onError: (message: string) => void) {
     write((b) => ({
       ...b,
       todos: b.todos.map((t) => (t.id === todo.id ? todo : t)),
+      finished: b.finished.map((t) => (t.id === todo.id ? todo : t)),
     }));
+  // Puts an open task on the board; a task restored from today's finished leaves them.
   const insert = (todo: Todo) =>
     write((b) => ({
       ...b,
       todos: [...b.todos.filter((t) => t.id !== todo.id), todo],
+      finished: b.finished.filter((t) => t.id !== todo.id),
     }));
   const drop = (id: string) =>
-    write((b) => ({ ...b, todos: b.todos.filter((t) => t.id !== id) }));
+    write((b) => ({
+      ...b,
+      todos: b.todos.filter((t) => t.id !== id),
+      finished: b.finished.filter((t) => t.id !== id),
+    }));
   const completedChanged = (list: string | null) => {
     if (list)
       void client.invalidateQueries({ queryKey: ["todos", "completed", list] });
@@ -96,7 +108,11 @@ export function useTodoActions(onError: (message: string) => void) {
     if (updated) replace(updated);
   }
 
-  async function restoreAt(id: string, list: string, position: string) {
+  async function restoreAt(
+    id: string,
+    list: string,
+    position: string,
+  ): Promise<Todo | undefined> {
     const restored = await send(() =>
       apiData(
         api.POST("/api/todos/{id}/restore", {
@@ -107,6 +123,40 @@ export function useTodoActions(onError: (message: string) => void) {
     );
     if (restored) insert(restored);
     completedChanged(list);
+    return restored;
+  }
+
+  async function setDone(todo: Todo, day: string, done: boolean) {
+    if (todo.plan.kind !== "day" || todo.plan.done === done) return;
+    replace({
+      ...todo,
+      plan: { ...todo.plan, done },
+      done_days: todo.done_days + (done ? 1 : -1),
+    });
+    const updated = await send(() =>
+      apiData(
+        api.PUT("/api/todos/{id}/done", {
+          params: { path: { id: todo.id } },
+          body: { day, done },
+        }),
+      ),
+    );
+    if (updated) replace(updated);
+  }
+
+  // Back where it was in its list, unless another task took its key since; then on top.
+  async function restoreInPlace(todo: Todo): Promise<Todo | undefined> {
+    const current = board();
+    if (!current || !todo.list_id) return undefined;
+    const tasks = tasksIn(current, { kind: "list", id: todo.list_id }).filter(
+      (t) => t.id !== todo.id,
+    );
+    const free = !tasks.some((t) => t.position === todo.position);
+    return restoreAt(
+      todo.id,
+      todo.list_id,
+      free ? todo.position : topKey(tasks),
+    );
   }
 
   return {
@@ -143,23 +193,7 @@ export function useTodoActions(onError: (message: string) => void) {
       });
     },
 
-    async setDone(todo: Todo, day: string, done: boolean) {
-      if (todo.plan.kind !== "day" || todo.plan.done === done) return;
-      replace({
-        ...todo,
-        plan: { ...todo.plan, done },
-        done_days: todo.done_days + (done ? 1 : -1),
-      });
-      const updated = await send(() =>
-        apiData(
-          api.PUT("/api/todos/{id}/done", {
-            params: { path: { id: todo.id } },
-            body: { day, done },
-          }),
-        ),
-      );
-      if (updated) replace(updated);
-    },
+    setDone,
 
     // Puts the picked tasks on `day` in one request.
     async plan(day: string, ids: string[]) {
@@ -179,12 +213,27 @@ export function useTodoActions(onError: (message: string) => void) {
       void client.invalidateQueries({ queryKey: boardKey });
     },
 
+    // A task on today is done today as it finishes and stays in 今日, struck through; any other
+    // leaves the board.
     async complete(todo: Todo): Promise<boolean> {
       drop(todo.id);
+      if (isToday(todo, today))
+        write((b) => ({
+          ...b,
+          finished: [
+            ...b.finished,
+            {
+              ...todo,
+              plan: { kind: "day", day: today, done: true },
+              done_days: todo.done_days + (isDoneToday(todo, today) ? 0 : 1),
+            },
+          ],
+        }));
       const finished = await send(async () => {
         await apiData(
           api.POST("/api/todos/{id}/complete", {
             params: { path: { id: todo.id } },
+            body: { day: today },
           }),
         );
         return true;
@@ -193,7 +242,7 @@ export function useTodoActions(onError: (message: string) => void) {
       return finished === true;
     },
 
-    // Back on top of its list, unscheduled.
+    // Back on top of its list, with the plan it kept: on today, done, when it was finished today.
     async restore(id: string, list: string) {
       const current = board();
       if (!current) return;
@@ -204,22 +253,41 @@ export function useTodoActions(onError: (message: string) => void) {
       );
     },
 
-    // Undoing a finish puts the task back where it was, unless another task took its key since.
+    // A task finished today, back among the open ones where it was, still done today.
+    reopen: restoreInPlace,
+
+    // Undoing a finish puts the task back as it was before: where it was in its list, with its
+    // plan, and not done today unless it already was.
     async undoComplete(todo: Todo) {
-      const current = board();
-      if (!current || !todo.list_id) return;
-      const tasks = tasksIn(current, { kind: "list", id: todo.list_id });
-      const free = !tasks.some((t) => t.position === todo.position);
-      await restoreAt(
-        todo.id,
-        todo.list_id,
-        free ? todo.position : topKey(tasks),
-      );
+      const restored = await restoreInPlace(todo);
+      if (!restored) return;
+      if (isToday(todo, today)) {
+        if (!isDoneToday(todo, today)) await setDone(restored, today, false);
+        return;
+      }
+      const plan = scheduleOf(todo, today);
+      if (plan.kind !== "open")
+        await update(restored, { plan: planInput(todo) });
     },
 
-    // Hides a task without telling the server; `remove` sends the deletion, `insert` undoes it.
-    hide: drop,
-    reinsert: insert,
+    // Hides a task without telling the server; `remove` sends the deletion, and the returned
+    // function undoes the hiding.
+    hide(id: string): () => void {
+      const before = board();
+      drop(id);
+      return () =>
+        write((b) => ({
+          ...b,
+          todos: [
+            ...b.todos,
+            ...(before?.todos.filter((t) => t.id === id) ?? []),
+          ],
+          finished: [
+            ...b.finished,
+            ...(before?.finished.filter((t) => t.id === id) ?? []),
+          ],
+        }));
+    },
     async remove(id: string, list: string | null) {
       await send(() =>
         apiData(api.DELETE("/api/todos/{id}", { params: { path: { id } } })),
@@ -288,6 +356,7 @@ export function useTodoActions(onError: (message: string) => void) {
       write((b) => ({
         lists: b.lists.filter((l) => l.id !== id),
         todos: b.todos.filter((t) => t.list_id !== id),
+        finished: b.finished.filter((t) => t.list_id !== id),
       }));
       await send(() =>
         apiData(

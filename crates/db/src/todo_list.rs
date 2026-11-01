@@ -1,7 +1,7 @@
 //! Owner-scoped lists of 行事, the whole board the page loads, and each list's finished tasks.
 use crate::todo::{COLUMNS, Todo, todo, write_error};
 use crate::{Database, DbError, OwnerScope};
-use palace_domain::{TodoListName, TodoPosition};
+use palace_domain::{LocalDay, TodoListName, TodoPosition};
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -13,12 +13,15 @@ pub struct TodoList {
     pub position: TodoPosition,
 }
 
-/// Every list in key order, and every open task in the inbox and the lists.
+/// Every list in key order, every open task in the inbox and the lists, and the tasks finished
+/// on one day.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TodoBoard {
     pub lists: Vec<TodoList>,
     /// In key order within each place.
     pub todos: Vec<Todo>,
+    /// Finished on the day read, each still on that day and done; in key order within each list.
+    pub finished: Vec<Todo>,
 }
 
 /// A finished task in its list's 已完成.
@@ -34,8 +37,9 @@ pub struct CompletedTodo {
 }
 
 impl Database {
-    /// Reads the whole board in one snapshot, so the counts and today agree with the lists.
-    pub async fn todo_board(&self, owner: OwnerScope) -> Result<TodoBoard, DbError> {
+    /// Reads the whole board in one snapshot, so the counts and today agree with the lists. `day`
+    /// is the reader's today, which only the page knows.
+    pub async fn todo_board(&self, owner: OwnerScope, day: LocalDay) -> Result<TodoBoard, DbError> {
         let mut tx = self.pool.begin().await?;
         sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             .execute(&mut *tx)
@@ -64,8 +68,22 @@ impl Database {
         .iter()
         .map(todo)
         .collect::<Result<_, _>>()?;
+        let finished = sqlx::query(&format!(
+            "SELECT {COLUMNS} FROM todo WHERE owner_id=$1 AND completed_at IS NOT NULL AND planned_on=$2::date ORDER BY position,id"
+        ))
+        .bind(owner.id())
+        .bind(day.text())
+        .fetch_all(&mut *tx)
+        .await?
+        .iter()
+        .map(todo)
+        .collect::<Result<_, _>>()?;
         tx.commit().await?;
-        Ok(TodoBoard { lists, todos })
+        Ok(TodoBoard {
+            lists,
+            todos,
+            finished,
+        })
     }
 
     /// Adds a list at `position`; a key another of the owner's lists holds is a conflict.

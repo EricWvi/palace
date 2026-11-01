@@ -2,7 +2,10 @@
 use super::{ApiError, BusinessServer, dto, path_management::json_error, routes};
 use axum::{
     Json,
-    extract::{Path, State, rejection::JsonRejection},
+    extract::{
+        Path, Query, State,
+        rejection::{JsonRejection, QueryRejection},
+    },
     http::StatusCode,
 };
 use palace_db::TodoEdit;
@@ -16,12 +19,14 @@ use uuid::Uuid;
 // One day's plan comes from a reader ticking boxes; a thousand is far beyond any day.
 const PLAN_IDS: usize = 1000;
 
-/// Every list and every open task.
+/// Every list, every open task, and the tasks finished on the reader's today.
 #[utoipa::path(
     get, path = routes::TODOS, operation_id = "todo_board",
+    params(dto::TodoBoardQuery),
     security(("session" = []), ("access_token" = [])),
     responses(
         (status = 200, description = "Successful operation", body = dto::TodoBoard, headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
+        (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
         (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 503, description = "Identity provider temporarily unavailable", body = dto::ErrorResponse, content_type = "application/json"),
@@ -30,9 +35,13 @@ const PLAN_IDS: usize = 1000;
 pub(super) async fn board(
     State(server): State<Arc<BusinessServer>>,
     axum::Extension(owner): axum::Extension<palace_db::Owner>,
+    query: Result<Query<dto::TodoBoardQuery>, QueryRejection>,
 ) -> Result<Json<dto::TodoBoard>, ApiError> {
+    let Query(query) = query
+        .map_err(|error| InputError::new(InputErrorKind::Field, "query", error.body_text()))?;
+    let day = LocalDay::parse(&query.day, "day")?;
     Ok(Json(
-        server.database.todo_board(owner.scope()).await?.into(),
+        server.database.todo_board(owner.scope(), day).await?.into(),
     ))
 }
 
@@ -225,18 +234,21 @@ pub(super) async fn done(
     Ok(Json(todo.into()))
 }
 
-/// Finishes a task in a list; it leaves its plan and keeps its count.
+/// Finishes a task in a list on the reader's today. A task planned on it stays on it, done for
+/// it; any other leaves its plan. The count is kept.
 #[utoipa::path(
     post, path = routes::TODO_COMPLETE, operation_id = "complete_todo",
+    request_body = dto::TodoComplete,
     params(("id" = Uuid, Path, description = "Owner-scoped task id"), ("Origin" = String, Header, description = "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens")),
     security(("session" = []), ("access_token" = [])),
     responses(
         (status = 204, description = "Finished", headers(("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
-        (status = 400, description = "Invalid input; native extractor text", body = String, content_type = "text/plain"),
+        (status = 400, description = "Invalid input; JSON domain error or native extractor text as declared", content((dto::InputErrorResponse = "application/json"), (String = "text/plain"))),
         (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 403, description = "Origin rejected", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 404, description = "Resource unavailable in owner scope", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 409, description = "The task is in the inbox or already finished", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 413, description = "Input capacity exceeded", body = dto::InputErrorResponse, content_type = "application/json"),
         (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
         (status = 503, description = "Identity provider temporarily unavailable", body = dto::ErrorResponse, content_type = "application/json"),
     )
@@ -245,12 +257,19 @@ pub(super) async fn complete(
     State(server): State<Arc<BusinessServer>>,
     axum::Extension(owner): axum::Extension<palace_db::Owner>,
     Path(id): Path<Uuid>,
+    body: Result<Json<dto::TodoComplete>, JsonRejection>,
 ) -> Result<StatusCode, ApiError> {
-    server.database.complete_todo(owner.scope(), id).await?;
+    let Json(input) = body.map_err(json_error)?;
+    let day = LocalDay::parse(&input.day, "day")?;
+    server
+        .database
+        .complete_todo(owner.scope(), id, day)
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Brings a finished task back to its list, unscheduled.
+/// Brings a finished task back to its list with the plan it kept: on the day it was finished on,
+/// done, or unscheduled.
 #[utoipa::path(
     post, path = routes::TODO_RESTORE, operation_id = "restore_todo",
     request_body = dto::TodoRestore,

@@ -91,9 +91,18 @@ function groups(board: TodoBoard, keep: (todo: Todo) => boolean): Group[] {
     .filter((group) => group.todos.length > 0);
 }
 
-// 今日: the tasks on today, under their lists.
+// Whether `todo` is one of the tasks finished today, which 今日 still lists, struck through.
+export function isFinished(board: TodoBoard, todo: Todo): boolean {
+  return board.finished.some((t) => t.id === todo.id);
+}
+
+// 今日: the tasks on today, open or finished today, under their lists. A finished task keeps its
+// key, so it stays where it was among the open ones.
 export function todayGroups(board: TodoBoard, today: string): Group[] {
-  return groups(board, (todo) => isToday(todo, today));
+  const finished = board.finished.filter((todo) => isToday(todo, today));
+  return groups({ ...board, todos: [...board.todos, ...finished] }, (todo) =>
+    isToday(todo, today),
+  );
 }
 
 // What planning offers: every open task in a list that is not set aside, in the list's order.

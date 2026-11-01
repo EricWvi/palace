@@ -8685,8 +8685,19 @@
         "tags": [
           "todos"
         ],
-        "summary": "Every list and every open task.",
+        "summary": "Every list, every open task, and the tasks finished on the reader's today.",
         "operationId": "todo_board",
+        "parameters": [
+          {
+            "name": "day",
+            "in": "query",
+            "description": "The reader's today, `YYYY-MM-DD`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful operation",
@@ -8708,6 +8719,21 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TodoBoard"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -9546,7 +9572,7 @@
         "tags": [
           "todos"
         ],
-        "summary": "Finishes a task in a list; it leaves its plan and keeps its count.",
+        "summary": "Finishes a task in a list on the reader's today. A task planned on it stays on it, done for\nit; any other leaves its plan. The count is kept.",
         "operationId": "complete_todo",
         "parameters": [
           {
@@ -9569,6 +9595,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TodoComplete"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "204": {
             "description": "Finished",
@@ -9588,8 +9624,13 @@
             }
           },
           "400": {
-            "description": "Invalid input; native extractor text",
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
               "text/plain": {
                 "schema": {
                   "type": "string"
@@ -9633,6 +9674,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Input capacity exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
                 }
               }
             }
@@ -9832,7 +9883,7 @@
         "tags": [
           "todos"
         ],
-        "summary": "Brings a finished task back to its list, unscheduled.",
+        "summary": "Brings a finished task back to its list with the plan it kept: on the day it was finished on,\ndone, or unscheduled.",
         "operationId": "restore_todo",
         "parameters": [
           {
@@ -13161,7 +13212,7 @@
       },
       "RecallNext": {
         "type": "string",
-        "description": "`keep`: the jotting stays in recall (回顾完成). `retire`: it is not drawn again (不再回顾).",
+        "description": "`keep`: the jotting stays in recall (温故). `retire`: it is not drawn again (束阁).",
         "enum": [
           "keep",
           "retire"
@@ -13454,9 +13505,17 @@
         "description": "Every list in key order and every open task, in key order within each place.",
         "required": [
           "lists",
-          "todos"
+          "todos",
+          "finished"
         ],
         "properties": {
+          "finished": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Todo"
+            },
+            "description": "Tasks finished on the requested day, each planned on it and done; in key order."
+          },
           "lists": {
             "type": "array",
             "items": {
@@ -13483,6 +13542,20 @@
               "string",
               "null"
             ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "TodoComplete": {
+        "type": "object",
+        "description": "The day a task is finished on.",
+        "required": [
+          "day"
+        ],
+        "properties": {
+          "day": {
+            "type": "string",
+            "description": "The reader's today, `YYYY-MM-DD`. A task planned on it stays on it, done."
           }
         },
         "additionalProperties": false

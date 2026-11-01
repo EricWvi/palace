@@ -62,9 +62,9 @@ export function TodoPage({ view }: { view: "today" | "inbox" | "list" }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const today = useToday();
-  const board = useQuery(todoBoardOptions());
+  const board = useQuery(todoBoardOptions(today));
   const { show, toast } = useUndoToast();
-  const actions = useTodoActions((message) => show({ text: message }));
+  const actions = useTodoActions(today, (message) => show({ text: message }));
   const [planning, setPlanning] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   // The view whose add field `n` opened; it can open before the view it belongs to is shown.
@@ -158,16 +158,16 @@ export function TodoPage({ view }: { view: "today" | "inbox" | "list" }) {
     // The row goes at once, but the deletion is sent only when the notice goes away, so 撤销
     // simply puts the row back.
     remove: (todo) => {
-      actions.hide(todo.id);
+      const unhide = actions.hide(todo.id);
       show({
         text: `已删除「${todo.title}」`,
-        undo: () => actions.reinsert(todo),
+        undo: unhide,
         commit: () => void actions.remove(todo.id, todo.list_id),
       });
     },
   };
   const bodyTodo = bodyOf
-    ? data.todos.find((todo) => todo.id === bodyOf)
+    ? [...data.todos, ...data.finished].find((todo) => todo.id === bodyOf)
     : undefined;
   const place: Place | null = current.kind === "today" ? null : current;
 
