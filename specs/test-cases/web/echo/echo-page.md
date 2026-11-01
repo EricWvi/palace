@@ -1,6 +1,6 @@
 # 回响页核心测试用例
 
-当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[放大卡片里编辑和删除札记](../../../decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
+当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[放大卡片里编辑和删除札记](../../../decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md)、[带空格的标签写成 `#[[词 词]]`](../../../decisions/web/echo/20261101-wrap-tags-with-spaces-in-double-brackets.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
 
 ## Echo navigation must open the wide jotting page
 
@@ -100,21 +100,22 @@
 
 ## Editing a zoomed jotting must never lose the draft
 
-风险：标签没有写回正文，保存时被清空；保存后的标签提取与新建不一致；有改动时误按 Escape 或点背景丢掉草稿；保存冲突时草稿被最新内容替换；编辑器超出放大卡片的最大高度。前置：瀑布流和回顾卡片组各有一张带标题和标签的札记，服务端替身可以返回 `409` 与其他错误。触发：放大后点「修订」；不改动按 Escape；改动后按 Escape、点背景；Ctrl/Cmd+Enter 保存；让一次保存返回 `409 jotting_changed`，另一次返回 `500`；在真实 Chromium 中输入超过一屏的正文。
+风险：标签没有写回正文，保存时被清空；带空格的标签写回后被截断；保存后的标签提取与新建不一致；有改动时误按 Escape 或点背景丢掉草稿；保存冲突时草稿被最新内容替换；编辑器超出放大卡片的最大高度。前置：瀑布流和回顾卡片组各有一张带标题和标签（含带空格的标签）的札记，服务端替身可以返回 `409` 与其他错误。触发：放大后点「修订」；不改动按 Escape；改动后按 Escape、点背景；Ctrl/Cmd+Enter 保存；让一次保存返回 `409 jotting_changed`，另一次返回 `500`；在真实 Chromium 中输入超过一屏的正文。
 
-必须成立：编辑器中标题在单行输入框，正文末尾隔一空行写着 `#标签`；无改动时 Escape 回到阅读状态、「保存」不发请求；有改动时 Escape 和点背景不起作用；保存请求带打开时的 `version`，按新建规则提取的标签、去掉标签的正文和去掉空白的标题；成功后回到阅读状态，墙上和卡片组的卡片显示新内容并带待整理圆点；`409` 时保留草稿、显示说明、「保存」不可点；其他错误保留草稿、可以重试；编辑器随内容长高，超过最大高度时在卡片内滚动。
+必须成立：编辑器中标题在单行输入框，正文末尾隔一空行写着 `#标签`，带空格的写成 `#[[标签]]`，光标在它们之前；无改动时 Escape 回到阅读状态、「保存」不发请求；有改动时 Escape 和点背景不起作用；保存请求带打开时的 `version`，按新建规则提取的标签、去掉标签的正文和去掉空白的标题；成功后回到阅读状态，墙上和卡片组的卡片显示新内容并带待整理圆点；`409` 时保留草稿、显示说明、「保存」不可点；其他错误保留草稿、可以重试；编辑器随内容长高，超过最大高度时在卡片内滚动。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 标签写回正文、保存时按新建规则提取，请求带 `version` | Covered | `pages/echo.test.tsx::edits a zoomed jotting in place with its tags written back, and never drops a changed draft` |
+| 带空格的标签写回为 `#[[…]]`，保存后原样不变 | Covered | `pages/echo.test.tsx::edits a zoomed jotting in place with its tags written back, and never drops a changed draft`（`Vibe Coding`）、`lib/jotting-draft.test.ts::reads back every tag it writes` |
 | 有改动时 Escape 和点背景不丢草稿；无改动时 Escape 逐层退出 | Covered | `pages/echo.test.tsx::edits a zoomed jotting in place with its tags written back, and never drops a changed draft` |
 | 保存成功后墙和卡片组同步更新并带圆点 | Partial | `pages/echo.test.tsx::edits a zoomed jotting in place with its tags written back, and never drops a changed draft`（瀑布流的卡片与放大卡片）；卡片组一侧只由同一个 `patchJotting` 写缓存，没有单独断言 |
 | `409` 与其他错误都保留草稿，`409` 时不可再保存 | Covered | `pages/echo.test.tsx::edits a zoomed jotting in place with its tags written back, and never drops a changed draft` |
 | 编辑器不超过放大卡片的最大高度（真实 Chromium） | Covered | `e2e/echo.spec.ts::a deleted jotting leaves its column alone after a vermilion 确认, and an edit stays within its cap` |
 
-决策依据：20261101 编辑决策 D2、D3，不变量 2、4。
+决策依据：20261101 编辑决策 D2、D3，不变量 2、4；`#[[…]]` 决策 D1，不变量 1。
 
 ## Deleting a jotting must take two clicks on the same slip
 
@@ -151,20 +152,21 @@
 
 ## Composing must extract inline tags and keep the rest of the body intact
 
-风险：`#标签` 识别过宽，Markdown 标题、`C#`、URL 片段被当成标签；提取后压缩了列表缩进和代码块；有内容的草稿因 Escape 或失焦丢失；新札记因当前筛选而不可见。前置：读取接口提供已有标签；当前有标签筛选与搜索。触发：按 `n`，输入包含 `#阅读`、行首 `#rust`、`# 标题`、`C#`、`a.html#x`、缩进列表与代码块的正文；按 Escape、使输入框失焦；Ctrl/Cmd + Enter 提交。
+风险：`#标签` 识别过宽，Markdown 标题、`C#`、URL 片段被当成标签；选中带空格的已有标签后被截断；提取后压缩了列表缩进和代码块；有内容的草稿因 Escape 或失焦丢失；新札记因当前筛选而不可见。前置：读取接口提供已有标签；当前有标签筛选与搜索。触发：按 `n`，输入包含 `#阅读`、行首 `#rust`、`# 标题`、`C#`、`a.html#x`、缩进列表与代码块的正文；按 Escape、使输入框失焦；Ctrl/Cmd + Enter 提交。
 
-必须成立：上传请求的 `tags` 为 `["阅读", "rust"]`，正文中这两个标签被移除，其余内容（含缩进与代码块）与输入一致，`# 标题`、`C#`、`a.html#x` 保留；有内容时 Escape 与失焦不收起草稿；请求带 UUIDv7 的 `id` 且没有 `title`；提交后筛选与搜索被清除，新卡片带待整理圆点出现在第一列顶部；第一列先下滑让位、新卡片再淡入，不是一帧跳到位。禁止规范化正文中与标签无关的空白。
+必须成立：上传请求的 `tags` 为 `["阅读", "rust"]`，正文中这两个标签被移除，其余内容（含缩进与代码块）与输入一致，`# 标题`、`C#`、`a.html#x` 保留；`#[[Vibe Coding]]` 提取为 `Vibe Coding`，补全带空格的标签时写成这种形式，同一行后面的 `C#` 不改变标签范围；有内容时 Escape 与失焦不收起草稿；请求带 UUIDv7 的 `id` 且没有 `title`；提交后筛选与搜索被清除，新卡片带待整理圆点出现在第一列顶部；第一列先下滑让位、新卡片再淡入，不是一帧跳到位。禁止规范化正文中与标签无关的空白。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
+| 带空格的标签：`#[[…]]` 提取、补全写法、不受 `C#` 影响 | Covered | `lib/jotting-draft.test.ts::reads a tag with spaces wrapped in [[ ]]`、`lib/jotting-draft.test.ts::finds the fragment before the caret and completes it with a space` |
 | 标签提取的边界与正文原样保留 | Covered | `lib/jotting-draft.test.ts::takes out only real tags and keeps every other character as typed`、`pages/echo.test.tsx::writes a jotting with inline tags, keeps a draft through Escape and shows it unfiltered`（上传请求体） |
 | 有内容的草稿不因 Escape 或失焦丢失 | Covered | `pages/echo.test.tsx::writes a jotting with inline tags, keeps a draft through Escape and shows it unfiltered` |
 | 提交后清除筛选，新卡片可见并带待整理圆点 | Covered | `pages/echo.test.tsx::writes a jotting with inline tags, keeps a draft through Escape and shows it unfiltered`、`e2e/echo.spec.ts::puts a new jotting on top of the first column and moves no other card`（真实 Chromium，三列布局下其他卡片不换列） |
 | 第一列下滑让位、新卡片随后淡入（真实 Chromium） | Covered | `e2e/echo.spec.ts::puts a new jotting on top of the first column and moves no other card`（逐帧记录原顶部卡片的位置和新卡片的不透明度；去掉过渡时稳定失败） |
 
-决策依据：D6，不变量 9、10、11。
+决策依据：D6，不变量 9、10、11；`#[[…]]` 决策 D1，不变量 1、2。
 
 ## Typing right after n must keep the caret in place
 

@@ -33,7 +33,9 @@ const wall = [
   jotting("w1", "夜跑后的一点念头", ["跑步", "生活"], at(20), {
     pending: true,
   }),
-  jotting("w2", "Arc 写多了要警惕", ["rust"], at(19), { title: "所有权" }),
+  jotting("w2", "Arc 写多了要警惕", ["rust", "Vibe Coding"], at(19), {
+    title: "所有权",
+  }),
   jotting("w3", "坂本龙一的 Aqua", ["音乐"], at(18)),
 ];
 const pile = [1, 2, 3, 4, 5].map((n) =>
@@ -538,7 +540,7 @@ it("edits a zoomed jotting in place with its tags written back, and never drops 
   const title = within(dialog).getByRole("textbox", { name: "标题" });
   const body = within(dialog).getByRole("textbox", { name: "正文" });
   expect(title).toHaveValue("所有权");
-  expect(body).toHaveValue("Arc 写多了要警惕\n\n#rust");
+  expect(body).toHaveValue("Arc 写多了要警惕\n\n#rust #[[Vibe Coding]]");
   expect(
     slips()
       .getAllByRole("button")
@@ -559,7 +561,7 @@ it("edits a zoomed jotting in place with its tags written back, and never drops 
   await user.keyboard("{Escape}");
   await user.click(document.querySelector(".zoom-backdrop")!);
   expect(within(dialog).getByRole("textbox", { name: "正文" })).toHaveValue(
-    "Arc 写多了要警惕，再想想\n\n#rust",
+    "Arc 写多了要警惕，再想想\n\n#rust #[[Vibe Coding]]",
   );
   expect(writes).toEqual([]);
 
@@ -576,7 +578,7 @@ it("edits a zoomed jotting in place with its tags written back, and never drops 
       body: {
         version: "1",
         title: "所有",
-        tags: ["rust"],
+        tags: ["rust", "Vibe Coding"],
         body: "Arc 写多了要警惕，再想想",
       },
     },
@@ -600,7 +602,7 @@ it("edits a zoomed jotting in place with its tags written back, and never drops 
   );
   expect(slips().getByRole("button", { name: "保存" })).toBeDisabled();
   expect(within(dialog).getByRole("textbox", { name: "正文" })).toHaveValue(
-    "Arc 写多了要警惕，再想想又改\n\n#rust",
+    "Arc 写多了要警惕，再想想又改\n\n#rust #[[Vibe Coding]]",
   );
   expect(writes).toHaveLength(2);
 

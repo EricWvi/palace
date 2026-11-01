@@ -1,7 +1,9 @@
 // A `#tag` starts the text or follows whitespace, so `C#` and `a.html#x` stay text; `# 标题`
-// is a Markdown heading because a space follows the `#`. Spaces after a tag go with it; the one
-// before it is only looked at, so `#a #b` is two tags.
-const TAG = /(?<=^|[ \t])#([^\s#]+)[ \t]*/g;
+// is a Markdown heading because a space follows the `#`. A tag with spaces is wrapped as
+// `#[[Vibe Coding]]`; a closing `#` would also end at `C#` later in the line. Spaces after a tag
+// go with it; the one before it is only looked at, so `#a #b` is two tags.
+const TAG =
+  /(?<=^|[ \t])#(?:\[\[([^\s\]](?:[^\]\r\n]*[^\s\]])?)\]\]|([^\s#]+))[ \t]*/g;
 const FENCE = /^\s*(```|~~~)/;
 
 // Splits a draft into tags and body the flomo way: `#tag` becomes a tag and leaves the text.
@@ -19,7 +21,8 @@ export function parseDraft(text: string): { tags: string[]; body: string } {
       continue;
     }
     const rest = line
-      .replace(TAG, (_, tag: string) => {
+      .replace(TAG, (_, wrapped?: string, bare?: string) => {
+        const tag = (wrapped ?? bare)!;
         if (!tags.includes(tag)) tags.push(tag);
         return "";
       })
@@ -32,6 +35,12 @@ export function parseDraft(text: string): { tags: string[]; body: string } {
     .replace(/^(?:[ \t]*\n)+/, "")
     .trimEnd();
   return { tags, body };
+}
+
+// A tag as it is written in a draft: wrapped in `[[ ]]` when it holds spaces, so it reads back
+// whole.
+export function writeTag(tag: string): string {
+  return /\s/.test(tag) ? `#[[${tag}]]` : `#${tag}`;
 }
 
 // The `#fragment` being typed right before the caret, or null when the caret is not in one.
@@ -54,6 +63,8 @@ export function completeTag(
   caret: number,
   tag: string,
 ): { text: string; caret: number } {
-  const before = text.slice(0, caret).replace(/#([^\s#]*)$/, `#${tag} `);
+  const before = text
+    .slice(0, caret)
+    .replace(/#([^\s#]*)$/, () => `${writeTag(tag)} `);
   return { text: before + text.slice(caret), caret: before.length };
 }

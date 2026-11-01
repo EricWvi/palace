@@ -13,7 +13,7 @@ import {
   patchJotting,
   type ListedJotting,
 } from "@/lib/api";
-import { parseDraft } from "@/lib/jotting-draft";
+import { parseDraft, writeTag } from "@/lib/jotting-draft";
 
 // How long 确认 waits for the second click before it is 削简 again.
 const CONFIRM_MS = 3000;
@@ -67,7 +67,7 @@ export function useJottingEditing(
   }, [confirming]);
 
   function open() {
-    const tags = jotting.tags.map((tag) => `#${tag}`).join(" ");
+    const tags = jotting.tags.map(writeTag).join(" ");
     const text = tags ? `${jotting.body.trimEnd()}\n\n${tags}` : jotting.body;
     const opened = { title: jotting.title ?? "", text };
     save.reset();
@@ -210,7 +210,7 @@ function Body({
     const element = field.current;
     if (!element) return;
     element.focus({ preventScroll: true });
-    const tags = element.value.match(/\n\n(#\S+ ?)+$/);
+    const tags = element.value.match(/\n\n#[^\s#][^\n]*$/);
     const caret = tags ? tags.index! : element.value.length;
     element.setSelectionRange(caret, caret);
   }, []);

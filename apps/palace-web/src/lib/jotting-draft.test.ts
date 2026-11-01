@@ -4,6 +4,7 @@ import {
   parseDraft,
   suggestTags,
   tagFragment,
+  writeTag,
 } from "./jotting-draft";
 
 describe("parseDraft", () => {
@@ -37,12 +38,34 @@ describe("parseDraft", () => {
     });
   });
 
+  // specs/test-cases/web/echo/echo-page.md#composing-must-extract-inline-tags-and-keep-the-rest-of-the-body-intact
+  it("reads a tag with spaces wrapped in [[ ]]", () => {
+    const draft = [
+      "#[[Vibe Coding]] 好玩 #rust #[[Anti AI Slop]]，C# 不算",
+      "#a #b 和 #c",
+    ].join("\n");
+    expect(parseDraft(draft)).toEqual({
+      tags: ["Vibe Coding", "rust", "Anti AI Slop", "a", "b", "c"],
+      body: ["好玩 ，C# 不算", "和"].join("\n"),
+    });
+  });
+
+  // specs/test-cases/web/echo/echo-page.md#editing-a-zoomed-jotting-must-never-lose-the-draft
+  it("reads back every tag it writes", () => {
+    const tags = ["Vibe Coding", "rust", "Anti AI Slop", "阅读"];
+    expect(parseDraft(`正文\n\n${tags.map(writeTag).join(" ")}`)).toEqual({
+      tags,
+      body: "正文",
+    });
+  });
+
   it("leaves an all-tag draft with an empty body", () => {
     expect(parseDraft("  #想法  \n\n")).toEqual({ tags: ["想法"], body: "" });
   });
 });
 
 describe("tag completion", () => {
+  // specs/test-cases/web/echo/echo-page.md#composing-must-extract-inline-tags-and-keep-the-rest-of-the-body-intact
   it("finds the fragment before the caret and completes it with a space", () => {
     const text = "读到 #阅 很有意思";
     const caret = "读到 #阅".length;
@@ -55,6 +78,10 @@ describe("tag completion", () => {
     expect(completeTag(text, caret, "阅读")).toEqual({
       text: "读到 #阅读  很有意思",
       caret: "读到 #阅读 ".length,
+    });
+    expect(completeTag("#Vi", 3, "Vibe Coding")).toEqual({
+      text: "#[[Vibe Coding]] ",
+      caret: "#[[Vibe Coding]] ".length,
     });
   });
 });
