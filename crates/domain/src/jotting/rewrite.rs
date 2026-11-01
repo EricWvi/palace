@@ -2,7 +2,7 @@
 //! other byte of the file stays as the agent wrote it, so the diff the agent reviews before
 //! committing shows only the web's edit.
 //! See `specs/decisions/server/jotting/20261101-edit-and-delete-jottings-from-the-web-in-the-work-tree-until-committed.md` D2.
-use super::Jotting;
+use super::{Jotting, flow_tags};
 use yaml_rust2::{Yaml, YamlLoader};
 
 impl Jotting {
@@ -31,15 +31,9 @@ impl Jotting {
         let title = self
             .title
             .as_ref()
-            .map(|title| format!("title: {}{newline}", scalar(title, Context::Block)));
-        let tags = (!self.tags.is_empty()).then(|| {
-            let tags: Vec<String> = self
-                .tags
-                .iter()
-                .map(|tag| scalar(tag, Context::Flow))
-                .collect();
-            format!("tags: [{}]{newline}", tags.join(", "))
-        });
+            .map(|title| format!("title: {}{newline}", scalar(title)));
+        let tags =
+            (!self.tags.is_empty()).then(|| format!("tags: {}{newline}", flow_tags(&self.tags)));
 
         let has = |name: &str| lines[1..close].iter().any(|line| key(line) == Some(name));
         let (had_title, had_tags) = (has("title"), has("tags"));
@@ -92,33 +86,17 @@ impl Jotting {
     }
 }
 
-/// Where a scalar is written: a block value after `key: `, or an item of a flow sequence.
-#[derive(Clone, Copy)]
-enum Context {
-    Block,
-    Flow,
-}
-
-/// Writes `value` plain when it reads back as the same string, which keeps ordinary titles and
-/// tags as the agent would type them, and as a double-quoted JSON string otherwise: JSON strings
-/// are valid YAML double-quoted scalars, so `true`, `12`, `a: b` or `[x]` stay strings.
-fn scalar(value: &str, context: Context) -> String {
-    let document = match context {
-        Context::Block => format!("value: {value}"),
-        Context::Flow => format!("value: [{value}]"),
-    };
-    let expected = Yaml::String(value.to_owned());
+/// Writes a title plain when it reads back as the same string, which keeps ordinary titles as
+/// the agent would type them, and as a double-quoted JSON string otherwise: JSON strings are
+/// valid YAML double-quoted scalars, so `true`, `12` or `a: b` stay strings.
+fn scalar(value: &str) -> String {
     let plain = !value.is_empty()
         && value.trim() == value
         && !value.contains(['\n', '\r', '"', '\''])
-        && YamlLoader::load_from_str(&document)
+        && YamlLoader::load_from_str(&format!("value: {value}"))
             .ok()
             .and_then(|documents| documents.into_iter().next())
-            .is_some_and(|document| match (&document["value"], context) {
-                (read, Context::Block) => *read == expected,
-                (Yaml::Array(items), Context::Flow) => items == std::slice::from_ref(&expected),
-                (_, Context::Flow) => false,
-            });
+            .is_some_and(|document| document["value"] == Yaml::String(value.to_owned()));
     if plain {
         value.to_owned()
     } else {

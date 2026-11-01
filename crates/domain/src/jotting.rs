@@ -151,15 +151,13 @@ impl Jotting {
         if let Some(title) = &self.title {
             put("title", Yaml::String(title.clone()));
         }
-        if !self.tags.is_empty() {
-            put(
-                "tags",
-                Yaml::Array(self.tags.iter().cloned().map(Yaml::String).collect()),
-            );
-        }
         let mut frontmatter = String::new();
         // Emitting into a String cannot fail; the emitter only reports writer errors.
         let _ = YamlEmitter::new(&mut frontmatter).dump(&Yaml::Hash(fields));
+        // The emitter only writes block sequences; tags go last on one line instead.
+        if !self.tags.is_empty() {
+            frontmatter.push_str(&format!("\ntags: {}", flow_tags(&self.tags)));
+        }
         format!("{frontmatter}\n---\n\n{}", self.body)
     }
 
@@ -197,6 +195,17 @@ fn parse_created(text: &str) -> Option<i64> {
 fn created_time(millis: i64) -> Option<OffsetDateTime> {
     let time = OffsetDateTime::from_unix_timestamp_nanos(i128::from(millis) * 1_000_000).ok()?;
     (0..=9999).contains(&time.year()).then_some(time)
+}
+
+/// Tags as a one-line flow sequence of double-quoted JSON strings, which are valid YAML
+/// double-quoted scalars, so `true`, `12` or `- x` stay strings and the line reads the same
+/// whatever the tags hold. Both new files and web edits write tags this way.
+fn flow_tags(tags: &[String]) -> String {
+    let tags: Vec<String> = tags
+        .iter()
+        .map(|tag| serde_json::to_string(tag).unwrap_or_default())
+        .collect();
+    format!("[{}]", tags.join(", "))
 }
 
 /// Tags must be distinct and non-blank, so clients can treat them as a set.

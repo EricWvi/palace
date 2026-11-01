@@ -130,7 +130,13 @@ fn uploads_render_to_files_that_parse_back() {
         id: id(ID),
         created_at: 1_792_369_800_250,
         title: Some("a: b # c 'd' \"e\" - [f]".into()),
-        tags: vec!["true".into(), "- x".into(), "12".into(), "阅读".into()],
+        tags: vec![
+            "true".into(),
+            "- x".into(),
+            "12".into(),
+            "阅读".into(),
+            "Vibe Coding".into(),
+        ],
         body: "\n\r\n# 正文\n---\n结尾".into(),
     }
     .upload()
@@ -156,12 +162,10 @@ fn uploads_render_to_files_that_parse_back() {
         }
     }
     assert_eq!(
-        awkward.render(east8()).lines().take(3).collect::<Vec<_>>(),
-        [
-            "---",
-            &format!("id: {ID}"),
-            "created: \"2026-10-19T08:30:00.25+08:00\""
-        ]
+        awkward.render(east8()),
+        format!(
+            "---\nid: {ID}\ncreated: \"2026-10-19T08:30:00.25+08:00\"\ntitle: \"a: b # c 'd' \\\"e\\\" - [f]\"\ntags: [\"true\", \"- x\", \"12\", \"阅读\", \"Vibe Coding\"]\n---\n\n# 正文\n---\n结尾"
+        )
     );
     let digest = awkward.upload_digest();
     let mut other = awkward.clone();
@@ -265,7 +269,7 @@ fn rewriting_keeps_every_other_byte() {
     assert_eq!(
         edited.rewrite(&file).unwrap(),
         format!(
-            "---\n# agent note\nsource: flomo\ntitle: \"a: b\"\nid: {ID}\ncreated: 2026-10-19T08:30:00+08:00\ntags: [\"true\", 写作]\nextra:\n  nested: 1\n---\n\n\n新正文\n"
+            "---\n# agent note\nsource: flomo\ntitle: \"a: b\"\nid: {ID}\ncreated: 2026-10-19T08:30:00+08:00\ntags: [\"true\", \"写作\"]\nextra:\n  nested: 1\n---\n\n\n新正文\n"
         )
     );
 
@@ -288,7 +292,7 @@ fn rewriting_keeps_every_other_byte() {
     assert_eq!(
         added.rewrite(&plain).unwrap(),
         format!(
-            "---\r\nid: {ID}\r\ncreated: 2026-10-19T08:30:00+08:00\r\ntitle: 标题\r\ntags: [阅读]\r\nkeep: x\r\n---\r\n正文"
+            "---\r\nid: {ID}\r\ncreated: 2026-10-19T08:30:00+08:00\r\ntitle: 标题\r\ntags: [\"阅读\"]\r\nkeep: x\r\n---\r\n正文"
         )
     );
 }

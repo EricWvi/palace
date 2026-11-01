@@ -94,7 +94,7 @@ fn a_web_edit_rewrites_only_its_fields_and_publishes_at_once() {
         assert_eq!(
             fs::read_to_string(repository.folder().join("2026").join("a.md")).unwrap(),
             format!(
-                "---\n# kept by the agent\nsource: flomo\nid: {a}\ntags: [新, rust]\ncreated: 2026-10-19T08:30:00+08:00\ntitle: 标题\n---\n\n\n新正文"
+                "---\n# kept by the agent\nsource: flomo\nid: {a}\ntags: [\"新\", \"rust\"]\ncreated: 2026-10-19T08:30:00+08:00\ntitle: 标题\n---\n\n\n新正文"
             )
         );
         assert_eq!(
