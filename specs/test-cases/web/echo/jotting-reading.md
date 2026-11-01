@@ -1,6 +1,6 @@
 # 札记读取接口核心测试用例
 
-当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md) D8、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)。札记的同步、上传与对账见[札记同步](../../server/jotting/jotting-sync.md)；本文件只记录 Web 读取接口引入的承诺。
+当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md) D8、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[Web 编辑和删除札记](../../../decisions/server/jotting/20261101-edit-and-delete-jottings-from-the-web-in-the-work-tree-until-committed.md) D1、D5。札记的同步、上传与对账见[札记同步](../../server/jotting/jotting-sync.md)；本文件只记录 Web 读取接口引入的承诺。
 
 ## Jotting list must page every live jotting exactly once, newest first
 
@@ -33,7 +33,7 @@
 
 决策依据：D7、D8 列表与搜索，不变量 6。
 
-## Pending must mean the jotting file sits under inbox
+## Pending must mean the jotting sits under inbox or holds an uncommitted web edit
 
 风险：`pending` 按“尚未入 commit”计算，原样 commit 但仍在 `inbox/` 的札记被显示为已整理；或移出 `inbox/` 但未 commit 时被判定错误；`inbox` 的判定只比较字符串前缀，`inboxes/` 也被误判。前置：真实 Git 仓库与真实 PostgreSQL；四张札记分别处于：上传后未 commit、原样 commit 在 `inbox/`、已移到其他目录并 commit、位于名为 `inboxes/` 的目录。触发：请求 `GET /api/jottings`。
 
@@ -45,8 +45,10 @@
 | --- | --- | --- |
 | 四种状态的 `pending` 判定正确（真实 Git 仓库与真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings/reading.rs::pending_means_the_file_sits_under_inbox` |
 | `changes` 响应形状不变（真实 Router，OpenAPI 合同） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 PostgreSQL、Git 与真实 Router，经 `tests/http/jottings.rs::exercise_reading`，全部真实响应按 OpenAPI 校验；`exercise_jottings` 的 `changes` 断言未改） |
+| 网页改过、未入 commit 的札记为 `pending`，commit 带上或撤销后不再是；网页删除不留下 `pending` 的札记（真实 Git 与 PostgreSQL） | Missing | — |
+| 列表与回顾接口的每张札记带当前 `version`（真实 Router，OpenAPI 合同） | Missing | — |
 
-决策依据：D4、D8，不变量 5、12。
+决策依据：D4、D8，不变量 5、12；20261101 网页写入决策 D1、D5。
 
 ## Overview must bucket jottings by the deployment's local day
 

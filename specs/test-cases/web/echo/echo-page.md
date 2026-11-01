@@ -1,6 +1,6 @@
 # 回响页核心测试用例
 
-当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
+当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[放大卡片里编辑和删除札记](../../../decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
 
 ## Echo navigation must open the wide jotting page
 
@@ -47,8 +47,9 @@
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 两种放大卡片的操作与请求 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`（回顾卡片的两个操作）、`pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back`（瀑布流的不再回顾与恢复回顾）；操作在关闭开始时淡出由 CSS 决定，jsdom 不计算 |
+| 题签按编辑决策 D1 的顺序排列：瀑布流「编辑 / 不再回顾 / 删除」，回顾「回顾完成 / 不再回顾 / 编辑 / 删除」 | Missing | — |
 
-决策依据：20261101 回顾决策 D5、D6。
+决策依据：20261101 回顾决策 D5、D6；20261101 编辑决策 D1。
 
 ## The spread pile must lay out up to three rows of six
 
@@ -95,6 +96,41 @@
 | 图片限高 360px，卡片随图片居中长高且不超过视口 80%（真实 Chromium） | Covered | `e2e/echo.spec.ts::a jotting read in full grows evenly for a late tall picture and caps its height`（媒体响应被扣住到卡片放大完毕之后）、`e2e/echo.spec.ts::a jotting longer than the screen never shows past its cap while it opens`（逐帧记录高度，放大结束的那一帧也不超过 80%） |
 
 决策依据：20261101 决策 D4、D5，不变量 4–6。
+
+## Editing a zoomed jotting must never lose the draft
+
+风险：标签没有写回正文，保存时被清空；保存后的标签提取与新建不一致；有改动时误按 Escape 或点背景丢掉草稿；保存冲突时草稿被最新内容替换；编辑器超出放大卡片的最大高度。前置：瀑布流和回顾卡片组各有一张带标题和标签的札记，服务端替身可以返回 `409` 与其他错误。触发：放大后点「编辑」；不改动按 Escape；改动后按 Escape、点背景；Ctrl/Cmd+Enter 保存；让一次保存返回 `409 jotting_changed`，另一次返回 `500`；在真实 Chromium 中输入超过一屏的正文。
+
+必须成立：编辑器中标题在单行输入框，正文末尾隔一空行写着 `#标签`；无改动时 Escape 回到阅读状态、「保存」不发请求；有改动时 Escape 和点背景不起作用；保存请求带打开时的 `version`，按新建规则提取的标签、去掉标签的正文和去掉空白的标题；成功后回到阅读状态，墙上和卡片组的卡片显示新内容并带待整理圆点；`409` 时保留草稿、显示说明、「保存」不可点；其他错误保留草稿、可以重试；编辑器随内容长高，超过最大高度时在卡片内滚动。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 标签写回正文、保存时按新建规则提取，请求带 `version` | Missing | — |
+| 有改动时 Escape 和点背景不丢草稿；无改动时 Escape 逐层退出 | Missing | — |
+| 保存成功后墙和卡片组同步更新并带圆点 | Missing | — |
+| `409` 与其他错误都保留草稿，`409` 时不可再保存 | Missing | — |
+| 编辑器不超过放大卡片的最大高度（真实 Chromium） | Missing | — |
+
+决策依据：20261101 编辑决策 D2、D3，不变量 2、4。
+
+## Deleting a jotting must take two clicks on the same slip
+
+风险：一次点击就删除；「确认」作废规则失效，隔很久的第二次点击仍然删除；题签变长挤动旁边的题签；删除失败时卡片已经离开；删除后卡片留在墙上或卡片组中。前置：瀑布流和回顾卡片组各有一张札记，服务端替身可以让删除失败；可控的计时器。触发：放大后点「删除」；移开鼠标；再点「删除」后等 3 秒；点「删除」后让题签失焦；点「删除」再点「确认」；让一次删除返回 `409`。
+
+必须成立：第一次点击只把题签变成「确认」，不发请求；移开鼠标、失焦或 3 秒后变回「删除」；在「确认」上再点才发出带 `version` 的删除请求；成功后放大卡片缩回空位，回顾卡片离开卡片组，瀑布流卡片从所在列移除、其他列不动；失败时放大卡片保持打开、显示说明。「确认」的颜色与题签宽度由 CSS 决定，以真实 Chromium 为直接证据。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 两次点击才删除，移开、失焦、超时作废第一次 | Missing | — |
+| 删除后离开卡片组或所在列，其他列不动 | Missing | — |
+| 删除失败时卡片保持打开 | Missing | — |
+| 「确认」为朱红色且题签宽度不变，删除后缩回空位（真实 Chromium） | Missing | — |
+
+决策依据：20261101 编辑决策 D1、D4，不变量 1、3、4。
 
 ## Tag filters and search must stay visible and intersect
 

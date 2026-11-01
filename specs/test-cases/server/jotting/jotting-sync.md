@@ -1,6 +1,6 @@
 # 札记同步核心测试用例
 
-本文跟踪[札记根决策](../../../decisions/server/jotting/0-jottings-indexed-from-git-commits.md)中札记身份、按 commit 索引、上传幂等和增量同步的长期风险。版本分配、发布顺序、tombstone 与对账原子性只能以真实 PostgreSQL 测试为直接证据；按 commit 索引的义务只能以真实 Git 仓库（由测试创建 commit）为直接证据；上传写文件的义务只能以真实文件系统为直接证据。
+本文跟踪[札记根决策](../../../decisions/server/jotting/0-jottings-indexed-from-git-commits.md)中札记身份、按 commit 索引、上传幂等和增量同步的长期风险，以及[Web 编辑和删除札记](../../../decisions/server/jotting/20261101-edit-and-delete-jottings-from-the-web-in-the-work-tree-until-committed.md)中网页写入的风险。版本分配、发布顺序、tombstone 与对账原子性只能以真实 PostgreSQL 测试为直接证据；按 commit 索引的义务只能以真实 Git 仓库（由测试创建 commit）为直接证据；上传写文件的义务只能以真实文件系统为直接证据。
 
 ## Moving a jotting file must keep its identity
 
@@ -55,7 +55,7 @@ D1、D2，不变量 1。
 
 ### 禁止结果
 
-不得发布任何来自工作区、未 commit 的内容。
+不得发布任何来自工作区、未 commit 的内容；网页写入是唯一的例外，见 [A web write must survive commits that leave it out](#a-web-write-must-survive-commits-that-leave-it-out)。
 
 ### 验证义务与证据
 
@@ -235,11 +235,11 @@ D2、D4，不变量 2、6。
 
 D5，不变量 8、9。
 
-## The server must never write outside inbox
+## The server must write only inbox files and the jotting the web names
 
 ### 风险
 
-服务端在对账或上传时修改了 `.git`、Agent 的札记文件或 `inbox/` 以外的路径，与 Agent 的工作区冲突。
+服务端在对账、上传或网页写入时修改了 `.git`、网页没有指定的札记文件或 `inbox/` 以外的其他路径，与 Agent 的工作区冲突。
 
 ### 前置状态
 
@@ -262,10 +262,115 @@ D5，不变量 8、9。
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 对账与上传只新增 `inbox/<id>.md` | Covered | `crates/jottings/tests/jottings.rs::the_server_writes_only_inbox_files`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，比较整个仓库（含 `.git`）前后的文件与内容 |
+| 网页编辑只改写指定札记的文件、网页删除只删除它，`.git` 与其他文件不变 | Missing | — |
 
 ### 决策依据
 
-D2、D4，不变量 7。
+根决策 D2、D4，不变量 7；20261101 网页写入决策 D2，不变量 4。
+
+## A web edit must rewrite only its fields and publish at once
+
+### 风险
+
+网页保存把整个文件按规范格式重新渲染，未知字段、字段顺序或注释丢失；保存后不发布，网页和移动端看不到修改；内容不变的保存也分配新版本。
+
+### 前置状态
+
+真实 Git 仓库中有一张已 commit 的札记，frontmatter 含未知字段、注释和非默认的字段顺序；另有一张上传后未 commit 的札记。
+
+### 触发
+
+用当前版本保存新的标题、标签和正文；再用新版本保存相同内容；对上传札记保存一次修改；删除另一张已 commit 的札记。
+
+### 必须成立
+
+文件中除 `title`、`tags` 和正文外逐字节不变；索引与 `changes` 立即给出新内容和一个新版本；相同内容的保存不写文件、不分配版本；上传札记的修改照常发布，之后重试原始上传仍返回 `200`；删除后文件不存在，`changes` 给出 tombstone。
+
+### 禁止结果
+
+不得改动 `id`、`created` 和其他 frontmatter 行；不得写 `.git`；不得在文件写入之前发布。
+
+### 验证义务与证据
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 只替换标题、标签和正文，其余逐字节保留 | Missing | — |
+| 保存与删除立即发布，相同内容不分配版本 | Missing | — |
+| 文件先写：索引写入失败后用同一版本重试得到相同结果 | Missing | — |
+| 网页改过或删过的上传札记，重试上传不改变结果、不复活 | Missing | — |
+
+### 决策依据
+
+20261101 网页写入决策 D1、D2、D6，不变量 3。
+
+## A stale or misplaced web write must change nothing
+
+### 风险
+
+网页拿打开时的旧稿保存，把 Agent 刚 commit 的修改覆盖掉；Agent 正在移动文件时，网页写到旧路径，生成一个重复或孤立的文件。
+
+### 前置状态
+
+网页读取了札记 A 的版本 v；之后分别出现：一次 commit 修改了 A；A 的文件在工作区中被移走或删除、尚未 commit；A 原路径上的文件被换成另一张札记。
+
+### 触发
+
+对每种情况用版本 v 保存和删除；另外让一次保存与一次对账并发，以 barrier 控制先后。
+
+### 必须成立
+
+版本过期返回 `409 jotting_changed`；文件不在、解析失败或 `id` 不同返回 `409 jotting_moved`；与对账并发时，二者在发布锁内依次执行，后者看到前者的结果。
+
+### 禁止结果
+
+被拒绝时不得改动任何文件、索引行或网页写入记录，也不得分配版本。
+
+### 验证义务与证据
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 版本过期时拒绝且不改任何东西（真实 PostgreSQL） | Missing | — |
+| 文件不在原处或不是这张札记时拒绝且不改任何东西 | Missing | — |
+| 与对账并发时按发布锁串行 | Missing | — |
+
+### 决策依据
+
+20261101 网页写入决策 D2，不变量 2。
+
+## A web write must survive commits that leave it out
+
+### 风险
+
+网页修改或删除了札记，Agent 随后 commit 了别的文件而没有带上它，对账把索引改回旧内容或让删除的札记复活；反过来，网页写入已被撤销或已入 commit，索引却一直停在网页的结果上。
+
+### 前置状态
+
+真实 Git 仓库与真实 PostgreSQL；札记 A 被网页编辑、札记 B 被网页删除，都没有 commit。
+
+### 触发
+
+依次 commit：不含 A、B 的其他修改；用 `git mv` 移动 A 但不 `git add` 新内容；`git restore` A 和 B 后的其他修改；带上网页写入的 commit；在 commit 中把 A 改成第三种内容。
+
+### 必须成立
+
+按 20261101 网页写入决策 D4 的表：新树仍是写入前的 blob、工作区仍是网页的结果时，索引保留网页的结果、不发布；`git mv` 后按新路径识别；工作区被撤销后回到 commit 的内容，B 复活且完成次数从当前最小值开始；commit 带上网页写入或改成别的内容后，以 commit 为准，写入记录删除。对账只读取有记录的工作区文件。
+
+### 禁止结果
+
+不得在网页写入仍在工作区时把它改回旧内容或复活删除的札记；不得在写入记录删除后继续保留网页的结果；不得读取没有记录的工作区文件。
+
+### 验证义务与证据
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| D4 表每一行的规划（纯函数） | Missing | — |
+| 未带上网页写入的 commit 保留网页结果，`git mv` 按新路径识别（真实 Git 与 PostgreSQL） | Missing | — |
+| `git restore` 后回到 commit，删除的札记复活 | Missing | — |
+| 带上网页写入或改成别的内容的 commit 以 commit 为准，记录删除 | Missing | — |
+
+### 决策依据
+
+20261101 网页写入决策 D3、D4、D6，不变量 1、5、6。
 
 ## Jotting configuration must fail fast when misconfigured
 

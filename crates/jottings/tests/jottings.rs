@@ -485,7 +485,7 @@ fn uploads_wait_for_their_commit() {
 
 /// The server's only file-system effect is the upload's inbox file; `.git` is never written.
 /// Core test case:
-/// - `specs/test-cases/server/jotting/jotting-sync.md#the-server-must-never-write-outside-inbox`
+/// - `specs/test-cases/server/jotting/jotting-sync.md#the-server-must-write-only-inbox-files-and-the-jotting-the-web-names`
 #[test]
 #[ignore = "requires local postgres:17-alpine and git"]
 fn the_server_writes_only_inbox_files() {

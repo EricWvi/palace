@@ -192,7 +192,7 @@ pub(super) async fn exercise_jottings(app: &Router, cookie: &str, foreign: &str,
 /// jotting and one upload still in the inbox, both created at `CREATED`.
 /// Core test cases:
 /// - `specs/test-cases/web/echo/jotting-reading.md#jotting-list-must-page-every-live-jotting-exactly-once-newest-first`
-/// - `specs/test-cases/web/echo/jotting-reading.md#pending-must-mean-the-jotting-file-sits-under-inbox`
+/// - `specs/test-cases/web/echo/jotting-reading.md#pending-must-mean-the-jotting-sits-under-inbox-or-holds-an-uncommitted-web-edit`
 /// - `specs/test-cases/web/echo/jotting-reading.md#overview-must-bucket-jottings-by-the-deployments-local-day`
 async fn exercise_reading(app: &Router, cookie: &str, agent: Uuid, upload: Uuid) {
     let get = |path: String| async move { send(app, "GET", &path, cookie, Value::Null).await };

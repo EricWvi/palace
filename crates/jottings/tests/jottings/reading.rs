@@ -251,7 +251,7 @@ fn tag_and_query_filters_intersect() {
 /// Pending follows the file's place, not its commit: committed but unsorted is pending, moved
 /// out but uncommitted is not, and a folder merely named like inbox is not.
 /// Core test case:
-/// - `specs/test-cases/web/echo/jotting-reading.md#pending-must-mean-the-jotting-file-sits-under-inbox`
+/// - `specs/test-cases/web/echo/jotting-reading.md#pending-must-mean-the-jotting-sits-under-inbox-or-holds-an-uncommitted-web-edit`
 #[test]
 #[ignore = "requires local postgres:17-alpine and git"]
 fn pending_means_the_file_sits_under_inbox() {

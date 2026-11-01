@@ -114,7 +114,7 @@ fn request(
 /// - `specs/test-cases/server/jotting/jotting-sync.md#pulling-changes-by-cursor-must-not-skip-any-committed-change`
 /// - `specs/test-cases/server/jotting/jotting-sync.md#jotting-configuration-must-fail-fast-when-misconfigured`
 /// - `specs/test-cases/web/echo/jotting-reading.md#jotting-list-must-page-every-live-jotting-exactly-once-newest-first`
-/// - `specs/test-cases/web/echo/jotting-reading.md#pending-must-mean-the-jotting-file-sits-under-inbox`
+/// - `specs/test-cases/web/echo/jotting-reading.md#pending-must-mean-the-jotting-sits-under-inbox-or-holds-an-uncommitted-web-edit`
 /// - `specs/test-cases/web/echo/jotting-reading.md#overview-must-bucket-jottings-by-the-deployments-local-day`
 /// - `specs/test-cases/web/stars/articles.md#article-import-must-commit-the-article-and-its-media-together-or-not-at-all`
 /// - `specs/test-cases/web/stars/articles.md#importing-the-same-url-must-converge-on-one-article`
