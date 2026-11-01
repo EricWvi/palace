@@ -334,15 +334,24 @@
   display: flex;
   flex-direction: column;
   z-index: calc(var(--n) - var(--i));
-  box-shadow: 0 2px 6px color-mix(in srgb, var(--text) 8%, transparent);
-  /* Past the top five, cards lie exactly under the fifth, so a big pile looks like a small one. */
-  transform: translate(calc(var(--under) * 4px), calc(var(--under) * 4px))
+  /* Each card only marks its edge; the pile's one soft shadow comes from its bottom card, so the
+     shadow does not darken as the pile grows. */
+  box-shadow: 0 1px 1px color-mix(in srgb, var(--text) 6%, transparent);
+  /* Every card has its own place in the pile, so collapsing sends each back to it. */
+  transform: translate(
+      calc(var(--i) * var(--step)),
+      calc(var(--i) * var(--step))
+    )
     rotate(var(--r));
   /* Collapsing, the farthest cards leave first so the pile closes from the outside in. */
   transition:
     transform 300ms ease-out calc((var(--far) - var(--wave)) * 40ms),
     box-shadow 300ms ease-out;
   cursor: pointer;
+}
+
+.echo .recall:not(.spread) .rc:last-child {
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--text) 8%, transparent);
 }
 
 /*
@@ -424,9 +433,10 @@
 }
 
 /*
- * Actions are written down the card's right edge like a note in a book's margin: plain words,
- * set vertically, quiet until pointed at. They appear once the card has grown and leave the
- * moment it starts back, so they never fly with it.
+ * Actions are a column of title slips (题签) in the margin right of the card, the paper labels
+ * framed in a double rule on a thread-bound book's cover. All share one width, so the column
+ * stays even however many there are. They appear once the card has grown and leave the moment
+ * it starts back, so they never fly with it.
  */
 .zoom-actions {
   position: absolute;
@@ -434,7 +444,8 @@
   left: calc(100% + 12px);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  align-items: stretch;
+  gap: 8px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 100ms ease-out;
@@ -447,20 +458,36 @@
 }
 
 .zoom-actions button {
-  writing-mode: vertical-rl;
-  letter-spacing: 0.2em;
-  color: var(--text-3);
-  font-family: var(--font-ui);
-  font-size: var(--font-size-sm);
+  padding: 5px 12px;
+  white-space: nowrap;
+  letter-spacing: 0.1em;
+  color: var(--text-2);
+  /* Song at 16px: smaller, its thin strokes blur. */
+  font-family: var(--font-display);
+  font-size: var(--font-size-base);
+  background: var(--surface);
+  /* The double rule: an outer line, a hair of paper, an inner line. */
+  border: 1px solid var(--border);
+  box-shadow:
+    inset 0 0 0 2px var(--surface),
+    inset 0 0 0 3px var(--border);
+  transition:
+    color 150ms ease-out,
+    border-color 150ms ease-out,
+    box-shadow 150ms ease-out;
 }
 
 .zoom-actions button:hover {
-  color: var(--text-2);
+  color: var(--text);
+  border-color: var(--text-3);
+  box-shadow:
+    inset 0 0 0 2px var(--surface),
+    inset 0 0 0 3px var(--text-3);
 }
 
 .zoom-actions button:disabled {
   cursor: default;
-  color: var(--text-3);
+  opacity: 0.6;
 }
 
 /* No room beside the card: the actions become one line under it. */
@@ -469,11 +496,6 @@
     top: calc(100% + 12px);
     left: 0;
     flex-direction: row;
-  }
-
-  .zoom-actions button {
-    writing-mode: horizontal-tb;
-    letter-spacing: normal;
   }
 }
 

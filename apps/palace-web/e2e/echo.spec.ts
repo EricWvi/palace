@@ -317,3 +317,62 @@ test("a jotting read in full grows evenly for a late tall picture and caps its h
   expect(Math.abs(after.y + after.height / 2 - 450)).toBeLessThan(2);
   await expect(card.locator("img")).toHaveCount(0);
 });
+
+// Core test case: `specs/test-cases/web/echo/echo-page.md#only-a-jotting-read-in-full-may-load-pictures-and-only-palace-media`
+test("a jotting longer than the screen never shows past its cap while it opens", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.route("**/api/**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/jottings/recall")
+      return route.fulfill({ json: { date: "2026-10-20", jottings: [] } });
+    if (path === "/api/jottings/overview")
+      return route.fulfill({
+        json: { total: 1, days: 1, tags: [], daily: [] },
+      });
+    return route.fulfill({
+      json: {
+        jottings: [
+          {
+            id: "long",
+            created_at: new Date(2026, 8, 20, 12).getTime(),
+            title: "很长的札记",
+            tags: [],
+            body: Array.from({ length: 80 }, (_, i) => `第 ${i} 行。`).join(
+              "\n\n",
+            ),
+            pending: false,
+            recall: "included",
+          },
+        ],
+        total: 1,
+        next_cursor: null,
+      },
+    });
+  });
+  await page.goto("/jottings");
+  const card = page.locator(".wall [data-id=long]");
+  await expect(card).toBeVisible();
+
+  // Every frame from the click until the card has settled, and a few after.
+  const heights = page.evaluate(
+    () =>
+      new Promise<number[]>((resolve) => {
+        const seen: number[] = [];
+        let after = 0;
+        const watch = () => {
+          const zoom = document.querySelector(".echo-card.zoom");
+          if (zoom) seen.push(zoom.getBoundingClientRect().height);
+          if (document.querySelector(".zoom-frame.settled")) after += 1;
+          if (after > 10) return resolve(seen);
+          requestAnimationFrame(watch);
+        };
+        requestAnimationFrame(watch);
+      }),
+  );
+  await card.getByRole("button", { name: "放大" }).click();
+  const seen = await heights;
+  expect(seen.length).toBeGreaterThan(5);
+  expect(Math.max(...seen)).toBeLessThanOrEqual(900 * 0.8 + 1);
+});

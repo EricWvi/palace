@@ -92,7 +92,7 @@
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 缩略卡片只显示占位，放大卡片只加载 Palace 媒体 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
-| 图片限高 360px，卡片随图片居中长高且不超过视口 80%（真实 Chromium） | Covered | `e2e/echo.spec.ts::a jotting read in full grows evenly for a late tall picture and caps its height`（媒体响应被扣住到卡片放大完毕之后） |
+| 图片限高 360px，卡片随图片居中长高且不超过视口 80%（真实 Chromium） | Covered | `e2e/echo.spec.ts::a jotting read in full grows evenly for a late tall picture and caps its height`（媒体响应被扣住到卡片放大完毕之后）、`e2e/echo.spec.ts::a jotting longer than the screen never shows past its cap while it opens`（逐帧记录高度，放大结束的那一帧也不超过 80%） |
 
 决策依据：20261101 决策 D4、D5，不变量 4–6。
 

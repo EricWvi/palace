@@ -26,8 +26,10 @@ const images: ImagePolicy = { kind: "placeholder" };
 const MAX_COLUMNS = 6;
 // Gap between spread cards; matches `--gap` in echo.css.
 const GAP = 12;
-// Only the top cards of the pile show their offsets; the rest lie hidden under the last of them.
-const VISIBLE = 5;
+// How far, in px, the bottom card of a pile lies from the top one. Up to five cards each sit
+// 4px under the one above; a bigger pile packs its cards closer, so every card still shows an
+// edge and the pile grows thicker rather than wider.
+const DEPTH = 16;
 
 // 今日回响: the day's recall cards dropped in a loose pile. A click spreads them over the wall in
 // rows until a click anywhere else; a click on a spread card opens it in full. Only 回顾完成 or
@@ -119,6 +121,10 @@ export function RecallPile({ away }: { away: boolean }) {
   const zoomed = zoom && all.find((card) => card.id === zoom.id);
   // Spread cards fan out from the pile in a wave: the nearer a cell, the sooner its card moves.
   const rows = Math.ceil(left.length / columns);
+  // Every card is a real card in the pile, so a read one takes one edge off it. Past five, the
+  // cards lie closer and straighter, so a thick pile stays a neat one.
+  const step = left.length <= 5 ? 4 : DEPTH / (left.length - 1);
+  const sway = Math.min(1, 5 / left.length);
   const far = Math.min(left.length, columns) - 1 + rows - 1;
   return (
     <>
@@ -136,8 +142,6 @@ export function RecallPile({ away }: { away: boolean }) {
         {left.map((card, i) => {
           const column = i % columns;
           const row = Math.floor(i / columns);
-          // The cards under the visible ones lie exactly under the last of them.
-          const under = Math.min(i, VISIBLE - 1);
           return (
             <article
               key={card.id}
@@ -150,11 +154,11 @@ export function RecallPile({ away }: { away: boolean }) {
               style={
                 {
                   "--i": i,
-                  "--under": under,
+                  "--step": `${step}px`,
                   "--x": column,
                   "--y": row,
                   "--wave": column + row,
-                  "--r": `${tilt(i < VISIBLE ? card.id : left[under].id, under)}deg`,
+                  "--r": `${tilt(card.id, i, sway)}deg`,
                   // Hidden while read in full; back as the open card lands on it, unless it is
                   // leaving.
                   visibility:
@@ -292,11 +296,12 @@ function cell(index: number, columns: number, card: HTMLElement) {
   return `translate(${x}px, ${y}px)`;
 }
 
-// The top card lies almost straight; the ones under it are dropped more loosely. The angle comes
-// from the id, so a card keeps its tilt as the cards above it leave.
-function tilt(id: string, index: number) {
+// The top card lies almost straight; the ones under it are dropped more loosely, less so in a
+// big pile (`sway` below 1). The angle comes from the id, so a card keeps its tilt as the cards
+// above it leave.
+function tilt(id: string, index: number, sway: number) {
   let hash = 0;
   for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) | 0;
   const unit = ((hash >>> 0) % 1000) / 1000;
-  return ((unit * 2 - 1) * (index === 0 ? 0.6 : 2.2)).toFixed(2);
+  return ((unit * 2 - 1) * (index === 0 ? 0.6 : 2.2 * sway)).toFixed(2);
 }

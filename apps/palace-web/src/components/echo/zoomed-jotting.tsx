@@ -103,6 +103,9 @@ export function ZoomedJotting({
         height: "auto",
         transform: "translateY(-50%)",
       });
+      // The cap comes with the class; waiting for React to add it would paint the card at its
+      // full length for a frame first.
+      element.classList.add("settled");
       setSettled(true);
     });
     // Measured once, on opening; closing is driven by `zoom.closing` below.
