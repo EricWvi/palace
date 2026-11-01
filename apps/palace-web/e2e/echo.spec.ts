@@ -111,7 +111,7 @@ test("puts a new jotting on top of the first column and moves no other card", as
     expect([id, after[id]]).toEqual([id, column]);
 });
 
-// Core test case: `specs/test-cases/web/echo/echo-page.md#read-recall-cards-must-leave-the-pile-for-the-page-session`
+// Core test case: `specs/test-cases/web/echo/echo-page.md#only-completing-a-recall-card-may-take-it-out-of-the-pile`
 test("a closed recall card fades out at its slot and never flashes back at full size", async ({
   page,
 }) => {

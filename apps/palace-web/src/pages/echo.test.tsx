@@ -143,7 +143,7 @@ it("widens the sheet for 回响 only and marks 回响 as the current section", a
   expect(screen.getByRole("main")).not.toHaveClass("wide");
 });
 
-// specs/test-cases/web/echo/echo-page.md#read-recall-cards-must-leave-the-pile-for-the-page-session
+// specs/test-cases/web/echo/echo-page.md#only-completing-a-recall-card-may-take-it-out-of-the-pile
 it("lets each read recall card leave the pile until the page is opened again", async () => {
   serve();
   const stored = vi.spyOn(Storage.prototype, "setItem");

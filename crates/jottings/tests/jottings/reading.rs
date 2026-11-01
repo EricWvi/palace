@@ -339,7 +339,7 @@ fn overview_buckets_by_the_local_day() {
 /// The pile is the first five candidates by SHA-256 of the local day and id; it holds all day,
 /// ignores jottings created today, and moves on at local midnight.
 /// Core test case:
-/// - `specs/test-cases/web/echo/jotting-reading.md#recall-must-return-the-same-pile-all-day-and-exclude-todays-jottings`
+/// - `specs/test-cases/web/echo/jotting-reading.md#recall-must-draw-the-least-completed-jottings-once-a-day-and-keep-the-pile`
 #[test]
 #[ignore = "requires local postgres:17-alpine and git"]
 fn recall_holds_for_the_day_and_skips_today() {

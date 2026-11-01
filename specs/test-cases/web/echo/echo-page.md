@@ -1,6 +1,6 @@
 # 回响页核心测试用例
 
-当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
+当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
 
 ## Echo navigation must open the wide jotting page
 
@@ -17,22 +17,52 @@
 
 决策依据：D1，Web 导航根决策 D1 的修改项。
 
-## Read recall cards must leave the pile for the page session
+## Only completing a recall card may take it out of the pile
 
-风险：关闭放大的卡片后它仍留在卡片组中；已读状态被写进 `localStorage` 或服务端，刷新后不恢复；收起平铺卡片组的点击同时触发了瀑布流中的标签或“展开”；筛选时卡片组仍然占据顶部。前置：回顾接口返回 5 张札记；瀑布流中有可点击的标签。触发：点击卡片组使其平铺；点击瀑布流上的标签位置收起；再次平铺并逐张放大、关闭；读完全部 5 张；重新挂载页面；按标签筛选后再清除。
+风险：直接关闭放大的回顾卡片也让它离开卡片组；点「回顾完成」后请求失败，卡片却已离开；刷新后完成过的卡片又回来；收起平铺卡片组的点击同时触发了瀑布流中的标签或“展开”；筛选时卡片组仍然占据顶部。前置：回顾接口返回若干张卡片，其中一张 `done: true`；瀑布流中有可点击的标签。触发：点击卡片组平铺；点击瀑布流上的标签位置收起；再次平铺、放大一张后按 Escape；放大另一张点「回顾完成」；放大一张点「不再回顾」；让一次完成请求失败；完成全部卡片；重新挂载页面；按标签筛选后再清除。
 
-必须成立：收起卡片组的点击不改变筛选；关闭的卡片缩回原位并淡出，直到移除都不再以全尺寸出现；每关闭一张，卡片组少一张，其余顺序不变；全部读完后显示“今天的回响都已看过”；重新挂载后卡片组恢复为接口返回的 5 张；有筛选或搜索时卡片组收起，清除后恢复，已读的卡片不回来。禁止把已读状态写入任何持久存储。
+必须成立：`done: true` 的卡片不显示；Escape 或点背景关闭时卡片缩回并留在卡片组中，不发出完成请求；「回顾完成」发出 `next: "keep"`、「不再回顾」发出 `next: "retire"`，成功后卡片离开卡片组；请求失败时卡片保持放大，按钮可以再点；全部完成后显示“今天的回响都已看过”；重新挂载后完成过的卡片不回来；收起卡片组的点击不改变筛选；有筛选或搜索时卡片组收起，清除后恢复。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 关闭即离开卡片组，读完显示提示，重新挂载后恢复 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again`（同时断言没有写入 `localStorage`） |
-| 关闭的卡片缩回原位并淡出，被移除前不会回到屏幕中央闪现（真实 Chromium） | Covered | `e2e/echo.spec.ts::a closed recall card fades out at its slot and never flashes back at full size`（逐帧记录不透明度；去掉 `fill: "forwards"` 时稳定失败） |
+| 直接关闭不离开、不请求；完成和不再回顾发出对应请求后离开 | Missing | |
+| 完成失败时卡片保持放大 | Missing | |
+| 全部完成显示提示，刷新后完成的不回来 | Missing | |
 | 收起卡片组的点击被拦截，不触发瀑布流操作 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again` |
 | 筛选与搜索时卡片组收起，清除后恢复 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again`（标签筛选与搜索使卡片组所在抽屉变为 inert，清除后恢复） |
+| 完成的卡片缩回原位并淡出，被移除前不会回到屏幕中央闪现（真实 Chromium） | Covered | `e2e/echo.spec.ts::a closed recall card fades out at its slot and never flashes back at full size`（逐帧记录不透明度） |
 
-决策依据：D3，不变量 3、8。
+决策依据：根决策 D3，20261101 回顾决策 D5、D7，根决策不变量 8。
+
+## A zoomed jotting must say whether it takes part in recall
+
+风险：瀑布流的放大卡片出现「回顾完成」；「不再回顾」与「恢复回顾」的文字与札记状态不符；切换后卡片被关闭；操作随卡片缩回而“飞”回原位。前置：瀑布流中一张参与回顾、一张不再回顾的札记。触发：分别放大两张，点击右侧的操作；关闭放大卡片。
+
+必须成立：瀑布流放大卡片只显示「不再回顾」或「恢复回顾」，与 `recall` 一致；点击后发出 `PUT /api/jottings/{id}/recall`，文字切换，卡片保持放大；回顾卡片放大后显示「回顾完成」和「不再回顾」；关闭开始时操作立即淡出。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 两种放大卡片的操作与请求 | Missing | |
+
+决策依据：20261101 回顾决策 D5、D6。
+
+## The spread pile must lay out up to three rows of six
+
+风险：多于 6 张时卡片仍排成一行，伸出页面右侧；窄一些的视口下没有换行；补位时卡片跨行斜着长距离移动。前置：真实 Chromium；1280px 宽的视口；卡片组 18 张。触发：平铺；完成第一行的一张；把视口缩到放不下 6 列再平铺。
+
+必须成立：18 张排成 3 行、每行 6 张，全部在视口宽度以内；完成一张后其余卡片按顺序前移一格；视口放不下 6 列时按能放下的列数换行。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 多行平铺的位置与换行（真实 Chromium） | Missing | |
+
+决策依据：20261101 回顾决策 D6。
 
 ## A wall jotting must open in full by its time and come back as it was
 
@@ -47,7 +77,7 @@
 | 只有时间是放大入口，放大卡片显示完整时间，瀑布流时间没有提示 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
 | Escape 只关闭放大卡片，原卡片回到墙上 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
 | 40 行以内原地展开，超过 40 行展开即放大 | Partial | `pages/echo.test.tsx::opens a body in place up to forty lines and reads a longer one in full`（jsdom 没有布局，正文高度与行高由测试替换） |
-| 回顾卡片仍然关闭即读过 | Covered | 见 [Read recall cards must leave the pile for the page session](#read-recall-cards-must-leave-the-pile-for-the-page-session)，回顾与瀑布流共用同一个放大卡片 |
+| 回顾卡片直接关闭时留在卡片组，完成后才离开 | Missing | 见 [Only completing a recall card may take it out of the pile](#only-completing-a-recall-card-may-take-it-out-of-the-pile) |
 
 决策依据：20261101 决策 D1–D3、D5，不变量 1–3、7。
 
