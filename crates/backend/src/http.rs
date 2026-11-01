@@ -17,6 +17,7 @@ mod path_management;
 pub use fixed_user::fixed_user_router;
 mod habits;
 mod handlers;
+mod jotting_editing;
 mod jotting_reading;
 mod jotting_recall;
 mod jottings;

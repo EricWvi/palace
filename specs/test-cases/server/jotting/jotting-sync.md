@@ -262,7 +262,7 @@ D5，不变量 8、9。
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 对账与上传只新增 `inbox/<id>.md` | Covered | `crates/jottings/tests/jottings.rs::the_server_writes_only_inbox_files`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，比较整个仓库（含 `.git`）前后的文件与内容 |
-| 网页编辑只改写指定札记的文件、网页删除只删除它，`.git` 与其他文件不变 | Missing | — |
+| 网页编辑只改写指定札记的文件、网页删除只删除它，`.git` 与其他文件不变 | Covered | `crates/jottings/tests/jottings.rs::editing::a_web_edit_rewrites_only_its_fields_and_publishes_at_once`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，比较整个仓库（含 `.git`）前后的文件与内容 |
 
 ### 决策依据
 
@@ -294,10 +294,10 @@ D5，不变量 8、9。
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 只替换标题、标签和正文，其余逐字节保留 | Missing | — |
-| 保存与删除立即发布，相同内容不分配版本 | Missing | — |
-| 文件先写：索引写入失败后用同一版本重试得到相同结果 | Missing | — |
-| 网页改过或删过的上传札记，重试上传不改变结果、不复活 | Missing | — |
+| 只替换标题、标签和正文，其余逐字节保留 | Covered | `crates/jottings/tests/jottings.rs::editing::a_web_edit_rewrites_only_its_fields_and_publishes_at_once`（真实文件，注释、未知字段、字段顺序与正文前的空行逐字节比较）；`palace-domain::jotting::tests::rewriting_keeps_every_other_byte`、`rewriting_refuses_a_different_jotting` 固定改写规则（CRLF、清除与新增字段、别的札记的文件） |
+| 保存与删除立即发布，相同内容不分配版本 | Covered | `crates/jottings/tests/jottings.rs::editing::a_web_edit_rewrites_only_its_fields_and_publishes_at_once`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，对增量页做整体比较 |
+| 文件先写：索引写入失败后用同一版本重试得到相同结果 | Missing | — 没有在文件写入与索引写入之间注入失败的测试 |
+| 网页改过或删过的上传札记，重试上传不改变结果、不复活 | Covered | `crates/jottings/tests/jottings.rs::editing::a_web_edit_rewrites_only_its_fields_and_publishes_at_once`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore |
 
 ### 决策依据
 
@@ -329,9 +329,9 @@ D5，不变量 8、9。
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 版本过期时拒绝且不改任何东西（真实 PostgreSQL） | Missing | — |
-| 文件不在原处或不是这张札记时拒绝且不改任何东西 | Missing | — |
-| 与对账并发时按发布锁串行 | Missing | — |
+| 版本过期时拒绝且不改任何东西（真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings.rs::editing::a_stale_or_misplaced_web_write_changes_nothing`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，比较增量、整个仓库和网页写入记录 |
+| 文件不在原处或不是这张札记时拒绝且不改任何东西 | Covered | `crates/jottings/tests/jottings.rs::editing::a_stale_or_misplaced_web_write_changes_nothing`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore；`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity` 经 `tests/http/jottings.rs::exercise_editing` 校验 `409 jotting_changed` 的真实响应 |
+| 与对账并发时按发布锁串行 | Covered | `crates/jottings/tests/jottings.rs::editing::a_stale_or_misplaced_web_write_changes_nothing`，真实 PostgreSQL 17：另一个写入者持发布锁（对账用的同一把锁）改了札记，编辑以 `pg_stat_activity` barrier 等在锁上，提交后读到新版本并返回 `jotting_changed` |
 
 ### 决策依据
 
@@ -363,10 +363,10 @@ D5，不变量 8、9。
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| D4 表每一行的规划（纯函数） | Missing | — |
-| 未带上网页写入的 commit 保留网页结果，`git mv` 按新路径识别（真实 Git 与 PostgreSQL） | Missing | — |
-| `git restore` 后回到 commit，删除的札记复活 | Missing | — |
-| 带上网页写入或改成别的内容的 commit 以 commit 为准，记录删除 | Missing | — |
+| D4 表每一行的规划（纯函数） | Covered | `palace-jottings::reconcile::tests::web_writes_stand_until_a_commit_or_the_work_tree_decides` |
+| 未带上网页写入的 commit 保留网页结果，`git mv` 按新路径识别（真实 Git 与 PostgreSQL） | Covered | `crates/jottings/tests/jottings.rs::editing::web_writes_survive_commits_that_leave_them_out`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，之后的网页编辑写到新路径 |
+| `git restore` 后回到 commit，删除的札记复活 | Covered | `crates/jottings/tests/jottings.rs::editing::web_writes_survive_commits_that_leave_them_out`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，复活后完成次数为当前最小值 |
+| 带上网页写入或改成别的内容的 commit 以 commit 为准，记录删除 | Covered | `crates/jottings/tests/jottings.rs::editing::web_writes_survive_commits_that_leave_them_out`，真实 Git 仓库（`git` CLI 提交）+ 真实 PostgreSQL 17，默认 ignore，最后查询网页写入记录为空 |
 
 ### 决策依据
 

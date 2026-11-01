@@ -269,5 +269,6 @@ impl JottingCensus {
     }
 }
 
+mod rewrite;
 #[cfg(test)]
 mod tests;

@@ -47,7 +47,7 @@
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 两种放大卡片的操作与请求 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`（回顾卡片的两个操作）、`pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back`（瀑布流的不再回顾与恢复回顾）；操作在关闭开始时淡出由 CSS 决定，jsdom 不计算 |
-| 题签按编辑决策 D1 的顺序排列：瀑布流「编辑 / 不再回顾 / 删除」，回顾「回顾完成 / 不再回顾 / 编辑 / 删除」 | Missing | — |
+| 题签按编辑决策 D1 的顺序排列：瀑布流「编辑 / 不再回顾 / 删除」，回顾「回顾完成 / 不再回顾 / 编辑 / 删除」 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`、`pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
 
 决策依据：20261101 回顾决策 D5、D6；20261101 编辑决策 D1。
 
@@ -107,11 +107,11 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 标签写回正文、保存时按新建规则提取，请求带 `version` | Missing | — |
-| 有改动时 Escape 和点背景不丢草稿；无改动时 Escape 逐层退出 | Missing | — |
-| 保存成功后墙和卡片组同步更新并带圆点 | Missing | — |
-| `409` 与其他错误都保留草稿，`409` 时不可再保存 | Missing | — |
-| 编辑器不超过放大卡片的最大高度（真实 Chromium） | Missing | — |
+| 标签写回正文、保存时按新建规则提取，请求带 `version` | Covered | `pages/echo.test.tsx::edits a zoomed jotting in place with its tags written back, and never drops a changed draft` |
+| 有改动时 Escape 和点背景不丢草稿；无改动时 Escape 逐层退出 | Covered | `pages/echo.test.tsx::edits a zoomed jotting in place with its tags written back, and never drops a changed draft` |
+| 保存成功后墙和卡片组同步更新并带圆点 | Partial | `pages/echo.test.tsx::edits a zoomed jotting in place with its tags written back, and never drops a changed draft`（瀑布流的卡片与放大卡片）；卡片组一侧只由同一个 `patchJotting` 写缓存，没有单独断言 |
+| `409` 与其他错误都保留草稿，`409` 时不可再保存 | Covered | `pages/echo.test.tsx::edits a zoomed jotting in place with its tags written back, and never drops a changed draft` |
+| 编辑器不超过放大卡片的最大高度（真实 Chromium） | Covered | `e2e/echo.spec.ts::a deleted jotting leaves its column alone after a vermilion 确认, and an edit stays within its cap` |
 
 决策依据：20261101 编辑决策 D2、D3，不变量 2、4。
 
@@ -125,10 +125,10 @@
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 两次点击才删除，移开、失焦、超时作废第一次 | Missing | — |
-| 删除后离开卡片组或所在列，其他列不动 | Missing | — |
-| 删除失败时卡片保持打开 | Missing | — |
-| 「确认」为朱红色且题签宽度不变，删除后缩回空位（真实 Chromium） | Missing | — |
+| 两次点击才删除，移开、失焦、超时作废第一次 | Covered | `pages/echo.test.tsx::deletes a jotting only on a second click on the same slip, from the wall and from the pile`（超时用假计时器） |
+| 删除后离开卡片组或所在列，其他列不动 | Covered | `pages/echo.test.tsx::deletes a jotting only on a second click on the same slip, from the wall and from the pile`（离开墙与卡片组）、`e2e/echo.spec.ts::a deleted jotting leaves its column alone after a vermilion 确认, and an edit stays within its cap`（真实 Chromium，三列布局下其他卡片不换列） |
+| 删除失败时卡片保持打开 | Covered | `pages/echo.test.tsx::deletes a jotting only on a second click on the same slip, from the wall and from the pile` |
+| 「确认」为朱红色且题签宽度不变，删除后缩回空位（真实 Chromium） | Partial | `e2e/echo.spec.ts::a deleted jotting leaves its column alone after a vermilion 确认, and an edit stays within its cap`（颜色与宽度）；缩回空位的动画沿用「回顾完成」的 `landing="empty"`，没有逐帧检查 |
 
 决策依据：20261101 编辑决策 D1、D4，不变量 1、3、4。
 

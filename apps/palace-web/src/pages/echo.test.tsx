@@ -24,6 +24,7 @@ const jotting = (
   title: null,
   tags,
   body,
+  version: "1",
   pending: false,
   recall: "included",
   ...extra,
@@ -64,7 +65,8 @@ type Kept = { done: Set<string> };
 
 // Serves the 回响 reads and records every list query, upload and recall write, so tests can
 // tell what reached the server and when. An upload joins the wall; a completed card stays done
-// across visits when the same `kept` is passed again. `fail` makes the next completion fail.
+// across visits when the same `kept` is passed again. `fail` makes the next completion fail;
+// `conflict` answers the next edit or deletion with 409, `broken` with 500.
 function serve(
   initial: ListedJotting[] = wall,
   kept: Kept = { done: new Set() },
@@ -73,7 +75,8 @@ function serve(
   const queries: Record<string, string>[] = [];
   const uploads: Record<string, unknown>[] = [];
   const recalls: { path: string; body: unknown }[] = [];
-  const control = { fail: false };
+  const writes: { method: string; path: string; body?: unknown }[] = [];
+  const control = { fail: false, conflict: false, broken: false };
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const request = testRequest(url);
     const path = requestPath(url);
@@ -99,6 +102,37 @@ function serve(
       const body = (await request.json()) as { recall: string };
       recalls.push({ path, body });
       return Response.json(body);
+    }
+    const own = /^\/api\/jottings\/([^/]+)$/.exec(path);
+    if (own && (request.method === "PUT" || request.method === "DELETE")) {
+      const body =
+        request.method === "PUT"
+          ? ((await request.json()) as Partial<ListedJotting>)
+          : undefined;
+      const version = new URL(request.url).searchParams.get("version");
+      writes.push({
+        method: request.method,
+        path: version ? `${path}?version=${version}` : path,
+        ...(body && { body }),
+      });
+      if (control.conflict || control.broken) {
+        const status = control.conflict ? 409 : 500;
+        control.conflict = control.broken = false;
+        return Response.json(
+          { error: status === 409 ? "jotting_changed" : "persistence_failed" },
+          { status },
+        );
+      }
+      if (!body) {
+        listed = listed.filter((item) => item.id !== own[1]);
+        return new Response(null, { status: 204 });
+      }
+      listed = listed.map((item) =>
+        item.id === own[1]
+          ? { ...item, ...body, version: "2", pending: true }
+          : item,
+      );
+      return Response.json({ version: "2" });
     }
     if (path === "/api/jottings" && request.method === "POST") {
       const body = (await request.json()) as Record<string, unknown>;
@@ -142,7 +176,7 @@ function serve(
       });
     throw new Error(`unexpected request ${path}`);
   });
-  return { queries, uploads, recalls, control, kept };
+  return { queries, uploads, recalls, writes, control, kept };
 }
 
 beforeEach(() => {
@@ -226,7 +260,7 @@ it("takes a recall card out of the pile only when it is completed, and remembers
     within(dialog())
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["回顾完成", "不再回顾"]);
+  ).toEqual(["回顾完成", "不再回顾", "编辑", "删除"]);
   await user.keyboard("{Escape}");
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   await user.click(card("r2"));
@@ -323,7 +357,12 @@ it("reads a wall jotting in full from its time, with its Palace pictures, and ha
   expect(within(dialog).getByText(absoluteTime(recent))).toBeInTheDocument();
   expect(card).toHaveStyle({ visibility: "hidden" });
 
-  // A wall card only says whether it takes part in recall, and stays open when that changes.
+  // A wall card says whether it takes part in recall, and stays open when that changes.
+  expect(
+    within(dialog.parentElement!.querySelector(".zoom-actions")!)
+      .getAllByRole("button")
+      .map((button) => button.textContent),
+  ).toEqual(["编辑", "不再回顾", "删除"]);
   await user.click(
     within(dialog.parentElement!).getByRole("button", { name: "不再回顾" }),
   );
@@ -482,4 +521,168 @@ it("writes a jotting with inline tags, keeps a draft through Escape and shows it
   )!;
   expect(within(card).getByLabelText("待整理")).toBeInTheDocument();
   expect(field).toHaveValue("");
+});
+
+// specs/test-cases/web/echo/echo-page.md#editing-a-zoomed-jotting-must-never-lose-the-draft
+it("edits a zoomed jotting in place with its tags written back, and never drops a changed draft", async () => {
+  const { writes, control } = serve();
+  const { user } = mountApp("/jottings");
+  const card = (await screen.findByText("Arc 写多了要警惕")).closest(
+    "article",
+  )!;
+  await user.click(within(card).getByRole("button", { name: "放大" }));
+  const dialog = await screen.findByRole("dialog");
+  const slips = () =>
+    within(dialog.parentElement!.querySelector(".zoom-actions")!);
+
+  // The tags come back as the body's last line; an unchanged edit leaves on Escape.
+  await user.click(slips().getByRole("button", { name: "编辑" }));
+  const title = within(dialog).getByRole("textbox", { name: "标题" });
+  const body = within(dialog).getByRole("textbox", { name: "正文" });
+  expect(title).toHaveValue("所有权");
+  expect(body).toHaveValue("Arc 写多了要警惕\n\n#rust");
+  expect(
+    slips()
+      .getAllByRole("button")
+      .map((button) => button.textContent),
+  ).toEqual(["保存", "取消"]);
+  await user.keyboard("{Escape}");
+  expect(within(dialog).queryByRole("textbox")).toBeNull();
+  expect(screen.getByRole("dialog")).toBe(dialog);
+
+  // A changed draft stays through Escape and a click on the backdrop.
+  await user.click(slips().getByRole("button", { name: "编辑" }));
+  await user.keyboard("，再想想");
+  await user.clear(within(dialog).getByRole("textbox", { name: "标题" }));
+  await user.type(
+    within(dialog).getByRole("textbox", { name: "标题" }),
+    "所有",
+  );
+  await user.keyboard("{Escape}");
+  await user.click(document.querySelector(".zoom-backdrop")!);
+  expect(within(dialog).getByRole("textbox", { name: "正文" })).toHaveValue(
+    "Arc 写多了要警惕，再想想\n\n#rust",
+  );
+  expect(writes).toEqual([]);
+
+  // Saving takes the tags out again, names the version read, and shows on the wall at once.
+  await user.click(within(dialog).getByRole("textbox", { name: "正文" }));
+  await user.keyboard("{Control>}{Enter}{/Control}");
+  expect(
+    await within(dialog).findByRole("heading", { name: "所有" }),
+  ).toBeInTheDocument();
+  expect(writes).toEqual([
+    {
+      method: "PUT",
+      path: "/api/jottings/w2",
+      body: {
+        version: "1",
+        title: "所有",
+        tags: ["rust"],
+        body: "Arc 写多了要警惕，再想想",
+      },
+    },
+  ]);
+  expect(
+    within(card).getByText("Arc 写多了要警惕，再想想"),
+  ).toBeInTheDocument();
+  expect(within(card).getByLabelText("待整理")).toBeInTheDocument();
+
+  // Saving unchanged asks nothing; a conflict keeps the draft and saving stays off.
+  await user.click(slips().getByRole("button", { name: "编辑" }));
+  await user.click(slips().getByRole("button", { name: "保存" }));
+  expect(within(dialog).queryByRole("textbox")).toBeNull();
+  expect(writes).toHaveLength(1);
+  await user.click(slips().getByRole("button", { name: "编辑" }));
+  await user.keyboard("又改");
+  control.conflict = true;
+  await user.click(slips().getByRole("button", { name: "保存" }));
+  expect(await slips().findByRole("alert")).toHaveTextContent(
+    "札记已在别处改过，复制修改后取消再编辑",
+  );
+  expect(slips().getByRole("button", { name: "保存" })).toBeDisabled();
+  expect(within(dialog).getByRole("textbox", { name: "正文" })).toHaveValue(
+    "Arc 写多了要警惕，再想想又改\n\n#rust",
+  );
+  expect(writes).toHaveLength(2);
+
+  // Any other failure keeps the draft too, and saving may be tried again.
+  await user.click(slips().getByRole("button", { name: "取消" }));
+  await user.click(slips().getByRole("button", { name: "编辑" }));
+  await user.keyboard("！");
+  control.broken = true;
+  await user.click(slips().getByRole("button", { name: "保存" }));
+  expect(await slips().findByRole("alert")).toHaveTextContent("保存失败");
+  expect(slips().getByRole("button", { name: "保存" })).toBeEnabled();
+  await user.click(slips().getByRole("button", { name: "保存" }));
+  await waitFor(() => expect(within(dialog).queryByRole("textbox")).toBeNull());
+  expect(writes).toHaveLength(4);
+});
+
+// specs/test-cases/web/echo/echo-page.md#deleting-a-jotting-must-take-two-clicks-on-the-same-slip
+it("deletes a jotting only on a second click on the same slip, from the wall and from the pile", async () => {
+  const { writes, control } = serve();
+  const { user } = mountApp("/jottings");
+  const card = (await screen.findByText("坂本龙一的 Aqua")).closest("article")!;
+  await user.click(within(card).getByRole("button", { name: "放大" }));
+  const dialog = await screen.findByRole("dialog");
+  const slip = () =>
+    within(dialog.parentElement!.querySelector(".zoom-actions")!).getByRole(
+      "button",
+      { name: /^(删除|确认)$/ },
+    );
+
+  // A first click only arms the slip; leaving it, losing focus or waiting disarms it.
+  await user.click(slip());
+  expect(slip()).toHaveTextContent("确认");
+  expect(slip()).toHaveClass("confirming");
+  await user.unhover(slip());
+  expect(slip()).toHaveTextContent("删除");
+  await user.click(slip());
+  fireEvent.blur(slip());
+  expect(slip()).toHaveTextContent("删除");
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  fireEvent.click(slip());
+  expect(slip()).toHaveTextContent("确认");
+  act(() => vi.advanceTimersByTime(3000));
+  expect(slip()).toHaveTextContent("删除");
+  vi.useRealTimers();
+  expect(writes).toEqual([]);
+
+  // A failed deletion keeps the card open and says so.
+  control.broken = true;
+  await user.click(slip());
+  await user.click(slip());
+  expect(
+    await within(dialog.parentElement!).findByRole("alert"),
+  ).toHaveTextContent("删除失败");
+  expect(screen.getByRole("dialog")).toBe(dialog);
+
+  // Two clicks delete it, naming the version read; it leaves the wall.
+  await user.click(slip());
+  await user.click(slip());
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(writes.at(-1)).toEqual({
+    method: "DELETE",
+    path: "/api/jottings/w3?version=1",
+  });
+  expect(screen.queryByText("坂本龙一的 Aqua")).toBeNull();
+  expect(screen.getByText("夜跑后的一点念头")).toBeInTheDocument();
+
+  // From the pile, a deleted card leaves the pile as a completed one does.
+  const pileCard = (id: string) =>
+    within(recall())
+      .getAllByRole("button")
+      .find((element) => element.dataset.id === id)!;
+  await user.click(pileCard("r1"));
+  await user.click(pileCard("r1"));
+  const opened = (await screen.findByRole("dialog")).parentElement!;
+  await user.click(within(opened).getByRole("button", { name: "删除" }));
+  await user.click(within(opened).getByRole("button", { name: "确认" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(writes.at(-1)).toEqual({
+    method: "DELETE",
+    path: "/api/jottings/r1?version=1",
+  });
+  expect(recallCards()).toEqual(["r2", "r3", "r4", "r5"]);
 });

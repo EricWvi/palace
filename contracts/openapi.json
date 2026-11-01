@@ -5566,6 +5566,309 @@
         ]
       }
     },
+    "/api/jottings/{id}": {
+      "put": {
+        "tags": [
+          "jotting_editing"
+        ],
+        "summary": "Sets a jotting's title, tags and body, keeping every other byte of its file.",
+        "operationId": "edit_jotting",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Jotting id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JottingEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Written and published, or unchanged",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JottingEdited"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No jotting ever had this id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`jotting_changed`: changed or deleted since read; `jotting_moved`: its file is not where it was",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Input capacity exceeded: extractor text or body limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or file failure; the edit can be retried",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider unavailable, or no jottings folder configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "jotting_editing"
+        ],
+        "summary": "Deletes a jotting's file and publishes the deletion.",
+        "operationId": "delete_jotting",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Jotting id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "description": "The `version` the page read; an older one is refused with `jotting_changed`.",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Cursor"
+            }
+          },
+          {
+            "name": "Origin",
+            "in": "header",
+            "description": "Exactly one header matching the configured external origin; null, duplicates and omissions are rejected for browser sessions; not checked for access tokens",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted and published",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "no-store"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Refreshed production session; absent in fixed-user mode"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input; JSON domain error or native extractor text as declared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InputErrorResponse"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No jotting ever had this id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`jotting_changed`: changed or deleted since read; `jotting_moved`: its file is not where it was",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal persistence or file failure; the deletion can be retried",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Identity provider unavailable, or no jottings folder configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "access_token": []
+          }
+        ]
+      }
+    },
     "/api/jottings/{id}/recall": {
       "put": {
         "tags": [
@@ -11708,6 +12011,8 @@
           "media_storage_unavailable",
           "media_in_use",
           "jotting_id_conflict",
+          "jotting_changed",
+          "jotting_moved",
           "jottings_unavailable",
           "web_page_bound",
           "persistence_failed"
@@ -12092,6 +12397,50 @@
           }
         }
       },
+      "JottingEdit": {
+        "type": "object",
+        "description": "A jotting's new title, tags and body, as of the version the page read.",
+        "required": [
+          "version",
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "Markdown, at most 1 MiB; leading blank lines are dropped."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Distinct non-blank tags."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Omitted, null or blank removes the title."
+          },
+          "version": {
+            "$ref": "#/components/schemas/Cursor",
+            "description": "The `version` the page read; an older one is refused with `jotting_changed`."
+          }
+        }
+      },
+      "JottingEdited": {
+        "type": "object",
+        "description": "The version an edit is published under; unchanged when the edit changed nothing.",
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "$ref": "#/components/schemas/Cursor"
+          }
+        }
+      },
       "JottingOverview": {
         "type": "object",
         "description": "Counts behind the left column of the 回响 page; days are the deployment's local days.",
@@ -12240,6 +12589,7 @@
           "title",
           "tags",
           "body",
+          "version",
           "pending",
           "recall"
         ],
@@ -12258,7 +12608,7 @@
           },
           "pending": {
             "type": "boolean",
-            "description": "The file sits under `inbox/`, waiting for the agent to sort it."
+            "description": "The agent has something to do: the file sits under `inbox/`, or holds a web edit no\ncommit carries yet."
           },
           "recall": {
             "$ref": "#/components/schemas/RecallState",
@@ -12275,6 +12625,10 @@
               "string",
               "null"
             ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/Cursor",
+            "description": "The version an edit or deletion of this jotting must name."
           }
         }
       },

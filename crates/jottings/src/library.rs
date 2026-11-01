@@ -1,5 +1,5 @@
 use crate::{
-    reconcile::{Step, plan, unknown_blobs},
+    reconcile::{Step, WorkTree, plan, unknown_blobs},
     repo::{GitError, OpenError, Repo},
 };
 use chrono::{Offset, TimeZone};
@@ -16,7 +16,9 @@ use std::{
 };
 use time::UtcOffset;
 
+mod editing;
 mod reading;
+pub use editing::JottingEdit;
 pub use reading::{Recall, RecallSize, RecallSizeError};
 
 /// The folder below the jottings folder where uploads are written for the agent to sort.
@@ -81,6 +83,12 @@ pub enum JottingsError {
     Input(#[from] InputError),
     #[error("the id already belongs to another jotting")]
     Conflict,
+    /// A web write named a version the jotting has moved past, or a deleted jotting.
+    #[error("the jotting changed since it was read")]
+    Changed,
+    /// The jotting's file is not where the index has it, or is not this jotting's any more.
+    #[error("the jotting's file is not where it was")]
+    Moved,
     #[error(transparent)]
     Database(#[from] DbError),
     #[error(transparent)]
@@ -170,10 +178,12 @@ impl Jottings {
                 .collect::<Result<HashMap<_, _>, GitError>>()
         })
         .await??;
-        let folder = self.folder().to_owned();
-        let steps = match plan(&index, &files, &parsed, |path| {
-            folder_file(&folder, path).is_file()
-        }) {
+        let web = tx.web_writes().await?;
+        let work_tree = Folder {
+            folder: self.folder(),
+            repo: &self.repo,
+        };
+        let steps = match plan(&index, &files, &parsed, &web, &work_tree) {
             Ok(steps) => steps,
             Err(problems) => return Ok(Reconciled::Refused { commit, problems }),
         };
@@ -189,6 +199,8 @@ impl Jottings {
                 Step::Delete(id) => {
                     tx.delete(*id).await?;
                 }
+                Step::Follow(id, path) => tx.follow_web_write(*id, path).await?,
+                Step::Forget(id) => tx.forget_web_write(*id).await?,
             }
         }
         tx.commit().await?;
@@ -252,6 +264,29 @@ impl Jottings {
         limit: u32,
     ) -> Result<JottingChanges, JottingsError> {
         Ok(self.database.jotting_changes(since, limit).await?)
+    }
+}
+
+/// The work tree as reconciliation sees it: only the files it names.
+struct Folder<'a> {
+    folder: &'a Path,
+    repo: &'a Repo,
+}
+
+impl WorkTree for Folder<'_> {
+    fn has(&self, path: &str) -> bool {
+        folder_file(self.folder, path).is_file()
+    }
+
+    // A file that is there but cannot be read gets the null id, which no web write has: the
+    // commit decides the jotting again rather than a web write being kept on a guess.
+    fn blob(&self, path: &str) -> Option<ObjectId> {
+        let unreadable = ObjectId::null(gix::hash::Kind::Sha1);
+        match std::fs::read(folder_file(self.folder, path)) {
+            Ok(bytes) => Some(self.repo.blob_oid(&bytes).unwrap_or(unreadable)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(_) => Some(unreadable),
+        }
     }
 }
 

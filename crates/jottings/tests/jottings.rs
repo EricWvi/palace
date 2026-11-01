@@ -24,6 +24,8 @@ use testcontainers::{
 };
 use uuid::Uuid;
 
+#[path = "jottings/editing.rs"]
+mod editing;
 #[path = "jottings/reading.rs"]
 mod reading;
 #[path = "jottings/recall.rs"]

@@ -10,7 +10,7 @@ use uuid::Uuid;
 // sharing them would only make the two feeds wait on each other.
 const JOTTING_LOCK: i64 = 734_281_002;
 const CONTENT: &str = "(extract(epoch FROM created_at)*1000)::bigint AS created_at,title,tags,body";
-const CREATED: &str = "timestamptz 'epoch' + $2::bigint * interval '1 millisecond'";
+pub(crate) const CREATED: &str = "timestamptz 'epoch' + $2::bigint * interval '1 millisecond'";
 
 /// Where a live jotting's file is, relative to the jottings folder, and its Git blob id.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -71,7 +71,7 @@ pub struct JottingChanges {
 ///
 /// [`commit`]: JottingTransaction::commit
 pub struct JottingTransaction<'a> {
-    tx: Transaction<'a, Postgres>,
+    pub(crate) tx: Transaction<'a, Postgres>,
 }
 
 impl Database {
@@ -251,7 +251,7 @@ impl JottingTransaction<'_> {
 }
 
 /// Binds a jotting and its location as `$1` to `$7`, the order every write statement uses.
-fn bind_jotting<'q>(
+pub(crate) fn bind_jotting<'q>(
     statement: &'q str,
     jotting: &'q Jotting,
     location: &'q JottingLocation,
@@ -267,7 +267,7 @@ fn bind_jotting<'q>(
 }
 
 /// The version a write returned; no row means the jotting to update does not exist.
-fn published(version: Option<i64>) -> Result<ServerVersion, DbError> {
+pub(crate) fn published(version: Option<i64>) -> Result<ServerVersion, DbError> {
     Ok(ServerVersion::new(version.ok_or(DbError::NotFound)?)?)
 }
 

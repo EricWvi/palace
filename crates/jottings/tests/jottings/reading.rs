@@ -3,9 +3,10 @@ use super::{Repository, SHANGHAI, database, indexed, run};
 use palace_db::{
     DayCount, JottingListRequest, JottingOverview, ListedJotting, RecallState, SearchTerm, TagCount,
 };
-use palace_domain::{InputError, InputErrorKind, Jotting};
-use palace_jottings::{Jottings, JottingsError};
+use palace_domain::{InputError, InputErrorKind, Jotting, ServerVersion};
+use palace_jottings::{Jottings, JottingsError, Uploaded};
 use pretty_assertions::assert_eq;
+use sqlx::PgPool;
 use testcontainers::{ContainerAsync, GenericImage};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339, macros::date};
 use uuid::Uuid;
@@ -45,6 +46,8 @@ pub(crate) fn fixture(
                 tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
                 body: body.to_owned(),
             },
+            // Assigned when indexed; see `stamp`.
+            version: ServerVersion::new(0).unwrap(),
             pending: path.starts_with("inbox/"),
             recall: RecallState::Included,
         },
@@ -55,17 +58,17 @@ pub(crate) fn fixture(
 async fn indexed_jottings(
     repository: &Repository,
     fixtures: &[&Fixture],
-) -> (ContainerAsync<GenericImage>, Jottings) {
+) -> (ContainerAsync<GenericImage>, Jottings, PgPool) {
     let files: Vec<(&str, &str)> = fixtures
         .iter()
         .map(|fixture| (fixture.path.as_str(), fixture.text.as_str()))
         .collect();
     repository.write(&files);
     repository.commit("add");
-    let (container, database, _pool) = database().await;
+    let (container, database, pool) = database().await;
     let jottings = Jottings::open(&repository.folder(), database, SHANGHAI).unwrap();
     indexed(fixtures.len())(jottings.refresh().await.unwrap());
-    (container, jottings)
+    (container, jottings, pool)
 }
 
 fn request(tag: Option<&str>, q: Option<&str>, limit: u32) -> JottingListRequest {
@@ -115,8 +118,35 @@ pub(crate) fn uploaded(created: &str, body: &str) -> ListedJotting {
             tags: vec![],
             body: body.into(),
         },
+        version: ServerVersion::new(0).unwrap(),
         pending: true,
         recall: RecallState::Included,
+    }
+}
+
+/// Gives each listing the version the index assigned it, which a test cannot know in advance.
+pub(crate) async fn versioned(pool: &PgPool, listed: &[ListedJotting]) -> Vec<ListedJotting> {
+    let mut stamped = Vec::with_capacity(listed.len());
+    for listed in listed {
+        let version: i64 = sqlx::query_scalar("SELECT server_version FROM jotting WHERE id=$1")
+            .bind(listed.jotting.id)
+            .fetch_one(pool)
+            .await
+            .unwrap();
+        stamped.push(ListedJotting {
+            version: ServerVersion::new(version).unwrap(),
+            ..listed.clone()
+        });
+    }
+    stamped
+}
+
+/// Gives each fixture's listing the version the index assigned it.
+pub(crate) async fn stamp(pool: &PgPool, fixtures: &mut [Fixture]) {
+    for fixture in fixtures {
+        fixture.listed = versioned(pool, std::slice::from_ref(&fixture.listed))
+            .await
+            .remove(0);
     }
 }
 
@@ -151,13 +181,17 @@ fn the_list_pages_every_live_jotting_once() {
         );
         let mut fixtures: Vec<&Fixture> = same.iter().collect();
         fixtures.extend([&older, &gone, &newest]);
-        let (_container, jottings) = indexed_jottings(&repository, &fixtures).await;
+        let (_container, jottings, pool) = indexed_jottings(&repository, &fixtures).await;
 
         let first = jottings.list(&request(None, None, 3)).await.unwrap();
         // Written and deleted between two pages: the new one is newer than the cursor, the
         // deleted one was not read yet.
-        let late = uploaded("2026-10-20T09:00:00+08:00", "late");
-        jottings.upload(late.jotting.clone()).await.unwrap();
+        let mut late = uploaded("2026-10-20T09:00:00+08:00", "late");
+        let Uploaded::Created(version) = jottings.upload(late.jotting.clone()).await.unwrap()
+        else {
+            panic!("a first upload is created");
+        };
+        late.version = version;
         repository.remove("gone.md");
         // The commit also takes in the upload, still under inbox/.
         repository.commit("delete");
@@ -178,7 +212,7 @@ fn the_list_pages_every_live_jotting_once() {
         expected.push(older.listed.clone());
         let mut seen = first.jottings.clone();
         seen.extend(rest);
-        assert_eq!(seen, expected);
+        assert_eq!(seen, versioned(&pool, &expected).await);
         assert_eq!(first.total, 7);
 
         let (now, totals) = every_page(&jottings, request(None, None, 200)).await;
@@ -222,7 +256,7 @@ fn tag_and_query_filters_intersect() {
             "y",
         );
         let neither = fixture("n.md", "2026-10-02T09:00:00+08:00", None, &["阅读"], "z");
-        let (_container, jottings) =
+        let (_container, jottings, _pool) =
             indexed_jottings(&repository, &[&in_title, &in_body, &in_tag, &neither]).await;
 
         let ids = |listed: Vec<ListedJotting>| -> Vec<Uuid> {
@@ -260,7 +294,7 @@ fn pending_means_the_file_sits_under_inbox() {
         let committed = fixture("inbox/c.md", "2026-10-04T09:00:00+08:00", None, &[], "c");
         let sorted = fixture("2026/s.md", "2026-10-03T09:00:00+08:00", None, &[], "s");
         let lookalike = fixture("inboxes/l.md", "2026-10-02T09:00:00+08:00", None, &[], "l");
-        let (_container, jottings) =
+        let (_container, jottings, _pool) =
             indexed_jottings(&repository, &[&committed, &sorted, &lookalike]).await;
         let upload = uploaded("2026-10-05T09:00:00+08:00", "u");
         jottings.upload(upload.jotting.clone()).await.unwrap();
@@ -303,7 +337,7 @@ fn overview_buckets_by_the_local_day() {
             &["c", "gone"],
             "w",
         );
-        let (_container, jottings) =
+        let (_container, jottings, _pool) =
             indexed_jottings(&repository, &[&late, &early, &other, &gone]).await;
         repository.remove("d.md");
         repository.commit("delete");

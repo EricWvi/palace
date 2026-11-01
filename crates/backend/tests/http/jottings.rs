@@ -196,8 +196,19 @@ pub(super) async fn exercise_jottings(app: &Router, cookie: &str, foreign: &str,
 /// - `specs/test-cases/web/echo/jotting-reading.md#overview-must-bucket-jottings-by-the-deployments-local-day`
 async fn exercise_reading(app: &Router, cookie: &str, agent: Uuid, upload: Uuid) {
     let get = |path: String| async move { send(app, "GET", &path, cookie, Value::Null).await };
-    let uploaded = json!({"id": upload, "created_at": CREATED, "title": null, "tags": ["phone"], "body": "离线写的", "pending": true, "recall": "included"});
-    let committed = json!({"id": agent, "created_at": CREATED, "title": "读书", "tags": [], "body": "正文\n", "pending": false, "recall": "included"});
+    // Versions come from the publication sequence; the feed says which each one got.
+    let (_, feed) = get("/api/jottings/changes?since=0".into()).await;
+    let version_of = |id: Uuid| {
+        feed["changes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|change| change["id"] == json!(id))
+            .unwrap()["version"]
+            .clone()
+    };
+    let uploaded = json!({"id": upload, "created_at": CREATED, "title": null, "tags": ["phone"], "body": "离线写的", "version": version_of(upload), "pending": true, "recall": "included"});
+    let committed = json!({"id": agent, "created_at": CREATED, "title": "读书", "tags": [], "body": "正文\n", "version": version_of(agent), "pending": false, "recall": "included"});
     // Equal times fall back to the id, and the upload's v7 id is the later one.
     let (status, first) = get("/api/jottings?limit=1".into()).await;
     assert_eq!(status, StatusCode::OK);
@@ -320,6 +331,8 @@ async fn exercise_reading(app: &Router, cookie: &str, agent: Uuid, upload: Uuid)
         (StatusCode::OK, json!("included"))
     );
 
+    exercise_editing(app, cookie, upload, &uploaded["version"]).await;
+
     for (path, field, message) in [
         (
             "/api/jottings?cursor=bad",
@@ -347,6 +360,69 @@ async fn exercise_reading(app: &Router, cookie: &str, agent: Uuid, upload: Uuid)
             "{path}"
         );
     }
+}
+
+/// Edits and deletions through the real router: an edit answers its new version and shows at
+/// once, a stale version answers 409 `jotting_changed`, a deletion answers 204 and the jotting
+/// leaves the list.
+/// Core test case:
+/// - `specs/test-cases/server/jotting/jotting-sync.md#a-stale-or-misplaced-web-write-must-change-nothing`
+async fn exercise_editing(app: &Router, cookie: &str, id: Uuid, read: &Value) {
+    let path = format!("/api/jottings/{id}");
+    let (status, edited) = send(
+        app,
+        "PUT",
+        &path,
+        cookie,
+        json!({"version": read, "title": "  ", "tags": ["phone", "改"], "body": "改过"}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let version = edited["version"].clone();
+    assert_ne!(&version, read);
+    let (_, list) = send(
+        app,
+        "GET",
+        "/api/jottings?tag=%E6%94%B9",
+        cookie,
+        Value::Null,
+    )
+    .await;
+    assert_eq!(
+        list["jottings"],
+        json!([{"id": id, "created_at": CREATED, "title": null, "tags": ["phone", "改"], "body": "改过", "version": version, "pending": true, "recall": "included"}])
+    );
+    let changed = (
+        StatusCode::CONFLICT,
+        json!({"error": "jotting_changed", "login": ""}),
+    );
+    assert_eq!(
+        send(
+            app,
+            "PUT",
+            &path,
+            cookie,
+            json!({"version": read, "body": "旧稿"})
+        )
+        .await,
+        changed
+    );
+    let stale = format!("{path}?version={}", read.as_str().unwrap());
+    assert_eq!(
+        send(app, "DELETE", &stale, cookie, Value::Null).await,
+        changed
+    );
+    let current = format!("{path}?version={}", version.as_str().unwrap());
+    assert_eq!(
+        send(app, "DELETE", &current, cookie, Value::Null).await,
+        (StatusCode::NO_CONTENT, json!(""))
+    );
+    let (_, list) = send(app, "GET", "/api/jottings", cookie, Value::Null).await;
+    assert_eq!(list["total"], json!(1));
+    assert_eq!(
+        send(app, "DELETE", &current, cookie, Value::Null).await,
+        changed
+    );
 }
 
 /// Without a folder the feed is empty at the client's cursor and uploads are unavailable.
@@ -406,6 +482,16 @@ pub(super) async fn exercise_unconfigured(app: &Router, cookie: &str) {
             "PUT",
             format!("/api/jottings/{id}/recall"),
             json!({"recall": "excluded"}),
+        ),
+        (
+            "PUT",
+            format!("/api/jottings/{id}"),
+            json!({"version": "1", "body": "x"}),
+        ),
+        (
+            "DELETE",
+            format!("/api/jottings/{id}?version=1"),
+            Value::Null,
         ),
     ] {
         assert_eq!(

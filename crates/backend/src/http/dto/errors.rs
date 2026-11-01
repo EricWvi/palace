@@ -16,6 +16,10 @@ pub(crate) enum ErrorCode {
     MediaStorageUnavailable,
     MediaInUse,
     JottingIdConflict,
+    /// The jotting changed or was deleted after the page read it; read it again.
+    JottingChanged,
+    /// The jotting's file is being moved in the work tree; try again after the commit.
+    JottingMoved,
     JottingsUnavailable,
     /// The web page is bound to an article; annotate the article in Palace instead.
     WebPageBound,

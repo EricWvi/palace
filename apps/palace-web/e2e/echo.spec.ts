@@ -13,6 +13,7 @@ function serve(page: Page) {
       { length: (i % 4) + 1 },
       () => `第 ${i} 张札记的一段话。`,
     ).join("\n\n"),
+    version: "1",
     pending: false,
     recall: "included",
   }));
@@ -26,6 +27,18 @@ function serve(page: Page) {
         status: 201,
         json: { id: body.id, version: "1" },
       });
+    }
+    const own = /^\/api\/jottings\/(j\d+)$/.exec(url.pathname);
+    if (own && request.method() === "DELETE") {
+      listed = listed.filter((item) => item.id !== own[1]);
+      return route.fulfill({ status: 204 });
+    }
+    if (own && request.method() === "PUT") {
+      const body = request.postDataJSON() as Partial<ListedJotting>;
+      listed = listed.map((item) =>
+        item.id === own[1] ? { ...item, ...body, version: "2" } : item,
+      );
+      return route.fulfill({ json: { version: "2" } });
     }
     if (url.pathname === "/api/jottings")
       return route.fulfill({
@@ -110,6 +123,68 @@ test("puts a new jotting on top of the first column and moves no other card", as
   const after = await columns(page);
   for (const [id, column] of Object.entries(before))
     expect([id, after[id]]).toEqual([id, column]);
+});
+
+// Core test cases:
+// - `specs/test-cases/web/echo/echo-page.md#deleting-a-jotting-must-take-two-clicks-on-the-same-slip`
+// - `specs/test-cases/web/echo/echo-page.md#editing-a-zoomed-jotting-must-never-lose-the-draft`
+test("a deleted jotting leaves its column alone after a vermilion 确认, and an edit stays within its cap", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await serve(page);
+  await page.goto("/jottings");
+  await expect(page.locator(".wall [data-id]")).toHaveCount(12);
+  const before = await columns(page);
+  const target = "j4";
+  const sameColumn = Object.entries(before)
+    .filter(([id, column]) => id !== target && column === before[target])
+    .map(([id]) => id);
+
+  await page
+    .locator(`.wall [data-id=${target}]`)
+    .getByRole("button", { name: "放大" })
+    .click();
+  await expect(page.locator(".zoom-frame.settled")).toBeVisible();
+  const slip = page.locator(".zoom-actions button").last();
+  await expect(slip).toHaveText("删除");
+  const armed = await slip.boundingBox();
+  await slip.click();
+  await expect(slip).toHaveText("确认");
+  // Hover keeps it armed; the seal colour holds against the hover rule.
+  await expect(slip).toHaveCSS("color", "rgb(184, 74, 36)");
+  const confirm = await slip.boundingBox();
+  expect(confirm?.width).toBeCloseTo(armed!.width, 0);
+  await slip.click();
+  await expect(page.locator(".zoom-frame")).toHaveCount(0);
+  await expect(page.locator(".wall [data-id]")).toHaveCount(11);
+  const after = await columns(page);
+  // Every other card keeps its column; only the cards below it in its column move up.
+  for (const [id, column] of Object.entries(before))
+    if (id !== target) expect([id, after[id]]).toEqual([id, column]);
+  expect(sameColumn.every((id) => after[id] === before[target])).toBe(true);
+
+  // A body much longer than the screen: the card stays capped and scrolls inside.
+  await page
+    .locator(".wall [data-id=j0]")
+    .getByRole("button", { name: "放大" })
+    .click();
+  await expect(page.locator(".zoom-frame.settled")).toBeVisible();
+  await page
+    .locator(".zoom-actions")
+    .getByRole("button", { name: "编辑" })
+    .click();
+  await page
+    .getByRole("textbox", { name: "正文" })
+    .fill(Array.from({ length: 120 }, (_, i) => `第 ${i} 行`).join("\n"));
+  const zoom = page.locator(".echo-card.zoom");
+  const box = await zoom.boundingBox();
+  expect(box!.height).toBeLessThanOrEqual(900 * 0.8 + 1);
+  expect(
+    await zoom.evaluate(
+      (element) => element.scrollHeight > element.clientHeight,
+    ),
+  ).toBe(true);
 });
 
 // Serves a recall pile of `count` cards and an empty wall; completions succeed.

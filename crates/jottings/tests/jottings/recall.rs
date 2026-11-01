@@ -1,7 +1,7 @@
 //! 今日回响 against real Git and real PostgreSQL: which jottings a day's pile draws, how a pile
 //! holds for the day, and how completions count.
 use super::{Repository, SHANGHAI, changes, database, indexed, run};
-use crate::reading::{Fixture, fixture, millis};
+use crate::reading::{Fixture, fixture, millis, stamp};
 use palace_db::{Database, DbError, RecallCard, RecallNext, RecallState};
 use palace_jottings::{Jottings, JottingsError, Recall, RecallSize};
 use pretty_assertions::assert_eq;
@@ -23,7 +23,7 @@ async fn library(
     Jottings,
     Vec<Fixture>,
 ) {
-    let fixtures: Vec<Fixture> = (0..count)
+    let mut fixtures: Vec<Fixture> = (0..count)
         .map(|n| {
             fixture(
                 &format!("c{n}.md"),
@@ -43,6 +43,7 @@ async fn library(
     let (container, database, pool) = database().await;
     let jottings = Jottings::open(&repository.folder(), database.clone(), SHANGHAI).unwrap();
     indexed(count)(jottings.refresh().await.unwrap());
+    stamp(&pool, &mut fixtures).await;
     (container, database, pool, jottings, fixtures)
 }
 
@@ -87,7 +88,7 @@ fn cards(fixtures: &[Fixture], ids: &[Uuid], done: &[Uuid]) -> Vec<RecallCard> {
 
 /// Waits until another session is blocked on a lock: the barrier that lets a test hold one
 /// side of a race at the exact step under test.
-async fn until_blocked(pool: &PgPool) {
+pub(crate) async fn until_blocked(pool: &PgPool) {
     loop {
         let waiting: i64 = sqlx::query_scalar(
             "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type='Lock'",
@@ -113,10 +114,11 @@ fn recall_draws_least_completed_once_a_day() {
         let repository = Repository::new();
         let (_container, database, pool, jottings, fixtures) = library(&repository, 9).await;
         // Created at 00:30 Shanghai on the 20th, still the 19th in UTC.
-        let today = fixture("today.md", "2026-10-20T00:30:00+08:00", None, &[], "new");
+        let mut today = fixture("today.md", "2026-10-20T00:30:00+08:00", None, &[], "new");
         repository.write(&[(today.path.as_str(), today.text.as_str())]);
         repository.commit("today");
         indexed(1)(jottings.refresh().await.unwrap());
+        stamp(&pool, std::slice::from_mut(&mut today)).await;
         // c0–c3 were completed once before; c8 is out of recall.
         sqlx::query("UPDATE jotting_recall SET completions=1 WHERE jotting_id=ANY($1)")
             .bind(
@@ -161,7 +163,7 @@ fn recall_draws_least_completed_once_a_day() {
             .complete_recall(date!(2026 - 10 - 20), first[0], RecallNext::Keep)
             .await
             .unwrap();
-        let later = fixture("later.md", "2026-10-20T10:00:00+08:00", None, &[], "later");
+        let mut later = fixture("later.md", "2026-10-20T10:00:00+08:00", None, &[], "later");
         repository.write(&[(later.path.as_str(), later.text.as_str())]);
         let deleted = fixtures
             .iter()
@@ -170,6 +172,7 @@ fn recall_draws_least_completed_once_a_day() {
         repository.remove(&deleted.path);
         repository.commit("write and delete");
         indexed(2)(jottings.refresh().await.unwrap());
+        stamp(&pool, std::slice::from_mut(&mut later)).await;
         let resized = Jottings::open(&repository.folder(), database.clone(), SHANGHAI)
             .unwrap()
             .with_recall_size("3".parse::<RecallSize>().unwrap());

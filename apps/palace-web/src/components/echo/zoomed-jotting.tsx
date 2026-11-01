@@ -11,6 +11,7 @@ import {
   type ImagePolicy,
 } from "@/components/markdown-content";
 import { JottingTime, PendingDot } from "./jotting-card";
+import { useJottingEditing, type OwnSlips } from "./jotting-editing";
 
 const media = /^\/api\/media\/[0-9a-f-]{36}$/;
 // Only the owner's own uploads load; any other address, another site's included, stays a
@@ -43,7 +44,9 @@ export type Landing = "empty" | "card";
 // One jotting read in full, shared by the recall pile and the wall: it grows from its card to
 // the middle of the screen, and on closing shrinks back to where the card is now and fades out,
 // as `landing` says. What closing means for the card is the caller's, and so are the `actions`
-// written down its right side. Escape and a click on the backdrop ask to close.
+// written down its right side, among which it places the card's own 编辑 and 删除. Escape and a
+// click on the backdrop ask to close; while an edit is open they only leave an unchanged edit.
+// `onDeleted` hears of a deletion, and the caller closes the card into an empty slot.
 // See specs/decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md
 // and specs/decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md.
 export function ZoomedJotting({
@@ -54,15 +57,21 @@ export function ZoomedJotting({
   slot,
   onClose,
   onClosed,
+  onDeleted,
 }: {
   jotting: ListedJotting;
   zoom: Zoom;
   landing: Landing;
-  actions: ReactNode;
+  actions: (own: OwnSlips) => ReactNode;
   slot: () => DOMRect;
   onClose: () => void;
   onClosed: () => void;
+  onDeleted: () => void;
 }) {
+  const editing = useJottingEditing(jotting, onDeleted);
+  // An open edit holds the card: closing first leaves an unchanged edit, and a changed one
+  // leaves only by 取消 or by saving.
+  const close = editing.editing ? editing.leave : onClose;
   // The frame carries the geometry; the card inside it scrolls, and the actions hang outside
   // its right edge, where the scrolling card would clip them.
   const frame = useRef<HTMLDivElement>(null);
@@ -162,16 +171,16 @@ export function ZoomedJotting({
       if (event.key !== "Escape") return;
       if ((event.target as Element).closest?.("input, textarea")) return;
       event.stopPropagation();
-      onClose();
+      close();
     }
     window.addEventListener("keydown", escape, { capture: true });
     return () =>
       window.removeEventListener("keydown", escape, { capture: true });
-  }, [zoom.closing, onClose]);
+  }, [zoom.closing, close]);
 
   return (
     <>
-      <div ref={backdrop} className="zoom-backdrop" onClick={onClose} />
+      <div ref={backdrop} className="zoom-backdrop" onClick={close} />
       <div
         ref={frame}
         className={settled ? "zoom-frame settled" : "zoom-frame"}
@@ -185,20 +194,31 @@ export function ZoomedJotting({
           {/* The words, apart from the sheet, so they can fade before it on the way back. */}
           <div ref={page}>
             {jotting.pending && <PendingDot />}
-            {jotting.title && <h3>{jotting.title}</h3>}
-            <div className="jot-body">
-              <MarkdownContent content={jotting.body} images={ownMedia} />
-            </div>
+            {editing.fields ?? (
+              <>
+                {jotting.title && <h3>{jotting.title}</h3>}
+                <div className="jot-body">
+                  <MarkdownContent content={jotting.body} images={ownMedia} />
+                </div>
+              </>
+            )}
             <footer className="jot-foot">
               <JottingTime createdAt={jotting.created_at} form="full" />
-              {jotting.tags.map((tag) => (
-                <span key={tag}>#{tag}</span>
-              ))}
+              {/* While editing, the tags are in the body's last line. */}
+              {!editing.editing &&
+                jotting.tags.map((tag) => <span key={tag}>#{tag}</span>)}
             </footer>
           </div>
         </article>
         {/* Shown once the card has grown, gone the moment it starts back: they never fly. */}
-        <div className="zoom-actions">{actions}</div>
+        <div className="zoom-actions">
+          {editing.notice && (
+            <p className="zoom-notice" role="alert">
+              {editing.notice}
+            </p>
+          )}
+          {editing.editing ? editing.editingSlips : actions(editing.own)}
+        </div>
       </div>
     </>
   );

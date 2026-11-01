@@ -5,6 +5,8 @@ date: 2026-10-19
 
 # 札记以 Git 仓库中的 Markdown 文件为唯一权威，服务端按 commit 索引进 PostgreSQL，移动端只拉取变更和上传新札记
 
+> 历史决策：“Palace 不做编辑器”、D2 的对账只看 commit、不变量 2 和 7（服务端只写 `inbox/<id>.md`），已由[Web 编辑和删除札记](20261101-edit-and-delete-jottings-from-the-web-in-the-work-tree-until-committed.md)修改：网页可以改写或删除札记文件并立即发布，对账在 commit 带上之前保留网页的结果。
+
 札记（Jotting）是一类标题可选的短文，以带 frontmatter 的 Markdown 文件保存在一个 Git 仓库中，允许多级子目录。本地 Agent 是主要写入者，直接用文件工具和 rg 维护，并以 commit 作为“改完了”的边界。服务端不扫描工作区，只监听当前分支的 commit：commit 变化时，把该 commit 中的札记与 PostgreSQL 索引对账，并为每张变化的札记分配同步版本。移动端离线保存全部札记，通过增量接口追上服务端；它只能新建札记，不能修改或删除。上传的札记由服务端写入 `inbox/`，立即进入索引，之后由 Agent 整理和 commit。
 
 当前为 `implemented`，核心测试用例见[札记同步](../../../test-cases/server/jotting/jotting-sync.md)。本文件是 `server/jotting` 的根决策，没有前序 ADR。涉及 `palace-domain`（札记解析与校验）、`palace-db`（札记索引与同步表）、新增的 `palace-jottings` crate（Git 读取、对账与 inbox 写入）、`palace-backend` 的札记接口、`palace-server` 的配置、`pal` CLI 的校验命令，以及运行镜像的挂载要求。Web 回响页的界面、附件读取、札记之间的引用语法不在本决策范围内，见“本决策未解决的问题”。

@@ -245,3 +245,72 @@ fn census_reports_every_problem_of_a_set() {
     census.record("b.md", id(OTHER));
     assert_eq!(census.finish(), Ok(2));
 }
+
+/// A web edit replaces only `title`, `tags` and the body; unknown fields, comments, the order
+/// of keys, line endings and the blank lines before the body stay as they were.
+/// Core test case:
+/// - `specs/test-cases/server/jotting/jotting-sync.md#a-web-edit-must-rewrite-only-its-fields-and-publish-at-once`
+#[test]
+fn rewriting_keeps_every_other_byte() {
+    let file = format!(
+        "---\n# agent note\nsource: flomo\ntitle: 旧标题\nid: {ID}\ncreated: 2026-10-19T08:30:00+08:00\ntags:\n  - 阅读\n  - rust\nextra:\n  nested: 1\n---\n\n\n旧正文\n"
+    );
+    let original = Jotting::parse(file.as_bytes()).unwrap();
+    let edited = Jotting {
+        title: Some("a: b".into()),
+        tags: vec!["true".into(), "写作".into()],
+        body: "新正文\n".into(),
+        ..original
+    };
+    assert_eq!(
+        edited.rewrite(&file).unwrap(),
+        format!(
+            "---\n# agent note\nsource: flomo\ntitle: \"a: b\"\nid: {ID}\ncreated: 2026-10-19T08:30:00+08:00\ntags: [\"true\", 写作]\nextra:\n  nested: 1\n---\n\n\n新正文\n"
+        )
+    );
+
+    // Cleared fields are dropped; new ones go right after `created`, title first.
+    let cleared = Jotting {
+        title: None,
+        tags: vec![],
+        ..original
+    };
+    let bare = cleared.rewrite(&file).unwrap();
+    assert!(!bare.contains("title") && !bare.contains("tags:"), "{bare}");
+    assert!(bare.contains("extra:\n  nested: 1\n"), "{bare}");
+    let plain =
+        format!("---\r\nid: {ID}\r\ncreated: 2026-10-19T08:30:00+08:00\r\nkeep: x\r\n---\r\n正文");
+    let added = Jotting {
+        title: Some("标题".into()),
+        tags: vec!["阅读".into()],
+        ..Jotting::parse(plain.as_bytes()).unwrap()
+    };
+    assert_eq!(
+        added.rewrite(&plain).unwrap(),
+        format!(
+            "---\r\nid: {ID}\r\ncreated: 2026-10-19T08:30:00+08:00\r\ntitle: 标题\r\ntags: [阅读]\r\nkeep: x\r\n---\r\n正文"
+        )
+    );
+}
+
+/// A rewrite never puts one jotting's content into another jotting's file, and never moves
+/// `created`.
+/// Core test case:
+/// - `specs/test-cases/server/jotting/jotting-sync.md#a-web-edit-must-rewrite-only-its-fields-and-publish-at-once`
+#[test]
+fn rewriting_refuses_a_different_jotting() {
+    let file = format!("---\nid: {ID}\ncreated: 2026-10-19T08:30:00+08:00\n---\n\n正文");
+    let jotting = Jotting::parse(file.as_bytes()).unwrap();
+    let other = Jotting {
+        id: id(OTHER),
+        ..jotting.clone()
+    };
+    let moved = Jotting {
+        created_at: jotting.created_at + 1,
+        ..jotting.clone()
+    };
+    assert_eq!(other.rewrite(&file), None);
+    assert_eq!(moved.rewrite(&file), None);
+    assert_eq!(jotting.rewrite("正文"), None);
+    assert_eq!(jotting.rewrite(&file).as_deref(), Some(file.as_str()));
+}

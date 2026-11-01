@@ -21,6 +21,8 @@ pub(super) enum ApiError {
     MediaUnavailable,
     MediaInUse,
     JottingConflict,
+    JottingChanged,
+    JottingMoved,
     JottingsUnavailable,
     WebPageBound,
     Internal,
@@ -94,6 +96,8 @@ impl From<palace_jottings::JottingsError> for ApiError {
         match value {
             palace_jottings::JottingsError::Input(e) => Self::Input(e),
             palace_jottings::JottingsError::Conflict => Self::JottingConflict,
+            palace_jottings::JottingsError::Changed => Self::JottingChanged,
+            palace_jottings::JottingsError::Moved => Self::JottingMoved,
             palace_jottings::JottingsError::Database(e) => e.into(),
             palace_jottings::JottingsError::Git(_) | palace_jottings::JottingsError::File(_) => {
                 Self::Internal
@@ -144,6 +148,8 @@ impl IntoResponse for ApiError {
             ),
             Self::MediaInUse => (StatusCode::CONFLICT, ErrorCode::MediaInUse, ""),
             Self::JottingConflict => (StatusCode::CONFLICT, ErrorCode::JottingIdConflict, ""),
+            Self::JottingChanged => (StatusCode::CONFLICT, ErrorCode::JottingChanged, ""),
+            Self::JottingMoved => (StatusCode::CONFLICT, ErrorCode::JottingMoved, ""),
             Self::JottingsUnavailable => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 ErrorCode::JottingsUnavailable,

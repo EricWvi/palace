@@ -45,8 +45,8 @@
 | --- | --- | --- |
 | 四种状态的 `pending` 判定正确（真实 Git 仓库与真实 PostgreSQL） | Covered | `crates/jottings/tests/jottings/reading.rs::pending_means_the_file_sits_under_inbox` |
 | `changes` 响应形状不变（真实 Router，OpenAPI 合同） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（真实 PostgreSQL、Git 与真实 Router，经 `tests/http/jottings.rs::exercise_reading`，全部真实响应按 OpenAPI 校验；`exercise_jottings` 的 `changes` 断言未改） |
-| 网页改过、未入 commit 的札记为 `pending`，commit 带上或撤销后不再是；网页删除不留下 `pending` 的札记（真实 Git 与 PostgreSQL） | Missing | — |
-| 列表与回顾接口的每张札记带当前 `version`（真实 Router，OpenAPI 合同） | Missing | — |
+| 网页改过、未入 commit 的札记为 `pending`，commit 带上或撤销后不再是；网页删除不留下 `pending` 的札记（真实 Git 与 PostgreSQL） | Partial | `crates/jottings/tests/jottings.rs::editing::web_writes_survive_commits_that_leave_them_out`、`a_web_edit_rewrites_only_its_fields_and_publishes_at_once`（编辑后为 `true`，commit 带上后为 `false`，删除后不在列表中）；网页编辑被 `git restore` 撤销后的 `pending` 只由规划的纯函数测试间接证明 |
+| 列表与回顾接口的每张札记带当前 `version`（真实 Router，OpenAPI 合同） | Covered | `crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `tests/http/jottings.rs::exercise_reading`，列表响应整体比较含 `version`；回顾响应按 OpenAPI 校验，`version` 为必填） |
 
 决策依据：D4、D8，不变量 5、12；20261101 网页写入决策 D1、D5。
 

@@ -508,6 +508,24 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/jottings/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Sets a jotting's title, tags and body, keeping every other byte of its file. */
+    put: operations["edit_jotting"];
+    post?: never;
+    /** Deletes a jotting's file and publishes the deletion. */
+    delete: operations["delete_jotting"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/jottings/{id}/recall": {
     parameters: {
       query?: never;
@@ -1508,6 +1526,8 @@ export interface components {
       | "media_storage_unavailable"
       | "media_in_use"
       | "jotting_id_conflict"
+      | "jotting_changed"
+      | "jotting_moved"
       | "jottings_unavailable"
       | "web_page_bound"
       | "persistence_failed";
@@ -1654,6 +1674,21 @@ export interface components {
       has_more: boolean;
       next: components["schemas"]["Cursor"];
     };
+    /** @description A jotting's new title, tags and body, as of the version the page read. */
+    JottingEdit: {
+      /** @description Markdown, at most 1 MiB; leading blank lines are dropped. */
+      body: string;
+      /** @description Distinct non-blank tags. */
+      tags?: string[];
+      /** @description Omitted, null or blank removes the title. */
+      title?: string | null;
+      /** @description The `version` the page read; an older one is refused with `jotting_changed`. */
+      version: components["schemas"]["Cursor"];
+    };
+    /** @description The version an edit is published under; unchanged when the edit changed nothing. */
+    JottingEdited: {
+      version: components["schemas"]["Cursor"];
+    };
     /** @description Counts behind the left column of the 回响 page; days are the deployment's local days. */
     JottingOverview: {
       /** @description One entry per local day from `from` through today, empty days included. */
@@ -1725,12 +1760,17 @@ export interface components {
       created_at: number;
       /** Format: uuid */
       id: string;
-      /** @description The file sits under `inbox/`, waiting for the agent to sort it. */
+      /**
+       * @description The agent has something to do: the file sits under `inbox/`, or holds a web edit no
+       *     commit carries yet.
+       */
       pending: boolean;
       /** @description Whether the jotting is drawn into recall piles. */
       recall: components["schemas"]["RecallState"];
       tags: string[];
       title: string | null;
+      /** @description The version an edit or deletion of this jotting must name. */
+      version: components["schemas"]["Cursor"];
     };
     LogoutResponse: {
       /** @description True after the local revocation has committed, including when external revocation is pending. */
@@ -5956,6 +5996,203 @@ export interface operations {
         };
       };
       /** @description Internal persistence or response failure */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider unavailable, or no jottings folder configured */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  edit_jotting: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Jotting id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["JottingEdit"];
+      };
+    };
+    responses: {
+      /** @description Written and published, or unchanged */
+      200: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JottingEdited"];
+        };
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description No jotting ever had this id */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description `jotting_changed`: changed or deleted since read; `jotting_moved`: its file is not where it was */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Input capacity exceeded: extractor text or body limit */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Internal persistence or file failure; the edit can be retried */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Identity provider unavailable, or no jottings folder configured */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  delete_jotting: {
+    parameters: {
+      query: {
+        /** @description The `version` the page read; an older one is refused with `jotting_changed`. */
+        version: components["schemas"]["Cursor"];
+      };
+      header?: never;
+      path: {
+        /** @description Jotting id */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted and published */
+      204: {
+        headers: {
+          /** @description no-store */
+          "Cache-Control"?: string;
+          /** @description Refreshed production session; absent in fixed-user mode */
+          "Set-Cookie"?: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input; JSON domain error or native extractor text as declared */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InputErrorResponse"];
+          "text/plain": string;
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Origin rejected */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description No jotting ever had this id */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description `jotting_changed`: changed or deleted since read; `jotting_moved`: its file is not where it was */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal persistence or file failure; the deletion can be retried */
       500: {
         headers: {
           [name: string]: unknown;

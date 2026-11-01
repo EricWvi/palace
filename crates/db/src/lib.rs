@@ -34,7 +34,9 @@ pub use jotting_read::{
     TagCount,
 };
 mod jotting_recall;
+mod jotting_web;
 pub use jotting_recall::{RecallCard, RecallNext, RecallState};
+pub use jotting_web::{JottingStage, LiveTarget, WebTarget, WebWrite};
 mod login;
 mod media;
 pub use media::{Media, MediaForDelete, MediaObject};

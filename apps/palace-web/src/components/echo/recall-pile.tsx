@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   completeRecall,
+  dropJotting,
   jottingRecallOptions,
   patchRecall,
   type RecallNext,
@@ -44,8 +45,8 @@ export function RecallPile({ away }: { away: boolean }) {
   const [settled, setSettled] = useState(false);
   const [columns, setColumns] = useState(MAX_COLUMNS);
   const [zoom, setZoom] = useState<Zoom | null>(null);
-  // The open card was completed: it closes into an empty slot and leaves the pile.
-  const [leaving, setLeaving] = useState(false);
+  // The open card was completed or deleted: it closes into an empty slot and leaves the pile.
+  const [leaving, setLeaving] = useState<false | "done" | "deleted">(false);
   if (away && spread) setSpread(false);
   if (!spread && settled) setSettled(false);
   const pile = useRef<HTMLElement>(null);
@@ -55,7 +56,7 @@ export function RecallPile({ away }: { away: boolean }) {
       completeRecall(date, id, next),
     onSuccess: ({ recall: state }) => {
       if (!zoom) return;
-      setLeaving(true);
+      setLeaving("done");
       setZoom({ ...zoom, closing: true });
       // The pile's copy waits until the card has landed, so the card keeps its slot meanwhile.
       patchRecall(client, zoom.id, { recall: state });
@@ -197,16 +198,20 @@ export function RecallPile({ away }: { away: boolean }) {
             jotting={zoomed}
             zoom={zoom}
             landing={leaving ? "empty" : "card"}
-            actions={(["keep", "retire"] as const).map((next) => (
-              <button
-                key={next}
-                type="button"
-                disabled={done.isPending || zoom.closing}
-                onClick={() => done.mutate({ id: zoom.id, next })}
-              >
-                {next === "keep" ? "回顾完成" : "不再回顾"}
-              </button>
-            ))}
+            actions={(own) => [
+              ...(["keep", "retire"] as const).map((next) => (
+                <button
+                  key={next}
+                  type="button"
+                  disabled={done.isPending || zoom.closing}
+                  onClick={() => done.mutate({ id: zoom.id, next })}
+                >
+                  {next === "keep" ? "回顾完成" : "不再回顾"}
+                </button>
+              )),
+              own.edit,
+              own.remove,
+            ]}
             slot={() =>
               pile.current
                 ?.querySelector(`[data-id="${zoom.id}"]`)
@@ -217,11 +222,16 @@ export function RecallPile({ away }: { away: boolean }) {
             }}
             onClosed={() => {
               setZoom(null);
-              if (leaving)
+              if (leaving === "deleted") dropJotting(client, zoom.id);
+              else if (leaving)
                 patchRecall(client, zoom.id, {
                   recall: zoomed.recall,
                   done: true,
                 });
+            }}
+            onDeleted={() => {
+              setLeaving("deleted");
+              setZoom({ ...zoom, closing: true });
             }}
           />,
           document.body,

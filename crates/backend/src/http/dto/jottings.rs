@@ -148,7 +148,10 @@ pub(crate) struct ListedJotting {
     pub title: Option<String>,
     pub tags: Vec<String>,
     pub body: String,
-    /// The file sits under `inbox/`, waiting for the agent to sort it.
+    /// The version an edit or deletion of this jotting must name.
+    pub version: Cursor,
+    /// The agent has something to do: the file sits under `inbox/`, or holds a web edit no
+    /// commit carries yet.
     pub pending: bool,
     /// Whether the jotting is drawn into recall piles.
     pub recall: RecallState,
@@ -158,6 +161,7 @@ impl From<palace_db::ListedJotting> for ListedJotting {
     fn from(value: palace_db::ListedJotting) -> Self {
         let palace_db::ListedJotting {
             jotting,
+            version,
             pending,
             recall,
         } = value;
@@ -167,6 +171,7 @@ impl From<palace_db::ListedJotting> for ListedJotting {
             title: jotting.title,
             tags: jotting.tags,
             body: jotting.body,
+            version: Cursor(version),
             pending,
             recall: recall.into(),
         }

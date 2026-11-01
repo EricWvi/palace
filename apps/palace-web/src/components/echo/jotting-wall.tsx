@@ -6,6 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
+  dropJotting,
   jottingListOptions,
   patchRecall,
   setJottingRecall,
@@ -108,6 +109,9 @@ export function JottingWall({
   useSearchHighlight(wall, q, list.data);
   // A card read in full stays on the wall: closing hands it back, folded or open as it was.
   const [zoom, setZoom] = useState<Zoom | null>(null);
+  // The open card was deleted: it closes into an empty slot and leaves its column, the cards
+  // below moving up and the other columns staying.
+  const [leaving, setLeaving] = useState(false);
   const zoomed = zoom && byId.get(zoom.id);
   const client = useQueryClient();
   // 不再回顾 and 恢复回顾 only; completing a recall card happens in the pile.
@@ -136,15 +140,16 @@ export function JottingWall({
       jotting={item}
       activeTag={tag}
       // Shown again as the zoomed card shrinks back over it, so the two cross-fade.
-      hidden={zoom?.id === item.id && !zoom.closing}
+      hidden={zoom?.id === item.id && (!zoom.closing || leaving)}
       onTag={onTag}
-      onZoom={(element) =>
+      onZoom={(element) => {
+        setLeaving(false);
         setZoom({
           id: item.id,
           from: element.getBoundingClientRect(),
           closing: false,
-        })
-      }
+        });
+      }}
     />
   );
   return (
@@ -184,9 +189,11 @@ export function JottingWall({
           <ZoomedJotting
             jotting={zoomed}
             zoom={zoom}
-            landing="card"
-            actions={
+            landing={leaving ? "empty" : "card"}
+            actions={(own) => [
+              own.edit,
               <button
+                key="recall"
                 type="button"
                 disabled={recall.isPending}
                 onClick={() =>
@@ -198,15 +205,23 @@ export function JottingWall({
                 }
               >
                 {zoomed.recall === "included" ? "不再回顾" : "恢复回顾"}
-              </button>
-            }
+              </button>,
+              own.remove,
+            ]}
             slot={() =>
               wall
                 ?.querySelector(`[data-id="${zoom.id}"]`)
                 ?.getBoundingClientRect() ?? zoom.from
             }
             onClose={() => setZoom({ ...zoom, closing: true })}
-            onClosed={() => setZoom(null)}
+            onClosed={() => {
+              setZoom(null);
+              if (leaving) dropJotting(client, zoom.id);
+            }}
+            onDeleted={() => {
+              setLeaving(true);
+              setZoom({ ...zoom, closing: true });
+            }}
           />,
           document.body,
         )}

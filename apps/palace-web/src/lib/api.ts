@@ -331,6 +331,94 @@ export function patchRecall(
       },
   );
 }
+// Sets a jotting's title, tags and body as of the version the page read; a newer version
+// answers 409, and the page must not overwrite it.
+export function editJotting(
+  id: string,
+  version: string,
+  edit: { title: string | null; tags: string[]; body: string },
+) {
+  return apiData(
+    api.PUT("/api/jottings/{id}", {
+      params: { path: { id } },
+      body: { version, ...edit },
+    }),
+  );
+}
+// Deletes a jotting as of the version the page read.
+export function deleteJotting(id: string, version: string) {
+  return apiData(
+    api.DELETE("/api/jottings/{id}", {
+      params: { path: { id }, query: { version } },
+    }),
+  );
+}
+// Writes an edited jotting into every cached copy, the wall's and the pile's; its tags may
+// have changed the counts.
+export function patchJotting(
+  client: QueryClient,
+  id: string,
+  change: Pick<
+    ListedJotting,
+    "title" | "tags" | "body" | "version" | "pending"
+  >,
+) {
+  client.setQueriesData<InfiniteData<JottingPage>>(
+    { queryKey: ["jottings", "list"] },
+    (data) =>
+      data && {
+        ...data,
+        pages: data.pages.map((page) => ({
+          ...page,
+          jottings: page.jottings.map((jotting) =>
+            jotting.id === id ? { ...jotting, ...change } : jotting,
+          ),
+        })),
+      },
+  );
+  client.setQueryData<JottingRecall>(
+    ["jottings", "recall"],
+    (data) =>
+      data && {
+        ...data,
+        jottings: data.jottings.map((card) =>
+          card.id === id ? { ...card, ...change } : card,
+        ),
+      },
+  );
+  void client.invalidateQueries({ queryKey: ["jottings", "overview"] });
+}
+// Takes a deleted jotting out of every cached copy; the wall keeps the other cards where they
+// are, and the counts follow.
+export function dropJotting(client: QueryClient, id: string) {
+  client.setQueriesData<InfiniteData<JottingPage>>(
+    { queryKey: ["jottings", "list"] },
+    (data) => {
+      if (!data) return data;
+      // Every page carries the same total, so each loses the one card wherever it was.
+      const held = data.pages.some((page) =>
+        page.jottings.some((jotting) => jotting.id === id),
+      );
+      return {
+        ...data,
+        pages: data.pages.map((page) => ({
+          ...page,
+          jottings: page.jottings.filter((jotting) => jotting.id !== id),
+          total: held ? page.total - 1 : page.total,
+        })),
+      };
+    },
+  );
+  client.setQueryData<JottingRecall>(
+    ["jottings", "recall"],
+    (data) =>
+      data && {
+        ...data,
+        jottings: data.jottings.filter((card) => card.id !== id),
+      },
+  );
+  void client.invalidateQueries({ queryKey: ["jottings", "overview"] });
+}
 // A new jotting changes the wall and the counts; today's recall pile never includes it.
 export function refreshJottings(client: QueryClient) {
   void client.invalidateQueries({ queryKey: ["jottings", "list"] });

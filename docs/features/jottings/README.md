@@ -2,10 +2,12 @@
 
 札记是标题可选的短文，以带 frontmatter 的 Markdown 文件保存在一个 Git 仓库中，主要由本地 Agent 用文件
 工具维护。服务端按 commit 把札记索引进 PostgreSQL，供移动端离线同步；移动端可以离线新建札记，但不能
-修改或删除已有札记。决策见[札记根决策](../../../specs/decisions/server/jotting/0-jottings-indexed-from-git-commits.md)。
+修改或删除已有札记。决策见[札记根决策](../../../specs/decisions/server/jotting/0-jottings-indexed-from-git-commits.md)
+和 [Web 编辑和删除札记](../../../specs/decisions/server/jotting/20261101-edit-and-delete-jottings-from-the-web-in-the-work-tree-until-committed.md)。
 Web 回响页实时读取札记并可以新建，决策见[回响页根决策](../../../specs/decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)
 、[瀑布流的札记点时间放大](../../../specs/decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)
-和[回顾按完成次数最少者优先抽取](../../../specs/decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)。
+、[回顾按完成次数最少者优先抽取](../../../specs/decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)
+和[放大卡片里编辑和删除札记](../../../specs/decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md)。
 
 ## 文件格式
 
@@ -48,6 +50,16 @@ tags: [阅读, rust]
 
 - 移动端上传的札记由服务端写到 `inbox/<id>.md`，服务端不 commit。Agent 整理（移动、改写）后照常
   commit；原样 commit 不产生新的同步版本。上传札记在 commit 之前被删除的，下一次 commit 时变为删除。
+- Web 上编辑或删除札记时，服务端直接改写或删除工作区里的文件并立即发布，同样不 commit。编辑只替换
+  `title`、`tags` 和正文，其他 frontmatter 行原样保留。`git status` 里这些文件显示为 modified 或
+  deleted：原样 commit，或者在它的基础上改完再 commit。
+  - 只 commit 别的文件时，网页的结果保持不变，札记一直带待整理圆点。
+  - 用 `git mv` 移动网页改过的文件时，网页的结果跟着新路径保留。
+  - `git restore`（或 `git checkout`）这个文件就是撤销：下一次 commit 时回到 commit 里的内容，网页删掉的
+    札记会复活。不要随手还原工作区，否则网页的修改会丢。
+  - 在网页的结果上接着改、但没 commit 就先 commit 了别的文件，会暂时回到 commit 里的内容，等这个文件
+    commit 后恢复。
+  - 服务端需要整个札记目录的写权限，不只 `inbox/`。
 
 ## 同步接口
 
@@ -65,9 +77,12 @@ tags: [阅读, rust]
 
 ## Web 读取接口
 
-回响页不使用同步接口，而是按页面需要实时查询索引。读取接口都只返回未删除的札记，每张札记带 `pending`：
-文件位于札记目录下第一级的 `inbox/` 时为 `true`，与是否已经 commit 无关；`recall` 为 `included` 或 `excluded`，
-表示是否参与回顾。
+回响页不使用同步接口，而是按页面需要实时查询索引。读取接口都只返回未删除的札记，每张札记带 `version`
+（编辑和删除要带上它）和 `pending`：文件位于札记目录下第一级的 `inbox/`，或者有网页修改还没被 commit
+带上时为 `true`；`recall` 为 `included` 或 `excluded`，表示是否参与回顾。
+
+编辑和删除带的 `version` 不是当前版本，或者札记已删除时返回 `409 jotting_changed`；索引记录的路径下文件
+不存在、解析失败或不是这张札记（Agent 正在移动它）时返回 `409 jotting_moved`。两种情况都不改任何东西。
 
 | 接口 | 用途 |
 | --- | --- |
@@ -76,6 +91,8 @@ tags: [阅读, rust]
 | `GET /api/jottings/recall` | 今天的回顾卡片组，当天第一次请求时抽出并保存，此后一整天不变；每张卡片另带 `done` |
 | `POST /api/jottings/recall/{date}/{id}/done` | 完成一张卡片，`{ next: "keep" \| "retire" }`；只有第一次完成计数，`retire` 同时设为不再回顾；卡片不在保存的卡片组中时 `404` |
 | `PUT /api/jottings/{id}/recall` | `{ recall: "included" \| "excluded" }`，设置是否参与回顾；恢复时完成次数重设为当前最小值 |
+| `PUT /api/jottings/{id}` | `{ version, title?, tags?, body }`，修改标题、标签和正文，返回 `{ version }`；内容不变时不写文件、版本不变 |
+| `DELETE /api/jottings/{id}?version=<n>` | 删除札记文件并发布删除，返回 `204` |
 
 日期都按 `PALACE_TIMEZONE` 计算。未配置 `PALACE_JOTTINGS_DIR` 时这些接口都返回 `503 jottings_unavailable`。
 
@@ -89,7 +106,11 @@ tags: [阅读, rust]
 
 - 点卡片组把它平铺到瀑布流上方，每行最多 6 张、最多 3 行，点别处收起；平铺后点一张卡片放大阅读。卡片右侧一列题签是
   「回顾完成」「不再回顾」，点了才计数并离开卡片组；点背景或按 Escape 只是缩回原位。完成状态保存在服务端，刷新后不会回来。
-- 瀑布流卡片放大后，右侧只有「不再回顾」或「恢复回顾」。
+- 瀑布流卡片放大后，右侧是「编辑」「不再回顾 / 恢复回顾」「删除」；回顾卡片是「回顾完成」「不再回顾」「编辑」「删除」。
+- 「编辑」把放大卡片原地变成编辑器：标题一行，正文里末尾一行写着 `#标签`，保存时按新建的规则提取。Ctrl/Cmd + Enter
+  或「保存」保存，「取消」放弃；没有改动时 Escape 或点背景回到阅读，有改动时它们不起作用。保存冲突时保留草稿并提示。
+- 「删除」点一次变成朱红的「确认」，再点才删除；鼠标移开、失去焦点或 3 秒后变回「删除」。删除后卡片缩回空位并离开
+  瀑布流或卡片组，同一列下面的卡片上移。
 - 瀑布流卡片点页脚的时间放大阅读，关闭后卡片留在原位；正文超过 8 行时折叠，「展开」在原地展开，超过 40 行时「展开」直接放大。
 - 只有放大的卡片显示图片，而且只加载正文中写成 `/api/media/<id>` 的 Palace 媒体，最高 360px；缩略卡片和外站图片都显示占位文字。
   放大卡片的时间总是完整时间，瀑布流的时间没有悬停提示。

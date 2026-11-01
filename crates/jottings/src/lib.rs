@@ -12,8 +12,8 @@ mod repo;
 mod watch;
 
 pub use library::{
-    INBOX, JottingService, Jottings, JottingsError, Recall, RecallSize, RecallSizeError,
-    Reconciled, Uploaded,
+    INBOX, JottingEdit, JottingService, Jottings, JottingsError, Recall, RecallSize,
+    RecallSizeError, Reconciled, Uploaded,
 };
 pub use repo::{GitError, OpenError};
 pub use watch::{JottingWatch, watch};
