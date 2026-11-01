@@ -1,6 +1,6 @@
 # 回响页核心测试用例
 
-当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
+当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
 
 ## Echo navigation must open the wide jotting page
 
@@ -33,6 +33,38 @@
 | 筛选与搜索时卡片组收起，清除后恢复 | Covered | `pages/echo.test.tsx::lets each read recall card leave the pile until the page is opened again`（标签筛选与搜索使卡片组所在抽屉变为 inert，清除后恢复） |
 
 决策依据：D3，不变量 3、8。
+
+## A wall jotting must open in full by its time and come back as it was
+
+风险：点击正文或空白也会放大，选字、点链接时误开；超长札记在墙上原地展开，拉长所在的列；放大期间的 Escape 同时清掉了标签筛选；关闭后原卡片不见了，或展开状态被改变。前置：瀑布流中有一张近期札记、一张展开后约 20 行的札记和一张超过 40 行的札记；当前按标签筛选。触发：点击卡片正文；点击页脚的时间；按 Escape；点击两张长札记的「展开」。
+
+必须成立：点击正文不放大，点击时间才放大；放大期间原卡片隐藏，关闭后重新显示在原位；Escape 只关闭放大卡片，标签筛选不变；不超过 40 行的札记原地展开，超过 40 行的札记点「展开」直接放大，墙上的卡片保持折叠。禁止瀑布流卡片的时间带悬停提示；禁止放大卡片显示相对时间。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 只有时间是放大入口，放大卡片显示完整时间，瀑布流时间没有提示 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
+| Escape 只关闭放大卡片，原卡片回到墙上 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
+| 40 行以内原地展开，超过 40 行展开即放大 | Partial | `pages/echo.test.tsx::opens a body in place up to forty lines and reads a longer one in full`（jsdom 没有布局，正文高度与行高由测试替换） |
+| 回顾卡片仍然关闭即读过 | Covered | 见 [Read recall cards must leave the pile for the page session](#read-recall-cards-must-leave-the-pile-for-the-page-session)，回顾与瀑布流共用同一个放大卡片 |
+
+决策依据：20261101 决策 D1–D3、D5，不变量 1–3、7。
+
+## Only a jotting read in full may load pictures, and only Palace media
+
+风险：缩略卡片请求图片，图片晚到后打乱瀑布流各列；打开旧札记时浏览器请求了外站图片；手机截图按卡片宽度显示，高过一屏；卡片按打开时测得的高度固定，图片加载后只能在框内滚动。前置：札记正文同时引用 `/api/media/<uuid>` 与外站图片；媒体响应晚于放大动画结束。触发：在瀑布流中查看卡片；点击时间放大；等待图片到达。
+
+必须成立：瀑布流卡片中两张图片都显示占位，不请求图片；放大卡片只加载 `/api/media/<uuid>`，外站地址显示占位；图片显示高度不超过 360px；图片到达后放大卡片变高，不超过视口的 80%，并保持垂直居中。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 缩略卡片只显示占位，放大卡片只加载 Palace 媒体 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
+| 图片限高 360px，卡片随图片居中长高且不超过视口 80%（真实 Chromium） | Covered | `e2e/echo.spec.ts::a jotting read in full grows evenly for a late tall picture and caps its height`（媒体响应被扣住到卡片放大完毕之后） |
+
+决策依据：20261101 决策 D4、D5，不变量 4–6。
 
 ## Tag filters and search must stay visible and intersect
 
