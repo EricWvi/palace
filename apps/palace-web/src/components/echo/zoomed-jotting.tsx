@@ -164,6 +164,18 @@ export function ZoomedJotting({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoom.closing]);
 
+  // The page under the card stays put while it is open, so the slot it shrinks back to is where
+  // it left. No scrollbar takes width (see lib/overlay-scrollbars.ts), so locking it leaves the
+  // wall as wide as it was.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const { overflow } = root.style;
+    root.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = overflow;
+    };
+  }, []);
+
   // Escape closes the card before the page or the pile sees it.
   useEffect(() => {
     if (zoom.closing) return;

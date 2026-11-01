@@ -187,6 +187,45 @@ test("a deleted jotting leaves its column alone after a vermilion 确认, and an
   ).toBe(true);
 });
 
+// Core test case: `specs/test-cases/web/echo/echo-page.md#a-wall-jotting-must-open-in-full-by-its-time-and-come-back-as-it-was`
+test("the page under a zoomed jotting does not scroll, and the wall keeps its width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 420 });
+  await serve(page);
+  await page.goto("/jottings");
+  await expect(page.locator(".wall [data-id]")).toHaveCount(12);
+  const width = await page
+    .locator(".wall")
+    .evaluate((wall) => wall.clientWidth);
+  await page
+    .locator(".wall [data-id=j3]")
+    .getByRole("button", { name: "放大" })
+    .click();
+  await expect(page.locator(".zoom-frame.settled")).toBeVisible();
+  expect(await page.locator(".wall").evaluate((wall) => wall.clientWidth)).toBe(
+    width,
+  );
+  const before = await page.evaluate(() => window.scrollY);
+  // Over the dimmed page, and over the short card itself.
+  await page.mouse.move(80, 380);
+  await page.mouse.wheel(0, 600);
+  const box = (await page.locator(".echo-card.zoom").boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 600);
+  await page.keyboard.press("PageDown");
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.scrollY)).toBe(before);
+
+  // Closed, the page scrolls again.
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".zoom-frame")).toHaveCount(0);
+  await page.mouse.wheel(0, 600);
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(before);
+});
+
 // Serves a recall pile of `count` cards and an empty wall; completions succeed.
 function servePile(page: Page, count: number) {
   return page.route("**/api/**", async (route) => {

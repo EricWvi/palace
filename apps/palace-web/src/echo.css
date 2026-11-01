@@ -430,6 +430,8 @@
   height: auto;
   max-height: 80vh;
   overflow: auto;
+  /* Reaching its end does not hand the scroll on to the page underneath. */
+  overscroll-behavior: contain;
 }
 
 /*

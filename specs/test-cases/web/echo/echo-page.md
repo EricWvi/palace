@@ -69,7 +69,7 @@
 
 风险：点击正文或空白也会放大，选字、点链接时误开；超长札记在墙上原地展开，拉长所在的列；放大期间的 Escape 同时清掉了标签筛选；关闭后原卡片不见了，或展开状态被改变。前置：瀑布流中有一张近期札记、一张展开后约 20 行的札记和一张超过 40 行的札记；当前按标签筛选。触发：点击卡片正文；点击页脚的时间；按 Escape；点击两张长札记的「展开」。
 
-必须成立：点击正文不放大，点击时间才放大；放大期间原卡片隐藏，关闭后重新显示在原位；Escape 只关闭放大卡片，标签筛选不变；不超过 40 行的札记原地展开，超过 40 行的札记点「展开」直接放大，墙上的卡片保持折叠。禁止瀑布流卡片的时间带悬停提示；禁止放大卡片显示相对时间。
+必须成立：点击正文不放大，点击时间才放大；放大期间原卡片隐藏、下面的页面不能滚动、瀑布流宽度不变，关闭后重新显示在原位、页面恢复滚动；Escape 只关闭放大卡片，标签筛选不变；不超过 40 行的札记原地展开，超过 40 行的札记点「展开」直接放大，墙上的卡片保持折叠。禁止瀑布流卡片的时间带悬停提示；禁止放大卡片显示相对时间。
 
 验证义务与证据：
 
@@ -77,6 +77,7 @@
 | --- | --- | --- |
 | 只有时间是放大入口，放大卡片显示完整时间，瀑布流时间没有提示 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
 | Escape 只关闭放大卡片，原卡片回到墙上 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
+| 放大期间页面不随滚轮或翻页键滚动，瀑布流宽度不变，关闭后恢复滚动（真实 Chromium） | Covered | `e2e/echo.spec.ts::the page under a zoomed jotting does not scroll, and the wall keeps its width`（去掉锁定时稳定失败） |
 | 40 行以内原地展开，超过 40 行展开即放大 | Partial | `pages/echo.test.tsx::opens a body in place up to forty lines and reads a longer one in full`（jsdom 没有布局，正文高度与行高由测试替换） |
 | 回顾卡片直接关闭时留在卡片组，完成后才离开 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`，见 [Only completing a recall card may take it out of the pile](#only-completing-a-recall-card-may-take-it-out-of-the-pile) |
 
