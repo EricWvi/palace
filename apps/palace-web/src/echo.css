@@ -460,6 +460,10 @@
 }
 
 .zoom-actions button {
+  /* About three characters inside, so two-character slips do not read as cramped tabs, and
+     the row of slips under a narrow card keeps one rhythm. Each character takes 1.1em with
+     the letter spacing; 24px is the padding and 2px the outer rule. */
+  min-width: calc(3.3em + 26px);
   padding: 5px 12px;
   white-space: nowrap;
   letter-spacing: 0.1em;

@@ -321,7 +321,7 @@ pub(crate) struct RecallDone {
     pub next: RecallNext,
 }
 
-/// `keep`: the jotting stays in recall (回顾完成). `retire`: it is not drawn again (不再回顾).
+/// `keep`: the jotting stays in recall (温故). `retire`: it is not drawn again (束阁).
 #[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum RecallNext {

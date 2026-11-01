@@ -15,7 +15,7 @@ import {
 } from "@/lib/api";
 import { parseDraft } from "@/lib/jotting-draft";
 
-// How long 确认 waits for the second click before it is 删除 again.
+// How long 确认 waits for the second click before it is 削简 again.
 const CONFIRM_MS = 3000;
 
 // The draft of an open edit: the title, and the body with the tags written back at its end.
@@ -24,10 +24,11 @@ type Draft = { title: string; text: string };
 // The slips a zoomed card offers of its own, for the caller to place among its others.
 export type OwnSlips = { edit: ReactNode; remove: ReactNode };
 
-// Editing and deleting a zoomed jotting. 编辑 turns the card into its own editor: the title in
+// Editing and deleting a zoomed jotting. 修订 turns the card into its own editor: the title in
 // one line, the body below it with the tags written back as `#tag` at its end, taken out again
-// on saving the way a new jotting's are. 删除 turns into 确认 and deletes only on a second
-// click on the same slip, before the pointer leaves it, it loses focus, or three seconds pass.
+// on saving the way a new jotting's are. 削简 turns into 确认 and deletes only on a second
+// click on the same slip, within three seconds of the first and before it loses focus. The
+// pointer leaving the slip does not disarm it: one wait serves both.
 // See specs/decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md.
 export function useJottingEditing(
   jotting: ListedJotting,
@@ -110,7 +111,7 @@ export function useJottingEditing(
   const failure = draft ? save.error : remove.error;
   const notice = failure
     ? conflicted(failure)
-      ? "札记已在别处改过，复制修改后取消再编辑"
+      ? "札记已在别处改过，复制修改后取消再修订"
       : draft
         ? "保存失败"
         : "删除失败"
@@ -141,7 +142,7 @@ export function useJottingEditing(
   const own: OwnSlips = {
     edit: (
       <button key="edit" type="button" disabled={busy} onClick={open}>
-        编辑
+        修订
       </button>
     ),
     remove: (
@@ -157,10 +158,9 @@ export function useJottingEditing(
             remove.mutate();
           }
         }}
-        onMouseLeave={() => setConfirming(false)}
         onBlur={() => setConfirming(false)}
       >
-        {confirming ? "确认" : "删除"}
+        {confirming ? "确认" : "削简"}
       </button>
     ),
   };

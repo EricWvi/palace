@@ -115,11 +115,51 @@ test("puts a new jotting on top of the first column and moves no other card", as
 
   await page.keyboard.press("n");
   await page.keyboard.type("新的一张 #想法");
+  // The card at the top of the first column, measured from the wall's top so the composer
+  // closing above does not count as movement; and how visible the new card is, frame by frame.
+  const top = page.locator(".wall .col").first().locator("[data-id]").first();
+  const old = (await top.getAttribute("data-id"))!;
+  const frames = page.evaluate(
+    (id) =>
+      new Promise<{ shift: number; opacity: number | null }[]>((resolve) => {
+        const seen: { shift: number; opacity: number | null }[] = [];
+        const started = performance.now();
+        const watch = () => {
+          const wall = document.querySelector(".wall")!;
+          const card = wall.querySelector(`[data-id="${id}"]`)!;
+          const first = wall.querySelector(".col [data-id]") as HTMLElement;
+          seen.push({
+            shift:
+              card.getBoundingClientRect().top -
+              wall.getBoundingClientRect().top,
+            opacity:
+              first === card ? null : Number(getComputedStyle(first).opacity),
+          });
+          if (performance.now() - started > 1500) return resolve(seen);
+          requestAnimationFrame(watch);
+        };
+        requestAnimationFrame(watch);
+      }),
+    old,
+  );
   await page.keyboard.press("Control+Enter");
   await expect(page.locator(".wall [data-id]")).toHaveCount(13);
-  const first = page.locator(".wall .col").first().locator("[data-id]").first();
-  await expect(first).toContainText("新的一张");
-  await expect(first.getByLabel("待整理")).toBeVisible();
+  // The column slides down to make room rather than jumping, and the new card comes in after.
+  const seen = await frames;
+  const from = seen[0].shift;
+  const to = seen.at(-1)!.shift;
+  expect(to).toBeGreaterThan(from + 20);
+  expect(
+    seen.filter(({ shift }) => shift > from + 2 && shift < to - 2).length,
+  ).toBeGreaterThan(3);
+  const arrived = seen.filter(({ opacity }) => opacity !== null);
+  expect(arrived[0].opacity).toBe(0);
+  expect(arrived.some(({ opacity }) => opacity! > 0 && opacity! < 1)).toBe(
+    true,
+  );
+  expect(arrived.at(-1)!.opacity).toBe(1);
+  await expect(top).toContainText("新的一张");
+  await expect(top.getByLabel("待整理")).toBeVisible();
   const after = await columns(page);
   for (const [id, column] of Object.entries(before))
     expect([id, after[id]]).toEqual([id, column]);
@@ -147,7 +187,7 @@ test("a deleted jotting leaves its column alone after a vermilion 确认, and an
     .click();
   await expect(page.locator(".zoom-frame.settled")).toBeVisible();
   const slip = page.locator(".zoom-actions button").last();
-  await expect(slip).toHaveText("删除");
+  await expect(slip).toHaveText("削简");
   const armed = await slip.boundingBox();
   await slip.click();
   await expect(slip).toHaveText("确认");
@@ -155,9 +195,35 @@ test("a deleted jotting leaves its column alone after a vermilion 确认, and an
   await expect(slip).toHaveCSS("color", "rgb(184, 74, 36)");
   const confirm = await slip.boundingBox();
   expect(confirm?.width).toBeCloseTo(armed!.width, 0);
+  // The card below it glides up into the gap rather than jumping there in one frame.
+  const below = await page
+    .locator(`.wall [data-id=${target}]`)
+    .evaluate((card) => (card.nextElementSibling as HTMLElement).dataset.id!);
+  const from = (await page.locator(`.wall [data-id=${below}]`).boundingBox())!
+    .y;
+  const tops = page.evaluate(
+    (id) =>
+      new Promise<number[]>((resolve) => {
+        const seen: number[] = [];
+        const started = performance.now();
+        const watch = () => {
+          const card = document.querySelector(`.wall [data-id="${id}"]`);
+          if (card) seen.push(card.getBoundingClientRect().top);
+          if (performance.now() - started > 1500) return resolve(seen);
+          requestAnimationFrame(watch);
+        };
+        requestAnimationFrame(watch);
+      }),
+    below,
+  );
   await slip.click();
   await expect(page.locator(".zoom-frame")).toHaveCount(0);
   await expect(page.locator(".wall [data-id]")).toHaveCount(11);
+  const seen = await tops;
+  const to = seen.at(-1)!;
+  expect(to).toBeLessThan(from - 20);
+  const between = seen.filter((top) => top < from - 2 && top > to + 2);
+  expect(between.length).toBeGreaterThan(3);
   const after = await columns(page);
   // Every other card keeps its column; only the cards below it in its column move up.
   for (const [id, column] of Object.entries(before))
@@ -172,7 +238,7 @@ test("a deleted jotting leaves its column alone after a vermilion 确认, and an
   await expect(page.locator(".zoom-frame.settled")).toBeVisible();
   await page
     .locator(".zoom-actions")
-    .getByRole("button", { name: "编辑" })
+    .getByRole("button", { name: "修订" })
     .click();
   await page
     .getByRole("textbox", { name: "正文" })
@@ -267,7 +333,7 @@ test("a completed recall card fades out at its slot and never flashes back at fu
   await cards.first().click();
   await cards.nth(1).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  const done = page.getByRole("button", { name: "回顾完成" });
+  const done = page.getByRole("button", { name: "温故" });
   await expect(done).toBeVisible();
 
   // Watch every frame from the click that completes the card until the card is gone.
@@ -335,7 +401,7 @@ test("a pile of eighteen spreads into three rows of six and closes ranks as card
 
   // Reading the second card moves every later card up one cell, across rows too.
   await pile.getByRole("button").nth(1).click();
-  await page.getByRole("button", { name: "回顾完成" }).click();
+  await page.getByRole("button", { name: "温故" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".recall .rc")).toHaveCount(17);
   await page.waitForFunction(() =>

@@ -22,7 +22,7 @@ pub enum RecallState {
 pub enum RecallNext {
     /// The jotting stays in recall.
     Keep,
-    /// The jotting is not drawn again: 不再回顾.
+    /// The jotting is not drawn again: 束阁.
     Retire,
 }
 

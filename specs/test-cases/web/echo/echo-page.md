@@ -19,15 +19,15 @@
 
 ## Only completing a recall card may take it out of the pile
 
-风险：直接关闭放大的回顾卡片也让它离开卡片组；点「回顾完成」后请求失败，卡片却已离开；刷新后完成过的卡片又回来；收起平铺卡片组的点击同时触发了瀑布流中的标签或“展开”；筛选时卡片组仍然占据顶部。前置：回顾接口返回若干张卡片，其中一张 `done: true`；瀑布流中有可点击的标签。触发：点击卡片组平铺；点击瀑布流上的标签位置收起；再次平铺、放大一张后按 Escape；放大另一张点「回顾完成」；放大一张点「不再回顾」；让一次完成请求失败；完成全部卡片；重新挂载页面；按标签筛选后再清除。
+风险：直接关闭放大的回顾卡片也让它离开卡片组；点「温故」后请求失败，卡片却已离开；刷新后完成过的卡片又回来；收起平铺卡片组的点击同时触发了瀑布流中的标签或“展开”；筛选时卡片组仍然占据顶部。前置：回顾接口返回若干张卡片，其中一张 `done: true`；瀑布流中有可点击的标签。触发：点击卡片组平铺；点击瀑布流上的标签位置收起；再次平铺、放大一张后按 Escape；放大另一张点「温故」；放大一张点「束阁」；让一次完成请求失败；完成全部卡片；重新挂载页面；按标签筛选后再清除。
 
-必须成立：`done: true` 的卡片不显示；Escape 或点背景关闭时卡片缩回并留在卡片组中，不发出完成请求；「回顾完成」发出 `next: "keep"`、「不再回顾」发出 `next: "retire"`，成功后卡片离开卡片组；请求失败时卡片保持放大，按钮可以再点；全部完成后显示“今天的回响都已看过”；重新挂载后完成过的卡片不回来；收起卡片组的点击不改变筛选；有筛选或搜索时卡片组收起，清除后恢复。
+必须成立：`done: true` 的卡片不显示；Escape 或点背景关闭时卡片缩回并留在卡片组中，不发出完成请求；「温故」发出 `next: "keep"`、「束阁」发出 `next: "retire"`，成功后卡片离开卡片组；请求失败时卡片保持放大，按钮可以再点；全部完成后显示“今天的回响都已看过”；重新挂载后完成过的卡片不回来；收起卡片组的点击不改变筛选；有筛选或搜索时卡片组收起，清除后恢复。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 直接关闭不离开、不请求；完成和不再回顾发出对应请求后离开 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it` |
+| 直接关闭不离开、不请求；完成和束阁发出对应请求后离开 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it` |
 | 完成失败时卡片保持放大 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it` |
 | 全部完成显示提示，刷新后完成的不回来 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`（服务端替身在两次访问之间保留完成状态） |
 | 收起卡片组的点击被拦截，不触发瀑布流操作 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it` |
@@ -38,16 +38,16 @@
 
 ## A zoomed jotting must say whether it takes part in recall
 
-风险：瀑布流的放大卡片出现「回顾完成」；「不再回顾」与「恢复回顾」的文字与札记状态不符；切换后卡片被关闭；操作随卡片缩回而“飞”回原位。前置：瀑布流中一张参与回顾、一张不再回顾的札记。触发：分别放大两张，点击右侧的操作；关闭放大卡片。
+风险：瀑布流的放大卡片出现「温故」；「束阁」与「启封」的文字与札记状态不符；切换后卡片被关闭；操作随卡片缩回而“飞”回原位。前置：瀑布流中一张参与回顾、一张束阁的札记。触发：分别放大两张，点击右侧的操作；关闭放大卡片。
 
-必须成立：瀑布流放大卡片只显示「不再回顾」或「恢复回顾」，与 `recall` 一致；点击后发出 `PUT /api/jottings/{id}/recall`，文字切换，卡片保持放大；回顾卡片放大后显示「回顾完成」和「不再回顾」；关闭开始时操作立即淡出。
+必须成立：瀑布流放大卡片只显示「束阁」或「启封」，与 `recall` 一致；点击后发出 `PUT /api/jottings/{id}/recall`，文字切换，卡片保持放大；回顾卡片放大后显示「温故」和「束阁」；关闭开始时操作立即淡出。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 两种放大卡片的操作与请求 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`（回顾卡片的两个操作）、`pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back`（瀑布流的不再回顾与恢复回顾）；操作在关闭开始时淡出由 CSS 决定，jsdom 不计算 |
-| 题签按编辑决策 D1 的顺序排列：瀑布流「编辑 / 不再回顾 / 删除」，回顾「回顾完成 / 不再回顾 / 编辑 / 删除」 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`、`pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
+| 两种放大卡片的操作与请求 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`（回顾卡片的两个操作）、`pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back`（瀑布流的束阁与启封）；操作在关闭开始时淡出由 CSS 决定，jsdom 不计算 |
+| 题签按编辑决策 D1 的顺序排列：瀑布流「修订 / 束阁 / 削简」，回顾「温故 / 束阁 / 修订 / 削简」 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`、`pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
 
 决策依据：20261101 回顾决策 D5、D6；20261101 编辑决策 D1。
 
@@ -100,7 +100,7 @@
 
 ## Editing a zoomed jotting must never lose the draft
 
-风险：标签没有写回正文，保存时被清空；保存后的标签提取与新建不一致；有改动时误按 Escape 或点背景丢掉草稿；保存冲突时草稿被最新内容替换；编辑器超出放大卡片的最大高度。前置：瀑布流和回顾卡片组各有一张带标题和标签的札记，服务端替身可以返回 `409` 与其他错误。触发：放大后点「编辑」；不改动按 Escape；改动后按 Escape、点背景；Ctrl/Cmd+Enter 保存；让一次保存返回 `409 jotting_changed`，另一次返回 `500`；在真实 Chromium 中输入超过一屏的正文。
+风险：标签没有写回正文，保存时被清空；保存后的标签提取与新建不一致；有改动时误按 Escape 或点背景丢掉草稿；保存冲突时草稿被最新内容替换；编辑器超出放大卡片的最大高度。前置：瀑布流和回顾卡片组各有一张带标题和标签的札记，服务端替身可以返回 `409` 与其他错误。触发：放大后点「修订」；不改动按 Escape；改动后按 Escape、点背景；Ctrl/Cmd+Enter 保存；让一次保存返回 `409 jotting_changed`，另一次返回 `500`；在真实 Chromium 中输入超过一屏的正文。
 
 必须成立：编辑器中标题在单行输入框，正文末尾隔一空行写着 `#标签`；无改动时 Escape 回到阅读状态、「保存」不发请求；有改动时 Escape 和点背景不起作用；保存请求带打开时的 `version`，按新建规则提取的标签、去掉标签的正文和去掉空白的标题；成功后回到阅读状态，墙上和卡片组的卡片显示新内容并带待整理圆点；`409` 时保留草稿、显示说明、「保存」不可点；其他错误保留草稿、可以重试；编辑器随内容长高，超过最大高度时在卡片内滚动。
 
@@ -118,18 +118,18 @@
 
 ## Deleting a jotting must take two clicks on the same slip
 
-风险：一次点击就删除；「确认」作废规则失效，隔很久的第二次点击仍然删除；题签变长挤动旁边的题签；删除失败时卡片已经离开；删除后卡片留在墙上或卡片组中。前置：瀑布流和回顾卡片组各有一张札记，服务端替身可以让删除失败；可控的计时器。触发：放大后点「删除」；移开鼠标；再点「删除」后等 3 秒；点「删除」后让题签失焦；点「删除」再点「确认」；让一次删除返回 `409`。
+风险：一次点击就删除；「确认」作废规则失效，隔很久的第二次点击仍然删除；题签变长挤动旁边的题签；删除失败时卡片已经离开；删除后卡片留在墙上或卡片组中。前置：瀑布流和回顾卡片组各有一张札记，服务端替身可以让删除失败；可控的计时器。触发：放大后点「削简」后等 3 秒；再点「削简」，2 秒后移开鼠标，再等 1 秒；点「削简」后让题签失焦；点「削简」再点「确认」；让一次删除返回 `409`。
 
-必须成立：第一次点击只把题签变成「确认」，不发请求；移开鼠标、失焦或 3 秒后变回「删除」；在「确认」上再点才发出带 `version` 的删除请求；成功后放大卡片缩回空位，回顾卡片离开卡片组，瀑布流卡片从所在列移除、其他列不动；失败时放大卡片保持打开、显示说明。「确认」的颜色与题签宽度由 CSS 决定，以真实 Chromium 为直接证据。
+必须成立：第一次点击只把题签变成「确认」，不发请求；第一次点击后 3 秒或失焦时变回「削简」，移开鼠标既不作废也不重新计时；在「确认」上再点才发出带 `version` 的删除请求；成功后放大卡片缩回空位，回顾卡片离开卡片组，瀑布流卡片从所在列移除、其他列不动；失败时放大卡片保持打开、显示说明。「确认」的颜色与题签宽度由 CSS 决定，以真实 Chromium 为直接证据。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
-| 两次点击才删除，移开、失焦、超时作废第一次 | Covered | `pages/echo.test.tsx::deletes a jotting only on a second click on the same slip, from the wall and from the pile`（超时用假计时器） |
-| 删除后离开卡片组或所在列，其他列不动 | Covered | `pages/echo.test.tsx::deletes a jotting only on a second click on the same slip, from the wall and from the pile`（离开墙与卡片组）、`e2e/echo.spec.ts::a deleted jotting leaves its column alone after a vermilion 确认, and an edit stays within its cap`（真实 Chromium，三列布局下其他卡片不换列） |
+| 两次点击才删除，超时或失焦作废第一次，移开鼠标不影响计时 | Covered | `pages/echo.test.tsx::deletes a jotting only on a second click on the same slip, from the wall and from the pile`（超时用假计时器） |
+| 删除后离开卡片组或所在列，同列下面的卡片滑上来补位，其他列不动 | Covered | `pages/echo.test.tsx::deletes a jotting only on a second click on the same slip, from the wall and from the pile`（离开墙与卡片组）、`e2e/echo.spec.ts::a deleted jotting leaves its column alone after a vermilion 确认, and an edit stays within its cap`（真实 Chromium，三列布局下其他卡片不换列，下面一张卡片逐帧经过中间位置；去掉过渡时稳定失败） |
 | 删除失败时卡片保持打开 | Covered | `pages/echo.test.tsx::deletes a jotting only on a second click on the same slip, from the wall and from the pile` |
-| 「确认」为朱红色且题签宽度不变，删除后缩回空位（真实 Chromium） | Partial | `e2e/echo.spec.ts::a deleted jotting leaves its column alone after a vermilion 确认, and an edit stays within its cap`（颜色与宽度）；缩回空位的动画沿用「回顾完成」的 `landing="empty"`，没有逐帧检查 |
+| 「确认」为朱红色且题签宽度不变，删除后缩回空位（真实 Chromium） | Partial | `e2e/echo.spec.ts::a deleted jotting leaves its column alone after a vermilion 确认, and an edit stays within its cap`（颜色与宽度）；缩回空位的动画沿用「温故」的 `landing="empty"`，没有逐帧检查 |
 
 决策依据：20261101 编辑决策 D1、D4，不变量 1、3、4。
 
@@ -153,7 +153,7 @@
 
 风险：`#标签` 识别过宽，Markdown 标题、`C#`、URL 片段被当成标签；提取后压缩了列表缩进和代码块；有内容的草稿因 Escape 或失焦丢失；新札记因当前筛选而不可见。前置：读取接口提供已有标签；当前有标签筛选与搜索。触发：按 `n`，输入包含 `#阅读`、行首 `#rust`、`# 标题`、`C#`、`a.html#x`、缩进列表与代码块的正文；按 Escape、使输入框失焦；Ctrl/Cmd + Enter 提交。
 
-必须成立：上传请求的 `tags` 为 `["阅读", "rust"]`，正文中这两个标签被移除，其余内容（含缩进与代码块）与输入一致，`# 标题`、`C#`、`a.html#x` 保留；有内容时 Escape 与失焦不收起草稿；请求带 UUIDv7 的 `id` 且没有 `title`；提交后筛选与搜索被清除，新卡片带待整理圆点出现在第一列顶部。禁止规范化正文中与标签无关的空白。
+必须成立：上传请求的 `tags` 为 `["阅读", "rust"]`，正文中这两个标签被移除，其余内容（含缩进与代码块）与输入一致，`# 标题`、`C#`、`a.html#x` 保留；有内容时 Escape 与失焦不收起草稿；请求带 UUIDv7 的 `id` 且没有 `title`；提交后筛选与搜索被清除，新卡片带待整理圆点出现在第一列顶部；第一列先下滑让位、新卡片再淡入，不是一帧跳到位。禁止规范化正文中与标签无关的空白。
 
 验证义务与证据：
 
@@ -162,6 +162,7 @@
 | 标签提取的边界与正文原样保留 | Covered | `lib/jotting-draft.test.ts::takes out only real tags and keeps every other character as typed`、`pages/echo.test.tsx::writes a jotting with inline tags, keeps a draft through Escape and shows it unfiltered`（上传请求体） |
 | 有内容的草稿不因 Escape 或失焦丢失 | Covered | `pages/echo.test.tsx::writes a jotting with inline tags, keeps a draft through Escape and shows it unfiltered` |
 | 提交后清除筛选，新卡片可见并带待整理圆点 | Covered | `pages/echo.test.tsx::writes a jotting with inline tags, keeps a draft through Escape and shows it unfiltered`、`e2e/echo.spec.ts::puts a new jotting on top of the first column and moves no other card`（真实 Chromium，三列布局下其他卡片不换列） |
+| 第一列下滑让位、新卡片随后淡入（真实 Chromium） | Covered | `e2e/echo.spec.ts::puts a new jotting on top of the first column and moves no other card`（逐帧记录原顶部卡片的位置和新卡片的不透明度；去掉过渡时稳定失败） |
 
 决策依据：D6，不变量 9、10、11。
 

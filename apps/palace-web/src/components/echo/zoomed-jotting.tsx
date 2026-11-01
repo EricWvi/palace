@@ -44,7 +44,7 @@ export type Landing = "empty" | "card";
 // One jotting read in full, shared by the recall pile and the wall: it grows from its card to
 // the middle of the screen, and on closing shrinks back to where the card is now and fades out,
 // as `landing` says. What closing means for the card is the caller's, and so are the `actions`
-// written down its right side, among which it places the card's own 编辑 and 删除. Escape and a
+// written down its right side, among which it places the card's own 修订 and 削简. Escape and a
 // click on the backdrop ask to close; while an edit is open they only leave an unchanged edit.
 // `onDeleted` hears of a deletion, and the caller closes the card into an empty slot.
 // See specs/decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md

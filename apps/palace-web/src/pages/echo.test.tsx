@@ -260,7 +260,7 @@ it("takes a recall card out of the pile only when it is completed, and remembers
     within(dialog())
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["回顾完成", "不再回顾", "编辑", "删除"]);
+  ).toEqual(["温故", "束阁", "修订", "削简"]);
   await user.keyboard("{Escape}");
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   await user.click(card("r2"));
@@ -271,14 +271,14 @@ it("takes a recall card out of the pile only when it is completed, and remembers
   await user.keyboard("{Escape}");
   expect(recall()).not.toHaveClass("spread");
 
-  // 回顾完成 and 不再回顾 each take their card out.
+  // 温故 and 束阁 each take their card out.
   await user.click(card("r1"));
   await user.click(card("r2"));
-  await user.click(within(dialog()).getByRole("button", { name: "回顾完成" }));
+  await user.click(within(dialog()).getByRole("button", { name: "温故" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(recallCards()).toEqual(["r1", "r3", "r4", "r5"]);
   await user.click(card("r4"));
-  await user.click(within(dialog()).getByRole("button", { name: "不再回顾" }));
+  await user.click(within(dialog()).getByRole("button", { name: "束阁" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(recallCards()).toEqual(["r1", "r3", "r5"]);
   expect(recalls).toEqual([
@@ -292,20 +292,18 @@ it("takes a recall card out of the pile only when it is completed, and remembers
   // A completion that fails leaves the card open, ready to try again.
   control.fail = true;
   await user.click(card("r1"));
-  await user.click(within(dialog()).getByRole("button", { name: "回顾完成" }));
+  await user.click(within(dialog()).getByRole("button", { name: "温故" }));
   await waitFor(() =>
     expect(
-      within(dialog()).getByRole("button", { name: "回顾完成" }),
+      within(dialog()).getByRole("button", { name: "温故" }),
     ).toBeEnabled(),
   );
   expect(screen.getByRole("dialog")).toBeInTheDocument();
-  await user.click(within(dialog()).getByRole("button", { name: "回顾完成" }));
+  await user.click(within(dialog()).getByRole("button", { name: "温故" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   for (const id of ["r3", "r5"]) {
     await user.click(card(id));
-    await user.click(
-      within(dialog()).getByRole("button", { name: "回顾完成" }),
-    );
+    await user.click(within(dialog()).getByRole("button", { name: "温故" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   }
   expect(screen.getByText("今天的回响都已看过")).toBeInTheDocument();
@@ -362,13 +360,13 @@ it("reads a wall jotting in full from its time, with its Palace pictures, and ha
     within(dialog.parentElement!.querySelector(".zoom-actions")!)
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["编辑", "不再回顾", "删除"]);
+  ).toEqual(["修订", "束阁", "削简"]);
   await user.click(
-    within(dialog.parentElement!).getByRole("button", { name: "不再回顾" }),
+    within(dialog.parentElement!).getByRole("button", { name: "束阁" }),
   );
   expect(
     await within(dialog.parentElement!).findByRole("button", {
-      name: "恢复回顾",
+      name: "启封",
     }),
   ).toBeInTheDocument();
   expect(recalls).toEqual([
@@ -536,7 +534,7 @@ it("edits a zoomed jotting in place with its tags written back, and never drops 
     within(dialog.parentElement!.querySelector(".zoom-actions")!);
 
   // The tags come back as the body's last line; an unchanged edit leaves on Escape.
-  await user.click(slips().getByRole("button", { name: "编辑" }));
+  await user.click(slips().getByRole("button", { name: "修订" }));
   const title = within(dialog).getByRole("textbox", { name: "标题" });
   const body = within(dialog).getByRole("textbox", { name: "正文" });
   expect(title).toHaveValue("所有权");
@@ -551,7 +549,7 @@ it("edits a zoomed jotting in place with its tags written back, and never drops 
   expect(screen.getByRole("dialog")).toBe(dialog);
 
   // A changed draft stays through Escape and a click on the backdrop.
-  await user.click(slips().getByRole("button", { name: "编辑" }));
+  await user.click(slips().getByRole("button", { name: "修订" }));
   await user.keyboard("，再想想");
   await user.clear(within(dialog).getByRole("textbox", { name: "标题" }));
   await user.type(
@@ -589,16 +587,16 @@ it("edits a zoomed jotting in place with its tags written back, and never drops 
   expect(within(card).getByLabelText("待整理")).toBeInTheDocument();
 
   // Saving unchanged asks nothing; a conflict keeps the draft and saving stays off.
-  await user.click(slips().getByRole("button", { name: "编辑" }));
+  await user.click(slips().getByRole("button", { name: "修订" }));
   await user.click(slips().getByRole("button", { name: "保存" }));
   expect(within(dialog).queryByRole("textbox")).toBeNull();
   expect(writes).toHaveLength(1);
-  await user.click(slips().getByRole("button", { name: "编辑" }));
+  await user.click(slips().getByRole("button", { name: "修订" }));
   await user.keyboard("又改");
   control.conflict = true;
   await user.click(slips().getByRole("button", { name: "保存" }));
   expect(await slips().findByRole("alert")).toHaveTextContent(
-    "札记已在别处改过，复制修改后取消再编辑",
+    "札记已在别处改过，复制修改后取消再修订",
   );
   expect(slips().getByRole("button", { name: "保存" })).toBeDisabled();
   expect(within(dialog).getByRole("textbox", { name: "正文" })).toHaveValue(
@@ -608,7 +606,7 @@ it("edits a zoomed jotting in place with its tags written back, and never drops 
 
   // Any other failure keeps the draft too, and saving may be tried again.
   await user.click(slips().getByRole("button", { name: "取消" }));
-  await user.click(slips().getByRole("button", { name: "编辑" }));
+  await user.click(slips().getByRole("button", { name: "修订" }));
   await user.keyboard("！");
   control.broken = true;
   await user.click(slips().getByRole("button", { name: "保存" }));
@@ -629,23 +627,30 @@ it("deletes a jotting only on a second click on the same slip, from the wall and
   const slip = () =>
     within(dialog.parentElement!.querySelector(".zoom-actions")!).getByRole(
       "button",
-      { name: /^(删除|确认)$/ },
+      { name: /^(削简|确认)$/ },
     );
 
-  // A first click only arms the slip; leaving it, losing focus or waiting disarms it.
+  // A first click only arms the slip; three seconds after it, or losing focus, disarms it. The
+  // pointer leaving neither disarms it nor starts the wait over.
   await user.click(slip());
   expect(slip()).toHaveTextContent("确认");
   expect(slip()).toHaveClass("confirming");
-  await user.unhover(slip());
-  expect(slip()).toHaveTextContent("删除");
-  await user.click(slip());
   fireEvent.blur(slip());
-  expect(slip()).toHaveTextContent("删除");
+  expect(slip()).toHaveTextContent("削简");
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   fireEvent.click(slip());
+  act(() => vi.advanceTimersByTime(2999));
   expect(slip()).toHaveTextContent("确认");
-  act(() => vi.advanceTimersByTime(3000));
-  expect(slip()).toHaveTextContent("删除");
+  act(() => vi.advanceTimersByTime(1));
+  expect(slip()).toHaveTextContent("削简");
+  fireEvent.click(slip());
+  act(() => vi.advanceTimersByTime(2000));
+  fireEvent.mouseLeave(slip());
+  expect(slip()).toHaveTextContent("确认");
+  act(() => vi.advanceTimersByTime(999));
+  expect(slip()).toHaveTextContent("确认");
+  act(() => vi.advanceTimersByTime(1));
+  expect(slip()).toHaveTextContent("削简");
   vi.useRealTimers();
   expect(writes).toEqual([]);
 
@@ -677,7 +682,7 @@ it("deletes a jotting only on a second click on the same slip, from the wall and
   await user.click(pileCard("r1"));
   await user.click(pileCard("r1"));
   const opened = (await screen.findByRole("dialog")).parentElement!;
-  await user.click(within(opened).getByRole("button", { name: "删除" }));
+  await user.click(within(opened).getByRole("button", { name: "削简" }));
   await user.click(within(opened).getByRole("button", { name: "确认" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(writes.at(-1)).toEqual({

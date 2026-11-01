@@ -33,8 +33,8 @@ const GAP = 12;
 const DEPTH = 16;
 
 // 今日回响: the day's recall cards dropped in a loose pile. A click spreads them over the wall in
-// rows until a click anywhere else; a click on a spread card opens it in full. Only 回顾完成 or
-// 不再回顾 there takes a card out of the pile, and the server keeps that: closing the card any
+// rows until a click anywhere else; a click on a spread card opens it in full. Only 温故 or
+// 束阁 there takes a card out of the pile, and the server keeps that: closing the card any
 // other way puts it back. `away` puts the pile aside while the wall is filtered.
 // See specs/decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md.
 export function RecallPile({ away }: { away: boolean }) {
@@ -206,7 +206,7 @@ export function RecallPile({ away }: { away: boolean }) {
                   disabled={done.isPending || zoom.closing}
                   onClick={() => done.mutate({ id: zoom.id, next })}
                 >
-                  {next === "keep" ? "回顾完成" : "不再回顾"}
+                  {next === "keep" ? "温故" : "束阁"}
                 </button>
               )),
               own.edit,

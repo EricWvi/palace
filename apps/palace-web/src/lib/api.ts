@@ -282,7 +282,7 @@ export function jottingRecallOptions() {
     staleTime: Infinity,
   };
 }
-// Completes a card of the pile of `date`: 回顾完成 keeps the jotting in recall, 不再回顾 retires it.
+// Completes a card of the pile of `date`: 温故 keeps the jotting in recall, 束阁 retires it.
 export function completeRecall(date: string, id: string, next: RecallNext) {
   return apiData(
     api.POST("/api/jottings/recall/{date}/{id}/done", {
