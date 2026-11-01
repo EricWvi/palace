@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { jottingListOptions, type ListedJotting } from "@/lib/api";
 import { ErrorState } from "@/components/error-state";
 import { JottingCard } from "./jotting-card";
+import { ZoomedJotting, type Zoom } from "./zoomed-jotting";
 
 const CARD_MIN = 260;
 const GAP = 16;
@@ -94,6 +96,9 @@ export function JottingWall({
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   useSearchHighlight(wall, q, list.data);
+  // A card read in full stays on the wall: closing hands it back, folded or open as it was.
+  const [zoom, setZoom] = useState<Zoom | null>(null);
+  const zoomed = zoom && byId.get(zoom.id);
 
   if (list.isPending)
     return (
@@ -108,7 +113,21 @@ export function JottingWall({
     return tag || q ? <p className="empty">没有找到。</p> : null;
 
   const card = (item: ListedJotting) => (
-    <JottingCard key={item.id} jotting={item} activeTag={tag} onTag={onTag} />
+    <JottingCard
+      key={item.id}
+      jotting={item}
+      activeTag={tag}
+      // Shown again as the zoomed card shrinks back over it, so the two cross-fade.
+      hidden={zoom?.id === item.id && !zoom.closing}
+      onTag={onTag}
+      onZoom={(element) =>
+        setZoom({
+          id: item.id,
+          from: element.getBoundingClientRect(),
+          closing: false,
+        })
+      }
+    />
   );
   return (
     <>
@@ -141,6 +160,23 @@ export function JottingWall({
         </div>
       )}
       <div ref={end} />
+      {zoom &&
+        zoomed &&
+        createPortal(
+          <ZoomedJotting
+            jotting={zoomed}
+            zoom={zoom}
+            landing="card"
+            slot={() =>
+              wall
+                ?.querySelector(`[data-id="${zoom.id}"]`)
+                ?.getBoundingClientRect() ?? zoom.from
+            }
+            onClose={() => setZoom({ ...zoom, closing: true })}
+            onClosed={() => setZoom(null)}
+          />,
+          document.body,
+        )}
     </>
   );
 }

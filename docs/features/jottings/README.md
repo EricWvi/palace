@@ -3,7 +3,8 @@
 札记是标题可选的短文，以带 frontmatter 的 Markdown 文件保存在一个 Git 仓库中，主要由本地 Agent 用文件
 工具维护。服务端按 commit 把札记索引进 PostgreSQL，供移动端离线同步；移动端可以离线新建札记，但不能
 修改或删除已有札记。决策见[札记根决策](../../../specs/decisions/server/jotting/0-jottings-indexed-from-git-commits.md)。
-Web 回响页实时读取札记并可以新建，决策见[回响页根决策](../../../specs/decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)。
+Web 回响页实时读取札记并可以新建，决策见[回响页根决策](../../../specs/decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)
+和[瀑布流的札记点时间放大](../../../specs/decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)。
 
 ## 文件格式
 
@@ -79,6 +80,9 @@ tags: [阅读, rust]
 `/jottings` 是加宽的页面：左列是今日回响、统计、12 周热力图和前 8 个标签，右侧是瀑布流。
 
 - 点卡片组把它平铺到瀑布流上方，点别处收起；平铺后点一张卡片放大阅读，关闭即算读过，离开卡片组。已读只记在页面里，刷新后整组恢复。
+- 瀑布流卡片点页脚的时间放大阅读，关闭后卡片留在原位；正文超过 8 行时折叠，「展开」在原地展开，超过 40 行时「展开」直接放大。
+- 只有放大的卡片显示图片，而且只加载正文中写成 `/api/media/<id>` 的 Palace 媒体，最高 360px；缩略卡片和外站图片都显示占位文字。
+  放大卡片的时间总是完整时间，瀑布流的时间没有悬停提示。
 - 有标签筛选或搜索时卡片组收起。点任意位置的标签按它筛选，再点一次清除；“全部标签”把右侧换成全部标签。
 - `n` 新建札记：正文里空白或行首之后的 `#词` 提取为标签并从正文移除，代码块里的不算；Ctrl/Cmd + Enter 保存，
   写入 `inbox/`，所以新卡片带待整理圆点。有内容的草稿不会因 Escape 或失焦丢失。

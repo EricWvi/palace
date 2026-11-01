@@ -277,15 +277,16 @@
 }
 
 .echo-card .time {
-  position: relative;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-/*
- * Tooltips float above their anchor, so revealing one never reflows the card. A relative time
- * shows its full timestamp; the 待整理 dot names itself.
- */
+/* The time is where a wall card opens to be read in full; it darkens like a tag. */
+.echo-card .jot-foot .when:hover {
+  color: var(--text-2);
+}
+
+/* Tooltips float above their anchor, so revealing one never reflows the card. */
 .echo-card [data-tip]::after {
   content: attr(data-tip);
   position: absolute;
@@ -401,6 +402,14 @@
 
 .echo-card.zoom.settled {
   overflow: auto;
+}
+
+/* A phone screenshot at full width would be taller than the screen and push the words away. */
+.echo-card.zoom .markdown img {
+  display: block;
+  max-height: 360px;
+  width: auto;
+  margin: 0 auto 0.6em;
 }
 
 /* ---------- Composer, search and the filter line ---------- */

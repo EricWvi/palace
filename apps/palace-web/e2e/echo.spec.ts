@@ -165,3 +165,66 @@ test("a closed recall card fades out at its slot and never flashes back at full 
   expect(opacities.at(-1)).toBeLessThan(0.05);
   await expect(cards).toHaveCount(4);
 });
+
+// Core test case: `specs/test-cases/web/echo/echo-page.md#only-a-jotting-read-in-full-may-load-pictures-and-only-palace-media`
+test("a jotting read in full grows evenly for a late tall picture and caps its height", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const media = "/api/media/01a169c8-2109-774d-a490-e8537c284595";
+  let release = () => {};
+  const arrived = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/api/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    // A phone screenshot: far taller than wide, held back until the card has grown.
+    if (path === media) {
+      await arrived;
+      return route.fulfill({
+        contentType: "image/svg+xml",
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="1600"><rect width="400" height="1600" fill="gray"/></svg>',
+      });
+    }
+    if (path === "/api/jottings/recall")
+      return route.fulfill({ json: { date: "2026-10-20", jottings: [] } });
+    if (path === "/api/jottings/overview")
+      return route.fulfill({
+        json: { total: 1, days: 1, tags: [], daily: [] },
+      });
+    return route.fulfill({
+      json: {
+        jottings: [
+          {
+            id: "p1",
+            created_at: new Date(2026, 8, 20, 12).getTime(),
+            title: null,
+            tags: [],
+            body: `硬币动画\n\n![硬币](${media})\n\n之后的一段话。`,
+            pending: false,
+          },
+        ],
+        total: 1,
+        next_cursor: null,
+      },
+    });
+  });
+  await page.goto("/jottings");
+  const card = page.locator(".wall [data-id=p1]");
+  await expect(card).toContainText("[图片：硬币]");
+  await card.getByRole("button", { name: "放大" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toHaveClass(/settled/);
+  const before = (await dialog.boundingBox())!;
+
+  release();
+  const picture = dialog.getByRole("img", { name: "硬币" });
+  await expect
+    .poll(async () => (await picture.boundingBox())?.height ?? 0)
+    .toBeGreaterThan(300);
+  expect((await picture.boundingBox())!.height).toBeLessThanOrEqual(360);
+  const after = (await dialog.boundingBox())!;
+  expect(after.height).toBeGreaterThan(before.height + 300);
+  expect(after.height).toBeLessThanOrEqual(900 * 0.8 + 1);
+  // Grown the same both ways: still centred.
+  expect(Math.abs(after.y + after.height / 2 - 450)).toBeLessThan(2);
+  await expect(card.locator("img")).toHaveCount(0);
+});

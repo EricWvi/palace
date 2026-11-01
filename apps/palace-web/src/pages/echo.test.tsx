@@ -8,6 +8,7 @@ import {
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { address, mountApp } from "@/test-app";
 import type { JottingOverview, ListedJotting } from "@/lib/api";
+import { absoluteTime } from "@/lib/jotting-time";
 import { bareDay, requestPath, testRequest } from "@/lib/test-request";
 
 const at = (day: number, hour = 9) => new Date(2026, 8, day, hour).getTime();
@@ -59,8 +60,8 @@ const overview: JottingOverview = {
 
 // Serves the 回响 reads and records every list query and upload, so tests can tell what reached
 // the server and when. An upload joins the wall.
-function serve() {
-  let listed = [...wall];
+function serve(initial: ListedJotting[] = wall) {
+  let listed = [...initial];
   const queries: Record<string, string>[] = [];
   const uploads: Record<string, unknown>[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
@@ -208,6 +209,91 @@ it("lets each read recall card leave the pile until the page is opened again", a
   await waitFor(() => expect(address(router)).toBe("/jottings?q=Aqua"));
   expect(drawer()).toHaveAttribute("inert");
   expect(recallCards()).toEqual(["r1", "r2", "r3", "r4", "r5"]);
+});
+
+// specs/test-cases/web/echo/echo-page.md#a-wall-jotting-must-open-in-full-by-its-time-and-come-back-as-it-was
+// specs/test-cases/web/echo/echo-page.md#only-a-jotting-read-in-full-may-load-pictures-and-only-palace-media
+it("reads a wall jotting in full from its time, with its Palace pictures, and hands it back", async () => {
+  const recent = Date.now() - 3 * 3_600_000;
+  const media = "/api/media/01a169c8-2109-774d-a490-e8537c284595";
+  serve([
+    jotting(
+      "p1",
+      `硬币动画\n\n![硬币](${media})\n\n![外站](https://example.com/a.png)`,
+      ["跑步"],
+      recent,
+    ),
+    ...wall,
+  ]);
+  const { router, user } = mountApp("/jottings?tag=跑步");
+  const card = (await screen.findByText("硬币动画")).closest("article")!;
+
+  // On the wall pictures stay placeholders and the time has no tooltip.
+  expect(card.querySelector("img")).toBeNull();
+  expect(within(card).getByText("[图片：硬币]")).toBeInTheDocument();
+  expect(within(card).getByText("3 小时前")).not.toHaveAttribute("data-tip");
+
+  // The words are not a way in; the time is.
+  await user.click(within(card).getByText("硬币动画"));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await user.click(within(card).getByRole("button", { name: "放大" }));
+  const dialog = await screen.findByRole("dialog");
+  expect(within(dialog).getByRole("img", { name: "硬币" })).toHaveAttribute(
+    "src",
+    media,
+  );
+  expect(within(dialog).getByText("[图片：外站]")).toBeInTheDocument();
+  expect(within(dialog).getByText(absoluteTime(recent))).toBeInTheDocument();
+  expect(card).toHaveStyle({ visibility: "hidden" });
+
+  // Escape closes the card and nothing else: the filter stays, the card is back.
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(address(router)).toBe("/jottings?tag=跑步");
+  expect(card).toBeVisible();
+  expect(card.querySelector("img")).toBeNull();
+});
+
+// specs/test-cases/web/echo/echo-page.md#a-wall-jotting-must-open-in-full-by-its-time-and-come-back-as-it-was
+it("opens a body in place up to forty lines and reads a longer one in full", async () => {
+  serve([
+    jotting("long", `很长的札记\n\n${"一行\n\n".repeat(60)}`, [], at(21)),
+    jotting("mid", `中等的札记\n\n${"一行\n\n".repeat(20)}`, [], at(20)),
+  ]);
+  // jsdom has no layout: a body is as tall as its paragraphs, at 20px a line, folded at eight.
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockImplementation(
+    function (this: HTMLElement) {
+      return this.querySelectorAll("p").length * 20;
+    },
+  );
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(160);
+  const computed = window.getComputedStyle.bind(window);
+  vi.spyOn(window, "getComputedStyle").mockImplementation((element) => {
+    const style = computed(element);
+    return new Proxy(style, {
+      get: (target, key) => {
+        if (key === "lineHeight") return "20px";
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+  });
+  const { user } = mountApp("/jottings");
+  const mid = (await screen.findByText("中等的札记")).closest("article")!;
+  const long = screen.getByText("很长的札记").closest("article")!;
+
+  await user.click(within(mid).getByRole("button", { name: "展开" }));
+  expect(within(mid).getByRole("button", { name: "收起" })).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  expect(screen.queryByRole("dialog")).toBeNull();
+
+  await user.click(within(long).getByRole("button", { name: "展开" }));
+  expect(
+    within(await screen.findByRole("dialog")).getByText("很长的札记"),
+  ).toBeInTheDocument();
+  expect(long.querySelector(".jot-body")).toHaveClass("folded");
 });
 
 // specs/test-cases/web/echo/echo-page.md#tag-filters-and-search-must-stay-visible-and-intersect
