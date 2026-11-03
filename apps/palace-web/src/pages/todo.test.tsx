@@ -317,6 +317,25 @@ it("shelves a task from its menu and shows it faded with its word", async () => 
   ]);
 });
 
+it("opens a task's link from its arrow, leaving the title to drag", async () => {
+  serve();
+  vi.mocked(globalThis.fetch).mockImplementationOnce(async () =>
+    Response.json({
+      lists,
+      todos: [{ ...task("读书", "life", "a0"), link: "https://example.com/" }],
+      finished: [],
+    }),
+  );
+  mountApp("/todos/lists/life");
+  await screen.findByText("读书");
+  expect(within(row("读书")).getAllByRole("link")).toEqual([
+    within(row("读书")).getByRole("link", { name: "打开链接：读书" }),
+  ]);
+  expect(
+    within(row("读书")).getByRole("link", { name: "打开链接：读书" }),
+  ).toHaveAttribute("href", "https://example.com/");
+});
+
 // specs/test-cases/web/todo/todos.md#undoing-must-leave-the-server-as-if-nothing-happened
 it("sends a deletion only once its notice is gone, and never after 撤销", async () => {
   const writes = serve();

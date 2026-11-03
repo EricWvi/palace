@@ -245,17 +245,7 @@ export function TodoRow({
         }}
       />
     );
-  else if (todo.link)
-    title = (
-      <a
-        className="todo-title"
-        href={todo.link}
-        target="_blank"
-        rel="noreferrer"
-      >
-        {todo.title}
-      </a>
-    );
+  // The title is the drag handle, so it never opens the link: releasing a drag would follow it.
   else title = <span className="todo-title">{todo.title}</span>;
 
   const className = [
@@ -306,7 +296,17 @@ export function TodoRow({
         {title}
         {!editingTitle && !editingLink && (
           <span className="todo-marks">
-            {todo.link && <span aria-label="有链接">↗</span>}
+            {todo.link && (
+              <a
+                href={todo.link}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`打开链接：${todo.title}`}
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                ↗
+              </a>
+            )}
             {todo.has_body && (
               <button
                 type="button"

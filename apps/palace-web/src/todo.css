@@ -239,6 +239,16 @@ a.todo-title:hover {
   font-size: var(--font-size-xs);
 }
 
+/* The arrow is the only way to open a task's link, so it gets a glyph and a target big enough to hit. */
+.todo-marks a {
+  padding: 0 4px;
+  color: inherit;
+  font-size: var(--font-size-base);
+  line-height: 1;
+  text-decoration: none;
+}
+
+.todo-marks a:hover,
 .todo-marks button:hover {
   color: var(--accent-hover);
 }
