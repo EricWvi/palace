@@ -87,6 +87,9 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          # The server only runs on amd64 hosts; pinning it keeps the image single-arch whatever
+          # runner or buildx default the job lands on.
+          platforms: linux/amd64
           provenance: false
           push: true
           cache-from: type=registry,ref=ghcr.io/${{ env.OWNER_LC }}/palace:buildcache

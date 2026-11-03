@@ -79,7 +79,7 @@ CLI 和第三方服务用 `Authorization: Bearer palace_pat_…` 调用全部业
 
 生产镜像使用仓库根目录的 `Dockerfile` 构建，镜像内 server 会从 `/app/dist` 提供前端静态资源。
 Rust 依赖由 cargo-chef 在单独一层编译，只要 `Cargo.lock` 与各 crate 的 manifest 不变就保持缓存；
-CI 在推送 `v*` tag 时构建镜像，层缓存存于 `ghcr.io/<owner>/palace:buildcache`，因为 GitHub Actions
+CI 在推送 `v*` tag 时构建镜像，只构建 `linux/amd64`，层缓存存于 `ghcr.io/<owner>/palace:buildcache`，因为 GitHub Actions
 缓存按 ref 隔离，下一个 tag 读不到上一个 tag 存的缓存。
 
 ```bash
