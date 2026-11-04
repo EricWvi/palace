@@ -110,12 +110,14 @@ export function AnnotatedArea({
   // Narrow windows: the note floating under its mark, and where it floats.
   const [floating, setFloating] = useState<string | null>(null);
   const [floatAt, setFloatAt] = useState<{ x: number; y: number } | null>(null);
-  // Where each margin card sits, and the cards placed there for the first time.
+  // Where each margin card sits, and the cards that go there without easing.
   const [placement, setPlacement] = useState<{
     tops: Record<string, number>;
-    arriving: ReadonlySet<string>;
-  }>({ tops: {}, arriving: new Set() });
+    jumping: ReadonlySet<string>;
+  }>({ tops: {}, jumping: new Set() });
   const { tops } = placement;
+  // The folding the cards were last placed for.
+  const placedFor = useRef({ focus: layer.focus, runs: layer.openedRuns });
   const [layoutTick, setLayoutTick] = useState(0);
   const cards = useRef(new Map<string, HTMLDivElement>());
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -181,13 +183,23 @@ export function AnnotatedArea({
         placed[index + 1].y - placed[index].height - cardGap,
       );
     const next = Object.fromEntries(placed.map((item) => [item.id, item.y]));
+    // Folding or unfolding moves the text by whole screens at once; a card easing over that
+    // distance would fall in from far above or below its words, so every card jumps with them.
+    const refolded =
+      placedFor.current.focus !== layer.focus ||
+      placedFor.current.runs !== layer.openedRuns;
+    placedFor.current = { focus: layer.focus, runs: layer.openedRuns };
     setPlacement((current) =>
       JSON.stringify(current.tops) === JSON.stringify(next)
         ? current
         : {
             tops: next,
-            arriving: new Set(
-              Object.keys(next).filter((id) => !(id in current.tops)),
+            // A card placed for the first time jumps too, rather than ease down from where it
+            // waited to be measured.
+            jumping: new Set(
+              Object.keys(next).filter(
+                (id) => refolded || !(id in current.tops),
+              ),
             ),
           },
     );
@@ -442,8 +454,8 @@ export function AnnotatedArea({
               key={item.id}
               {...cardProps(item)}
               className={
-                placement.arriving.has(item.id)
-                  ? "in-margin arriving"
+                placement.jumping.has(item.id)
+                  ? "in-margin jumping"
                   : "in-margin"
               }
               cardRef={(element) => {

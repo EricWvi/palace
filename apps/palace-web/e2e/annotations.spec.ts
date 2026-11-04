@@ -298,3 +298,51 @@ test("margin cards appear in place instead of dropping from the top", async ({
   await expect(page.locator(".margin-notes .note-card")).toHaveCount(2);
   expect(await slid()).toEqual([]);
 });
+
+// Folding moves the text by whole runs at once; a margin card jumps with its words instead of
+// falling in from where they were, entering 只看标注, opening a run and leaving it alike.
+// Core test case:
+// - `specs/test-cases/web/stars/annotations.md#margin-notes-must-widen-the-page-only-while-notes-exist`
+test("margin cards jump with their words as 只看标注 folds and unfolds", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await serve(page, [
+    annotation("n1", "页边是作者留给读者的空间", { note: "页边的用处。" }),
+  ]);
+  await page.goto("/articles/a1");
+  const card = page.locator(".margin-notes .note-card");
+  await expect(card).toHaveText(["页边的用处。"]);
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { slid: string[] }).slid = seen;
+    document.addEventListener("transitionrun", (event) => {
+      const target = event.target as Element;
+      if (event.propertyName === "top" && target.matches(".note-card"))
+        seen.push(target.textContent ?? "");
+    });
+  });
+  // Level with its mark at once, without waiting for an easing to finish.
+  const level = async () => {
+    const mark = await box(page, 'mark.anno[data-annotation="n1"]');
+    const placed = await box(page, ".margin-notes .note-card");
+    return Math.abs(placed.y - (mark.y - 9)) <= 2;
+  };
+
+  await page.keyboard.press("a");
+  const folded = page.getByText("省略 2 段");
+  await expect(folded).toBeVisible();
+  expect(await level()).toBe(true);
+  await folded.click();
+  await expect(folded).toHaveCount(0);
+  expect(await level()).toBe(true);
+  await page.keyboard.press("a");
+  await page.keyboard.press("a");
+  await expect(folded).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(folded).toHaveCount(0);
+  expect(await level()).toBe(true);
+  expect(
+    await page.evaluate(() => (window as unknown as { slid: string[] }).slid),
+  ).toEqual([]);
+});

@@ -321,10 +321,11 @@
 }
 
 /*
- * A card placed for the first time appears in its place: easing `top` from where it waited to
- * be measured would drop it down from the top of the margin. Later moves still ease.
+ * A card placed for the first time, or moved by folding, appears in its place: easing `top`
+ * from where it waited to be measured, or from where its words were before whole runs folded
+ * or unfolded, would drop it in from far away. Cards making way for each other still ease.
  */
-.margin-notes .note-card.arriving {
+.margin-notes .note-card.jumping {
   transition-property: transform, box-shadow, color, border-color;
 }
 
