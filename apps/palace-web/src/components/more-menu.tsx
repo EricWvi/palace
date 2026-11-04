@@ -73,7 +73,8 @@ export function MoreMenu({
             }
             if (input.current === "pointer") {
               event.preventDefault();
-              rest.current?.focus();
+              // An action may have just scrolled the page; parking focus must not undo that.
+              rest.current?.focus({ preventScroll: true });
             }
           }}
         >

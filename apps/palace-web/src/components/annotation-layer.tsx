@@ -215,11 +215,17 @@ export function useAnnotations(target: AnnotationTarget) {
     );
   }
 
-  // Holds the first mark on screen where it is while most of the page folds or unfolds.
+  // Holds the first mark on screen where it is while most of the page folds or unfolds. While
+  // the start of the text is still on screen nothing above the reader moves, so the page stays
+  // put; holding a mark there would carry the reader down to it as the runs before it unfold.
   function setFocus(on: boolean) {
-    const anchor = [
-      ...document.querySelectorAll<HTMLElement>("mark.anno"),
-    ].find((mark) => mark.getBoundingClientRect().bottom > 0);
+    const start = document.querySelector(".annotated");
+    const reading = start !== null && start.getBoundingClientRect().top < 0;
+    const anchor = reading
+      ? [...document.querySelectorAll<HTMLElement>("mark.anno")].find(
+          (mark) => mark.getBoundingClientRect().bottom > 0,
+        )
+      : undefined;
     const id = anchor?.dataset.annotation;
     const before = anchor?.getBoundingClientRect().top ?? 0;
     setFocusState(on);
