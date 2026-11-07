@@ -2,7 +2,7 @@
 use super::{
     access_tokens, activities, annotations, article_import, articles, business, conversation_list,
     habits, handlers, jotting_editing, jotting_reading, jotting_recall, jottings, media, notes,
-    path_management, security, sleep, sync, timeline, todo_lists, todos, web_pages,
+    overall_notes, path_management, security, sleep, sync, timeline, todo_lists, todos, web_pages,
 };
 use utoipa::{
     OpenApi,
@@ -47,6 +47,11 @@ use utoipa::{
         articles::update,
         articles::export,
         articles::delete,
+        overall_notes::article,
+        overall_notes::save_article,
+        overall_notes::path,
+        overall_notes::save_path,
+        overall_notes::save_web_page,
         annotations::article_list,
         annotations::article_create,
         annotations::conversation_list,

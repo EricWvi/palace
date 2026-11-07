@@ -24,6 +24,7 @@ import {
   type Annotations,
 } from "@/components/annotation-layer";
 import { AnnotatedArea } from "@/components/annotated-area";
+import { OverallNote } from "@/components/overall-note";
 import type { Message } from "@/lib/api";
 
 // Imported messages are third-party content: showing them must not fetch anything on the reader's behalf.
@@ -104,76 +105,89 @@ export function ConversationPage() {
   if (!selected) return null;
   const source = sources[conversation!.source];
   return (
-    <AnnotatedArea layer={layer}>
-      <header className="conversation">
-        {back}
-        <div className="title-row reveals-more">
-          <h1>{selected.path.title}</h1>
-          <ConversationMenu
-            key={selected.path.id}
-            conversationId={id!}
-            source={conversation!.source}
-            path={selected.path}
-            messages={selected.messages}
-            reading={layer.menuAction}
-            onImported={(result, occurredAt) =>
-              show(result.path_id, dayParam(dayOf(occurredAt)))
-            }
-            // Without a day the reader came from 摘星 or a bare link, so 摘星 takes them back.
-            onDeleted={() =>
-              navigate(from ? `/?date=${dayParam(from)}` : "/conversations", {
-                replace: true,
-              })
-            }
-          />
-        </div>
-        <p className="meta">
-          <span>{source}</span>
-          <span>{selected.messages.length} 条消息</span>
-          <a
-            href={selected.path.original_link}
-            target="_blank"
-            rel="noreferrer"
-          >
-            继续对话 ↗
-          </a>
-          <AnnotationFacts layer={layer} />
-        </p>
-      </header>
-      <ol className="messages">
-        {foldMessages(selected.messages, layer, (message, index) => (
-          <Fragment key={message.id}>
-            <li
-              id={messageAnchor(message)}
-              className={`message ${message.role}`}
+    <>
+      <AnnotatedArea layer={layer}>
+        <header className="conversation">
+          {back}
+          <div className="title-row reveals-more">
+            <h1>{selected.path.title}</h1>
+            <ConversationMenu
+              key={selected.path.id}
+              conversationId={id!}
+              source={conversation!.source}
+              path={selected.path}
+              messages={selected.messages}
+              reading={layer.menuAction}
+              onImported={(result, occurredAt) =>
+                show(result.path_id, dayParam(dayOf(occurredAt)))
+              }
+              // Without a day the reader came from 摘星 or a bare link, so 摘星 takes them back.
+              onDeleted={() =>
+                navigate(from ? `/?date=${dayParam(from)}` : "/conversations", {
+                  replace: true,
+                })
+              }
+            />
+          </div>
+          <p className="meta">
+            <span>{source}</span>
+            <span>{selected.messages.length} 条消息</span>
+            <a
+              href={selected.path.original_link}
+              target="_blank"
+              rel="noreferrer"
             >
-              <div className="who">
-                {message.role === "user" ? "你" : source}
-              </div>
-              <div className="body">
-                <MarkdownContent
-                  content={message.content}
-                  images={imported}
-                  scope={message.id}
-                  painting={layer.paintingFor(message.id)}
+              继续对话 ↗
+            </a>
+            <AnnotationFacts layer={layer} />
+          </p>
+        </header>
+        <ol className="messages">
+          {foldMessages(selected.messages, layer, (message, index) => (
+            <Fragment key={message.id}>
+              <li
+                id={messageAnchor(message)}
+                className={`message ${message.role}`}
+              >
+                <div className="who">
+                  {message.role === "user" ? "你" : source}
+                </div>
+                <div className="body">
+                  <MarkdownContent
+                    content={message.content}
+                    images={imported}
+                    scope={message.id}
+                    painting={layer.paintingFor(message.id)}
+                  />
+                  {!message.content && (
+                    <span className="quiet">（空消息）</span>
+                  )}
+                </div>
+              </li>
+              {/* While only annotations show, the forks would hang between folded messages. */}
+              {!layer.focus && (
+                <PathFork
+                  paths={paths}
+                  selected={selected}
+                  after={index}
+                  onSelect={(pathId) => show(pathId)}
                 />
-                {!message.content && <span className="quiet">（空消息）</span>}
-              </div>
-            </li>
-            {/* While only annotations show, the forks would hang between folded messages. */}
-            {!layer.focus && (
-              <PathFork
-                paths={paths}
-                selected={selected}
-                after={index}
-                onSelect={(pathId) => show(pathId)}
-              />
-            )}
-          </Fragment>
-        ))}
-      </ol>
-      <MessageToc messages={selected.messages} />
-    </AnnotatedArea>
+              )}
+            </Fragment>
+          ))}
+        </ol>
+        <MessageToc messages={selected.messages} />
+      </AnnotatedArea>
+      <OverallNote
+        key={selected.path.id}
+        target={{
+          kind: "path",
+          conversation: id!,
+          path: selected.path.id,
+        }}
+        images={imported}
+      />
+    </>
   );
 }
 

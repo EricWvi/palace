@@ -30,6 +30,8 @@ mod habits;
 mod import_times;
 #[path = "postgres/moments.rs"]
 mod moments;
+#[path = "postgres/overall_notes.rs"]
+mod overall_notes;
 #[path = "postgres/paths.rs"]
 mod paths;
 #[path = "postgres/sleep.rs"]

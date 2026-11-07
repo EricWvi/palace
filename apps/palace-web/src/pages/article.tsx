@@ -18,6 +18,7 @@ import {
   useAnnotations,
 } from "@/components/annotation-layer";
 import { AnnotatedArea } from "@/components/annotated-area";
+import { OverallNote } from "@/components/overall-note";
 import {
   UnmatchedFacts,
   useWebAnnotations,
@@ -93,48 +94,55 @@ export function ArticlePage() {
     );
   const published = new Date(article.data.published_at);
   return (
-    <AnnotatedArea layer={layer}>
-      <ReadingDocument
-        id={article.data.id}
-        title={article.data.title}
-        content={article.data.content}
+    <>
+      <AnnotatedArea layer={layer}>
+        <ReadingDocument
+          id={article.data.id}
+          title={article.data.title}
+          content={article.data.content}
+          images={images!}
+          scope={articleScope}
+          painting={layer.paintingFor(articleScope)}
+          back={back}
+          menu={
+            <ArticleMenu
+              key={article.data.id}
+              article={article.data}
+              reading={layer.menuAction}
+              // Without a day the reader came from 摘星 or a bare link, so 摘星 takes them back.
+              onDeleted={() =>
+                navigate(from ? `/?date=${dayParam(from)}` : "/articles", {
+                  replace: true,
+                })
+              }
+            />
+          }
+          meta={
+            <>
+              {article.data.author && <span>{article.data.author}</span>}
+              <time dateTime={published.toISOString()}>
+                {fullDate(published)}
+              </time>
+              <a href={article.data.url} target="_blank" rel="noreferrer">
+                原文 ↗
+              </a>
+              <AnnotationFacts layer={layer} />
+              <UnmatchedFacts web={web} />
+            </>
+          }
+          tocLabel="文章目录"
+        />
+        {web.error && (
+          <p role="status" className="annotation-error">
+            {web.error}
+          </p>
+        )}
+      </AnnotatedArea>
+      <OverallNote
+        key={article.data.id}
+        target={{ kind: "article", id: article.data.id }}
         images={images!}
-        scope={articleScope}
-        painting={layer.paintingFor(articleScope)}
-        back={back}
-        menu={
-          <ArticleMenu
-            key={article.data.id}
-            article={article.data}
-            reading={layer.menuAction}
-            // Without a day the reader came from 摘星 or a bare link, so 摘星 takes them back.
-            onDeleted={() =>
-              navigate(from ? `/?date=${dayParam(from)}` : "/articles", {
-                replace: true,
-              })
-            }
-          />
-        }
-        meta={
-          <>
-            {article.data.author && <span>{article.data.author}</span>}
-            <time dateTime={published.toISOString()}>
-              {fullDate(published)}
-            </time>
-            <a href={article.data.url} target="_blank" rel="noreferrer">
-              原文 ↗
-            </a>
-            <AnnotationFacts layer={layer} />
-            <UnmatchedFacts web={web} />
-          </>
-        }
-        tocLabel="文章目录"
       />
-      {web.error && (
-        <p role="status" className="annotation-error">
-          {web.error}
-        </p>
-      )}
-    </AnnotatedArea>
+    </>
   );
 }

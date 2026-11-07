@@ -20,7 +20,7 @@ token 只保存在本机的 `chrome.storage.local`，不经浏览器同步；所
 - 标注用 CSS Custom Highlight API 绘制，不改动网页 DOM；小条和批注放在 closed shadow root 里。网页加载后内容变化时，插件会在页面安静下来后重新定位。
 - 标注颜色取自 `design/tokens.css`，按每处标注所在文字的颜色选亮色或暗色那一套：文字是浅色就当作暗底，用暗色 token，反之用亮色 token，并同时设定文字颜色，保证在任何网站上可读。看的是网页自己的文字颜色而不是浏览器的亮暗外观，因为网站可能无视后者；浏览器外观切换时会重画一次，网站自己的主题开关不会触发重画，要等页面内容下次变化。
 - 网页地址取 `location.href` 去掉 `#` 之后的部分，不做其他规范化。每次新建、修改标注都会记下当前标签页标题，供列表页显示。
-- 插件不在本地保存任何标注，开启的标签页里每次操作直接写 Palace，多台电脑之间以后写入的为准。新建和修改在等待 Palace 回复时就先画出结果，保存失败再退回原样并提示；删除等 Palace 确认后才消失，与 Palace 一致。连不上 Palace 或 token 无效时，选区小条不出现，工具栏图标显示 `!`。
+- 插件不在本地保存任何标注（未保存成功的[总批](../overall-notes/README.md)是唯一的例外），开启的标签页里每次操作直接写 Palace，多台电脑之间以后写入的为准。新建和修改在等待 Palace 回复时就先画出结果，保存失败再退回原样并提示；删除等 Palace 确认后才消失，与 Palace 一致。连不上 Palace 或 token 无效时，选区小条不出现，工具栏图标显示 `!`。
 - 工具栏图标随浏览器的亮暗外观切换：插件运行的页面把 `prefers-color-scheme` 报给 service worker，由它调用 `chrome.action.setIcon`。manifest 只能写一套静态图标，所以浏览器刚启动、还没打开任何网页时显示的是亮色版本。
 - 只处理顶层页面正文里的文字；iframe、输入框、可编辑区域和 PDF 查看器不支持。
 
@@ -35,18 +35,18 @@ token 只保存在本机的 `chrome.storage.local`，不经浏览器同步；所
 
 - 原网页不再接受新标注，已有的也不能修改；插件改为只读显示这篇文章**当前**的标注（按引文查找，多处出现时取位置比例最接近的一处），工具栏图标显示 `✓`，弹窗里可以打开文章或「改绑到另一篇」。
 - 改绑只改变剩余原网页标注之后迁往哪里，以及原网页上显示哪篇文章的标注；已经迁移的标注留在原来的文章里。
-- 删除文章时，绑定到它的网页和剩余的原网页标注一起删除。未绑定网页的最后一处标注被删除时，网页记录也一起删除。
+- 删除文章时，绑定到它的网页和剩余的原网页标注一起删除。未绑定网页的最后一处标注被删除时，如果也没有[总批](../overall-notes/README.md)，网页记录一起删除。
 
 ## 接口
 
 | 方法与路径 | 作用 |
 | --- | --- |
 | `GET /api/web-pages` | 全部网页，按最近修改倒序，不分页；每项带 `annotation_count` |
-| `GET /api/web-pages/lookup?url=` | `{ page, annotations }`；没有记录返回 404 |
+| `GET /api/web-pages/lookup?url=` | `{ page, annotations, overall_note }`；没有记录返回 404 |
 | `POST /api/web-pages/annotations` | `{ url, title, quote, prefix, suffix, position, style, note }`，网页不存在时一并创建，返回 201；网页已绑定返回 409 `web_page_bound` |
 | `PUT /api/web-annotations/{id}` | `{ title, style, note }`，一起替换样式和批注并记下标签页标题；网页已绑定返回 409 `web_page_bound` |
 | `DELETE /api/web-annotations/{id}` | 删除，返回 204；已绑定网页上剩余的标注也可以删除 |
-| `PUT /api/web-pages/binding` | `{ url, title, article_id }`，绑定或改绑，网页不存在时一并创建 |
+| `PUT /api/web-pages/binding` | `{ url, title, article_id }`，绑定或改绑，网页不存在时一并创建；网页的总批在同一事务里并入文章 |
 | `GET /api/articles?near=` | 见上文；带 `near` 时游标只能用于同一种排序 |
 | `GET /api/articles/{id}/web-annotations` | 绑定到这篇文章的所有网页上剩余的原网页标注 |
 | `POST /api/articles/{id}/web-annotations/migrate` | `{ items: [{ web_annotation_id, start, end, quote }] }`，返回新建的文章标注；已不存在或不属于这篇文章的项跳过 |

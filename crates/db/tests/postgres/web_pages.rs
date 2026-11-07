@@ -1,7 +1,7 @@
 use super::database;
 use palace_db::{
-    ArticleImport, Database, DbError, OwnerScope, WebAnnotation, WebPage, WebPageDetail,
-    WebPageSummary,
+    ArticleImport, Database, DbError, OverallNote, OwnerScope, WebAnnotation, WebPage,
+    WebPageDetail, WebPageSummary,
 };
 use palace_domain::{
     AnnotationContent, AnnotationNote, AnnotationStyle, ArticleMetadata, ArticleMetadataInput,
@@ -274,6 +274,10 @@ async fn a_bound_web_page_must_reject_new_and_changed_web_annotations() {
                 ..moved
             },
             annotations: vec![],
+            overall_note: OverallNote {
+                text: None,
+                version: 0,
+            },
         }
     );
 

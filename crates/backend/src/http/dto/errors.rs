@@ -23,6 +23,8 @@ pub(crate) enum ErrorCode {
     JottingsUnavailable,
     /// The web page is bound to an article; annotate the article in Palace instead.
     WebPageBound,
+    /// The overall note changed after the page read it; nothing was written.
+    OverallNoteChanged,
     PersistenceFailed,
 }
 #[derive(Serialize, ToSchema)]

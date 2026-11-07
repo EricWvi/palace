@@ -3,6 +3,7 @@
 // body, so the page's CSS cannot restyle it, its scripts cannot read it, and the page text the
 // marks anchor in never includes it. Its look follows Palace's annotation bar and note cards.
 import tokens from "../../../design/tokens.css?raw";
+import { NotePad, padCss, type SaveNote } from "./note-pad";
 import type { AnnotationStyle } from "./protocol";
 
 // Four highlighter grounds, then two pen strokes, each with the key that picks it.
@@ -124,7 +125,7 @@ button { all: unset; cursor: pointer; }
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.1); color: var(--accent);
   font-family: var(--font-ui); font-size: var(--font-size-sm); transform: translateX(-50%);
 }
-`;
+${padCss}`;
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -155,6 +156,11 @@ export class Overlay {
   // off never gets a node from the extension.
   private mount() {
     if (!this.host.isConnected) document.documentElement.append(this.host);
+  }
+
+  // The 总批 card, which shares this root and its look.
+  pad(save: SaveNote) {
+    return new NotePad(this.root, () => this.mount(), save);
   }
 
   // Whether an event happened on the overlay rather than the page.

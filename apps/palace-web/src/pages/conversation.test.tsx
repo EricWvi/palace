@@ -231,6 +231,21 @@ it("exports the branch being read in the format it can be imported from", async 
   );
 });
 
+// Core test case: `specs/test-cases/web/stars/overall-notes.md#the-overall-note-card-must-stay-out-of-the-reading-flow`
+it("keeps one overall note per branch", async () => {
+  const { fetch, router } = setup("/conversations/tree?path=p1");
+  const fallback = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (url, options) => {
+    const note = /\/paths\/(p\d)\/overall-note$/.exec(requestPath(url));
+    if (note) return Response.json({ text: `${note[1]} 的总批`, version: 1 });
+    return fallback(url, options);
+  });
+  await screen.findByRole("button", { name: /p1 的总批/ });
+  await router.navigate("/conversations/tree?path=p2");
+  await screen.findByRole("button", { name: /p2 的总批/ });
+  expect(screen.queryByRole("button", { name: /p1 的总批/ })).toBeNull();
+});
+
 // Core test cases:
 // - `specs/test-cases/server/conversation/reading-page.md#conversation-management-must-live-only-in-the-reading-page-title-menu`
 // - `specs/test-cases/server/import/import-entry.md#successful-import-must-open-the-reading-page-dated-to-the-submitted-occurrence`

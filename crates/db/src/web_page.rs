@@ -4,7 +4,11 @@
 //! annotating and deleting the last annotation of one page serialize.
 mod migrate;
 
-use crate::{Database, DbError, OwnerScope, annotation::vanished_target};
+use crate::{
+    Database, DbError, OverallNote, OwnerScope,
+    annotation::vanished_target,
+    overall_note::{Slot, carry_into_article, read as read_note},
+};
 use palace_domain::{
     AnnotationContent, AnnotationStyle, WebAnchor, WebPageState, WebPageTitle, WebPageUrl,
 };
@@ -35,6 +39,8 @@ pub struct WebPageSummary {
 pub struct WebPageDetail {
     pub page: WebPage,
     pub annotations: Vec<WebAnnotation>,
+    /// The page's own note, or its article's once bound: there is one note to write in.
+    pub overall_note: OverallNote,
 }
 
 /// An annotation the extension left on a page.
@@ -49,7 +55,7 @@ pub struct WebAnnotation {
     pub updated_at: i64,
 }
 
-const PAGE_COLUMNS: &str =
+pub(crate) const PAGE_COLUMNS: &str =
     "p.id,p.url,p.title,p.article_id,(extract(epoch FROM p.updated_at)*1000)::bigint AS updated_at";
 pub(crate) const WEB_ANNOTATION_COLUMNS: &str = "w.id,w.page_id,w.quote,w.prefix,w.suffix,w.position,w.style,w.note,(extract(epoch FROM w.created_at)*1000)::bigint AS created_at,(extract(epoch FROM w.updated_at)*1000)::bigint AS updated_at";
 const NOW: &str = "date_trunc('milliseconds',now())";
@@ -99,8 +105,19 @@ impl Database {
             .iter()
             .map(web_annotation)
             .collect::<Result<_, _>>()?;
+        let slot = match page.state {
+            WebPageState::Unbound => Slot::Page(page.id),
+            WebPageState::Bound(article) => Slot::Article(article),
+        };
+        let overall_note = read_note(&mut tx, owner, slot)
+            .await?
+            .unwrap_or_else(OverallNote::absent);
         tx.commit().await?;
-        Ok(WebPageDetail { page, annotations })
+        Ok(WebPageDetail {
+            page,
+            annotations,
+            overall_note,
+        })
     }
 
     /// Annotates the page at `url`, creating it on its first annotation and recording the tab
@@ -177,8 +194,8 @@ impl Database {
         web_annotation(&row)
     }
 
-    /// Removes an annotation from a page, bound or not. An unbound page exists only for its
-    /// annotations, so it goes with its last one in the same transaction.
+    /// Removes an annotation from a page, bound or not. An unbound page exists only for what
+    /// was left on it, so it goes with the last of that in the same transaction.
     pub async fn delete_web_annotation(&self, owner: OwnerScope, id: Uuid) -> Result<(), DbError> {
         let mut tx = self.pool.begin().await?;
         let page = lock_page_of(&mut tx, owner, id).await?;
@@ -188,7 +205,7 @@ impl Database {
             .execute(&mut *tx)
             .await?;
         let page_change = match page.state {
-            WebPageState::Unbound => "DELETE FROM web_page p WHERE p.owner_id=$1 AND p.id=$2 AND NOT EXISTS(SELECT 1 FROM web_annotation w WHERE w.owner_id=p.owner_id AND w.page_id=p.id)".to_owned(),
+            WebPageState::Unbound => "DELETE FROM web_page p WHERE p.owner_id=$1 AND p.id=$2 AND NOT EXISTS(SELECT 1 FROM web_annotation w WHERE w.owner_id=p.owner_id AND w.page_id=p.id) AND NOT EXISTS(SELECT 1 FROM overall_note n WHERE n.owner_id=p.owner_id AND n.page_id=p.id)".to_owned(),
             WebPageState::Bound(_) => format!("UPDATE web_page SET updated_at={NOW} WHERE owner_id=$1 AND id=$2"),
         };
         sqlx::query(&page_change)
@@ -201,8 +218,10 @@ impl Database {
     }
 
     /// Binds the page at `url` to one of the owner's articles, or moves an existing binding to
-    /// another article, creating the page when the reader never annotated it. Annotations
-    /// already migrated stay with the article they moved to.
+    /// another article, creating the page when the reader never annotated it. The page's overall
+    /// note moves into the article in the same transaction: it needs no placing, unlike the
+    /// annotations, which move when the article page finds their words. Whatever already moved
+    /// stays with the article it moved to.
     pub async fn bind_web_page(
         &self,
         owner: OwnerScope,
@@ -210,6 +229,7 @@ impl Database {
         title: &WebPageTitle,
         article: Uuid,
     ) -> Result<WebPage, DbError> {
+        let mut tx = self.pool.begin().await?;
         // Selecting from the article keys the binding by owner: another owner's article
         // inserts nothing and is not found.
         let row = sqlx::query(&format!("INSERT INTO web_page AS p(id,owner_id,url,title,article_id) SELECT $1,a.owner_id,$3,$4,a.id FROM article a WHERE a.owner_id=$2 AND a.id=$5 ON CONFLICT(owner_id,url) DO UPDATE SET title=EXCLUDED.title,article_id=EXCLUDED.article_id,updated_at={NOW} RETURNING {PAGE_COLUMNS}"))
@@ -218,11 +238,14 @@ impl Database {
             .bind(url.as_str())
             .bind(title.as_str())
             .bind(article)
-            .fetch_optional(&self.pool)
+            .fetch_optional(&mut *tx)
             .await
             .map_err(vanished_target)?
             .ok_or(DbError::NotFound)?;
-        web_page(&row)
+        let page = web_page(&row)?;
+        carry_into_article(&mut tx, owner, page.id, article).await?;
+        tx.commit().await?;
+        Ok(page)
     }
 }
 
@@ -243,7 +266,7 @@ async fn lock_page_of(
 }
 
 /// Reads one row selected with [`PAGE_COLUMNS`].
-fn web_page(row: &PgRow) -> Result<WebPage, DbError> {
+pub(crate) fn web_page(row: &PgRow) -> Result<WebPage, DbError> {
     let state = match row.try_get::<Option<Uuid>, _>("article_id")? {
         Some(article) => WebPageState::Bound(article),
         None => WebPageState::Unbound,

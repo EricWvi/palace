@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<!--
+  总批: one block of text for a whole article, conversation path or web page,
+  where 批注 belong to words. It never enters the text flow, so the title and
+  its line of facts stay as they are.
+  Variant A, the one chosen, pins a card at the foot of the margin column, in
+  the viewport all the time; narrower than the margin it folds to its name.
+  Variant B, kept for comparison, writes it at the end of the document, as old
+  commentaries did. ?doc=article | chat | web picks the page; web shows the extension's card
+  on someone else's site, where it stays even when empty. Press n to write.
+  The prototype bar flips between many 批注 and none, and fills or clears 总批.
+-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>总批</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="components.css">
+  <script src="ornament.js"></script>
+  <script src="shared.js"></script>
+  <script src="variant-switcher.js"></script>
+  <style>
+    :root {
+      --column: 712px;
+      --gutter: 56px;
+      --notes: 248px;
+      --wide: calc(var(--column) + var(--gutter) + var(--notes) + 48px);
+    }
+
+    [data-ready] .sheet {
+      transition: max-width 400ms ease-out;
+    }
+
+    /* 总批 in the margin widens the page just as a first 批注 does. */
+    [data-layout="margin"] .sheet {
+      max-width: var(--wide);
+    }
+
+    .column {
+      position: relative;
+      max-width: var(--column);
+    }
+
+    header.doc {
+      margin-top: 70px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: var(--font-size-3xl);
+      letter-spacing: -0.01em;
+    }
+
+    .body {
+      margin-top: 40px;
+      font-family: var(--font-content);
+      font-size: var(--font-size-base);
+      line-height: 1.9;
+      color: var(--reading-text);
+    }
+
+    .body p {
+      margin: 0 0 1.2em;
+    }
+
+    .body h2 {
+      margin: 2em 0 .6em;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: var(--font-size-xl);
+    }
+
+    mark {
+      color: inherit;
+      background: var(--mark-yellow);
+    }
+
+    mark.quiet {
+      background: var(--accent-soft);
+    }
+
+    /* A conversation path: the same document, its own 总批. */
+    .paths {
+      margin-top: 28px;
+      color: var(--text-2);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+    }
+
+    .paths button {
+      color: var(--text-3);
+    }
+
+    .paths button[aria-current="true"] {
+      color: var(--text);
+    }
+
+    .paths button+button::before {
+      content: "·";
+      margin: 0 8px;
+      color: var(--text-3);
+    }
+
+    .message {
+      margin-bottom: 28px;
+    }
+
+    .message.user {
+      padding: 12px 16px;
+      background: var(--bg-sunken);
+      border-radius: var(--radius-md);
+    }
+
+    .notes {
+      position: absolute;
+      top: 0;
+      left: calc(100% + var(--gutter));
+      width: var(--notes);
+    }
+
+    .note-card {
+      position: absolute;
+      left: 0;
+      right: 0;
+      padding: 9px 14px 10px 16px;
+      background: var(--surface-raised);
+      border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+      border-radius: var(--radius-md);
+      box-shadow: 0 1px 2px rgb(0 0 0 / .04), 0 3px 10px rgb(0 0 0 / .04);
+      color: var(--text-2);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+      line-height: 1.65;
+    }
+
+    .note-card::before {
+      content: "";
+      position: absolute;
+      top: 9px;
+      bottom: 9px;
+      left: -1px;
+      width: 2px;
+      border-radius: 1px;
+      background: var(--accent);
+    }
+
+    /*
+     * 总批 is a 批注 card without words to stand beside, so it keeps the card's
+     * paper and drops the colored rule that ties a card to its mark. Solid
+     * ground and a heavier shadow: 批注 scroll underneath it.
+     */
+    .overall {
+      position: fixed;
+      right: max(24px, calc((100vw - var(--wide)) / 2 + 24px));
+      bottom: 28px;
+      z-index: 40;
+      width: var(--notes);
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: 0 2px 6px rgb(0 0 0 / .07), 0 12px 32px rgb(0 0 0 / .13);
+      color: var(--text-2);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-sm);
+      line-height: 1.65;
+      transition: box-shadow .2s, color .2s;
+    }
+
+    .overall[hidden] {
+      display: none;
+    }
+
+    .overall .label {
+      flex: none;
+      font-family: var(--font-display);
+      color: var(--text-3);
+      letter-spacing: .08em;
+    }
+
+    .overall .folded {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      width: 100%;
+      padding: 7px 14px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .overall .first {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .overall.open .folded {
+      display: none;
+    }
+
+    .overall .open-body {
+      display: none;
+      padding: 10px 14px 12px;
+    }
+
+    .overall.open .open-body {
+      display: block;
+    }
+
+    .overall.open {
+      color: var(--text);
+    }
+
+    .overall textarea {
+      display: block;
+      width: 100%;
+      min-height: 4lh;
+      max-height: 40vh;
+      margin-top: 4px;
+      padding: 0;
+      resize: none;
+      border: 0;
+      outline: none;
+      background: none;
+      color: inherit;
+      font: inherit;
+    }
+
+    /* Variant B: at the end of the document, under a thin rule, in the reading column. */
+    .ending {
+      margin-top: 56px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+      font-family: var(--font-content);
+      font-size: var(--font-size-md);
+      line-height: 1.85;
+      color: var(--text-2);
+      white-space: pre-wrap;
+    }
+
+    .ending .label {
+      display: block;
+      margin-bottom: 6px;
+      font-family: var(--font-display);
+      color: var(--text-3);
+      letter-spacing: .08em;
+    }
+
+    .ending[hidden] {
+      display: none;
+    }
+
+    /* The extension's page: someone else's site, wider and in its own type. */
+    [data-doc="web"] body {
+      background: var(--surface);
+    }
+
+    [data-doc="web"] palace-header,
+    [data-doc="web"] .paths {
+      display: none;
+    }
+
+    [data-doc="web"] .sheet {
+      max-width: 860px;
+    }
+
+    [data-doc="web"] .column {
+      max-width: none;
+    }
+
+    [data-doc="web"] h1 {
+      font-family: var(--font-sans);
+      font-size: var(--font-size-4xl);
+      font-weight: 600;
+    }
+
+    [data-doc="web"] .overall {
+      right: 24px;
+      bottom: 24px;
+      width: 300px;
+    }
+
+    @media (max-width: 1179px) {
+
+      .notes {
+        display: none;
+      }
+
+      /*
+       * No margin to stand in, so folded it shrinks to its name: a first line here
+       * would cover the last lines of the text. Open, it floats over them on purpose.
+       */
+      .overall {
+        right: 16px;
+        bottom: 20px;
+        width: auto;
+      }
+
+      .overall .first {
+        display: none;
+      }
+
+      .overall.open {
+        width: min(300px, calc(100vw - 32px));
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      [data-ready] .sheet {
+        transition: none;
+      }
+    }
+
+    /* PROTOTYPE ONLY: inverted like the variant bar, so it stands apart from the design. */
+    .proto {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 50;
+      display: flex;
+      gap: 10px;
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      background: var(--text);
+      color: var(--bg);
+      font-family: var(--font-ui);
+      font-size: var(--font-size-xs);
+    }
+
+    .proto a,
+    .proto button {
+      color: inherit;
+      opacity: .7;
+      text-decoration: none;
+    }
+
+    .proto [aria-current="true"] {
+      opacity: 1;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="sheet">
+    <palace-header active="摘星"></palace-header>
+    <div class="column" id="column">
+      <header class="doc">
+        <h1 id="title"></h1>
+        <p class="meta" id="meta"></p>
+      </header>
+      <div class="paths" id="paths" hidden></div>
+      <div class="body" id="content"></div>
+      <section class="ending" id="ending" hidden></section>
+      <div class="notes" id="notes"></div>
+    </div>
+  </main>
+
+  <aside class="overall" id="overall" aria-label="总批" hidden>
+    <button class="folded" id="folded" type="button">
+      <span class="label">总批</span><span class="first" id="first"></span>
+    </button>
+    <div class="open-body">
+      <span class="label">总批</span>
+      <textarea id="editor" aria-label="总批"></textarea>
+    </div>
+  </aside>
+
+  <div class="proto">
+    <a href="?doc=article" data-doc="article">文章</a>
+    <a href="?doc=chat" data-doc="chat">对话</a>
+    <a href="?doc=web" data-doc="web">插件</a>
+    <button id="toggle-notes">批注</button>
+    <button id="toggle-text">总批</button>
+  </div>
+  <variant-switcher variants="A:批注栏底部,B:篇末"></variant-switcher>
+
+  <script>
+    const root = document.documentElement;
+    const params = new URLSearchParams(location.search);
+    const doc = ["article", "chat", "web"].includes(params.get("doc")) ? params.get("doc") : "article";
+    root.dataset.doc = doc;
+    document.querySelector(`.proto [data-doc="${doc}"]`).setAttribute("aria-current", "true");
+
+    const filler = "读的时候最容易忽略的，是作者没有写出来的部分。一段话的分量常常不在它说了什么，而在它略过了什么，于是同一篇文章读第二遍时，停下来的地方总和第一遍不同。";
+    const paragraphs = (n, offset) => Array.from({ length: n }, (_, i) =>
+      `<p>${i % 3 === 0 ? `<mark data-note="${offset + i}">${filler.slice(0, 24)}</mark>${filler.slice(24)}` : filler}${filler}</p>`).join("");
+    const cards = ["这里和上周读的那篇是同一个论点，可以放在一起看。", "不同意。样本太小。", "想起旅途那段，回头补一条札记。", "这句可以直接引用。", "作者在这里换了定义，前后不一致。", "值得写一篇回应。", "查一下原始出处。"];
+
+    // Each path of a conversation keeps its own 总批, so switching branches swaps the card.
+    const documents = {
+      article: { title: "读书的第二遍", meta: ["某人", "2026.10.05", "原文 ↗"], body: paragraphs(4, 0) + "<h2>重读</h2>" + paragraphs(5, 4) + "<h2>记住什么</h2>" + paragraphs(5, 9),
+        text: "这篇的核心是「第二遍才算读」。\n和《如何阅读一本书》那套分层不同，它不讲方法，只讲时间。\n\n可以写进下周的札记。" },
+      web: { title: "On Reading Twice", meta: ["example.com", "Oct 5, 2026"], body: paragraphs(14, 0), text: "" },
+    };
+    const paths = {
+      "第 1 支": "这一支走偏了，答案基于旧版文档。",
+      "第 2 支": "这一支才是对的：关键是把锁放在事务里。\n\n回头把结论写进 ADR。",
+    };
+    let path = "第 2 支";
+    if (doc === "chat") {
+      const turn = (who, n, offset) => `<div class="message ${who}">${paragraphs(n, offset)}</div>`;
+      documents.chat = { title: "PostgreSQL advisory lock 的用法", meta: ["Claude", "2026.10.05", "22 条消息"],
+        body: Array.from({ length: 6 }, (_, i) => turn(i % 2 ? "assistant" : "user", i % 2 ? 3 : 1, i * 3)).join(""), text: paths[path] };
+    }
+    const page = documents[doc];
+    let showNotes = doc !== "web";
+    let text = page.text;
+    let writing = false;
+
+    const $ = (id) => document.getElementById(id);
+    $("title").textContent = page.title;
+    $("meta").replaceChildren(...page.meta.map((fact) => Object.assign(document.createElement("span"), { textContent: fact })));
+    $("content").innerHTML = page.body;
+
+    function placeNotes() {
+      const box = $("notes");
+      box.replaceChildren();
+      if (!showNotes) return;
+      let bottom = 0;
+      const base = $("column").getBoundingClientRect().top;
+      document.querySelectorAll("mark[data-note]").forEach((mark) => {
+        const card = document.createElement("div");
+        card.className = "note-card";
+        card.textContent = cards[Number(mark.dataset.note) % cards.length];
+        box.append(card);
+        const top = Math.max(mark.getBoundingClientRect().top - base, bottom + 8);
+        card.style.top = `${top}px`;
+        bottom = top + card.offsetHeight;
+      });
+    }
+
+    function render() {
+      const variant = root.dataset.variant ?? "A";
+      const pinned = variant === "A" || doc === "web";
+      const wide = innerWidth >= 1180 && doc !== "web" && (showNotes || (pinned && (text || writing)));
+      root.dataset.layout = wide ? "margin" : "plain";
+      document.querySelectorAll("mark[data-note]").forEach((mark) => mark.classList.toggle("quiet", !showNotes));
+
+      // Palace shows nothing until there is something; the extension is there to be written in.
+      const overall = $("overall");
+      overall.hidden = !pinned || (!text && !writing && doc !== "web");
+      overall.classList.toggle("open", writing);
+      $("first").textContent = text.split("\n")[0];
+
+      const ending = $("ending");
+      ending.hidden = pinned || !text;
+      ending.innerHTML = `<span class="label">总批</span>`;
+      ending.append(text);
+
+      const paths_ = $("paths");
+      paths_.hidden = doc !== "chat";
+      paths_.replaceChildren(...Object.keys(paths).map((name) => {
+        const button = Object.assign(document.createElement("button"), { type: "button", textContent: name });
+        button.setAttribute("aria-current", name === path);
+        button.onclick = () => { paths[path] = text; path = name; text = paths[name]; writing = false; render(); };
+        return button;
+      }));
+      $("toggle-notes").setAttribute("aria-current", showNotes);
+      $("toggle-text").setAttribute("aria-current", Boolean(text));
+      requestAnimationFrame(placeNotes);
+    }
+
+    // The card grows with what is written, up to the textarea's own limit.
+    function fit() {
+      const editor = $("editor");
+      editor.style.height = "auto";
+      editor.style.height = `${editor.scrollHeight}px`;
+    }
+
+    function write() {
+      writing = true;
+      $("editor").value = text;
+      render();
+      fit();
+      $("editor").focus();
+    }
+
+    function finish() {
+      if (!writing) return;
+      text = $("editor").value.trim();
+      $("editor").style.height = "";
+      writing = false;
+      render();
+    }
+
+    $("folded").onclick = write;
+    $("editor").addEventListener("blur", finish);
+    $("editor").addEventListener("input", fit);
+    $("editor").addEventListener("keydown", (event) => {
+      if (event.key === "Escape" || (event.key === "Enter" && (event.metaKey || event.ctrlKey))) {
+        event.preventDefault();
+        $("editor").blur();
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "n" && !event.metaKey && !event.ctrlKey && !event.altKey && document.activeElement.tagName !== "TEXTAREA") {
+        event.preventDefault();
+        if ((root.dataset.variant ?? "A") === "B" && doc !== "web") root.dataset.variant = "A";
+        write();
+      }
+    });
+    $("toggle-notes").onclick = () => { showNotes = !showNotes; render(); };
+    $("toggle-text").onclick = () => { text = text ? "" : page.text || "想到一件事：这个说法和昨天那篇正好相反。"; render(); };
+    document.addEventListener("variantchange", render);
+    addEventListener("resize", render);
+    render();
+    requestAnimationFrame(() => { root.dataset.ready = ""; });
+  </script>
+</body>
+
+</html>

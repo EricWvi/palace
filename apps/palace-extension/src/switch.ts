@@ -12,6 +12,9 @@ export type SwitchQuery = { kind: "switch" };
 // The popup's order to the content script of a tab, which answers once it has obeyed.
 export type SwitchOrder = { kind: "turn"; to: Switch };
 
+// The 总批 shortcut's order to the content script of a tab: turn on if off, and open the card.
+export type NoteOrder = { kind: "note" };
+
 const key = (tab: number) => `annotating-${tab}`;
 
 export async function readSwitch(tab: number): Promise<Switch> {

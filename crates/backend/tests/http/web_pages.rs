@@ -44,7 +44,7 @@ pub(super) async fn exercise_web_pages(app: &Router, cookie: &str, foreign: &str
     let updated_at = detail["page"]["updated_at"].as_i64().unwrap();
     assert_eq!(
         detail,
-        json!({"page":{"id":page_id,"url":PAGE,"title":"原网页","article_id":null,"updated_at":updated_at},"annotations":[first.clone(),second.clone()]})
+        json!({"page":{"id":page_id,"url":PAGE,"title":"原网页","article_id":null,"updated_at":updated_at},"annotations":[first.clone(),second.clone()],"overall_note":{"text":null,"version":0}})
     );
     assert_eq!(
         call(app, "GET", "/api/web-pages", cookie, Value::Null).await,

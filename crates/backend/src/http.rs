@@ -7,6 +7,7 @@ mod business;
 mod contract;
 mod conversation_list;
 mod dto;
+mod overall_notes;
 mod routes;
 pub use contract::api_contract;
 mod error;

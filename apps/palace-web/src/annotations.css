@@ -21,6 +21,13 @@
   max-width: calc(712px + 56px + 248px + 48px);
 }
 
+/* 总批 sits in the margin, so it opens the page the way a first note does. */
+@media (min-width: 1180px) {
+  .sheet:has(.overall-note) {
+    max-width: calc(712px + 56px + 248px + 48px);
+  }
+}
+
 /*
  * Marks. Their look comes from the style the reader picked, never from the Markdown under them,
  * so a highlight across inline code or a quote reads as one stroke. No padding: annotating must
@@ -480,4 +487,113 @@ ol.messages > .fold-gap:first-child {
 
 .unmatched li button:hover {
   color: var(--accent);
+}
+
+/*
+ * 总批: a margin card with no words to stand beside, so it keeps the paper and drops the coloured
+ * rule that ties a card to its mark. It is pinned at the foot of the margin column and stays out
+ * of the text flow; solid, with a heavier shadow, since notes scroll underneath it. The percentage
+ * resolves against the viewport without its scrollbar, which keeps it in line with the column.
+ */
+.overall-note {
+  position: fixed;
+  right: max(24px, calc((100% - 1064px) / 2 + 24px));
+  bottom: 28px;
+  z-index: 34;
+  width: 248px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 2px 6px rgb(0 0 0 / 0.07),
+    0 12px 32px rgb(0 0 0 / 0.13);
+  color: var(--text-2);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+  line-height: 1.65;
+}
+
+.overall-note.open {
+  color: var(--text);
+}
+
+.overall-note-name {
+  flex: none;
+  color: var(--text-3);
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+}
+
+.overall-note-fold {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  width: 100%;
+  padding: 7px 14px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.overall-note-first {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.overall-note-open {
+  padding: 10px 14px 12px;
+}
+
+.overall-note textarea {
+  display: block;
+  width: 100%;
+  min-height: 4lh;
+  max-height: 40vh;
+  margin-top: 4px;
+  padding: 0;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  field-sizing: content;
+}
+
+.overall-note-text {
+  max-height: 40vh;
+  margin-top: 4px;
+  overflow-y: auto;
+  cursor: text;
+}
+
+.overall-note-text .markdown {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.overall-note-problem {
+  margin: 6px 0 0;
+  color: var(--accent);
+}
+
+/*
+ * No margin to stand in, so folded it shrinks to its name: a first line here would cover the last
+ * lines of the text. Open, it floats over them on purpose.
+ */
+@media (max-width: 1179px) {
+  .overall-note {
+    right: 16px;
+    bottom: 20px;
+    width: auto;
+  }
+
+  .overall-note.open {
+    width: min(300px, calc(100vw - 32px));
+  }
+
+  .overall-note-first {
+    display: none;
+  }
 }

@@ -13,6 +13,7 @@ mod instant;
 mod jotting;
 mod local_day;
 mod media;
+mod overall_note;
 mod sleep;
 mod todo;
 mod web_page;
@@ -38,6 +39,7 @@ pub use instant::{InstantRange, epoch_instant};
 pub use jotting::{JOTTING_BODY_MAX_BYTES, Jotting, JottingCensus, JottingError, JottingProblem};
 pub use local_day::LocalDay;
 pub use media::{FALLBACK_CONTENT_TYPE, MediaLimits, MediaMetadata, MediaUpload};
+pub use overall_note::OverallNoteText;
 pub use sleep::SleepSpan;
 pub use todo::{
     TodoBody, TodoLink, TodoListName, TodoPlacement, TodoPlan, TodoPlanInput, TodoPosition,

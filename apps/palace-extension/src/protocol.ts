@@ -13,6 +13,11 @@ export type WebAnnotationUpdate = Schemas["WebAnnotationUpdate"];
 export type WebPage = Schemas["WebPage"];
 export type WebPageList = Schemas["WebPageList"];
 export type ArticlePage = Schemas["ArticlePage"];
+export type OverallNote = Schemas["OverallNote"];
+
+// The 总批 a page shows. `unsaved` is a draft Palace does not have; its version is the one it was
+// written over, so saving it cannot pass over a change made since.
+export type PageNote = { text: string; version: number; unsaved: boolean };
 
 // The article a bound page shows, with what the read-only display needs to place its marks.
 export type BoundArticle = {
@@ -26,15 +31,26 @@ export type BoundArticle = {
 
 // What a page is to the extension: annotated on its own, or handed to an article.
 export type PageState =
-  | { kind: "unbound"; annotations: WebAnnotation[] }
-  | { kind: "bound"; article: BoundArticle; annotations: Annotation[] };
+  | { kind: "unbound"; annotations: WebAnnotation[]; note: PageNote }
+  | {
+      kind: "bound";
+      article: BoundArticle;
+      annotations: Annotation[];
+      note: PageNote;
+    };
 
 // The address and whether a token is stored; the token itself never leaves the service worker.
 export type SettingsView = { server: string; configured: boolean };
 
 // Why a request failed, in the terms the pages act on.
 export type Problem =
-  "unconfigured" | "offline" | "unauthorized" | "bound" | "missing" | "invalid";
+  | "unconfigured"
+  | "offline"
+  | "unauthorized"
+  | "bound"
+  | "missing"
+  | "invalid"
+  | "conflict";
 
 export type Reply<T> =
   { ok: true; data: T } | { ok: false; problem: Problem; message: string };
@@ -45,6 +61,10 @@ type Exchanges = {
   create: [{ annotation: WebAnnotationCreate }, WebAnnotation];
   update: [{ id: string; change: WebAnnotationUpdate }, WebAnnotation];
   delete: [{ id: string }, null];
+  "overall-note": [
+    { url: string; title: string; text: string; version: number },
+    OverallNote,
+  ];
   candidates: [{ near: string; q: string; cursor: string | null }, ArticlePage];
   bind: [{ url: string; title: string; article_id: string }, PageState];
   pages: [object, WebPageList];
@@ -59,12 +79,14 @@ export type Request<K extends Kind = Kind> = K extends Kind
 export type Answer<K extends Kind> = Exchanges[K][1];
 
 // What a content script may ask: it runs inside any web page, so it can read and change the
-// annotations of the page it is on and nothing else of the owner's.
+// annotations and the 总批 of the page it is on and nothing else of the owner's. A note is saved
+// by page address, never by article, so a page cannot name an article to write to.
 export const contentKinds: ReadonlySet<Kind> = new Set<Kind>([
   "page",
   "create",
   "update",
   "delete",
+  "overall-note",
 ]);
 
 // Sends a request to the service worker and waits for its reply.

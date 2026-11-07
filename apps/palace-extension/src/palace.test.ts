@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createHandler, type Settings, type SettingsStore } from "./palace";
+import {
+  createHandler,
+  type DraftStore,
+  type NoteDraft,
+  type Settings,
+  type SettingsStore,
+} from "./palace";
 import type { Request } from "./protocol";
 
 const settings: Settings = {
@@ -16,6 +22,18 @@ function memory(initial: Settings | null) {
     },
   };
   return { store, stored: () => stored };
+}
+
+// Drafts held in memory, as `chrome.storage.local` holds them in the browser.
+function noDrafts() {
+  const held = new Map<string, NoteDraft>();
+  const drafts: DraftStore & { held: typeof held } = {
+    held,
+    read: async (url) => held.get(url) ?? null,
+    write: async (url, draft) => void held.set(url, draft),
+    clear: async (url) => void held.delete(url),
+  };
+  return drafts;
 }
 
 // A Palace that answers by method and path, and records what it was asked.
@@ -53,7 +71,7 @@ const webAnnotation = {
 describe("the service worker", () => {
   it("refuses a content script anything beyond its own page", async () => {
     const { fetcher, seen } = palace({});
-    const handle = createHandler(memory(settings).store, fetcher);
+    const handle = createHandler(memory(settings).store, noDrafts(), fetcher);
     for (const request of [
       { kind: "settings" },
       { kind: "save-settings", server: "https://evil.test", token: "x" },
@@ -82,7 +100,7 @@ describe("the service worker", () => {
               401,
             ),
     });
-    const handle = createHandler(memoryStore.store, fetcher);
+    const handle = createHandler(memoryStore.store, noDrafts(), fetcher);
     expect(
       await handle(
         {
@@ -152,18 +170,23 @@ describe("the service worker", () => {
                 updated_at: 1,
               },
               annotations: [webAnnotation],
+              overall_note: { text: "文章的总批", version: 7 },
             })
           : json({ error: "not_found", login: "" }, 404),
       "GET /api/articles/a1": () =>
         json({ id: "a1", title: "文章", content: "正文😀" }),
       "GET /api/articles/a1/annotations": () => json({ items: [] }),
     });
-    const handle = createHandler(memory(settings).store, fetcher);
+    const handle = createHandler(memory(settings).store, noDrafts(), fetcher);
     expect(
       await handle({ kind: "page", url: "https://a.test/new" }, "content"),
     ).toEqual({
       ok: true,
-      data: { kind: "unbound", annotations: [] },
+      data: {
+        kind: "unbound",
+        annotations: [],
+        note: { text: "", version: 0, unsaved: false },
+      },
     });
     expect(
       await handle({ kind: "page", url: "https://a.test/bound" }, "content"),
@@ -178,8 +201,120 @@ describe("the service worker", () => {
           length: 4,
         },
         annotations: [],
+        note: { text: "文章的总批", version: 7, unsaved: false },
       },
     });
+  });
+
+  // Core test case:
+  // - `specs/test-cases/web/stars/overall-notes.md#binding-a-web-page-must-carry-its-overall-note-into-the-article-whole`
+  it("writes an overall note where the page stands", async () => {
+    const lookup = (article: string | null) =>
+      json({
+        page: {
+          id: "p1",
+          url: "u",
+          title: "t",
+          article_id: article,
+          updated_at: 1,
+        },
+        annotations: [],
+        overall_note: { text: null, version: 0 },
+      });
+    let bound: string | null = null;
+    const { fetcher, seen } = palace({
+      "GET /api/web-pages/lookup": () => lookup(bound),
+      "PUT /api/web-pages/overall-note": () =>
+        json({ text: "想法", version: 1 }),
+      "PUT /api/articles/a1/overall-note": () =>
+        json({ text: "想法", version: 2 }),
+    });
+    const handle = createHandler(memory(settings).store, noDrafts(), fetcher);
+    const save = {
+      kind: "overall-note",
+      url: "https://a.test/",
+      title: "t",
+      text: "想法",
+      version: 0,
+    } satisfies Request;
+    expect(await handle(save, "content")).toEqual({
+      ok: true,
+      data: { text: "想法", version: 1 },
+    });
+    bound = "a1";
+    expect(await handle(save, "content")).toEqual({
+      ok: true,
+      data: { text: "想法", version: 2 },
+    });
+    expect(
+      seen
+        .filter((request) => request.method === "PUT")
+        .map((request) => new URL(request.url).pathname),
+    ).toEqual(["/api/web-pages/overall-note", "/api/articles/a1/overall-note"]);
+  });
+
+  // Core test case:
+  // - `specs/test-cases/web/stars/overall-notes.md#the-extension-must-not-lose-an-overall-note-it-could-not-save`
+  it("keeps a draft until Palace has it", async () => {
+    const save = {
+      kind: "overall-note",
+      url: "https://a.test/",
+      title: "t",
+      text: "断网时写的",
+      version: 3,
+    } satisfies Request;
+    const drafts = noDrafts();
+    const down = createHandler(memory(settings).store, drafts, (async () => {
+      throw new TypeError("offline");
+    }) as typeof fetch);
+    expect((await down(save, "content")).ok).toBe(false);
+    expect([...drafts.held]).toEqual([
+      ["https://a.test/", { text: "断网时写的", version: 3 }],
+    ]);
+
+    // Opening the page again shows the draft over what Palace has, at the version it was
+    // written over, so a change made since is refused rather than overwritten.
+    const { fetcher } = palace({
+      "GET /api/web-pages/lookup": () =>
+        json({
+          page: {
+            id: "p1",
+            url: "u",
+            title: "t",
+            article_id: null,
+            updated_at: 1,
+          },
+          annotations: [],
+          overall_note: { text: "Palace 里的", version: 9 },
+        }),
+      "PUT /api/web-pages/overall-note": () =>
+        json({ error: "overall_note_changed", login: "" }, 409),
+    });
+    const handle = createHandler(memory(settings).store, drafts, fetcher);
+    expect(
+      await handle({ kind: "page", url: "https://a.test/" }, "content"),
+    ).toEqual({
+      ok: true,
+      data: {
+        kind: "unbound",
+        annotations: [],
+        note: { text: "断网时写的", version: 3, unsaved: true },
+      },
+    });
+    expect(await handle(save, "content")).toEqual({
+      ok: false,
+      problem: "conflict",
+      message: "总批在别处改过了，这里写的还没有保存。",
+    });
+    expect(drafts.held.size).toBe(1);
+
+    const { fetcher: accepting } = palace({
+      "PUT /api/web-pages/overall-note": () =>
+        json({ text: "断网时写的", version: 10 }),
+    });
+    const later = createHandler(memory(settings).store, drafts, accepting);
+    expect((await later(save, "content")).ok).toBe(true);
+    expect(drafts.held.size).toBe(0);
   });
 
   it("names what went wrong", async () => {
@@ -214,15 +349,20 @@ describe("the service worker", () => {
     ] as const;
     for (const [answer, problem] of cases) {
       const { fetcher } = palace({ "POST /api/web-pages/annotations": answer });
-      const reply = await createHandler(memory(settings).store, fetcher)(
-        create,
-        "content",
-      );
+      const reply = await createHandler(
+        memory(settings).store,
+        noDrafts(),
+        fetcher,
+      )(create, "content");
       expect(reply.ok ? null : reply.problem).toBe(problem);
     }
     const { fetcher, seen } = palace({});
     expect(
-      await createHandler(memory(null).store, fetcher)(create, "content"),
+      await createHandler(
+        memory(null).store,
+        noDrafts(),
+        fetcher,
+      )(create, "content"),
     ).toEqual({
       ok: false,
       problem: "unconfigured",
@@ -253,12 +393,13 @@ describe("the service worker", () => {
             updated_at: 1,
           },
           annotations: [],
+          overall_note: { text: null, version: 0 },
         }),
       "GET /api/articles/a1": () =>
         json({ id: "a1", title: "文章", content: "正文" }),
       "GET /api/articles/a1/annotations": () => json({ items: [] }),
     });
-    const handle = createHandler(memory(settings).store, fetcher);
+    const handle = createHandler(memory(settings).store, noDrafts(), fetcher);
     await handle(
       {
         kind: "candidates",

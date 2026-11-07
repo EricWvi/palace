@@ -5,6 +5,8 @@ pub use access_token::{AccessToken, IssuedAccessToken};
 pub use activity::{Activity, ActivityType, TypeAdded};
 mod annotation;
 pub use annotation::Annotation;
+mod overall_note;
+pub use overall_note::{OverallNote, OverallNoteTarget};
 mod article;
 pub use article::{Article, ArticleFile, ArticleImport, ArticleMedia, StoredMedia};
 mod article_list;
@@ -83,6 +85,8 @@ pub enum DbError {
     NotFound,
     #[error("the web page is bound to an article and takes no annotations of its own")]
     WebPageBound,
+    #[error("the overall note changed after this version was read")]
+    OverallNoteChanged,
     #[error("owner or identity is disabled")]
     Disabled,
     #[error(transparent)]

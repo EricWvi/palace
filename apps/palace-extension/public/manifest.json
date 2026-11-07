@@ -16,5 +16,11 @@
   ],
   "action": { "default_popup": "popup.html", "default_title": "Palace" },
   "options_page": "pages.html",
+  "commands": {
+    "overall-note": {
+      "suggested_key": { "default": "Alt+Shift+N" },
+      "description": "写总批"
+    }
+  },
   "icons": { "64": "icon.png" }
 }

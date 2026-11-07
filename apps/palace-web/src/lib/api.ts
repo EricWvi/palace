@@ -301,6 +301,59 @@ export function setJottingRecall(id: string, recall: RecallState) {
     }),
   );
 }
+// The document a 总批 belongs to.
+export type OverallNoteTarget =
+  | { kind: "article"; id: string }
+  | { kind: "path"; conversation: string; path: string };
+export type OverallNote = components["schemas"]["OverallNote"];
+
+export const overallNoteKey = (target: OverallNoteTarget) =>
+  target.kind === "article"
+    ? ["overall-note", "article", target.id]
+    : ["overall-note", "path", target.conversation, target.path];
+
+export function overallNoteOptions(target: OverallNoteTarget) {
+  return {
+    queryKey: overallNoteKey(target),
+    queryFn: (): Promise<OverallNote> =>
+      target.kind === "article"
+        ? apiData(
+            api.GET("/api/articles/{id}/overall-note", {
+              params: { path: { id: target.id } },
+            }),
+          )
+        : apiData(
+            api.GET("/api/conversations/{id}/paths/{path_id}/overall-note", {
+              params: {
+                path: { id: target.conversation, path_id: target.path },
+              },
+            }),
+          ),
+  };
+}
+
+// `version` is the one last read; the server refuses a save over anything newer.
+export function saveOverallNote(
+  target: OverallNoteTarget,
+  text: string,
+  version: number,
+) {
+  const body = { text, version };
+  return target.kind === "article"
+    ? apiData(
+        api.PUT("/api/articles/{id}/overall-note", {
+          params: { path: { id: target.id } },
+          body,
+        }),
+      )
+    : apiData(
+        api.PUT("/api/conversations/{id}/paths/{path_id}/overall-note", {
+          params: { path: { id: target.conversation, path_id: target.path } },
+          body,
+        }),
+      );
+}
+
 // Writes a jotting's recall state, and whether its card is done, into every cached copy, so
 // the wall, the pile and an open card agree without refetching.
 export function patchRecall(

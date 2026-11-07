@@ -22,6 +22,7 @@ pub(super) const BEFORE_MOMENTS: &str = "
     DROP TABLE habit;
     DROP TABLE sleep_start;
     DROP TABLE sleep;
+    DROP TABLE overall_note;
     DROP TABLE web_annotation;
     DROP TABLE web_page;
     DROP TABLE annotation;

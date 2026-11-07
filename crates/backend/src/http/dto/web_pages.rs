@@ -113,6 +113,8 @@ pub(crate) struct WebPageList {
 pub(crate) struct WebPageDetail {
     pub page: WebPage,
     pub annotations: Vec<WebAnnotation>,
+    /// The page's own note, or its article's once bound.
+    pub overall_note: super::OverallNote,
 }
 
 /// The web annotations left on every page bound to an article, oldest first.
@@ -206,6 +208,7 @@ impl From<palace_db::WebPageDetail> for WebPageDetail {
         Self {
             page: value.page.into(),
             annotations: value.annotations.into_iter().map(Into::into).collect(),
+            overall_note: value.overall_note.into(),
         }
     }
 }

@@ -33,6 +33,8 @@ mod jottings;
 mod media;
 #[path = "http/notes.rs"]
 mod notes;
+#[path = "http/overall_notes.rs"]
+mod overall_notes;
 
 #[path = "http/habits.rs"]
 mod habits;
@@ -571,6 +573,7 @@ async fn authenticated_http_imports_preserve_scope_and_file_parity() {
     articles::exercise_without_media(&app, &cookie, &foreign, &pool).await;
     annotations::exercise_annotations(&app, &cookie, &foreign).await;
     web_pages::exercise_web_pages(&app, &cookie, &foreign).await;
+    overall_notes::exercise_overall_notes(&app, &cookie, &foreign).await;
     todos::exercise_todos(&app, &cookie, &foreign).await;
     sleep::exercise_sleep(&app, &cookie, &foreign).await;
     habits::exercise_habits(&app, &cookie, &foreign).await;

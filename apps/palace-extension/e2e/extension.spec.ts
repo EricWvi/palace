@@ -41,6 +41,9 @@ function palace() {
   const web: Body[] = [];
   let bound: string | null = null;
   let tokenValid = true;
+  const note = { text: null as string | null, version: 0 };
+  // While set, 总批 saves are answered as a storage outage would be.
+  let refuseNotes = false;
   // While set, new annotations wait for it before Palace answers.
   let held: Promise<void> | null = null;
   const server: Server = createServer(async (request, response) => {
@@ -94,12 +97,19 @@ function palace() {
       case "GET /api/me":
         return send(200, { id: "o1" });
       case "GET /api/web-pages/lookup":
-        if (web.length === 0 && bound === null)
+        if (web.length === 0 && bound === null && note.text === null)
           return send(404, { error: "not_found", login: "" });
         return send(200, {
           page: page(url.searchParams.get("url")!),
           annotations: bound ? [] : web,
+          overall_note: note,
         });
+      case "PUT /api/web-pages/overall-note":
+        if (refuseNotes)
+          return send(500, { error: "persistence_failed", login: "" });
+        note.text = body!.text as string;
+        note.version += 1;
+        return send(200, note);
       case "POST /api/web-pages/annotations": {
         await held;
         if (bound) return send(409, { error: "web_page_bound", login: "" });
@@ -167,6 +177,8 @@ function palace() {
     server,
     requests,
     web,
+    note,
+    refuseNotes: (refuse: boolean) => (refuseNotes = refuse),
     revoke: () => (tokenValid = false),
     // Holds new annotations until the returned function lets them through.
     hold: () => {
@@ -546,4 +558,52 @@ test("a new note is drawn while it is being saved", async () => {
   expect(await highlights(page)).toEqual({
     "palace-plain-light": ["大多数再也没有被打开过"],
   });
+});
+
+// The card lives in a closed shadow root, which a test cannot query, so it is driven as a reader
+// drives it: by where it sits and by the keyboard.
+// Core test case:
+// - `specs/test-cases/web/stars/overall-notes.md#the-extension-must-not-lose-an-overall-note-it-could-not-save`
+test("the overall note card writes to Palace and survives a failed save", async () => {
+  const page = await context.newPage();
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.goto(`${site}/article`);
+  await turnOn(page);
+  await expect.poll(lookups).toBe(2);
+
+  await page.mouse.click(1200 - 100, 800 - 40);
+  await page.keyboard.type("想到一件事");
+  await expect.poll(() => fake.note.text).toBe("想到一件事");
+
+  fake.refuseNotes(true);
+  await page.keyboard.type("，还没存");
+  await expect
+    .poll(() =>
+      worker.evaluate(() =>
+        chrome.storage.local
+          .get(null)
+          .then((all) =>
+            Object.entries(all).filter(([key]) =>
+              key.startsWith("note-draft-"),
+            ),
+          ),
+      ),
+    )
+    .toHaveLength(1);
+  expect(fake.note.text).toBe("想到一件事");
+
+  fake.refuseNotes(false);
+  await page.keyboard.press("Escape");
+  await expect.poll(() => fake.note.text).toBe("想到一件事，还没存");
+  await expect
+    .poll(() =>
+      worker.evaluate(() =>
+        chrome.storage.local
+          .get(null)
+          .then((all) =>
+            Object.keys(all).filter((key) => key.startsWith("note-draft-")),
+          ),
+      ),
+    )
+    .toEqual([]);
 });

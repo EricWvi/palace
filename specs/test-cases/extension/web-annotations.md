@@ -28,7 +28,7 @@
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 已绑定网页拒绝新建与修改，允许删除（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/web_pages.rs::a_bound_web_page_must_reject_new_and_changed_web_annotations`；409 `web_page_bound` 的接口形状见 `exercise_web_pages` |
-| 未绑定网页随最后一处标注一起删除；绑定与改绑的状态转换（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/web_pages.rs::a_bound_web_page_must_reject_new_and_changed_web_annotations`；表上的提交时检查拒绝没有标注的未绑定网页、触发器拒绝改锚点，见 `web_page_rows_must_keep_annotations_and_anchors` |
+| 未绑定网页随最后一处标注一起删除（还有总批时保留，见[总批](../web/stars/overall-notes.md)）；绑定与改绑的状态转换（真实 PostgreSQL） | Covered | `crates/db/tests/postgres/web_pages.rs::a_bound_web_page_must_reject_new_and_changed_web_annotations`；表上的提交时检查拒绝没有标注的未绑定网页、触发器拒绝改锚点，见 `web_page_rows_must_keep_annotations_and_anchors` |
 | 字段校验：网址、标题、引文、前后文长度、`position` 范围、样式与批注至少一个（领域单元测试） | Covered | `crates/domain/src/web_page.rs` 的 `addresses_are_absolute_without_fragment`、`titles_fall_back_to_the_address_and_fit_the_limit`、`anchors_check_quote_context_and_position`；样式与批注沿用 `crates/domain/src/annotation.rs::content_needs_a_style_or_a_note` |
 
 决策依据：D2、D3、D9，不变量 3、8。

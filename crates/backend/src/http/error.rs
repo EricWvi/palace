@@ -25,6 +25,7 @@ pub(super) enum ApiError {
     JottingMoved,
     JottingsUnavailable,
     WebPageBound,
+    OverallNoteChanged,
     Internal,
 }
 impl From<InputError> for ApiError {
@@ -43,6 +44,7 @@ impl From<DbError> for ApiError {
             DbError::StaleHead => Self::StaleHead,
             DbError::NotFound => Self::NotFound,
             DbError::WebPageBound => Self::WebPageBound,
+            DbError::OverallNoteChanged => Self::OverallNoteChanged,
             DbError::Disabled => Self::Unauthorized,
             DbError::Storage(_) | DbError::Migration(_) => Self::Internal,
         }
@@ -157,6 +159,7 @@ impl IntoResponse for ApiError {
                 "",
             ),
             Self::WebPageBound => (StatusCode::CONFLICT, ErrorCode::WebPageBound, ""),
+            Self::OverallNoteChanged => (StatusCode::CONFLICT, ErrorCode::OverallNoteChanged, ""),
             Self::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 ErrorCode::PersistenceFailed,

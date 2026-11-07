@@ -3,7 +3,7 @@
 // the reader annotate as in Palace and draws the page's annotations; on a bound page it draws the
 // article's current annotations, read only. It holds no data of its own: every change goes
 // straight to Palace through the service worker, and a page that cannot reach Palace offers
-// nothing (D3, D6, D7).
+// nothing (D3, D6, D7). The 总批 card stays writable in both, since a note has nothing to place.
 import {
   findQuote,
   relocate,
@@ -26,7 +26,7 @@ import {
   type WebAnnotation,
   type WebAnnotationCreate,
 } from "./protocol";
-import type { Switch, SwitchOrder, SwitchQuery } from "./switch";
+import type { NoteOrder, Switch, SwitchOrder, SwitchQuery } from "./switch";
 import { reportTheme } from "./theme";
 
 // One annotation as drawn now, with the range its words occupy on the page. A new annotation
@@ -39,6 +39,15 @@ type Drawn = {
 };
 
 const overlay = new Overlay();
+const pad = overlay.pad((text, version) =>
+  send({
+    kind: "overall-note",
+    url: address(),
+    title: document.title,
+    text,
+    version,
+  }),
+);
 // Whether annotating is on in this tab. Off, `state` stays null and nothing is drawn.
 let on = false;
 let state: PageState | null = null;
@@ -123,6 +132,7 @@ async function load() {
   hideBar();
   overlay.hideNote();
   draw();
+  if (state) pad.show(state.note);
 }
 
 // The annotation under a viewport point, if any.
@@ -393,19 +403,33 @@ async function turn(to: Switch) {
   saving = [];
   hideBar();
   overlay.hideNote();
+  pad.hide();
   draw();
 }
 
 // The popup turns the tab on or off, and asks again after binding the page. Answering an order
 // tells the popup the page has a content script to obey it.
 chrome.runtime.onMessage.addListener(
-  (message: SwitchOrder | { kind: "refresh" }, _sender, respond) => {
+  (
+    message: SwitchOrder | NoteOrder | { kind: "refresh" },
+    _sender,
+    respond,
+  ) => {
     if (message.kind === "turn") {
       void turn(message.to);
+      respond(null);
+    } else if (message.kind === "note") {
+      void turn("on").then(() => {
+        if (state) pad.write();
+      });
       respond(null);
     } else if (on) void load();
   },
 );
+
+// The tab is going; the last words typed reach the service worker, which keeps them as a draft
+// even if the save does not finish.
+addEventListener("pagehide", () => void pad.flush());
 
 reportTheme();
 // A tab turned on keeps annotating as it navigates and reloads.

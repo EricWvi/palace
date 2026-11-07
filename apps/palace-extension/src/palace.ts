@@ -7,6 +7,8 @@ import {
   contentKinds,
   type Answer,
   type Kind,
+  type OverallNote,
+  type PageNote,
   type PageState,
   type Problem,
   type Reply,
@@ -20,6 +22,18 @@ export type Settings = { server: string; token: string };
 export interface SettingsStore {
   read(): Promise<Settings | null>;
   write(settings: Settings): Promise<void>;
+}
+
+// A 总批 not yet in Palace, with the version it was written over. It lives on this computer until
+// Palace has it, which is the one thing the extension keeps of the reader's: typed text cannot be
+// asked for again.
+export type NoteDraft = { text: string; version: number };
+
+// Where drafts live, one per page address: `chrome.storage.local` in the browser.
+export interface DraftStore {
+  read(url: string): Promise<NoteDraft | null>;
+  write(url: string, draft: NoteDraft): Promise<void>;
+  clear(url: string): Promise<void>;
 }
 
 // Who sent a request: a content script inside a web page, or a page of the extension itself.
@@ -43,6 +57,7 @@ const problems: Record<Problem, string> = {
   bound: "这个网页已经收进 Palace，请在文章页里标注。",
   missing: "Palace 里没有这一项了。",
   invalid: "Palace 没有接受这次修改。",
+  conflict: "总批在别处改过了，这里写的还没有保存。",
 };
 
 // Unwraps a response, turning each failure into the problem the pages act on.
@@ -65,6 +80,8 @@ async function data<T>(
     throw new Failure("unauthorized", problems.unauthorized);
   if (response.status === 409 && code === "web_page_bound")
     throw new Failure("bound", problems.bound);
+  if (response.status === 409 && code === "overall_note_changed")
+    throw new Failure("conflict", problems.conflict);
   if (response.status === 404) throw new Failure("missing", problems.missing);
   if (response.status === 400 || response.status === 413)
     throw new Failure("invalid", problems.invalid);
@@ -84,7 +101,11 @@ function serverAddress(text: string): string | null {
 
 // Builds the handler for one service worker: every request reads the settings afresh, so a
 // change in the extension page applies to the next request without a restart.
-export function createHandler(store: SettingsStore, fetcher: typeof fetch) {
+export function createHandler(
+  store: SettingsStore,
+  drafts: DraftStore,
+  fetcher: typeof fetch,
+) {
   const client = (settings: Settings): Client =>
     createClient<paths>({
       baseUrl: settings.server,
@@ -93,6 +114,48 @@ export function createHandler(store: SettingsStore, fetcher: typeof fetch) {
       headers: { Authorization: `Bearer ${settings.token}` },
       fetch: (request) => fetcher(request),
     });
+
+  // What a page's card shows: a draft goes first, since it is the newest thing the reader wrote.
+  async function shownNote(url: string, note: OverallNote): Promise<PageNote> {
+    const draft = await drafts.read(url);
+    return draft
+      ? { ...draft, unsaved: true }
+      : { text: note.text ?? "", version: note.version, unsaved: false };
+  }
+
+  // Writes a 总批 where the page stands now: on the page, or on the article it is bound to. The
+  // draft is down before anything leaves, so a failure at any point loses nothing.
+  async function saveNote(
+    settings: Settings,
+    request: Request<"overall-note">,
+  ): Promise<OverallNote> {
+    const { url, title, text, version } = request;
+    await drafts.write(url, { text, version });
+    const api = client(settings);
+    let article: string | null = null;
+    try {
+      const found = await data(
+        api.GET("/api/web-pages/lookup", { params: { query: { url } } }),
+      );
+      article = found.page.article_id;
+    } catch (error) {
+      // A page never annotated has no record yet; its first note creates one.
+      if (!(error instanceof Failure && error.problem === "missing"))
+        throw error;
+    }
+    const saved = await data(
+      article === null
+        ? api.PUT("/api/web-pages/overall-note", {
+            body: { url, title, text, version },
+          })
+        : api.PUT("/api/articles/{id}/overall-note", {
+            params: { path: { id: article } },
+            body: { text, version },
+          }),
+    );
+    await drafts.clear(url);
+    return saved;
+  }
 
   // What the page at `url` is: its own annotations, or the article it is bound to.
   async function page(settings: Settings, url: string): Promise<PageState> {
@@ -105,12 +168,17 @@ export function createHandler(store: SettingsStore, fetcher: typeof fetch) {
     } catch (error) {
       // A page never annotated has no record yet.
       if (error instanceof Failure && error.problem === "missing")
-        return { kind: "unbound", annotations: [] };
+        return {
+          kind: "unbound",
+          annotations: [],
+          note: await shownNote(url, { text: null, version: 0 }),
+        };
       throw error;
     }
+    const note = await shownNote(url, found.overall_note);
     const article = found.page.article_id;
     if (article === null)
-      return { kind: "unbound", annotations: found.annotations };
+      return { kind: "unbound", annotations: found.annotations, note };
     const path = { params: { path: { id: article } } };
     const [detail, annotations] = await Promise.all([
       data(api.GET("/api/articles/{id}", path)),
@@ -125,6 +193,7 @@ export function createHandler(store: SettingsStore, fetcher: typeof fetch) {
         length: detail.content.length,
       },
       annotations: annotations.items,
+      note,
     };
   }
 
@@ -184,6 +253,8 @@ export function createHandler(store: SettingsStore, fetcher: typeof fetch) {
           }),
         );
         return null;
+      case "overall-note":
+        return saveNote(settings, request);
       case "candidates":
         return data(
           api.GET("/api/articles", {

@@ -1,12 +1,19 @@
 // The service worker: wires the browser's storage, fetch, messages and toolbar badge to the
 // request handler in palace.ts.
-import { createHandler, type Settings, type SettingsStore } from "./palace";
+import {
+  createHandler,
+  type DraftStore,
+  type NoteDraft,
+  type Settings,
+  type SettingsStore,
+} from "./palace";
 import type { PageState, Reply, Request } from "./protocol";
 import {
   onPalace,
   readSwitch,
   writeSwitch,
   type Switch,
+  type NoteOrder,
   type SwitchQuery,
 } from "./switch";
 import type { ThemeReport } from "./theme";
@@ -23,7 +30,24 @@ const store: SettingsStore = {
   },
 };
 
-const handle = createHandler(store, (input, init) => fetch(input, init));
+const draftKey = (url: string) => `note-draft-${url}`;
+
+const drafts: DraftStore = {
+  async read(url) {
+    const stored = await chrome.storage.local.get(draftKey(url));
+    return (stored[draftKey(url)] as NoteDraft | undefined) ?? null;
+  },
+  async write(url, draft) {
+    await chrome.storage.local.set({ [draftKey(url)]: draft });
+  },
+  async clear(url) {
+    await chrome.storage.local.remove(draftKey(url));
+  },
+};
+
+const handle = createHandler(store, drafts, (input, init) =>
+  fetch(input, init),
+);
 
 // The toolbar icon says what the extension can do on a tab: nothing until it reaches Palace,
 // read only once the page is bound.
@@ -53,6 +77,27 @@ async function switchOf(sender: chrome.runtime.MessageSender): Promise<Switch> {
 }
 
 chrome.tabs.onRemoved.addListener((tab) => void writeSwitch(tab, "off"));
+
+// The 总批 shortcut opens the card, turning the tab on if it was off: pressing it is as plain a
+// choice as the popup's button. Palace's own pages stay off, and a page the extension cannot run
+// in has no content script to answer, so it is left off too.
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command !== "overall-note" || tab?.id === undefined) return;
+  void openNote(tab.id, tab.url);
+});
+
+async function openNote(tab: number, url: string | undefined) {
+  const settings = await store.read();
+  if (url !== undefined && settings !== null && onPalace(url, settings.server))
+    return;
+  const opened = await chrome.tabs
+    .sendMessage(tab, { kind: "note" } satisfies NoteOrder)
+    .then(
+      () => true,
+      () => false,
+    );
+  if (opened) await writeSwitch(tab, "on");
+}
 
 chrome.runtime.onMessage.addListener(
   (request: Request | ThemeReport | SwitchQuery, sender, respond) => {
