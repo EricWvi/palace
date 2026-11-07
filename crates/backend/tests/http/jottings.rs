@@ -207,7 +207,7 @@ async fn exercise_reading(app: &Router, cookie: &str, agent: Uuid, upload: Uuid)
             .unwrap()["version"]
             .clone()
     };
-    let uploaded = json!({"id": upload, "created_at": CREATED, "title": null, "tags": ["phone"], "body": "离线写的", "version": version_of(upload), "pending": true, "recall": "included"});
+    let uploaded = json!({"id": upload, "created_at": CREATED, "title": null, "tags": ["phone"], "body": "离线写的", "version": version_of(upload), "pending": true, "recall": "inbox"});
     let committed = json!({"id": agent, "created_at": CREATED, "title": "读书", "tags": [], "body": "正文\n", "version": version_of(agent), "pending": false, "recall": "included"});
     // Equal times fall back to the id, and the upload's v7 id is the later one.
     let (status, first) = get("/api/jottings?limit=1".into()).await;
@@ -245,21 +245,16 @@ async fn exercise_reading(app: &Router, cookie: &str, agent: Uuid, upload: Uuid)
     );
     let (status, recall) = get("/api/jottings/recall".into()).await;
     assert_eq!(status, StatusCode::OK);
-    let mut ids: Vec<&str> = recall["jottings"]
+    let ids: Vec<&str> = recall["jottings"]
         .as_array()
         .unwrap()
         .iter()
         .map(|jotting| jotting["id"].as_str().unwrap())
         .collect();
-    ids.sort_unstable();
-    let mut expected = [agent.to_string(), upload.to_string()];
-    expected.sort_unstable();
+    // The upload still sits in the inbox, so only the committed jotting is drawn.
     assert_eq!(
         (recall["date"].as_str(), ids),
-        (
-            Some(today.as_str()),
-            expected.iter().map(String::as_str).collect()
-        )
+        (Some(today.as_str()), vec![agent.to_string().as_str()])
     );
 
     // Completing a card counts it once and marks it done; retiring takes it out of recall,
@@ -390,7 +385,7 @@ async fn exercise_editing(app: &Router, cookie: &str, id: Uuid, read: &Value) {
     .await;
     assert_eq!(
         list["jottings"],
-        json!([{"id": id, "created_at": CREATED, "title": null, "tags": ["phone", "改"], "body": "改过", "version": version, "pending": true, "recall": "included"}])
+        json!([{"id": id, "created_at": CREATED, "title": null, "tags": ["phone", "改"], "body": "改过", "version": version, "pending": true, "recall": "inbox"}])
     );
     let changed = (
         StatusCode::CONFLICT,

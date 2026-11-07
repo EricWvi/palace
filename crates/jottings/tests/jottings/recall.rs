@@ -2,7 +2,7 @@
 //! holds for the day, and how completions count.
 use super::{Repository, SHANGHAI, changes, database, indexed, run};
 use crate::reading::{Fixture, fixture, millis, stamp};
-use palace_db::{Database, DbError, RecallCard, RecallNext, RecallState};
+use palace_db::{Database, DbError, RecallCard, RecallNext, RecallStanding, RecallState};
 use palace_jottings::{Jottings, JottingsError, Recall, RecallSize};
 use pretty_assertions::assert_eq;
 use sha2::{Digest, Sha256};
@@ -399,7 +399,7 @@ fn completing_a_card_counts_once() {
             .unwrap();
         assert_eq!(
             (again.cards[0].done, again.cards[0].listed.recall),
-            (true, RecallState::Excluded)
+            (true, RecallStanding::Sorted(RecallState::Excluded))
         );
 
         // After midnight the 20th's pile is the previous one and can still be completed.
@@ -420,6 +420,91 @@ fn completing_a_card_counts_once() {
                 Err(JottingsError::Database(DbError::NotFound))
             ));
         }
+    });
+}
+
+/// A jotting in the inbox is not drawn and does not hold the least count down; a pile drawn
+/// before it went there no longer shows it, and leaving the inbox places it at the least.
+/// Core test case:
+/// - `specs/test-cases/web/echo/jotting-reading.md#inbox-jottings-must-take-no-part-in-recall`
+#[test]
+#[ignore = "requires local postgres:17-alpine and git"]
+fn inbox_jottings_take_no_part_in_recall() {
+    run(async {
+        let repository = Repository::new();
+        let (_container, _database, pool, jottings, fixtures) = library(&repository, 3).await;
+        let [a, b, c] = [0, 1, 2].map(|n| fixtures[n].listed.jotting.id);
+        let shown = |pile: Recall| -> Vec<Uuid> {
+            let mut ids: Vec<Uuid> = pile
+                .cards
+                .iter()
+                .map(|card| card.listed.jotting.id)
+                .collect();
+            ids.sort_unstable();
+            ids
+        };
+        let sorted = |mut ids: Vec<Uuid>| {
+            ids.sort_unstable();
+            ids
+        };
+        let today = millis("2026-11-01T20:00:00+08:00");
+        // Drawn while sorted, then put in the inbox: the stored pile stops showing it.
+        assert_eq!(
+            shown(jottings.recall(today).await.unwrap()),
+            sorted(vec![a, b, c])
+        );
+        repository.remove(&fixtures[0].path);
+        repository.write(&[("inbox/c0.md", fixtures[0].text.as_str())]);
+        repository.commit("back to the inbox");
+        indexed(1)(jottings.refresh().await.unwrap());
+        assert_eq!(
+            shown(jottings.recall(today).await.unwrap()),
+            sorted(vec![b, c])
+        );
+
+        // The next day's draw skips it, with the sorted jottings far ahead of its count.
+        for (id, count) in [(a, 1), (b, 5), (c, 7)] {
+            sqlx::query("UPDATE jotting_recall SET completions=$2 WHERE jotting_id=$1")
+                .bind(id)
+                .bind(count)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        // Cards left unfinished would skip this draw, which is not what is under test.
+        sqlx::query("DELETE FROM jotting_recall_card")
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            shown(
+                jottings
+                    .recall(millis("2026-11-02T20:00:00+08:00"))
+                    .await
+                    .unwrap()
+            ),
+            sorted(vec![b, c])
+        );
+
+        // A new jotting starts level with the sorted ones, not at the inbox's stale 1.
+        let d = fixture("d.md", "2026-10-09T09:00:00+08:00", None, &[], "d");
+        repository.write(&[(d.path.as_str(), d.text.as_str())]);
+        repository.commit("add d");
+        indexed(1)(jottings.refresh().await.unwrap());
+        // Sorted again, it joins the least count too instead of keeping its 1.
+        repository.remove("inbox/c0.md");
+        repository.write(&[(fixtures[0].path.as_str(), fixtures[0].text.as_str())]);
+        repository.commit("sort it");
+        indexed(1)(jottings.refresh().await.unwrap());
+        assert_eq!(
+            counts(&pool).await,
+            BTreeMap::from([
+                (a, Some(5)),
+                (b, Some(5)),
+                (c, Some(7)),
+                (d.listed.jotting.id, Some(5)),
+            ])
+        );
     });
 }
 

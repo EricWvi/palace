@@ -26,6 +26,7 @@ export type JottingOverview = components["schemas"]["JottingOverview"];
 export type JottingRecall = components["schemas"]["JottingRecall"];
 export type JottingPage = components["schemas"]["JottingPage"];
 export type RecallState = components["schemas"]["RecallState"];
+export type RecallStanding = components["schemas"]["RecallStanding"];
 export type RecallNext = components["schemas"]["RecallNext"];
 export type SleepNight = components["schemas"]["SleepNight"];
 export type HabitBoard = components["schemas"]["HabitBoard"];
@@ -305,7 +306,7 @@ export function setJottingRecall(id: string, recall: RecallState) {
 export function patchRecall(
   client: QueryClient,
   id: string,
-  change: { recall: RecallState; done?: true },
+  change: { recall: RecallStanding; done?: true },
 ) {
   client.setQueriesData<InfiniteData<JottingPage>>(
     { queryKey: ["jottings", "list"] },

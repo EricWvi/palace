@@ -197,20 +197,27 @@ export function JottingWall({
             landing={leaving ? "empty" : "card"}
             actions={(own) => [
               own.edit,
-              <button
-                key="recall"
-                type="button"
-                disabled={recall.isPending}
-                onClick={() =>
-                  recall.mutate({
-                    id: zoomed.id,
-                    state:
-                      zoomed.recall === "included" ? "excluded" : "included",
-                  })
-                }
-              >
-                {zoomed.recall === "included" ? "束阁" : "启封"}
-              </button>,
+              // A jotting in the inbox takes no part in recall until it is sorted.
+              ...(zoomed.recall === "inbox"
+                ? []
+                : [
+                    <button
+                      key="recall"
+                      type="button"
+                      disabled={recall.isPending}
+                      onClick={() =>
+                        recall.mutate({
+                          id: zoomed.id,
+                          state:
+                            zoomed.recall === "included"
+                              ? "excluded"
+                              : "included",
+                        })
+                      }
+                    >
+                      {zoomed.recall === "included" ? "束阁" : "启封"}
+                    </button>,
+                  ]),
               own.remove,
             ]}
             slot={() =>

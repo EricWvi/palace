@@ -322,6 +322,32 @@ it("takes a recall card out of the pile only when it is completed, and remembers
   expect(stored).not.toHaveBeenCalled();
 });
 
+// specs/test-cases/web/echo/echo-page.md#a-zoomed-jotting-must-say-whether-it-takes-part-in-recall
+it("offers no recall slip for a jotting still in the inbox, only for a sorted one", async () => {
+  serve([
+    jotting("inbox", "收件箱里的", [], at(20), {
+      pending: true,
+      recall: "inbox",
+    }),
+    jotting("edited", "网页改过的", [], at(19), { pending: true }),
+  ]);
+  const { user } = mountApp("/jottings");
+  const slips = async (text: string) => {
+    const card = (await screen.findByText(text)).closest("article")!;
+    await user.click(within(card).getByRole("button", { name: "放大" }));
+    const dialog = await screen.findByRole("dialog");
+    const names = within(dialog.parentElement!.querySelector(".zoom-actions")!)
+      .getAllByRole("button")
+      .map((button) => button.textContent);
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    return names;
+  };
+  expect(await slips("收件箱里的")).toEqual(["修订", "削简"]);
+  // A web edit waiting for a commit is pending too, but the jotting is sorted.
+  expect(await slips("网页改过的")).toEqual(["修订", "束阁", "削简"]);
+});
+
 // specs/test-cases/web/echo/echo-page.md#a-wall-jotting-must-open-in-full-by-its-time-and-come-back-as-it-was
 // specs/test-cases/web/echo/echo-page.md#only-a-jotting-read-in-full-may-load-pictures-and-only-palace-media
 it("reads a wall jotting in full from its time, with its Palace pictures, and hands it back", async () => {

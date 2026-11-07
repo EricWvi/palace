@@ -1,7 +1,8 @@
 //! Live reads for the web 回响 page against real Git and real PostgreSQL.
 use super::{Repository, SHANGHAI, database, indexed, run};
 use palace_db::{
-    DayCount, JottingListRequest, JottingOverview, ListedJotting, RecallState, SearchTerm, TagCount,
+    DayCount, JottingListRequest, JottingOverview, ListedJotting, RecallStanding, RecallState,
+    SearchTerm, TagCount,
 };
 use palace_domain::{InputError, InputErrorKind, Jotting, ServerVersion};
 use palace_jottings::{Jottings, JottingsError, Uploaded};
@@ -49,7 +50,11 @@ pub(crate) fn fixture(
             // Assigned when indexed; see `stamp`.
             version: ServerVersion::new(0).unwrap(),
             pending: path.starts_with("inbox/"),
-            recall: RecallState::Included,
+            recall: if path.starts_with("inbox/") {
+                RecallStanding::Inbox
+            } else {
+                RecallStanding::Sorted(RecallState::Included)
+            },
         },
     }
 }
@@ -120,7 +125,7 @@ pub(crate) fn uploaded(created: &str, body: &str) -> ListedJotting {
         },
         version: ServerVersion::new(0).unwrap(),
         pending: true,
-        recall: RecallState::Included,
+        recall: RecallStanding::Inbox,
     }
 }
 

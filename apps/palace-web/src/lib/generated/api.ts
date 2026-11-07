@@ -1792,7 +1792,7 @@ export interface components {
        */
       pending: boolean;
       /** @description Whether the jotting is drawn into recall piles. */
-      recall: components["schemas"]["RecallState"];
+      recall: components["schemas"]["RecallStanding"];
       tags: string[];
       title: string | null;
       /** @description The version an edit or deletion of this jotting must name. */
@@ -2001,6 +2001,12 @@ export interface components {
      * @enum {string}
      */
     RecallNext: "keep" | "retire";
+    /**
+     * @description Where a listed jotting stands with recall: `inbox` waits to be sorted, takes no part, and
+     *     has no state to set.
+     * @enum {string}
+     */
+    RecallStanding: "inbox" | "included" | "excluded";
     /**
      * @description Whether a jotting takes part in recall; how often it was completed is never sent.
      * @enum {string}

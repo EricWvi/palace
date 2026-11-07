@@ -38,18 +38,19 @@
 
 ## A zoomed jotting must say whether it takes part in recall
 
-风险：瀑布流的放大卡片出现「温故」；「束阁」与「启封」的文字与札记状态不符；切换后卡片被关闭；操作随卡片缩回而“飞”回原位。前置：瀑布流中一张参与回顾、一张束阁的札记。触发：分别放大两张，点击右侧的操作；关闭放大卡片。
+风险：瀑布流的放大卡片出现「温故」；还在 inbox 的札记出现「束阁」或「启封」，或者按 `pending` 判断，让网页改过的已整理札记也失去它们；「束阁」与「启封」的文字与札记状态不符；切换后卡片被关闭；操作随卡片缩回而“飞”回原位。前置：瀑布流中一张参与回顾、一张束阁的札记。触发：分别放大两张，点击右侧的操作；关闭放大卡片。
 
-必须成立：瀑布流放大卡片只显示「束阁」或「启封」，与 `recall` 一致；点击后发出 `PUT /api/jottings/{id}/recall`，文字切换，卡片保持放大；回顾卡片放大后显示「温故」和「束阁」；关闭开始时操作立即淡出。
+必须成立：瀑布流放大卡片只显示「束阁」或「启封」，与 `recall` 一致，`recall` 为 `inbox` 时两者都不显示；点击后发出 `PUT /api/jottings/{id}/recall`，文字切换，卡片保持放大；回顾卡片放大后显示「温故」和「束阁」；关闭开始时操作立即淡出。
 
 验证义务与证据：
 
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 两种放大卡片的操作与请求 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`（回顾卡片的两个操作）、`pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back`（瀑布流的束阁与启封）；操作在关闭开始时淡出由 CSS 决定，jsdom 不计算 |
+| inbox 札记没有回顾题签，待整理但已归位的札记仍有 | Covered | `pages/echo.test.tsx::offers no recall slip for a jotting still in the inbox, only for a sorted one` |
 | 题签按编辑决策 D1 的顺序排列：瀑布流「修订 / 束阁 / 削简」，回顾「温故 / 束阁 / 修订 / 削简」 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`、`pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
 
-决策依据：20261101 回顾决策 D5、D6；20261101 编辑决策 D1。
+决策依据：20261101 回顾决策 D5、D6；20261101 编辑决策 D1；[inbox 札记不参与回顾](../../../decisions/web/echo/20261107-inbox-jottings-take-no-part-in-recall.md)。
 
 ## The spread pile must lay out up to three rows of six
 

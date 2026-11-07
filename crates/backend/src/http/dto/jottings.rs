@@ -154,7 +154,7 @@ pub(crate) struct ListedJotting {
     /// commit carries yet.
     pub pending: bool,
     /// Whether the jotting is drawn into recall piles.
-    pub recall: RecallState,
+    pub recall: RecallStanding,
 }
 impl From<palace_db::ListedJotting> for ListedJotting {
     /// Lists every wire field so a new domain field cannot leak by accident.
@@ -333,6 +333,25 @@ impl From<RecallNext> for palace_db::RecallNext {
         match value {
             RecallNext::Keep => Self::Keep,
             RecallNext::Retire => Self::Retire,
+        }
+    }
+}
+
+/// Where a listed jotting stands with recall: `inbox` waits to be sorted, takes no part, and
+/// has no state to set.
+#[derive(Clone, Copy, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum RecallStanding {
+    Inbox,
+    Included,
+    Excluded,
+}
+impl From<palace_db::RecallStanding> for RecallStanding {
+    fn from(value: palace_db::RecallStanding) -> Self {
+        match value {
+            palace_db::RecallStanding::Inbox => Self::Inbox,
+            palace_db::RecallStanding::Sorted(palace_db::RecallState::Included) => Self::Included,
+            palace_db::RecallStanding::Sorted(palace_db::RecallState::Excluded) => Self::Excluded,
         }
     }
 }

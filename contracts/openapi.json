@@ -12773,7 +12773,7 @@
             "description": "The agent has something to do: the file sits under `inbox/`, or holds a web edit no\ncommit carries yet."
           },
           "recall": {
-            "$ref": "#/components/schemas/RecallState",
+            "$ref": "#/components/schemas/RecallStanding",
             "description": "Whether the jotting is drawn into recall piles."
           },
           "tags": {
@@ -13327,6 +13327,15 @@
         "enum": [
           "keep",
           "retire"
+        ]
+      },
+      "RecallStanding": {
+        "type": "string",
+        "description": "Where a listed jotting stands with recall: `inbox` waits to be sorted, takes no part, and\nhas no state to set.",
+        "enum": [
+          "inbox",
+          "included",
+          "excluded"
         ]
       },
       "RecallState": {

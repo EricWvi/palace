@@ -1,6 +1,6 @@
 # 札记读取接口核心测试用例
 
-当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md) D8、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[Web 编辑和删除札记](../../../decisions/server/jotting/20261101-edit-and-delete-jottings-from-the-web-in-the-work-tree-until-committed.md) D1、D5。札记的同步、上传与对账见[札记同步](../../server/jotting/jotting-sync.md)；本文件只记录 Web 读取接口引入的承诺。
+当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md) D8、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[inbox 札记不参与回顾](../../../decisions/web/echo/20261107-inbox-jottings-take-no-part-in-recall.md)、[Web 编辑和删除札记](../../../decisions/server/jotting/20261101-edit-and-delete-jottings-from-the-web-in-the-work-tree-until-committed.md) D1、D5。札记的同步、上传与对账见[札记同步](../../server/jotting/jotting-sync.md)；本文件只记录 Web 读取接口引入的承诺。
 
 ## Jotting list must page every live jotting exactly once, newest first
 
@@ -83,6 +83,19 @@
 | `PALACE_JOTTING_RECALL_SIZE` 默认 5，超出 1–18 或不是整数时启动失败 | Partial | `crates/jottings/src/library/reading.rs::recall_sizes_stay_within_three_rows_of_six`（解析规则）；启动时把解析错误转为失败由 `apps/palace-server/src/jottings.rs` 完成，没有启动级测试 |
 
 决策依据：20261101 回顾决策 D1、D3、D4，不变量 1、2、3、5、8。
+
+## Inbox jottings must take no part in recall
+
+风险：还没整理的札记被抽进卡片组；它们从不被抽到，次数不增长，把“当前最小值”压住，新札记从过低的次数开始；在 inbox 里等了很久的札记整理后带着旧次数连续霸占卡片组。前置：真实 PostgreSQL 与真实 Git；三张已整理的札记。触发：抽出卡片组后把一张 `git mv` 进 `inbox/` 并 commit；第二天再抽；新建一张札记；再把 inbox 里的那张移出。
+
+必须成立：已抽出的卡片组不再显示移入 inbox 的札记；抽卡不选 inbox 札记，无论次数多低；`GET /api/jottings` 中 inbox 札记的 `recall` 为 `inbox`；新札记和移出 inbox 的札记都落在已整理札记的最小次数上。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 抽卡、已抽卡片组与最小次数都跳过 inbox，移出后落在最小次数（真实 PostgreSQL 与真实 Git） | Covered | `crates/jottings/tests/jottings/recall.rs::inbox_jottings_take_no_part_in_recall` |
+| 列表与回顾接口的 `recall` 值（真实 Router） | Covered | `crates/backend/tests/http/jottings.rs`（经 `exercise_reading`） |
 
 ## Recall must skip the jottings left unfinished in the previous pile
 

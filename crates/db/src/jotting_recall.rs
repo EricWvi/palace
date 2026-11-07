@@ -17,6 +17,14 @@ pub enum RecallState {
     Excluded,
 }
 
+/// Where a listed jotting stands with recall. A jotting in `inbox/` has not been sorted yet, so
+/// recall leaves it alone until it moves out, and there is nothing to retire or take back.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RecallStanding {
+    Inbox,
+    Sorted(RecallState),
+}
+
 /// What completing a recall card goes on to do.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RecallNext {
@@ -34,16 +42,15 @@ pub struct RecallCard {
     pub done: bool,
 }
 
-// The least count among jottings in recall. Only live jottings have a row (see the migration's
-// trigger), and `min` skips the jottings out of recall.
-const LEAST: &str = "coalesce((SELECT min(completions) FROM jotting_recall),0)";
+// The least count among sorted jottings in recall; `jotting_id` is the row being set.
+const LEAST: &str = "jotting_recall_least(jotting_id)";
 
 impl Database {
-    /// The pile of `day`, drawn on the first request of the day: up to `size` jottings created
-    /// before `day_start` (epoch milliseconds), in recall, and not left unfinished in the
-    /// previous pile, the least completed first and ties by `SHA-256("YYYY-MM-DD" ‖ id)`. A
-    /// stored pile is returned as drawn, without the jottings deleted since. Drawing keeps only
-    /// the new pile and the one before it.
+    /// The pile of `day`, drawn on the first request of the day: up to `size` sorted jottings
+    /// created before `day_start` (epoch milliseconds), in recall, and not left unfinished in
+    /// the previous pile, the least completed first and ties by `SHA-256("YYYY-MM-DD" ‖ id)`. A
+    /// stored pile is returned as drawn, without the jottings deleted or put in `inbox/` since.
+    /// Drawing keeps only the new pile and the one before it.
     pub async fn jotting_recall(
         &self,
         day: Date,
@@ -70,6 +77,7 @@ impl Database {
                  ranked AS (SELECT j.id,row_number() OVER (ORDER BY r.completions,sha256(convert_to($1||j.id::text,'UTF8'))) AS n
                      FROM jotting j JOIN jotting_recall r ON r.jotting_id=j.id
                      WHERE r.completions IS NOT NULL
+                     AND NOT starts_with(j.path,'inbox/')
                      AND j.created_at<timestamptz 'epoch'+$2::bigint*interval '1 millisecond'
                      AND j.id NOT IN (SELECT jotting_id FROM skipped))
                  INSERT INTO jotting_recall_card(day,position,jotting_id)
@@ -88,7 +96,7 @@ impl Database {
                 .await?;
         }
         let rows = sqlx::query(&format!(
-            "SELECT {LIVE},c.done_at IS NOT NULL AS done FROM jotting_recall_card c JOIN jotting ON jotting.id=c.jotting_id WHERE c.day=$1::date AND jotting.state<>'deleted' ORDER BY c.position"
+            "SELECT {LIVE},c.done_at IS NOT NULL AS done FROM jotting_recall_card c JOIN jotting ON jotting.id=c.jotting_id WHERE c.day=$1::date AND jotting.state<>'deleted' AND NOT starts_with(jotting.path,'inbox/') ORDER BY c.position"
         ))
         .bind(day.to_string())
         .fetch_all(&mut *tx)

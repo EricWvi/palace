@@ -35,7 +35,7 @@ pub use jotting_read::{
 };
 mod jotting_recall;
 mod jotting_web;
-pub use jotting_recall::{RecallCard, RecallNext, RecallState};
+pub use jotting_recall::{RecallCard, RecallNext, RecallStanding, RecallState};
 pub use jotting_web::{JottingStage, LiveTarget, WebTarget, WebWrite};
 mod login;
 mod media;

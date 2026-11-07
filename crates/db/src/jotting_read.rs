@@ -2,7 +2,7 @@
 //! recall pile is in `jotting_recall`. Tombstones never appear. The web reads here instead of the offline sync
 //! feed, so the list can say which jottings still sit in `inbox/`.
 //! See `specs/decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md` D8.
-use crate::{Database, DbError, RecallState, SearchTerm};
+use crate::{Database, DbError, RecallStanding, RecallState, SearchTerm};
 use palace_domain::{InputError, InputErrorKind, Jotting, ServerVersion};
 use sqlx::{Postgres, Row, Transaction, postgres::PgRow};
 use std::{fmt, str::FromStr};
@@ -18,7 +18,7 @@ pub struct ListedJotting {
     /// The agent has something to do: the file sits under `inbox/`, uploaded or committed but
     /// not sorted yet, or it holds a web edit no commit carries yet.
     pub pending: bool,
-    pub recall: RecallState,
+    pub recall: RecallStanding,
 }
 
 /// The position after the last jotting of a page. The list order is `(created_at, id)`
@@ -97,7 +97,7 @@ pub struct DayCount {
 }
 
 // Selects from a table named `jotting`, so the recall state can be looked up beside it.
-pub(crate) const LIVE: &str = "jotting.id,(extract(epoch FROM jotting.created_at)*1000)::bigint AS created_at,jotting.title,jotting.tags,jotting.body,jotting.server_version AS version,(starts_with(jotting.path,'inbox/') OR EXISTS(SELECT 1 FROM jotting_web_write w WHERE w.jotting_id=jotting.id AND w.written_oid IS NOT NULL)) AS pending,EXISTS(SELECT 1 FROM jotting_recall r WHERE r.jotting_id=jotting.id AND r.completions IS NULL) AS excluded";
+pub(crate) const LIVE: &str = "jotting.id,(extract(epoch FROM jotting.created_at)*1000)::bigint AS created_at,jotting.title,jotting.tags,jotting.body,jotting.server_version AS version,(starts_with(jotting.path,'inbox/') OR EXISTS(SELECT 1 FROM jotting_web_write w WHERE w.jotting_id=jotting.id AND w.written_oid IS NOT NULL)) AS pending,EXISTS(SELECT 1 FROM jotting_recall r WHERE r.jotting_id=jotting.id AND r.completions IS NULL) AS excluded,starts_with(jotting.path,'inbox/') AS in_inbox";
 
 // `$1` tag, `$2` ILIKE pattern; a null parameter disables its filter.
 const FILTER: &str = "state<>'deleted' AND ($1::text IS NULL OR $1=ANY(tags)) AND ($2::text IS NULL OR title ILIKE $2 OR body ILIKE $2 OR EXISTS(SELECT 1 FROM unnest(tags) t WHERE t ILIKE $2))";
@@ -214,6 +214,7 @@ async fn read_only(pool: &sqlx::PgPool) -> Result<Transaction<'_, Postgres>, DbE
 /// Reads a row selected with [`LIVE`].
 pub(crate) fn decode(row: &PgRow) -> Result<ListedJotting, DbError> {
     let excluded: bool = row.try_get("excluded")?;
+    let in_inbox: bool = row.try_get("in_inbox")?;
     Ok(ListedJotting {
         jotting: Jotting {
             id: row.try_get("id")?,
@@ -224,10 +225,10 @@ pub(crate) fn decode(row: &PgRow) -> Result<ListedJotting, DbError> {
         },
         version: ServerVersion::new(row.try_get("version")?)?,
         pending: row.try_get("pending")?,
-        recall: if excluded {
-            RecallState::Excluded
-        } else {
-            RecallState::Included
+        recall: match (in_inbox, excluded) {
+            (true, _) => RecallStanding::Inbox,
+            (false, true) => RecallStanding::Sorted(RecallState::Excluded),
+            (false, false) => RecallStanding::Sorted(RecallState::Included),
         },
     })
 }
