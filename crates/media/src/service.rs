@@ -19,6 +19,9 @@ pub enum MediaError {
     /// The request carries files but this deployment stores no media.
     #[error("media storage is not configured")]
     Unconfigured,
+    /// An export could not be assembled; nothing about the stored article is wrong.
+    #[error("article archive could not be written")]
+    Archive(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Stores the object first and registers it second, so every media row has its object. A row

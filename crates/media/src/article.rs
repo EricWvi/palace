@@ -2,6 +2,10 @@
 //! object storage cannot join a database transaction, so the order is fixed: write every object,
 //! then register the article and all its media rows in one transaction, and remove the objects
 //! again whenever the import ends any other way. Deleting reverses it: objects first, then rows.
+mod export;
+
+pub use export::{ArticleArchive, export_article};
+
 use crate::{MediaError, MediaStore, object_key};
 use bytes::Bytes;
 use palace_db::{ArticleImport, Database, OwnerScope, StoredMedia};

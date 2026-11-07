@@ -6,7 +6,7 @@ pub use activity::{Activity, ActivityType, TypeAdded};
 mod annotation;
 pub use annotation::Annotation;
 mod article;
-pub use article::{Article, ArticleImport, ArticleMedia, StoredMedia};
+pub use article::{Article, ArticleFile, ArticleImport, ArticleMedia, StoredMedia};
 mod article_list;
 pub use article_list::{
     ARTICLE_PAGE_SIZE, ArticleCursor, ArticleListItem, ArticleListRequest, ArticleOrder,

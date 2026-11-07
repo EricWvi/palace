@@ -3,7 +3,7 @@ use object_store::{Attribute, Attributes, PutOptions, PutPayload, path::Path};
 use std::future::Future;
 use uuid::Uuid;
 
-/// Writes and removes media objects.
+/// Writes, reads and removes media objects.
 ///
 /// The media service depends on this narrow seam rather than on a full object store so tests can
 /// wrap a real backend and fail one operation at the exact step under test. Implementations must
@@ -17,6 +17,8 @@ pub trait MediaStore: Send + Sync {
         content: Bytes,
         content_type: &str,
     ) -> impl Future<Output = Result<(), StoreError>> + Send;
+    /// Reads the complete content under `key`; an absent object is an error.
+    fn get(&self, key: &str) -> impl Future<Output = Result<Bytes, StoreError>> + Send;
     /// Removes the object under `key`; an absent object is not an error.
     fn delete(&self, key: &str) -> impl Future<Output = Result<(), StoreError>> + Send;
 }
@@ -55,6 +57,16 @@ impl<T: object_store::ObjectStore> MediaStore for Bucket<T> {
             .map(drop)
             .map_err(StoreError::new)
     }
+    /// Holds the object in memory; the import limits bound how large that can be.
+    async fn get(&self, key: &str) -> Result<Bytes, StoreError> {
+        self.0
+            .get(&Path::parse(key).map_err(StoreError::new)?)
+            .await
+            .map_err(StoreError::new)?
+            .bytes()
+            .await
+            .map_err(StoreError::new)
+    }
     /// Relies on the backend's idempotent delete, which S3 and the in-memory store both provide.
     async fn delete(&self, key: &str) -> Result<(), StoreError> {
         self.0
@@ -90,7 +102,7 @@ mod tests {
         );
     }
 
-    /// Content and type reach the backend, and deleting twice leaves no object and no error.
+    /// Content and type reach the backend and read back, and deleting twice leaves no object and no error.
     #[tokio::test]
     async fn bucket_writes_typed_objects_and_deletes_idempotently() {
         let backend: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
@@ -105,8 +117,10 @@ mod tests {
             Some(&"image/png".into())
         );
         assert_eq!(stored.bytes().await.unwrap(), Bytes::from_static(b"png"));
+        assert_eq!(bucket.get("o/m").await.unwrap(), Bytes::from_static(b"png"));
         bucket.delete("o/m").await.unwrap();
         bucket.delete("o/m").await.unwrap();
         assert!(backend.head(&Path::from("o/m")).await.is_err());
+        assert!(bucket.get("o/m").await.is_err());
     }
 }

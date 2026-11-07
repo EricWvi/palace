@@ -115,6 +115,8 @@ article-directory/
 日期允许 `YYYY-MM-DD` 或带时区偏移的 RFC 3339 时间；只写日期时由服务端按 `PALACE_TIMEZONE` 解释。
 不从 Markdown 标题、文件名、目录名或文件时间推断元数据，不解析正文 frontmatter。
 
+Web 端的[导出文章](../features/articles/README.md#导出)解压后就是这个目录。
+
 Markdown 中用 `![封面](assets/cover.jpg)`、`![演示](assets/demo.mp4)` 引用图片或视频，
 也可使用 `./assets/`。CLI 只转换真实的行内图片地址，代码块、行内代码、普通链接与其他正文保留原字节；
 同一文件重复引用只传一次，未引用文件忽略。正文最多 4 MiB，文件和整个请求的上限由服务端决定。

@@ -26,7 +26,7 @@ type Fields = { title: string; url: string; author: string; date: string };
 
 // The article page's menu. The body is someone else's writing and stays as imported; what the
 // import may have got wrong (title, address, author, date) can be corrected, and the article can
-// go with its images and videos.
+// leave as a file or go for good, with its images and videos either way.
 export function ArticleMenu({
   article,
   reading,
@@ -95,6 +95,17 @@ export function ArticleMenu({
         label="管理文章"
         actions={[
           reading,
+          {
+            label: "导出文章",
+            // The server builds the file, since a page cannot read media from object storage;
+            // the link leaves the download, and a failed one, to the browser.
+            onSelect: () => {
+              const link = document.createElement("a");
+              link.href = `/api/articles/${article.id}/export`;
+              link.download = `${article.title}.zip`;
+              link.click();
+            },
+          },
           {
             label: "编辑文章",
             onSelect: () => {

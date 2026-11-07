@@ -3100,6 +3100,7 @@ dependencies = [
  "url",
  "utoipa",
  "uuid",
+ "zip",
 ]
 
 [[package]]
@@ -3193,6 +3194,7 @@ version = "0.0.0"
 dependencies = [
  "bytes",
  "chrono-tz",
+ "flate2",
  "hmac",
  "object_store",
  "palace-db",
@@ -3201,6 +3203,7 @@ dependencies = [
  "palace-testkit",
  "pretty_assertions",
  "reqwest",
+ "serde_json",
  "sha2",
  "sqlx",
  "testcontainers",
@@ -3210,6 +3213,7 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+ "zip",
 ]
 
 [[package]]

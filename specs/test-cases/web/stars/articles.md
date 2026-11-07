@@ -1,6 +1,6 @@
 # 摘星文章核心测试用例
 
-当前决策：[文章通过 API 连同媒体一次导入](../../../decisions/web/stars/20261020-articles-imported-with-media.md)。列表样式、搜索交互与后退恢复沿用[摘星入口页](contents-page.md)的用例，笔记页共享的版式与目录沿用[摘星笔记](notes.md)的用例，媒体读取见[媒体读取](../../server/media/media-reading.md)；本文件只记录文章引入的新承诺。数据库约束、事务与并发只能以真实 PostgreSQL 为直接证据，对象写入与删除只能以真实 MinIO 为直接证据。
+当前决策：[文章通过 API 连同媒体一次导入](../../../decisions/web/stars/20261020-articles-imported-with-media.md)，导出见[导出文章为上传目录](../../../decisions/web/stars/20261107-export-article-as-upload-directory.md)。列表样式、搜索交互与后退恢复沿用[摘星入口页](contents-page.md)的用例，笔记页共享的版式与目录沿用[摘星笔记](notes.md)的用例，媒体读取见[媒体读取](../../server/media/media-reading.md)；本文件只记录文章引入的新承诺。数据库约束、事务与并发只能以真实 PostgreSQL 为直接证据，对象写入与删除只能以真实 MinIO 为直接证据。
 
 ## Article import must commit the article and its media together or not at all
 
@@ -101,6 +101,22 @@
 | Web 端删除后的落点与列表刷新（组件测试） | Covered | `pages/article.test.tsx::deletes the article and returns to the list without it` |
 
 决策依据：D6，不变量 6。
+
+## Exporting an article must write the directory pal uploads
+
+风险：导出的正文仍指向 `/api/media/<id>`，离开 Palace 后图片全部失效，`pal article upload` 也拒绝这种地址；改写地址时误改代码块或标题里的相同文字；读取对象失败时得到缺文件的压缩包；其他 Owner 借导出读到文章。前置：真实 Router、真实 PostgreSQL 与真实 MinIO；一篇带图片和视频的文章。触发：`GET /api/articles/{id}/export`；Web 端从 `···` 菜单选择“导出文章”。
+
+必须成立：响应是 `application/zip`，下载名为标题加 `.zip`；压缩包恰好含 `article.json`、`article.md` 与 `assets/<导入时的文件名>`，媒体字节与存储一致；`article.json` 的字段可以被 `pal article upload` 接受，日期写法与文章详情相同；正文只改本文内联图片的地址，其余字节不变；没有媒体的文章不需要存储。对象读取失败时不返回压缩包。禁止其他 Owner 导出。菜单依次为“只看标注”“导出文章”“编辑文章”“删除文章”，导出不打开弹窗。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 导出经真实 Router 从 MinIO 取到媒体，文件名、目录结构与改写后的正文正确，其他 Owner 得到 404，无媒体文章无需存储（真实 PostgreSQL 与真实 MinIO） | Covered | `crates/backend/tests/http.rs::media::media_http_uploads_and_deletes_within_the_owner`（经 `exercise_with_media`）、`crates/backend/tests/http.rs::authenticated_http_imports_preserve_scope_and_file_parity`（经 `exercise_without_media`） |
+| 对象读取失败时整次导出失败 | Covered | `crates/media/tests/minio/articles.rs::exporting_an_article_fails_whole_when_an_object_cannot_be_read` |
+| 只改本文内联图片地址，代码、链接、alt、标题与其他地址不变（领域单元测试） | Covered | `crates/domain/src/article/body.rs::exporting_points_only_own_images_at_assets` |
+| 压缩包的路径与内容（单元测试） | Covered | `crates/media/src/article/export.rs::archive_holds_the_upload_directory` |
+| 菜单顺序与下载链接（组件测试） | Covered | `apps/palace-web/src/pages/article.test.tsx` 的 “leaves exporting an article to the server, between reading and editing” |
 
 ## Article page must load only its own Palace media
 

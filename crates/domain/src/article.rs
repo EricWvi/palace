@@ -2,7 +2,7 @@
 //! sends are validated here; the body and its `media:` references live in [`body`].
 mod body;
 
-pub use body::{ArticleBody, MediaName};
+pub use body::{ArticleBody, MediaName, export_body};
 
 use crate::{DocumentDate, InputError, InputErrorKind, validate_title};
 use chrono_tz::Tz;

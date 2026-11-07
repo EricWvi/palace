@@ -87,6 +87,7 @@ impl From<palace_media::MediaError> for ApiError {
             palace_media::MediaError::Store(_) | palace_media::MediaError::Unconfigured => {
                 Self::MediaUnavailable
             }
+            palace_media::MediaError::Archive(_) => Self::Internal,
         }
     }
 }

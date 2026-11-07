@@ -5,7 +5,8 @@ use palace_domain::{
     ArticleBody, ArticleMetadata, ArticleMetadataInput, MediaLimits, MediaName, MediaUpload,
 };
 use palace_media::{
-    ArticleStaging, Disposition, MediaError, MediaStore, S3Bucket, StoreError, object_key,
+    ArticleStaging, Disposition, MediaError, MediaStore, S3Bucket, StoreError, export_article,
+    object_key,
 };
 use pretty_assertions::assert_eq;
 use std::sync::{
@@ -152,6 +153,9 @@ impl MediaStore for Gate<'_> {
         self.barrier.wait().await;
         Ok(())
     }
+    async fn get(&self, key: &str) -> Result<Bytes, StoreError> {
+        self.inner.get(key).await
+    }
     async fn delete(&self, key: &str) -> Result<(), StoreError> {
         self.inner.delete(key).await
     }
@@ -203,6 +207,57 @@ async fn concurrent_imports_of_one_url_converge_on_one_article() {
     ));
 }
 
+/// Fails every object read, as a storage outage would.
+struct FailGet<'a> {
+    inner: &'a S3Bucket,
+}
+impl MediaStore for FailGet<'_> {
+    async fn put(&self, key: &str, content: Bytes, content_type: &str) -> Result<(), StoreError> {
+        self.inner.put(key, content, content_type).await
+    }
+    async fn get(&self, _key: &str) -> Result<Bytes, StoreError> {
+        Err(StoreError::new("injected get failure"))
+    }
+    async fn delete(&self, key: &str) -> Result<(), StoreError> {
+        self.inner.delete(key).await
+    }
+}
+
+/// An export never hands out an archive missing a file, and storage is required once there are
+/// files to read.
+/// Core test case:
+/// - `specs/test-cases/web/stars/articles.md#exporting-an-article-must-write-the-directory-pal-uploads`
+#[tokio::test]
+#[ignore = "requires the existing postgres:17-alpine and minio/minio images and Docker/Podman socket"]
+async fn exporting_an_article_fails_whole_when_an_object_cannot_be_read() {
+    let s = services().await;
+    let Ok(ArticleImport::Created(article)) =
+        import(&s, &s.bucket, s.a, "https://example.com/export").await
+    else {
+        panic!("import failed");
+    };
+    let timezone = chrono_tz::Asia::Shanghai;
+    let exported = export_article(&s.db, Some(&s.bucket), s.a, article.id, timezone)
+        .await
+        .unwrap();
+    assert_eq!(exported.file_name, "文章.zip");
+    assert!(matches!(
+        export_article(
+            &s.db,
+            Some(&FailGet { inner: &s.bucket }),
+            s.a,
+            article.id,
+            timezone
+        )
+        .await,
+        Err(MediaError::Store(_))
+    ));
+    assert!(matches!(
+        export_article(&s.db, None::<&S3Bucket>, s.a, article.id, timezone).await,
+        Err(MediaError::Unconfigured)
+    ));
+}
+
 /// Fails the `n`th object delete (counting from 1) and passes every other request through.
 struct FailNthDelete<'a> {
     inner: &'a S3Bucket,
@@ -212,6 +267,9 @@ struct FailNthDelete<'a> {
 impl MediaStore for FailNthDelete<'_> {
     async fn put(&self, key: &str, content: Bytes, content_type: &str) -> Result<(), StoreError> {
         self.inner.put(key, content, content_type).await
+    }
+    async fn get(&self, key: &str) -> Result<Bytes, StoreError> {
+        self.inner.get(key).await
     }
     async fn delete(&self, key: &str) -> Result<(), StoreError> {
         if self.seen.fetch_add(1, Ordering::SeqCst) + 1 == self.n {

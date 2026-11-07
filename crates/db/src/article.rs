@@ -26,6 +26,14 @@ pub struct ArticleMedia {
     pub content_type: String,
 }
 
+/// Where one embedded file's bytes are and the name the import gave it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ArticleFile {
+    pub id: Uuid,
+    pub object_key: String,
+    pub file_name: Option<String>,
+}
+
 /// An object already written to storage, to be registered as media of a new article.
 pub struct StoredMedia<'a> {
     pub id: Uuid,
@@ -144,6 +152,28 @@ impl Database {
             .bind(id)
             .fetch_all(&self.pool)
             .await?)
+    }
+
+    /// Lists what an export needs to fetch the article's media, oldest first.
+    pub async fn article_files(
+        &self,
+        owner: OwnerScope,
+        id: Uuid,
+    ) -> Result<Vec<ArticleFile>, DbError> {
+        sqlx::query("SELECT md.id,md.object_key,md.file_name FROM article_media am JOIN media md ON md.owner_id=am.owner_id AND md.id=am.media_id WHERE am.owner_id=$1 AND am.article_id=$2 ORDER BY md.id")
+            .bind(owner.id())
+            .bind(id)
+            .fetch_all(&self.pool)
+            .await?
+            .into_iter()
+            .map(|row| {
+                Ok(ArticleFile {
+                    id: row.try_get("id")?,
+                    object_key: row.try_get("object_key")?,
+                    file_name: row.try_get("file_name")?,
+                })
+            })
+            .collect()
     }
 
     /// Removes the article, its moment and its media rows in one transaction, once the caller

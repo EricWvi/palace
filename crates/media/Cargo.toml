@@ -19,16 +19,20 @@ hmac = { workspace = true }
 sha2 = { workspace = true }
 time = { workspace = true }
 object_store = { workspace = true }
+# Picks the deflate backend, which `zip` leaves to the application.
+flate2 = { workspace = true }
+chrono-tz = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
+tokio = { workspace = true }
+zip = { workspace = true }
 
 [dev-dependencies]
-chrono-tz = { workspace = true }
 reqwest = { workspace = true }
 palace-testkit = { workspace = true }
 pretty_assertions = { workspace = true }
 sqlx = { workspace = true }
 testcontainers = { workspace = true }
-tokio = { workspace = true }

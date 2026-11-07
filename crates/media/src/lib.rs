@@ -7,9 +7,9 @@ mod presign;
 mod service;
 mod store;
 
-pub use article::{ArticleStaging, delete_article};
+pub use article::{ArticleArchive, ArticleStaging, delete_article, export_article};
 pub use config::{Addressing, ConfigError, MediaConfig, S3Bucket, S3Config};
-pub use presign::{Disposition, PresignedGet, Presigner};
+pub use presign::{Disposition, PresignedGet, Presigner, attachment_header};
 pub use service::{MediaError, delete, upload};
 pub use store::{Bucket, MediaStore, StoreError, object_key};
 

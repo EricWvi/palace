@@ -53,6 +53,7 @@ pub(super) const TODO_RESTORE: &str = "/api/todos/{id}/restore";
 pub(super) const TODO_LISTS: &str = "/api/todo-lists";
 pub(super) const TODO_LIST: &str = "/api/todo-lists/{id}";
 pub(super) const TODO_LIST_COMPLETED: &str = "/api/todo-lists/{id}/completed";
+pub(super) const ARTICLE_EXPORT: &str = "/api/articles/{id}/export";
 pub(super) const MEDIA: &str = "/api/media";
 pub(super) const MEDIA_ITEM: &str = "/api/media/{id}";
 pub(super) const ACCESS_TOKENS: &str = "/api/access-tokens";
@@ -158,12 +159,15 @@ macro_rules! business_routes {
     };
 }
 // Media carries file bodies, so it is mounted with its own body limit instead of the import one.
+// It stays outside the compression layer, as must an article export: archives of images and video
+// do not shrink, and gzipping one would hold a request for nothing.
 macro_rules! media_routes {
     ($consumer:ident) => {
         $consumer! {
             post MEDIA => media::upload,
             get MEDIA_ITEM => media::read,
             delete MEDIA_ITEM => media::delete,
+            get ARTICLE_EXPORT => articles::export,
         }
     };
 }

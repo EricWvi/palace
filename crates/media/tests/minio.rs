@@ -130,6 +130,9 @@ impl MediaStore for Faulty<'_> {
         }
         self.inner.put(key, content, content_type).await
     }
+    async fn get(&self, key: &str) -> Result<Bytes, StoreError> {
+        self.inner.get(key).await
+    }
     async fn delete(&self, key: &str) -> Result<(), StoreError> {
         if self.fail_delete.load(Ordering::SeqCst) {
             return Err(StoreError::new("injected delete failure"));

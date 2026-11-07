@@ -12,6 +12,7 @@ use uuid::Uuid;
 const BODY_BYTES: usize = 4 * 1024 * 1024;
 const NAME_BYTES: usize = 128;
 const SCHEME: &str = "media:";
+const STORED_PREFIX: &str = "/api/media/";
 
 /// The name an import gives one of its files: the part's filename and the `<name>` in
 /// `media:<name>`. The narrow alphabet keeps the reference free of anything Markdown escapes or
@@ -69,54 +70,24 @@ impl ArticleBody {
                 "body exceeds 4 MiB",
             ));
         }
-        // The same extensions as the excerpt and the web renderer, so all three agree on what
-        // is an image.
-        let options =
-            Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
         let mut references = Vec::new();
-        // Images open around the current event (an alt text may hold another image), each with
-        // its address and where its alt text ends so far.
-        let mut open: Vec<(String, LinkType, usize)> = Vec::new();
-        for (event, range) in Parser::new_ext(&text, options).into_offset_iter() {
-            let closed = match event {
-                Event::Start(Tag::Image {
-                    link_type,
-                    dest_url,
-                    ..
-                }) => {
-                    extend_alt(&mut open, range.start);
-                    open.push((dest_url.into_string(), link_type, range.start + 2));
-                    None
-                }
-                Event::End(TagEnd::Image) => {
-                    let closed = open.pop();
-                    extend_alt(&mut open, range.end);
-                    closed
-                }
-                _ => {
-                    extend_alt(&mut open, range.end);
-                    None
-                }
+        for image in images(&text) {
+            let Some(name) = image.address.strip_prefix(SCHEME) else {
+                continue;
             };
-            if let Some((dest, link_type, alt_end)) = closed
-                && let Some(name) = dest.strip_prefix(SCHEME)
-            {
-                if !matches!(link_type, LinkType::Inline) {
-                    return Err(InputError::new(
-                        InputErrorKind::Field,
-                        "content",
-                        format!("{dest} must be an inline image ![alt]({dest})"),
-                    ));
-                }
-                let name = MediaName::parse(name)?;
-                // The address follows the alt text: past the last event inside the image, so a
-                // name repeated in the alt text or the title is never taken for it.
-                let offset = text[alt_end..range.end].find(&dest).ok_or_else(|| {
-                    InputError::new(InputErrorKind::Field, "content", "unreadable image")
-                })?;
-                let start = alt_end + offset;
-                references.push((name, start..start + dest.len()));
+            if !matches!(image.link_type, LinkType::Inline) {
+                let address = &image.address;
+                return Err(InputError::new(
+                    InputErrorKind::Field,
+                    "content",
+                    format!("{address} must be an inline image ![alt]({address})"),
+                ));
             }
+            let name = MediaName::parse(name)?;
+            let range = image.address_range(&text).ok_or_else(|| {
+                InputError::new(InputErrorKind::Field, "content", "unreadable image")
+            })?;
+            references.push((name, range));
         }
         Ok(Self { text, references })
     }
@@ -148,12 +119,95 @@ impl ArticleBody {
         let mut copied = 0;
         for (name, range) in &self.references {
             resolved.push_str(&self.text[copied..range.start]);
-            resolved.push_str(&format!("/api/media/{}", files[name]));
+            resolved.push_str(&format!("{STORED_PREFIX}{}", files[name]));
             copied = range.end;
         }
         resolved.push_str(&self.text[copied..]);
         Ok(resolved)
     }
+}
+
+/// Undoes [`ArticleBody::resolve`] for an export: each inline image at the `/api/media/<id>` of a
+/// file in `names` points at `assets/<name>` instead, the spelling `pal article upload` reads.
+/// Everything else keeps its bytes, including an address the article has no file for, since the
+/// body may have spelled one in plain text at import.
+pub fn export_body(content: &str, names: &HashMap<Uuid, String>) -> String {
+    let mut exported = String::with_capacity(content.len());
+    let mut copied = 0;
+    for image in images(content) {
+        let file = image
+            .address
+            .strip_prefix(STORED_PREFIX)
+            .and_then(|id| Uuid::parse_str(id).ok())
+            .and_then(|id| names.get(&id));
+        if let (Some(file), LinkType::Inline, Some(range)) =
+            (file, image.link_type, image.address_range(content))
+        {
+            exported.push_str(&content[copied..range.start]);
+            exported.push_str(&format!("assets/{file}"));
+            copied = range.end;
+        }
+    }
+    exported.push_str(&content[copied..]);
+    exported
+}
+
+/// One image in a body, in the order the addresses appear.
+struct Image {
+    address: String,
+    link_type: LinkType,
+    /// Past the last event inside the image, so a name repeated in the alt text is not found.
+    after_alt: Range<usize>,
+}
+
+impl Image {
+    /// Locates the address after the alt text, so its spelling there or in the title is ignored.
+    fn address_range(&self, text: &str) -> Option<Range<usize>> {
+        let offset = text[self.after_alt.clone()].find(&self.address)?;
+        let start = self.after_alt.start + offset;
+        Some(start..start + self.address.len())
+    }
+}
+
+/// Lists the images of a body. It uses the same extensions as the excerpt and the web renderer,
+/// so all three agree on what is an image: text in code spans and code blocks is not one.
+fn images(text: &str) -> Vec<Image> {
+    let options =
+        Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
+    let mut images = Vec::new();
+    // Images open around the current event (an alt text may hold another image), each with its
+    // address and where its alt text ends so far.
+    let mut open: Vec<(String, LinkType, usize)> = Vec::new();
+    for (event, range) in Parser::new_ext(text, options).into_offset_iter() {
+        let closed = match event {
+            Event::Start(Tag::Image {
+                link_type,
+                dest_url,
+                ..
+            }) => {
+                extend_alt(&mut open, range.start);
+                open.push((dest_url.into_string(), link_type, range.start + 2));
+                None
+            }
+            Event::End(TagEnd::Image) => {
+                let closed = open.pop();
+                extend_alt(&mut open, range.end);
+                closed
+            }
+            _ => {
+                extend_alt(&mut open, range.end);
+                None
+            }
+        };
+        if let Some((address, link_type, alt_end)) = closed {
+            images.push(Image {
+                address,
+                link_type,
+                after_alt: alt_end..range.end,
+            });
+        }
+    }
+    images
 }
 
 /// Moves the end of every open alt text past `end`; an event inside an image belongs to the
@@ -196,6 +250,27 @@ mod tests {
         assert_eq!(
             resolved,
             "# 标题\n\n![media:a.png](/api/media/00000000-0000-0000-0000-000000000001 \"media:a.png\")\n\n`![](media:b.mp4)`\n\n```\n![](media:a.png)\n```\n\n[链接](media:a.png) ![*视频*](</api/media/00000000-0000-0000-0000-000000000002>)\n"
+        );
+    }
+
+    /// An export undoes the resolve for this article's files: code, links, alt text and titles
+    /// keep their bytes, and so do addresses of files it does not hold.
+    /// Core test case:
+    /// - `specs/test-cases/web/stars/articles.md#exporting-an-article-must-write-the-directory-pal-uploads`
+    #[test]
+    fn exporting_points_only_own_images_at_assets() {
+        let own = Uuid::from_u128(1);
+        let video = Uuid::from_u128(2);
+        let other = Uuid::from_u128(9);
+        let body = format!(
+            "![/api/media/{own}](/api/media/{own} \"/api/media/{own}\")\n\n`![](/api/media/{own})`\n\n[链接](/api/media/{own}) ![*视频*](</api/media/{video}>) ![别处](/api/media/{other}) ![原站](https://example.com/a.png)\n"
+        );
+        let names = HashMap::from([(own, "a.png".to_owned()), (video, "b.mp4".to_owned())]);
+        assert_eq!(
+            export_body(&body, &names),
+            format!(
+                "![/api/media/{own}](assets/a.png \"/api/media/{own}\")\n\n`![](/api/media/{own})`\n\n[链接](/api/media/{own}) ![*视频*](<assets/b.mp4>) ![别处](/api/media/{other}) ![原站](https://example.com/a.png)\n"
+            )
         );
     }
 

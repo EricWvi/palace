@@ -275,6 +275,32 @@ it("keeps the dialog and the input when the address belongs to another article",
 });
 
 // Core test case: `specs/test-cases/web/stars/articles.md#deleting-an-article-must-remove-its-media-objects-before-reporting-success`
+// Core test case: `specs/test-cases/web/stars/articles.md#exporting-an-article-must-write-the-directory-pal-uploads`
+it("leaves exporting an article to the server, between reading and editing", async () => {
+  serve();
+  const { user } = mountApp("/articles/a1");
+  await screen.findByText("正文。");
+  screen.getByRole("button", { name: "管理文章" }).focus();
+  await user.keyboard("{Enter}");
+  const items = await screen.findAllByRole("menuitem");
+  expect(items.map((item) => item.textContent)).toEqual([
+    "只看标注",
+    "导出文章",
+    "编辑文章",
+    "删除文章",
+  ]);
+  const downloads: string[][] = [];
+  // jsdom cannot follow a download link, so where it leads is observed instead.
+  const click = vi
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(function (this: HTMLAnchorElement) {
+      downloads.push([this.getAttribute("href")!, this.download]);
+    });
+  await user.click(items[1]);
+  click.mockRestore();
+  expect(downloads).toEqual([["/api/articles/a1/export", "元数据标题.zip"]]);
+});
+
 it("deletes the article and returns to the list without it", async () => {
   const { sent } = serve();
   const { router, user } = mountApp("/articles/a1");

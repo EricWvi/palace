@@ -2,11 +2,15 @@ use super::{
     media::{form, send},
     request,
 };
-use axum::{Router, http::StatusCode};
+use axum::{
+    Router,
+    http::{StatusCode, header::CONTENT_DISPOSITION},
+};
 use http_body_util::BodyExt;
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
 use sqlx::PgPool;
+use std::io::{Cursor, Read};
 use tower::ServiceExt;
 
 const ORIGIN: &str = "https://palace.test";
@@ -67,6 +71,44 @@ pub(super) async fn import(
     (status, serde_json::from_str(&body).unwrap())
 }
 
+/// Downloads an export and returns its status, disposition and every archive entry as text.
+async fn export(
+    app: &Router,
+    id: &str,
+    cookie: &str,
+) -> (StatusCode, String, Vec<(String, String)>) {
+    let response = app
+        .clone()
+        .oneshot(request(
+            "GET",
+            &format!("/api/articles/{id}/export"),
+            cookie,
+            ORIGIN,
+            "application/json",
+            String::new(),
+        ))
+        .await
+        .unwrap();
+    let status = response.status();
+    let disposition = response
+        .headers()
+        .get(CONTENT_DISPOSITION)
+        .map(|value| value.to_str().unwrap().to_owned())
+        .unwrap_or_default();
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let mut entries = Vec::new();
+    if status == StatusCode::OK {
+        let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+        for index in 0..archive.len() {
+            let mut entry = archive.by_index(index).unwrap();
+            let mut text = String::new();
+            entry.read_to_string(&mut text).unwrap();
+            entries.push((entry.name().unwrap().to_string(), text));
+        }
+    }
+    (status, disposition, entries)
+}
+
 /// Imports, lists, edits and deletes articles through the real Router without media storage:
 /// an article that embeds no file needs none, and one that does is refused whole.
 /// Core test cases:
@@ -90,6 +132,26 @@ pub(super) async fn exercise_without_media(
     assert_eq!(
         created,
         json!({"id":id,"title":"标题","content":"# 正文\n","url":"https://www.example.com/a","author":null,"site":"example.com","published_at":1_791_129_600_000_i64,"date":"2026-10-05","occurred_at":occurred_at,"media":[]})
+    );
+    // An article that embeds nothing exports without storage; another owner cannot tell it exists.
+    let document = serde_json::to_string_pretty(&json!({
+        "title":"标题","url":"https://www.example.com/a","date":"2026-10-05","author":null
+    }))
+    .unwrap();
+    assert_eq!(
+        export(app, &id, cookie).await,
+        (
+            StatusCode::OK,
+            "attachment; filename*=UTF-8''%E6%A0%87%E9%A2%98.zip".to_owned(),
+            vec![
+                ("article.json".to_owned(), document),
+                ("article.md".to_owned(), "# 正文\n".to_owned()),
+            ]
+        )
+    );
+    assert_eq!(
+        export(app, &id, foreign).await,
+        (StatusCode::NOT_FOUND, String::new(), Vec::new())
     );
     // A retry is answered with the stored article, whatever else it carries.
     let mut retry = fields.clone();
@@ -343,6 +405,28 @@ pub(super) async fn exercise_with_media(app: &Router, cookie: &str, foreign: &st
         (StatusCode::OK, article.clone())
     );
     assert_eq!(counts().await, (media_before + 2, articles_before + 1));
+
+    // An export carries the files from MinIO, and its body points at them instead of at Palace.
+    let document = serde_json::to_string_pretty(&json!({
+        "title":"带图","url":"https://example.com/media","date":"2026-10-05","author":null
+    }))
+    .unwrap();
+    assert_eq!(
+        export(app, article["id"].as_str().unwrap(), cookie).await,
+        (
+            StatusCode::OK,
+            "attachment; filename*=UTF-8''%E5%B8%A6%E5%9B%BE.zip".to_owned(),
+            vec![
+                ("article.json".to_owned(), document),
+                (
+                    "article.md".to_owned(),
+                    "![封面](assets/cover.png)\n\n![演示](assets/demo.mp4)\n".to_owned()
+                ),
+                ("assets/cover.png".to_owned(), "png".to_owned()),
+                ("assets/demo.mp4".to_owned(), "mp4".to_owned()),
+            ]
+        )
+    );
 
     // The owner is redirected to bytes MinIO serves; anyone else sees nothing.
     let media = format!("/api/media/{cover}");

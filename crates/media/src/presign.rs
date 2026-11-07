@@ -51,6 +51,14 @@ pub struct PresignedGet {
     pub max_age: i64,
 }
 
+/// Spells a `Content-Disposition` that downloads under `name`, whatever characters it holds.
+pub fn attachment_header(name: &str) -> String {
+    format!(
+        "attachment; filename*=UTF-8''{}",
+        uri_encode(name, Slashes::Encode)
+    )
+}
+
 impl Presigner {
     /// Signs a GET of `key` for the hour containing `now` (Unix seconds), asking storage to
     /// answer with `content_type` and `disposition`.
@@ -64,12 +72,7 @@ impl Presigner {
         let hour = now.div_euclid(HOUR_SECONDS) * HOUR_SECONDS;
         let disposition = match disposition {
             Disposition::Inline => "inline".to_owned(),
-            Disposition::Attachment(name) => {
-                format!(
-                    "attachment; filename*=UTF-8''{}",
-                    uri_encode(name, Slashes::Encode)
-                )
-            }
+            Disposition::Attachment(name) => attachment_header(name),
         };
         let url = self.sign(
             key,

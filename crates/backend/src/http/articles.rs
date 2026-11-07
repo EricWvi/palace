@@ -3,7 +3,8 @@ use super::{ApiError, BusinessServer, dto, path_management::json_error, routes};
 use axum::{
     Json,
     extract::{Path, Query, State, rejection::JsonRejection, rejection::QueryRejection},
-    http::StatusCode,
+    http::{StatusCode, header},
+    response::{IntoResponse, Response},
 };
 use palace_db::{ArticleListRequest, ArticleOrder, ListCursor, NearCursor, SearchTerm};
 use palace_domain::{ArticleMetadata, ArticleMetadataInput, InputError, InputErrorKind};
@@ -75,6 +76,46 @@ pub(super) async fn article(
 ) -> Result<Json<dto::Article>, ApiError> {
     let article = server.database.article(owner.scope(), id).await?;
     Ok(Json(dto::Article::new(article, server.timezone)))
+}
+
+/// Downloads the article as the directory `pal article upload` reads: `article.json`, `article.md`
+/// and `assets/`, zipped, so it leaves Palace with its images and videos and can come back.
+#[utoipa::path(
+    get, path = routes::ARTICLE_EXPORT, operation_id = "export_article",
+    params(("id" = Uuid, Path, description = "Owner-scoped article id")),
+    security(("session" = []), ("access_token" = [])),
+    responses(
+        (status = 200, description = "Zip of article.json, article.md with media addressed as assets/<name>, and assets/", body = String, content_type = "application/zip", headers(("Content-Disposition" = String, description = "Attachment named after the article's title"), ("Set-Cookie" = String, description = "Refreshed production session; absent in fixed-user mode"), ("Cache-Control" = String, description = "no-store"))),
+        (status = 400, description = "Invalid input; native extractor text", body = String, content_type = "text/plain"),
+        (status = 401, description = "Authentication required", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 404, description = "Resource unavailable in owner scope", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 500, description = "Internal persistence or response failure", body = dto::ErrorResponse, content_type = "application/json"),
+        (status = 503, description = "Identity provider or media storage unavailable, including an article with media on a deployment without configured media storage", body = dto::ErrorResponse, content_type = "application/json"),
+    )
+)]
+pub(super) async fn export(
+    State(server): State<Arc<BusinessServer>>,
+    axum::Extension(owner): axum::Extension<palace_db::Owner>,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    let store = match &server.media {
+        MediaStorage::Configured { store, .. } => Some(store),
+        MediaStorage::Unconfigured => None,
+    };
+    let archive =
+        palace_media::export_article(&server.database, store, owner.scope(), id, server.timezone)
+            .await?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "application/zip".to_owned()),
+            (
+                header::CONTENT_DISPOSITION,
+                palace_media::attachment_header(&archive.file_name),
+            ),
+        ],
+        archive.bytes,
+    )
+        .into_response())
 }
 
 /// Replaces everything but the body; the moment keeps its import time.

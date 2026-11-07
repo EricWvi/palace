@@ -22,7 +22,9 @@ pub use activity::{ActivityInput, ActivityTypeName};
 pub use annotation::{
     AnnotationAnchor, AnnotationContent, AnnotationNote, AnnotationStyle, AnnotationTarget,
 };
-pub use article::{ArticleBody, ArticleMetadata, ArticleMetadataInput, MediaName, article_site};
+pub use article::{
+    ArticleBody, ArticleMetadata, ArticleMetadataInput, MediaName, article_site, export_body,
+};
 pub use conversation::{Conversation, Message, Role, SessionId, Source, SourceLinks, read_path};
 pub use document_date::{DatePrecision, DocumentDate};
 pub use excerpt::{EXCERPT_CHARS, EXCERPT_SOURCE_CHARS, TOC_LINE_CHARS, excerpt, toc_line};

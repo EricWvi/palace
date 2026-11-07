@@ -45,6 +45,7 @@ use utoipa::{
         article_import::import,
         articles::article,
         articles::update,
+        articles::export,
         articles::delete,
         annotations::article_list,
         annotations::article_create,

@@ -55,7 +55,8 @@ impl Capture {
                         .read_to_string(&mut body)
                         .unwrap();
                 } else {
-                    body = String::from_utf8(bytes.to_vec()).unwrap();
+                    // Lossy: the contract only says an archive's body is binary, not what it holds.
+                    body = String::from_utf8_lossy(&bytes).into_owned();
                 }
                 capture.0.lock().unwrap().push(json!({
                     "method": method, "path": path, "status": parts.status.as_u16(),
