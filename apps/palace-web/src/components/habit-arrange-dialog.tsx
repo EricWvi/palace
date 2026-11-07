@@ -29,6 +29,45 @@ function markOf(row: Row): string {
   return [...row.mark.trim()][0] ?? [...row.name.trim()][0] ?? "";
 }
 
+// What a seal keeps of a field's text: the last character, so typing replaces the one there.
+function lastCharacter(text: string): string {
+  return [...text.trim()].slice(-1).join("");
+}
+
+// The seal character's field. An IME spells a character in the field before committing it, and
+// rewriting the value mid-way breaks the composition, so the spelling stays here, untrimmed, and
+// only what the composition ends with reaches the row.
+function MarkInput({
+  label,
+  placeholder,
+  mark,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  mark: string;
+  onChange: (mark: string) => void;
+}) {
+  const [composing, setComposing] = useState<string | null>(null);
+  return (
+    <input
+      className="habit-mark"
+      aria-label={label}
+      placeholder={placeholder}
+      value={composing ?? mark}
+      onCompositionStart={(event) => setComposing(event.currentTarget.value)}
+      onCompositionEnd={(event) => {
+        setComposing(null);
+        onChange(lastCharacter(event.currentTarget.value));
+      }}
+      onChange={(event) => {
+        if (composing === null) onChange(lastCharacter(event.target.value));
+        else setComposing(event.target.value);
+      }}
+    />
+  );
+}
+
 /**
  * 编排日课: every habit in use as a row of name, seal character and times a day, each retirable,
  * and new ones added at the bottom. Saving writes only what changed; a row left without a name
@@ -134,16 +173,11 @@ export function HabitArrangeDialog({
                     update(row.key, { name: event.target.value })
                   }
                 />
-                <input
-                  className="habit-mark"
-                  aria-label={`第 ${index + 1} 门的印章字`}
+                <MarkInput
+                  label={`第 ${index + 1} 门的印章字`}
                   placeholder={[...row.name.trim()][0] ?? "字"}
-                  value={row.mark}
-                  onChange={(event) =>
-                    update(row.key, {
-                      mark: [...event.target.value.trim()].slice(-1).join(""),
-                    })
-                  }
+                  mark={row.mark}
+                  onChange={(mark) => update(row.key, { mark })}
                 />
                 <select
                   className="habit-times"

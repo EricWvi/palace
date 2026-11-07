@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { requestPath, testRequest } from "@/lib/test-request";
 import type { Activity, ActivityType } from "@/lib/activities";
@@ -363,6 +363,48 @@ it("arranges habits: edits, adds and retires, writing only what changed", async 
   );
   await screen.findByRole("button", { name: "喝水 0/8" });
   expect(screen.queryByRole("button", { name: "冥想" })).toBeNull();
+});
+
+it("lets an IME compose a seal character and keeps only the last one it commits", async () => {
+  const { writes } = serve({
+    habits: [habit("workout", "锻炼", 2)],
+    checks: [],
+    types: [],
+    activities: [],
+  });
+  const { user } = mountApp("/?date=2026-10-31");
+  await screen.findByRole("button", { name: "锻炼 0/2" });
+  await chooseFromMenu(user, "编排日课");
+  const dialog = await screen.findByRole("dialog", { name: "编排日课" });
+  const mark = within(dialog).getByLabelText("第 1 门的印章字");
+
+  // The spelling must survive in the field whole: rewriting it mid-way breaks the composition.
+  fireEvent.compositionStart(mark);
+  fireEvent.change(mark, { target: { value: "锻l" } });
+  expect(mark).toHaveValue("锻l");
+  fireEvent.change(mark, { target: { value: "锻lian" } });
+  expect(mark).toHaveValue("锻lian");
+  fireEvent.change(mark, { target: { value: "锻练" } });
+  fireEvent.compositionEnd(mark);
+  expect(mark).toHaveValue("练");
+
+  // A composition given up leaves the character as it was.
+  fireEvent.compositionStart(mark);
+  fireEvent.change(mark, { target: { value: "练x" } });
+  fireEvent.change(mark, { target: { value: "练" } });
+  fireEvent.compositionEnd(mark);
+  expect(mark).toHaveValue("练");
+
+  // Without an IME each keystroke still replaces the character.
+  await user.type(mark, "ab");
+  expect(mark).toHaveValue("b");
+  fireEvent.change(mark, { target: { value: "力" } });
+
+  await user.click(within(dialog).getByRole("button", { name: "保存" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(writes).toEqual([
+    'PUT /api/habits/workout {"name":"锻炼","mark":"力","times_per_day":2}',
+  ]);
 });
 
 it("ticks any day of the grid and draws each activity type as its own curve", async () => {
