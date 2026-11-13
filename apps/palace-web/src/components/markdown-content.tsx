@@ -11,6 +11,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { rehypeAnnotations, type Painting } from "@/lib/annotation-paint";
 import { remarkDollarMath } from "@/lib/remark-dollar-math";
+import { remarkHighlightMark } from "@/lib/remark-highlight-mark";
 import { MermaidDiagram } from "./mermaid-diagram";
 
 // Where images may be loaded from is the one rule that differs between callers: imported
@@ -84,6 +85,16 @@ const remarkPlugins: NonNullable<MarkdownOptions["remarkPlugins"]> = [
   remarkDollarMath,
 ];
 
+// Which syntax beyond the shared one the text is written in. Jottings are the owner's own notes
+// and take `==重点==`; imported conversations and articles do not, since prose and code there
+// write `a==b` without backticks and would come out highlighted.
+export type MarkdownDialect = "common" | "jotting";
+
+const dialectPlugins: Record<MarkdownDialect, typeof remarkPlugins> = {
+  common: remarkPlugins,
+  jotting: [...remarkPlugins, remarkHighlightMark],
+};
+
 // KaTeX runs first so highlighting never sees the `language-math` code it replaces.
 const rehypePlugins: NonNullable<MarkdownOptions["rehypePlugins"]> = [
   rehypeKatex,
@@ -93,7 +104,7 @@ const rehypePlugins: NonNullable<MarkdownOptions["rehypePlugins"]> = [
 
 // Shows Markdown the same way everywhere: GFM, `$` and `$$` formulas, mermaid diagrams, no raw
 // HTML, highlighted fenced code with a copy button, external links in a new window and in-app
-// paths through the router. Text this component adds itself (the copy button, image
+// paths through the router; a `dialect` adds only its own syntax on top. Text this component adds itself (the copy button, image
 // placeholders) and formulas and diagrams carry `data-annotation-skip`, so they are never part
 // of the text annotations are anchored in.
 export const MarkdownContent = memo(function MarkdownContent({
@@ -101,6 +112,7 @@ export const MarkdownContent = memo(function MarkdownContent({
   images,
   scope,
   painting,
+  dialect = "common",
 }: {
   content: string;
   // Pass a stable value (a module constant or a memoized object) so memoization holds.
@@ -109,11 +121,12 @@ export const MarkdownContent = memo(function MarkdownContent({
   scope?: string;
   // The annotations to draw and the folding of 只看标注; stable, like `images`.
   painting?: Painting;
+  dialect?: MarkdownDialect;
 }) {
   return (
     <div className="markdown" data-annotation-scope={scope}>
       <Markdown
-        remarkPlugins={remarkPlugins}
+        remarkPlugins={dialectPlugins[dialect]}
         rehypePlugins={
           painting
             ? [...rehypePlugins, [rehypeAnnotations, painting]]

@@ -214,6 +214,16 @@
   font-size: inherit;
 }
 
+/* `==重点==` takes the yellow of a 摘星 highlight, so the owner's emphasis reads the same in both
+   places. No padding, as with marks there, so a highlight never reflows its line. */
+.echo-card .jot-body .markdown mark {
+  color: inherit;
+  background-color: var(--mark-yellow);
+  border-radius: 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 .echo-card .jot-body .markdown > :first-child {
   margin-top: 0;
 }

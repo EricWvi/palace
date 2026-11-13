@@ -179,7 +179,11 @@ export function RecallPile({ away }: { away: boolean }) {
               {card.pending && <PendingDot />}
               {card.title && <h3>{card.title}</h3>}
               <div className="jot-body">
-                <MarkdownContent content={card.body} images={images} />
+                <MarkdownContent
+                  content={card.body}
+                  images={images}
+                  dialect="jotting"
+                />
               </div>
               <footer className="jot-foot">
                 <JottingTime createdAt={card.created_at} form="compact" />

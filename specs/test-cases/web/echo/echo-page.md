@@ -1,6 +1,6 @@
 # 回响页核心测试用例
 
-当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[放大卡片里编辑和删除札记](../../../decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md)、[带空格的标签写成 `#[[词 词]]`](../../../decisions/web/echo/20261101-wrap-tags-with-spaces-in-double-brackets.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
+当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[放大卡片里编辑和删除札记](../../../decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md)、[带空格的标签写成 `#[[词 词]]`](../../../decisions/web/echo/20261101-wrap-tags-with-spaces-in-double-brackets.md)、[札记正文用 `==文字==` 高亮](../../../decisions/web/echo/20261113-highlight-text-with-double-equals-in-jottings.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
 
 ## Echo navigation must open the wide jotting page
 
@@ -182,3 +182,21 @@
 | 按 `n` 后立即输入的文字顺序不变（真实 Chromium） | Covered | `e2e/echo.spec.ts::keeps text typed right after n in order while the composer slides open`（改回 `overflow: hidden` 时稳定复现倒序） |
 
 决策依据：D6，“风险”中的抽屉裁剪方式。
+
+## Jotting bodies must highlight double equals and nothing else may
+
+风险：`==` 在所有页面生效，导入对话里的 `a==b and c==d` 被标成高亮；`a == b`、`===` 或转义的 `\==` 被误认成记号；全角标点挨着记号时配不成对；高亮内部的加粗、斜体没有解析；没配上的 `==` 连同文字一起丢失。前置：札记方言与默认方言分别渲染同一批正文。触发：渲染含成对记号、全角标点、嵌套格式、软换行、空白两侧、三个等号、转义、行内代码和未闭合记号的正文。
+
+必须成立：札记方言下成对的 `==文字==` 渲染为 `<mark>`，内部格式照常解析；其余情形原样显示；默认方言下 `==` 原样显示；瀑布流卡片、放大卡片和卡片组都用札记方言。禁止 `==` 在默认方言下生效，禁止未配对的 `==` 或其中的文字消失。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 成对记号渲染为 `<mark>`，含全角标点、嵌套格式与软换行 | Covered | `lib/remark-highlight-mark.test.tsx::marks %j` |
+| 空白两侧、`=` 与 `===`、转义、行内代码、未闭合的 `==` 原样显示 | Covered | `lib/remark-highlight-mark.test.tsx::leaves %j as text` |
+| 默认方言不认 `==` | Covered | `lib/remark-highlight-mark.test.tsx::keeps \`==\` as text outside jottings` |
+| 瀑布流卡片与放大卡片使用札记方言 | Covered | `pages/echo.test.tsx::highlights ==text== in a jotting on the wall and when zoomed` |
+| 卡片组的卡片使用札记方言 | Missing | 卡片组与瀑布流共用同一套正文渲染，但没有测试直接渲染卡片组里的高亮 |
+
+决策依据：`==` 高亮决策 D1、D2，不变量 1、2、3。

@@ -210,7 +210,11 @@ export function ZoomedJotting({
               <>
                 {jotting.title && <h3>{jotting.title}</h3>}
                 <div className="jot-body">
-                  <MarkdownContent content={jotting.body} images={ownMedia} />
+                  <MarkdownContent
+                    content={jotting.body}
+                    images={ownMedia}
+                    dialect="jotting"
+                  />
                 </div>
               </>
             )}

@@ -410,6 +410,26 @@ it("reads a wall jotting in full from its time, with its Palace pictures, and ha
   expect(card.querySelector("img")).toBeNull();
 });
 
+// specs/test-cases/web/echo/echo-page.md#jotting-bodies-must-highlight-double-equals-and-nothing-else-may
+it("highlights ==text== in a jotting on the wall and when zoomed", async () => {
+  serve([
+    jotting("h1", "夜里想到==最要紧的一句==，记下", ["想法"], at(21)),
+    ...wall,
+  ]);
+  const { user } = mountApp("/jottings");
+  const card = (await screen.findByText("最要紧的一句")).closest("article")!;
+  const marks = (root: Element) =>
+    [...root.querySelectorAll(".markdown mark")].map(
+      (mark) => mark.textContent,
+    );
+  expect(marks(card)).toEqual(["最要紧的一句"]);
+  expect(card.querySelector(".markdown")!.textContent).toBe(
+    "夜里想到最要紧的一句，记下",
+  );
+  await user.click(within(card).getByRole("button", { name: "放大" }));
+  expect(marks(await screen.findByRole("dialog"))).toEqual(["最要紧的一句"]);
+});
+
 // specs/test-cases/web/echo/echo-page.md#a-wall-jotting-must-open-in-full-by-its-time-and-come-back-as-it-was
 it("opens a body in place up to forty lines and reads a longer one in full", async () => {
   serve([

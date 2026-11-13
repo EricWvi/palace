@@ -89,7 +89,11 @@ export function JottingCard({
       {/* The fold classes change only in `toggle`: React rewriting them mid-transition would
           cut the animation short. */}
       <div ref={body} className="jot-body folded">
-        <MarkdownContent content={jotting.body} images={images} />
+        <MarkdownContent
+          content={jotting.body}
+          images={images}
+          dialect="jotting"
+        />
       </div>
       {length !== "fits" && (
         <button
