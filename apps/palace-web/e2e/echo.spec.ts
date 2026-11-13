@@ -556,3 +556,20 @@ test("a jotting longer than the screen never shows past its cap while it opens",
   expect(seen.length).toBeGreaterThan(5);
   expect(Math.max(...seen)).toBeLessThanOrEqual(900 * 0.8 + 1);
 });
+
+// Core test case: `specs/test-cases/web/echo/echo-page.md#a-wall-jotting-must-open-in-full-by-its-time-and-come-back-as-it-was`
+test("a wall card keeps its time on a line of its own below the tags", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await serve(page);
+  await page.goto("/jottings");
+  const card = page.locator('.wall [data-id="j0"]');
+  const tags = (await card.locator(".jot-tags").boundingBox())!;
+  const time = (await card
+    .getByRole("button", { name: "放大" })
+    .boundingBox())!;
+  // The time starts below the last line of tags and at the footer's left edge, as they do.
+  expect(time.y).toBeGreaterThanOrEqual(tags.y + tags.height);
+  expect(time.x).toBe(tags.x);
+});

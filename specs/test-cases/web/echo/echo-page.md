@@ -1,6 +1,6 @@
 # 回响页核心测试用例
 
-当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[放大卡片里编辑和删除札记](../../../decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md)、[带空格的标签写成 `#[[词 词]]`](../../../decisions/web/echo/20261101-wrap-tags-with-spaces-in-double-brackets.md)、[札记正文用 `==文字==` 高亮](../../../decisions/web/echo/20261113-highlight-text-with-double-equals-in-jottings.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
+当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[放大卡片里编辑和删除札记](../../../decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md)、[带空格的标签写成 `#[[词 词]]`](../../../decisions/web/echo/20261101-wrap-tags-with-spaces-in-double-brackets.md)、[瀑布流卡片的时间单独一行](../../../decisions/web/echo/20261113-put-a-wall-card-time-on-its-own-line-below-the-tags.md)、[札记正文用 `==文字==` 高亮](../../../decisions/web/echo/20261113-highlight-text-with-double-equals-in-jottings.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
 
 ## Echo navigation must open the wide jotting page
 
@@ -77,12 +77,13 @@
 | 验证义务 | 状态 | 代表性证据 |
 | --- | --- | --- |
 | 只有时间是放大入口，放大卡片显示完整时间，瀑布流时间没有提示 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
+| 瀑布流卡片的标签在上，时间单独在页脚最后一行（真实 Chromium） | Covered | `e2e/echo.spec.ts::a wall card keeps its time on a line of its own below the tags`（去掉分行样式时稳定失败） |
 | Escape 只关闭放大卡片，原卡片回到墙上 | Covered | `pages/echo.test.tsx::reads a wall jotting in full from its time, with its Palace pictures, and hands it back` |
 | 放大期间页面不随滚轮或翻页键滚动，瀑布流宽度不变，关闭后恢复滚动（真实 Chromium） | Covered | `e2e/echo.spec.ts::the page under a zoomed jotting does not scroll, and the wall keeps its width`（去掉锁定时稳定失败） |
 | 40 行以内原地展开，超过 40 行展开即放大 | Partial | `pages/echo.test.tsx::opens a body in place up to forty lines and reads a longer one in full`（jsdom 没有布局，正文高度与行高由测试替换） |
 | 回顾卡片直接关闭时留在卡片组，完成后才离开 | Covered | `pages/echo.test.tsx::takes a recall card out of the pile only when it is completed, and remembers it`，见 [Only completing a recall card may take it out of the pile](#only-completing-a-recall-card-may-take-it-out-of-the-pile) |
 
-决策依据：20261101 决策 D1–D3、D5，不变量 1–3、7。
+决策依据：20261101 决策 D1–D3、D5，不变量 1–3、7；时间单独一行决策 D1，不变量 1。
 
 ## Only a jotting read in full may load pictures, and only Palace media
 

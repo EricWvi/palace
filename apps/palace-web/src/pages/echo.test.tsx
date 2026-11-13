@@ -370,6 +370,15 @@ it("reads a wall jotting in full from its time, with its Palace pictures, and ha
   expect(within(card).getByText("[图片：硬币]")).toBeInTheDocument();
   expect(within(card).getByText("3 小时前")).not.toHaveAttribute("data-tip");
 
+  // The tags keep a line of their own, and the time, the way in, sits alone below them.
+  const foot = card.querySelector("footer")!;
+  expect(
+    [...foot.children].map((child) => [child.className, child.textContent]),
+  ).toEqual([
+    ["jot-tags", "#跑步"],
+    ["when", "3 小时前"],
+  ]);
+
   // The words are not a way in; the time is.
   await user.click(within(card).getByText("硬币动画"));
   expect(screen.queryByRole("dialog")).toBeNull();

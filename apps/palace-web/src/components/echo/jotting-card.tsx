@@ -105,7 +105,24 @@ export function JottingCard({
           {open ? "收起" : "展开"}
         </button>
       )}
+      {/* The tags take a line of their own above the time: side by side, a short relative time
+          read as one more tag and a click meant to open the card filtered the wall instead. */}
       <footer className="jot-foot">
+        {jotting.tags.length > 0 && (
+          <div className="jot-tags">
+            {jotting.tags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className="tag"
+                aria-current={tag === activeTag ? "true" : undefined}
+                onClick={() => onTag(tag)}
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+        )}
         <button
           type="button"
           className="when"
@@ -115,17 +132,6 @@ export function JottingCard({
         >
           <JottingTime createdAt={jotting.created_at} />
         </button>
-        {jotting.tags.map((tag) => (
-          <button
-            key={tag}
-            type="button"
-            className="tag"
-            aria-current={tag === activeTag ? "true" : undefined}
-            onClick={() => onTag(tag)}
-          >
-            #{tag}
-          </button>
-        ))}
       </footer>
     </article>
   );

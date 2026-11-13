@@ -264,6 +264,14 @@
   font-size: var(--font-size-xs);
 }
 
+/* A wall card's tags fill the first footer lines; the time, its way in, sits alone below. */
+.echo-card .jot-foot .jot-tags {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
 .echo-card .jot-foot .tag:hover {
   color: var(--text-2);
 }
