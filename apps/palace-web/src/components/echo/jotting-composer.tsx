@@ -10,9 +10,11 @@ import {
   suggestTags,
   tagFragment,
 } from "@/lib/jotting-draft";
+import { useImagePaste } from "./use-image-paste";
 
 // Writes a new jotting. `#tag` typed in the text becomes a tag, with known tags offered for the
-// fragment before the caret. Ctrl/Cmd+Enter saves; Escape or leaving the field puts away only an
+// fragment before the caret; a pasted picture is uploaded and written in place, and saving waits
+// for it. Ctrl/Cmd+Enter saves; Escape or leaving the field puts away only an
 // empty draft, so words are never lost to a stray key.
 export function JottingComposer({
   open,
@@ -31,6 +33,7 @@ export function JottingComposer({
   const [text, setText] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selected, setSelected] = useState(0);
+  const paste = useImagePaste(field, setText);
   const save = useMutation({
     mutationFn: (draft: string) => {
       const { tags, body } = parseDraft(draft);
@@ -75,7 +78,8 @@ export function JottingComposer({
   }
 
   function submit() {
-    if (parseDraft(text).body && !save.isPending) save.mutate(text);
+    if (parseDraft(text).body && !save.isPending && !paste.uploading)
+      save.mutate(text);
   }
 
   return (
@@ -89,6 +93,7 @@ export function JottingComposer({
           setText(event.target.value);
           suggestFor(event.target.value, event.target.selectionStart);
         }}
+        onPaste={paste.onPaste}
         onBlur={() => {
           if (!text.trim()) onClose();
         }}
@@ -142,9 +147,10 @@ export function JottingComposer({
           ))}
         </ul>
       )}
-      {save.isError && (
+      {paste.uploading && <p className="composer-note">图片上传中…</p>}
+      {(save.isError || paste.error) && (
         <p className="composer-error" role="alert">
-          {save.error.message}
+          {save.error?.message ?? paste.error}
         </p>
       )}
     </div>

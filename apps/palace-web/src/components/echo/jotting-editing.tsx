@@ -3,8 +3,10 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type ClipboardEvent,
   type KeyboardEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -16,6 +18,7 @@ import {
 } from "@/lib/api";
 import { fitTextarea } from "@/lib/fit-textarea";
 import { parseDraft, writeTag } from "@/lib/jotting-draft";
+import { useImagePaste } from "./use-image-paste";
 
 // How long 确认 waits for the second click before it is 削简 again.
 const CONFIRM_MS = 3000;
@@ -28,7 +31,8 @@ export type OwnSlips = { edit: ReactNode; remove: ReactNode };
 
 // Editing and deleting a zoomed jotting. 修订 turns the card into its own editor: the title in
 // one line, the body below it with the tags written back as `#tag` at its end, taken out again
-// on saving the way a new jotting's are. 削简 turns into 确认 and deletes only on a second
+// on saving the way a new jotting's are; a picture pasted into the body is uploaded and written
+// in place, and saving waits for it. 削简 turns into 确认 and deletes only on a second
 // click on the same slip, within three seconds of the first and before it loses focus. The
 // pointer leaving the slip does not disarm it: one wait serves both.
 // See specs/decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md.
@@ -41,6 +45,11 @@ export function useJottingEditing(
   const [start, setStart] = useState<Draft | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const body = useRef<HTMLTextAreaElement>(null);
+  // An upload that ends after the edit was left finds no draft and changes nothing.
+  const paste = useImagePaste(body, (edit) =>
+    setDraft((current) => current && { ...current, text: edit(current.text) }),
+  );
   const changed =
     draft !== null &&
     (draft.title !== start?.title || draft.text !== start?.text);
@@ -78,7 +87,8 @@ export function useJottingEditing(
   }
 
   function submit() {
-    if (!draft || save.isPending || conflicted(save.error)) return;
+    if (!draft || save.isPending || paste.uploading || conflicted(save.error))
+      return;
     const { tags, body } = parseDraft(draft.text);
     const title = draft.title.trim() || null;
     // Nothing the card shows would change: back to reading, without asking the server.
@@ -117,7 +127,9 @@ export function useJottingEditing(
       : draft
         ? "保存失败"
         : "删除失败"
-    : null;
+    : draft && paste.uploading
+      ? "图片上传中…"
+      : draft && paste.error;
 
   const fields = draft && (
     <div className="jot-editor">
@@ -133,7 +145,9 @@ export function useJottingEditing(
         }}
       />
       <Body
+        field={body}
         value={draft.text}
+        onPaste={paste.onPaste}
         onChange={(text) => setDraft({ ...draft, text })}
         onKeyDown={onFieldKey}
       />
@@ -170,7 +184,7 @@ export function useJottingEditing(
     <button
       key="save"
       type="button"
-      disabled={busy || conflicted(save.error)}
+      disabled={busy || paste.uploading || conflicted(save.error)}
       onClick={submit}
     >
       保存
@@ -198,15 +212,18 @@ export function useJottingEditing(
 
 // The body field grows with its text; past the card's cap the card scrolls instead.
 function Body({
+  field,
   value,
   onChange,
+  onPaste,
   onKeyDown,
 }: {
+  field: RefObject<HTMLTextAreaElement | null>;
   value: string;
   onChange: (text: string) => void;
+  onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onKeyDown: (event: KeyboardEvent) => void;
 }) {
-  const field = useRef<HTMLTextAreaElement>(null);
   // Opens with the caret at the end of the words, before the tags written back after them.
   useEffect(() => {
     const element = field.current;
@@ -215,16 +232,17 @@ function Body({
     const tags = element.value.match(/\n\n#[^\s#][^\n]*$/);
     const caret = tags ? tags.index! : element.value.length;
     element.setSelectionRange(caret, caret);
-  }, []);
+  }, [field]);
   useLayoutEffect(() => {
     if (field.current) fitTextarea(field.current);
-  }, [value]);
+  }, [field, value]);
   return (
     <textarea
       ref={field}
       aria-label="正文"
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      onPaste={onPaste}
       onKeyDown={onKeyDown}
     />
   );

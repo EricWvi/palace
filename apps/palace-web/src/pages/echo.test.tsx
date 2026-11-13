@@ -68,7 +68,8 @@ type Kept = { done: Set<string> };
 // Serves the 回响 reads and records every list query, upload and recall write, so tests can
 // tell what reached the server and when. An upload joins the wall; a completed card stays done
 // across visits when the same `kept` is passed again. `fail` makes the next completion fail;
-// `conflict` answers the next edit or deletion with 409, `broken` with 500.
+// `conflict` answers the next edit or deletion with 409, `broken` with 500. A media upload
+// waits in `held` until the test answers it.
 function serve(
   initial: ListedJotting[] = wall,
   kept: Kept = { done: new Set() },
@@ -79,6 +80,7 @@ function serve(
   const recalls: { path: string; body: unknown }[] = [];
   const writes: { method: string; path: string; body?: unknown }[] = [];
   const control = { fail: false, conflict: false, broken: false };
+  const held: ((answer: Response) => void)[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const request = testRequest(url);
     const path = requestPath(url);
@@ -136,6 +138,8 @@ function serve(
       );
       return Response.json({ version: "2" });
     }
+    if (path === "/api/media" && request.method === "POST")
+      return new Promise<Response>((resolve) => held.push(resolve));
     if (path === "/api/jottings" && request.method === "POST") {
       const body = (await request.json()) as Record<string, unknown>;
       uploads.push(body);
@@ -178,7 +182,7 @@ function serve(
       });
     throw new Error(`unexpected request ${path}`);
   });
-  return { queries, uploads, recalls, writes, control, kept };
+  return { queries, uploads, recalls, writes, control, kept, held };
 }
 
 beforeEach(() => {
@@ -672,6 +676,74 @@ it("edits a zoomed jotting in place with its tags written back, and never drops 
   await user.click(slips().getByRole("button", { name: "保存" }));
   await waitFor(() => expect(within(dialog).queryByRole("textbox")).toBeNull());
   expect(writes).toHaveLength(4);
+});
+
+// Answers the oldest upload still waiting with the picture stored under `id`.
+async function store(held: ((answer: Response) => void)[], id: string) {
+  await waitFor(() => expect(held).toHaveLength(1));
+  await act(async () =>
+    held.shift()!(
+      Response.json(
+        {
+          id,
+          content_type: "image/png",
+          byte_size: 1,
+          file_name: "image.png",
+          created_at: 0,
+        },
+        { status: 201 },
+      ),
+    ),
+  );
+}
+
+const screenshot = () => new File(["x"], "image.png", { type: "image/png" });
+const media = "01a169c8-2109-774d-a490-e8537c284595";
+
+// specs/test-cases/web/echo/echo-page.md#a-pasted-picture-must-become-palace-media-in-place
+it("pastes a picture into a new jotting and into an edit, and saves only once it is stored", async () => {
+  const { uploads, writes, held } = serve();
+  const { user } = mountApp("/jottings");
+  await screen.findByText("Arc 写多了要警惕");
+
+  // A new jotting: saving waits for the picture, then carries its address.
+  await user.keyboard("n");
+  const field = screen.getByRole("textbox", { name: "新札记" });
+  await user.type(field, "截图");
+  fireEvent.paste(field, { clipboardData: { files: [screenshot()] } });
+  expect(screen.getByText("图片上传中…")).toBeInTheDocument();
+  await user.keyboard("{Control>}{Enter}{/Control}");
+  expect(uploads).toEqual([]);
+  await store(held, media);
+  expect(field).toHaveValue(`截图![image.png](/api/media/${media})`);
+  await user.keyboard("{Control>}{Enter}{/Control}");
+  await waitFor(() => expect(uploads).toHaveLength(1));
+  expect(uploads[0].body).toBe(`截图![image.png](/api/media/${media})`);
+
+  // An edit of a zoomed jotting: 保存 waits the same way.
+  const card = (await screen.findByText("坂本龙一的 Aqua")).closest("article")!;
+  await user.click(within(card).getByRole("button", { name: "放大" }));
+  const dialog = await screen.findByRole("dialog");
+  const actions = within(dialog.parentElement!.querySelector(".zoom-actions")!);
+  await user.click(actions.getByRole("button", { name: "修订" }));
+  const body = within(dialog).getByRole<HTMLTextAreaElement>("textbox", {
+    name: "正文",
+  });
+  body.setSelectionRange(0, 0);
+  fireEvent.paste(body, { clipboardData: { files: [screenshot()] } });
+  expect(actions.getByRole("button", { name: "保存" })).toBeDisabled();
+  expect(within(dialog.parentElement!).getByRole("alert")).toHaveTextContent(
+    "图片上传中…",
+  );
+  await store(held, media);
+  await user.click(actions.getByRole("button", { name: "保存" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].body).toEqual({
+    version: "1",
+    title: null,
+    tags: ["音乐"],
+    body: `![image.png](/api/media/${media})坂本龙一的 Aqua`,
+  });
 });
 
 // specs/test-cases/web/echo/echo-page.md#deleting-a-jotting-must-take-two-clicks-on-the-same-slip

@@ -1,6 +1,6 @@
 # 回响页核心测试用例
 
-当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[放大卡片里编辑和删除札记](../../../decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md)、[带空格的标签写成 `#[[词 词]]`](../../../decisions/web/echo/20261101-wrap-tags-with-spaces-in-double-brackets.md)、[瀑布流卡片的时间单独一行](../../../decisions/web/echo/20261113-put-a-wall-card-time-on-its-own-line-below-the-tags.md)、[札记正文用 `==文字==` 高亮](../../../decisions/web/echo/20261113-highlight-text-with-double-equals-in-jottings.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
+当前决策：[回响页](../../../decisions/web/echo/0-jotting-wall-with-daily-recall-pile.md)、[瀑布流的札记点时间放大](../../../decisions/web/echo/20261101-zoom-wall-jottings-by-their-time-and-load-palace-media.md)、[回顾按完成次数最少者优先抽取](../../../decisions/web/echo/20261101-recall-least-completed-first-from-a-stored-daily-pile.md)、[放大卡片里编辑和删除札记](../../../decisions/web/echo/20261101-edit-and-delete-a-zoomed-jotting-with-title-slips.md)、[带空格的标签写成 `#[[词 词]]`](../../../decisions/web/echo/20261101-wrap-tags-with-spaces-in-double-brackets.md)、[瀑布流卡片的时间单独一行](../../../decisions/web/echo/20261113-put-a-wall-card-time-on-its-own-line-below-the-tags.md)、[粘贴的图片上传为 Palace 媒体](../../../decisions/web/echo/20261113-paste-pictures-into-jottings-as-palace-media.md)、[札记正文用 `==文字==` 高亮](../../../decisions/web/echo/20261113-highlight-text-with-double-equals-in-jottings.md)。服务端读取接口的承诺见[札记读取接口](jotting-reading.md)；本文件只记录页面行为。
 
 ## Echo navigation must open the wide jotting page
 
@@ -201,3 +201,21 @@
 | 卡片组的卡片使用札记方言 | Missing | 卡片组与瀑布流共用同一套正文渲染，但没有测试直接渲染卡片组里的高亮 |
 
 决策依据：`==` 高亮决策 D1、D2，不变量 1、2、3。
+
+## A pasted picture must become Palace media in place
+
+风险：粘贴图片后什么都没有发生，或图片的 data URL 写进了正文；上传期间输入的文字让图片插错位置，或光标跳到末尾；上传还没完成就保存，占位被写进札记文件；上传失败后占位留在正文里；普通的文字粘贴也被拦下。前置：回响页已加载，媒体上传接口可以按测试控制何时应答。触发：在新建框和放大卡片的修订正文中粘贴截图；上传期间继续输入并尝试保存；一次粘贴多张图片和一个非图片文件，其中一张上传失败；粘贴不含图片的内容。
+
+必须成立：每张图片以文件名为 alt、以 `/api/media/<id>` 为地址写在粘贴处，多张各占一行；上传期间输入的文字和光标位置不受替换影响；上传期间新建和修订都不保存，完成后保存的正文含图片地址；上传失败时占位删除并提示原因；没有图片时不拦截粘贴、不发请求。禁止把占位或 data URL 保存进札记。
+
+验证义务与证据：
+
+| 验证义务 | 状态 | 代表性证据 |
+| --- | --- | --- |
+| 只取 `image/*` 文件，文件名转义后作 alt，缺名时用 `image.<子类型>` | Covered | `lib/pasted-images.test.ts::takes only the image files off a paste and names them` |
+| 占位原地替换为媒体地址，上传期间的输入与光标保持（jsdom） | Covered | `components/echo/use-image-paste.test.tsx::writes a pasted picture in place once stored, while typing goes on`（去掉光标恢复时稳定失败） |
+| 多张各占一行、非图片忽略、失败时删除占位并提示 | Covered | `components/echo/use-image-paste.test.tsx::uploads each pasted picture on its own line and drops one that fails` |
+| 新建框与修订框上传期间不保存，完成后保存的正文含图片地址 | Covered | `pages/echo.test.tsx::pastes a picture into a new jotting and into an edit, and saves only once it is stored` |
+| 剪贴板里真实的截图和文件在浏览器中被识别为图片文件（真实浏览器剪贴板） | Missing | 测试以构造的剪贴板数据触发粘贴，没有经过真实系统剪贴板 |
+
+决策依据：粘贴图片决策 D1、D2，不变量 1–4。
