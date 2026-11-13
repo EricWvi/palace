@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -13,6 +14,7 @@ import {
   patchJotting,
   type ListedJotting,
 } from "@/lib/api";
+import { fitTextarea } from "@/lib/fit-textarea";
 import { parseDraft, writeTag } from "@/lib/jotting-draft";
 
 // How long 确认 waits for the second click before it is 削简 again.
@@ -214,11 +216,8 @@ function Body({
     const caret = tags ? tags.index! : element.value.length;
     element.setSelectionRange(caret, caret);
   }, []);
-  useEffect(() => {
-    const element = field.current;
-    if (!element) return;
-    element.style.height = "auto";
-    element.style.height = `${element.scrollHeight}px`;
+  useLayoutEffect(() => {
+    if (field.current) fitTextarea(field.current);
   }, [value]);
   return (
     <textarea

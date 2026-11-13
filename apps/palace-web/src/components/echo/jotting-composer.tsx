@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { v7 as uuidv7 } from "uuid";
 import { api, apiData, refreshJottings } from "@/lib/api";
+import { fitTextarea } from "@/lib/fit-textarea";
 import {
   completeTag,
   parseDraft,
@@ -51,11 +52,8 @@ export function JottingComposer({
     if (open) field.current?.focus({ preventScroll: true });
   }, [open]);
   // The field grows with its text instead of scrolling inside itself.
-  useEffect(() => {
-    const element = field.current;
-    if (!element) return;
-    element.style.height = "auto";
-    element.style.height = `${element.scrollHeight}px`;
+  useLayoutEffect(() => {
+    if (field.current) fitTextarea(field.current);
   }, [text]);
 
   function suggestFor(value: string, caret: number) {

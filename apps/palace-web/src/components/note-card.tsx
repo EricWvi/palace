@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type CSSProperties, type Ref } from "react";
 import { markKind, type AnnotationStyle } from "@/lib/annotation-paint";
+import { fitTextarea } from "@/lib/fit-textarea";
 
 // The card's left rule takes its mark's colour; pale highlighter grounds are deepened to show.
 export function swatch(style: AnnotationStyle | null) {
@@ -43,10 +44,7 @@ export function NoteCard({
   const field = useRef<HTMLTextAreaElement>(null);
   // The field grows with its text; the caret starts after what is already written.
   useLayoutEffect(() => {
-    const element = field.current;
-    if (!element) return;
-    element.style.height = "0";
-    element.style.height = `${element.scrollHeight}px`;
+    if (field.current) fitTextarea(field.current);
   });
   useLayoutEffect(() => {
     const element = field.current;
@@ -78,11 +76,7 @@ export function NoteCard({
           placeholder="写下批注…"
           defaultValue={note}
           rows={1}
-          onInput={(event) => {
-            const element = event.currentTarget;
-            element.style.height = "0";
-            element.style.height = `${element.scrollHeight}px`;
-          }}
+          onInput={(event) => fitTextarea(event.currentTarget)}
           onBlur={(event) => onFinish(event.currentTarget.value.trim())}
           onKeyDown={(event) => {
             if (
