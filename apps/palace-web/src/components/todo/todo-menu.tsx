@@ -107,6 +107,12 @@ export function MoreEntries({
           align="end"
           sideOffset={4}
           onCloseAutoFocus={(event) => {
+            // The menu is gone by now, so focus off the page body was taken by what the entry
+            // opened, such as 改名's field; moving it would blur that field and close it.
+            if (document.activeElement !== document.body) {
+              event.preventDefault();
+              return;
+            }
             if (
               document.querySelector('[role="dialog"]') ||
               input.current === "pointer"
