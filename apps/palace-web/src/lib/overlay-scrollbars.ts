@@ -107,11 +107,15 @@ export function installOverlayScrollbars() {
     const { scroller, axis, node } = thumb;
     const track = trackOf(scroller);
     const vertical = axis === "vertical";
-    const geometry = thumbGeometry(
-      vertical ? track.height : track.width,
-      vertical ? scroller.scrollHeight : scroller.scrollWidth,
-      scrollPosition(scroller, axis),
-    );
+    // A box that stops being scrollable, like a zoomed card clipping its overflow as it shrinks
+    // back, takes its thumb away at once instead of leaving it where the box was.
+    const geometry = userScrollable(scroller, axis)
+      ? thumbGeometry(
+          vertical ? track.height : track.width,
+          vertical ? scroller.scrollHeight : scroller.scrollWidth,
+          scrollPosition(scroller, axis),
+        )
+      : null;
     node.hidden = geometry === null;
     if (!geometry) return geometry;
     // The thumb hangs inside the far edge of the track; CSS sets its thickness and inset.
@@ -134,6 +138,14 @@ export function installOverlayScrollbars() {
       thumb.node.remove();
       thumbs.splice(index, 1);
     }
+    // Boxes also move and resize without scrolling, as an animated card does, and nothing else
+    // reports that; a shown thumb follows its box each frame until it fades.
+    if (
+      thumbs.some(
+        ({ node }) => node.dataset.visible !== undefined && !node.hidden,
+      )
+    )
+      schedule();
   };
   const schedule = () => {
     if (!frame) frame = requestAnimationFrame(placeAll);
